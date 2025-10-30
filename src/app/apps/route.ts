@@ -1,4 +1,3 @@
-Set-Content -Path ".\src\app\apps\route.ts" -Value @'
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/tokens";
 
@@ -14,6 +13,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
 
-  return NextResponse.json({ apps: ["keyword-intel", "shop-insights"] }, { status: 200 });
+  return NextResponse.json(
+    {
+      apps: [
+        { id: "keyword-intel", name: "Keyword Intelligence" },
+        { id: "shop-insights", name: "Shop Insights" }
+      ]
+    },
+    { status: 200 }
+  );
 }
-'@
