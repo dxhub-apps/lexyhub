@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ColumnDef,
   flexRender,
@@ -8,11 +8,25 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
+import { useToast } from "@/components/ui/ToastProvider";
+
 type Metric = {
   area: string;
   status: "configured" | "pending";
   owner: string;
   notes: string;
+};
+
+type UsageSummary = {
+  plan: string;
+  momentum: string;
+  limits: {
+    dailyQueryLimit: number;
+    aiSuggestionLimit: number;
+    watchlistLimit: number;
+    watchlistItemCapacity: number;
+  };
+  usage: Record<string, number>;
 };
 
 const DATA: Metric[] = [
@@ -80,21 +94,72 @@ export default function DashboardPage() {
     getCoreRowModel: getCoreRowModel(),
   });
 
+  const { push } = useToast();
+  const [usage, setUsage] = useState<UsageSummary | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const load = async () => {
+      try {
+        const response = await fetch("/api/usage/summary");
+        if (!response.ok) {
+          throw new Error(`Usage summary failed (${response.status})`);
+        }
+        const json = (await response.json()) as UsageSummary;
+        if (isMounted) {
+          setUsage(json);
+        }
+      } catch (error) {
+        console.error("Failed to load usage summary", error);
+        push({
+          title: "Usage summary unavailable",
+          description: error instanceof Error ? error.message : "Unknown error",
+          tone: "warning",
+        });
+      }
+    };
+
+    void load();
+    return () => {
+      isMounted = false;
+    };
+  }, [push]);
+
+  const usageCards = useMemo(() => {
+    if (!usage) {
+      return [
+        { label: "Plan", value: "Loading…" },
+        { label: "AI Suggestions", value: "—" },
+        { label: "Watchlist Capacity", value: "—" },
+      ];
+    }
+
+    const aiConsumed = usage.usage?.ai_suggestion ?? 0;
+    const aiRemaining = Math.max(usage.limits.aiSuggestionLimit - aiConsumed, 0);
+    const watchlistAdds = usage.usage?.watchlist_add ?? 0;
+
+    return [
+      { label: "Plan", value: `${usage.plan} · ${usage.momentum}` },
+      {
+        label: "AI Suggestions",
+        value: `${aiConsumed}/${usage.limits.aiSuggestionLimit} used (≅ ${aiRemaining} left)`,
+      },
+      {
+        label: "Watchlist Adds",
+        value: `${watchlistAdds}/${usage.limits.watchlistItemCapacity} today`,
+      },
+    ];
+  }, [usage]);
+
   return (
     <div>
       <div className="metrics-grid">
-        <div className="metric-card">
-          <span>Supabase</span>
-          <strong>pgvector enabled</strong>
-        </div>
-        <div className="metric-card">
-          <span>CI Coverage</span>
-          <strong>Build · Test · Lint</strong>
-        </div>
-        <div className="metric-card">
-          <span>Environments</span>
-          <strong>.env templates</strong>
-        </div>
+        {usageCards.map((card) => (
+          <div key={card.label} className="metric-card">
+            <span>{card.label}</span>
+            <strong>{card.value}</strong>
+          </div>
+        ))}
       </div>
       <table>
         <thead>

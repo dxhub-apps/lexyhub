@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { useToast } from "@/components/ui/ToastProvider";
+
 type KeywordResult = {
   id?: string;
   term: string;
@@ -27,6 +29,13 @@ type SearchResponse = {
   };
 };
 
+type TagOptimizerResult = {
+  tags: string[];
+  reasoning: string;
+  confidence: number;
+  model: string;
+};
+
 export default function KeywordsPage(): JSX.Element {
   const [query, setQuery] = useState("handmade jewelry");
   const [results, setResults] = useState<KeywordResult[]>([]);
@@ -35,6 +44,14 @@ export default function KeywordsPage(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [lastQuery, setLastQuery] = useState<string>("");
   const [bootstrapped, setBootstrapped] = useState(false);
+
+  const [optimizerOpen, setOptimizerOpen] = useState(false);
+  const [optimizerLoading, setOptimizerLoading] = useState(false);
+  const [optimizerResult, setOptimizerResult] = useState<TagOptimizerResult | null>(null);
+  const [optimizerError, setOptimizerError] = useState<string | null>(null);
+  const [selectedKeyword, setSelectedKeyword] = useState<KeywordResult | null>(null);
+
+  const { push } = useToast();
 
   const performSearch = useCallback(
     async (term: string) => {
@@ -61,6 +78,72 @@ export default function KeywordsPage(): JSX.Element {
         setError(err instanceof Error ? err.message : "Unexpected error occurred");
       } finally {
         setLoading(false);
+      }
+    },
+    [],
+  );
+
+  const handleWatchlist = useCallback(
+    async (keyword: KeywordResult) => {
+      try {
+        const response = await fetch("/api/watchlists/add", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ keywordId: keyword.id, watchlistName: "Lexy Tracking" }),
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload.error ?? `Unable to add keyword (${response.status})`);
+        }
+        push({
+          title: "Added to watchlist",
+          description: `\"${keyword.term}\" is now monitored.`,
+          tone: "success",
+        });
+      } catch (err) {
+        console.error("Failed to add keyword to watchlist", err);
+        push({
+          title: "Watchlist error",
+          description: err instanceof Error ? err.message : "Unexpected error",
+          tone: "error",
+        });
+      }
+    },
+    [push],
+  );
+
+  const handleOptimize = useCallback(
+    async (keyword: KeywordResult) => {
+      setSelectedKeyword(keyword);
+      setOptimizerOpen(true);
+      setOptimizerLoading(true);
+      setOptimizerResult(null);
+      setOptimizerError(null);
+      try {
+        const response = await fetch("/api/ai/tag-optimizer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            keywordId: keyword.id,
+            listingTitle: keyword.term,
+            market: keyword.market,
+            currentTags: keyword.extras?.["tags"] as string[] | undefined,
+            goals: ["visibility", "conversion"],
+          }),
+        });
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload.error ?? `Optimizer request failed (${response.status})`);
+        }
+
+        const payload = (await response.json()) as TagOptimizerResult;
+        setOptimizerResult(payload);
+      } catch (err) {
+        console.error("Failed to optimize tags", err);
+        setOptimizerError(err instanceof Error ? err.message : "Unexpected error");
+      } finally {
+        setOptimizerLoading(false);
       }
     },
     [],
@@ -164,8 +247,13 @@ export default function KeywordsPage(): JSX.Element {
                         ? new Date(keyword.freshness_ts).toLocaleDateString()
                         : "Pending"}
                     </td>
-                    <td>
-                      <button className="keyword-watch">Add to Watchlist</button>
+                    <td className="keyword-actions">
+                      <button className="keyword-watch" onClick={() => handleWatchlist(keyword)}>
+                        Add to Watchlist
+                      </button>
+                      <button className="keyword-optimize" onClick={() => void handleOptimize(keyword)}>
+                        Optimize Tags
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -214,6 +302,56 @@ export default function KeywordsPage(): JSX.Element {
           </aside>
         </div>
       )}
+
+      {optimizerOpen ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="modal">
+            <header>
+              <h2>Tag Optimizer</h2>
+              <button
+                type="button"
+                className="modal-close"
+                aria-label="Close optimizer"
+                onClick={() => setOptimizerOpen(false)}
+              >
+                ×
+              </button>
+            </header>
+            <div className="modal-body">
+              {selectedKeyword ? (
+                <p className="modal-subtitle">
+                  Keyword context: <strong>{selectedKeyword.term}</strong> ({selectedKeyword.market})
+                </p>
+              ) : null}
+              {optimizerLoading ? <p>Generating AI suggestions…</p> : null}
+              {optimizerError ? <p className="modal-error">{optimizerError}</p> : null}
+              {optimizerResult ? (
+                <div className="optimizer-result">
+                  <h3>
+                    Suggested Tags <span>({optimizerResult.model})</span>
+                  </h3>
+                  <ul>
+                    {optimizerResult.tags.map((tag) => (
+                      <li key={tag}>
+                        <code>{tag}</code>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="optimizer-reasoning">{optimizerResult.reasoning}</p>
+                  <p className="optimizer-confidence">
+                    Confidence: {(optimizerResult.confidence * 100).toFixed(0)}%
+                  </p>
+                </div>
+              ) : null}
+            </div>
+            <footer>
+              <button type="button" className="keyword-watch" onClick={() => setOptimizerOpen(false)}>
+                Close
+              </button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
