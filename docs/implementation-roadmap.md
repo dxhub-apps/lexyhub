@@ -49,21 +49,21 @@ Each sprint lists epics, cross-functional tasks, acceptance criteria, and instru
 **Objectives:** Synthetic keyword dataset ingestion, embeddings, keyword intelligence search with AI summary.
 
 - **S1-E1 Synthetic Dataset Loader**
-  - [ ] Build CLI importer (`src/lib/synthetic/import.ts`) to load open taxonomies into `keyword_seeds`, `keywords`, `embeddings`.
-  - [ ] Implement cleaning utilities (lowercase, dedupe, normalization).
-  - [ ] Store provenance (`source='synthetic'`, `method='synthetic-ai'`).
+  - [x] Build CLI importer (`src/lib/synthetic/import.ts`) to load open taxonomies into `keyword_seeds`, `keywords`, `embeddings`.
+  - [x] Implement cleaning utilities (lowercase, dedupe, normalization).
+  - [x] Store provenance (`source='synthetic'`, `method='synthetic-ai'`).
 - **S1-E2 Embedding Pipeline**
-  - [ ] Implement `src/lib/ai/embeddings.ts` with caching by `term_hash` and OpenAI call.
-  - [ ] Background job (Vercel Cron) to embed missing terms hourly.
-  - [ ] Unit tests covering caching and API failure handling.
+  - [x] Implement `src/lib/ai/embeddings.ts` with caching by `term_hash` and OpenAI call.
+  - [x] Background job (Vercel Cron) to embed missing terms hourly.
+  - [x] Unit tests covering caching and API failure handling.
 - **S1-E3 Keyword Intelligence API**
-  - [ ] Create API route `/api/keywords/search` (Next.js route handler) returning ranked results.
-  - [ ] Integrate pgvector similarity search for neighbors.
-  - [ ] Add AI explanation call to GPT for top cluster summary.
+  - [x] Create API route `/api/keywords/search` (Next.js route handler) returning ranked results.
+  - [x] Integrate pgvector similarity search for neighbors.
+  - [x] Add AI explanation call to GPT for top cluster summary.
 - **S1-E4 UI Delivery**
-  - [ ] Build Keywords page table (columns: term, source, scores, add-to-watchlist).
-  - [ ] Add AI Insights side panel with summary and `trend_series` sparkline placeholder.
-  - [ ] Include compliance info (source, freshness, method).
+  - [x] Build Keywords page table (columns: term, source, scores, add-to-watchlist).
+  - [x] Add AI Insights side panel with summary and `trend_series` sparkline placeholder.
+  - [x] Include compliance info (source, freshness, method).
 - **Exit Criteria:** Synthetic dataset searchable with AI explanations, embeddings stored, UI demonstrates insights with explainability.
 
 ### Sprint 2 — AI Enhancement & Watchlists

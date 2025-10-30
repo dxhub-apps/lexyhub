@@ -6,6 +6,7 @@ import { useMemo, type ReactNode } from "react";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/keywords", label: "Keywords" },
   { href: "/insights", label: "Insights" },
   { href: "/settings", label: "Settings" },
 ];
@@ -18,7 +19,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="app-shell">
       <aside className="sidebar">
         <div>
-          <span className="badge">Sprint 0 Ready</span>
+          <span className="badge">Sprint 1 — Synthetic Intelligence</span>
         </div>
         {nav.map((item) => (
           <Link

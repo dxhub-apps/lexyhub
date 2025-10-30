@@ -1,0 +1,12 @@
+[
+  { "term": "Handmade Jewelry", "category": "Accessories", "market": "us", "priority": 5 },
+  { "term": "Minimalist Wall Art", "category": "Home Decor", "market": "us", "priority": 4 },
+  { "term": "Custom Pet Portrait", "category": "Gifts", "market": "us", "priority": 4 },
+  { "term": "Boho Nursery Decor", "category": "Home Decor", "market": "us", "priority": 3 },
+  { "term": "Organic Skincare Set", "category": "Beauty", "market": "us", "priority": 3 },
+  { "term": "Upcycled Denim Bag", "category": "Sustainable", "market": "us", "priority": 2 },
+  { "term": "Aromatherapy Candle", "category": "Wellness", "market": "us", "priority": 3 },
+  { "term": "Laser Cut Invitation", "category": "Weddings", "market": "us", "priority": 2 },
+  { "term": "Artisan Coffee Blend", "category": "Food", "market": "us", "priority": 3 },
+  { "term": "3D Printed Planter", "category": "Home Decor", "market": "us", "priority": 2 }
+]
