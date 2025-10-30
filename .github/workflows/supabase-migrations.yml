@@ -33,31 +33,32 @@ jobs:
           sudo apt-get install -y postgresql-client
 
       - name: Clear prepared statements
-        run: |
-          psql "$SUPABASE_DB_URL" -c "DEALLOCATE ALL;"
+        run: psql "$SUPABASE_DB_URL" -c "DEALLOCATE ALL;"
 
       - name: Ensure migrations dir
         run: mkdir -p supabase/migrations
 
       - name: Run migrations
         id: run_migrations
-        run: |
-          set -e
-          supabase db push --db-url "$SUPABASE_DB_URL"
+        run: supabase db push --db-url "$SUPABASE_DB_URL"
         continue-on-error: true
 
       - name: Record migration run
         if: always()
+        env:
+          RUN_OUTCOME: ${{ steps.run_migrations.outcome }}
         run: |
-          STATUS="success"
-          MSG="applied"
-          if [ "${{ steps.run_migrations.outcome }}" != "success" ]; then
+          if [ "$RUN_OUTCOME" = "success" ]; then
+            STATUS="success"
+            MSG="applied"
+          else
             STATUS="failure"
             MSG="supabase db push failed"
           fi
-          psql "$SUPABASE_DB_URL" <<'SQL'
+
+          psql "$SUPABASE_DB_URL" <<SQL
 insert into public.schema_migrations_ci (git_sha, actor, workflow, status, message)
-values ('${GIT_SHA}', '${ACTOR}', '${WORKFLOW}', '${STATUS}', '${MSG}');
+values ('$GIT_SHA', '$ACTOR', '$WORKFLOW', '$STATUS', '$MSG');
 SQL
 
       - name: Fail if migrations failed
