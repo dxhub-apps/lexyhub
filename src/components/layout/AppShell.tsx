@@ -36,10 +36,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div>
             <strong>LexyHub Control Center</strong>
           </div>
-          <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-            <span style={{ fontSize: "0.85rem", color: "#cbd5f5" }}>
-              Environment: {process.env.NODE_ENV}
-            </span>
+          <div className="topbar-env">
+            <span>Environment:</span>
+            <span>{process.env.NODE_ENV}</span>
           </div>
         </header>
         <main className="content-inner">{children}</main>

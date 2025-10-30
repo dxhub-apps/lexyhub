@@ -84,6 +84,7 @@ Each sprint lists epics, cross-functional tasks, acceptance criteria, and instru
 - **S2-E4 UX Polish**
   - [ ] Toast system per design tokens.
   - [ ] Responsive sidebar collapse with tooltips.
+  - [x] Compact typography tokens with multilingual font stack (Figtree/Poppins) for denser layouts.
 - **Exit Criteria:** Users can optimize tags, maintain watchlists, and stay within plan limits; AI flows are explainable and logged.
 
 ### Sprint 3 — Amazon Data Integration

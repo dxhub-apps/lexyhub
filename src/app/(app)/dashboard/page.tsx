@@ -56,7 +56,14 @@ export default function DashboardPage() {
           const value = getValue<Metric["status"]>();
           const color = value === "configured" ? "#34d399" : "#f87171";
           return (
-            <span style={{ color, fontWeight: 600, textTransform: "capitalize" }}>
+            <span
+              style={{
+                color,
+                fontWeight: 600,
+                textTransform: "capitalize",
+                fontSize: "var(--font-size-small)",
+              }}
+            >
               {value}
             </span>
           );
