@@ -2,8 +2,33 @@ import { generateStatusReport, type StatusLevel } from "@/lib/status";
 
 export const dynamic = "force-dynamic";
 
+const STATUS_LABELS: Record<StatusLevel, string> = {
+  operational: "Operational",
+  warning: "Warning",
+  critical: "Critical",
+};
+
 function StatusBadge({ status }: { status: StatusLevel }) {
-  return <span className={`status-badge status-badge--${status}`}>{status}</span>;
+  return (
+    <span className={`status-badge status-badge--${status}`}>
+      <span className={`status-badge__dot status-badge__dot--${status}`} aria-hidden="true" />
+      {STATUS_LABELS[status]}
+    </span>
+  );
+}
+
+function getOverallStatus(report: Awaited<ReturnType<typeof generateStatusReport>>): StatusLevel {
+  const priority: Record<StatusLevel, number> = {
+    operational: 0,
+    warning: 1,
+    critical: 2,
+  };
+
+  const checks = [...report.apis, ...report.services];
+
+  return checks.reduce<StatusLevel>((current, { status }) => {
+    return priority[status] > priority[current] ? status : current;
+  }, "operational");
 }
 
 function formatSeconds(seconds: number): string {
@@ -21,31 +46,45 @@ function formatSeconds(seconds: number): string {
 
 export default async function StatusPage() {
   const status = await generateStatusReport();
+  const overallStatus = getOverallStatus(status);
+  const generatedAt = new Date(status.generatedAt);
 
   return (
     <div className="status-page">
-      <header className="status-header">
-        <div>
-          <h1>Platform Status</h1>
+      <section className="status-header">
+        <div className="status-header__copy">
+          <span className="status-eyebrow">LexyHub</span>
+          <h1>Platform health</h1>
           <p>
-            Real-time visibility into LexyHub configuration, critical services, and API
-            availability.
+            A compact snapshot of runtime diagnostics, first-party APIs, and service integrations
+            monitored from the server.
           </p>
         </div>
-        <div className="status-summary">
-          <div>
-            <span>Last Updated</span>
-            <strong>{new Date(status.generatedAt).toLocaleString()}</strong>
+        <dl className="status-meta">
+          <div className="status-meta__item">
+            <dt>Overall</dt>
+            <dd>
+              <StatusBadge status={overallStatus} />
+            </dd>
           </div>
-          <div>
-            <span>Environment</span>
-            <strong>{status.environment}</strong>
+          <div className="status-meta__item">
+            <dt>Last updated</dt>
+            <dd>
+              <time dateTime={status.generatedAt}>{generatedAt.toLocaleString()}</time>
+            </dd>
           </div>
-        </div>
-      </header>
+          <div className="status-meta__item">
+            <dt>Environment</dt>
+            <dd>{status.environment}</dd>
+          </div>
+        </dl>
+      </section>
 
       <section className="status-section">
-        <h2>Runtime</h2>
+        <div className="status-section__header">
+          <h2>Runtime snapshot</h2>
+          <p>Key diagnostics from the current deployment.</p>
+        </div>
         <div className="status-grid">
           <article className="status-card">
             <span>Node.js</span>
@@ -71,44 +110,16 @@ export default async function StatusPage() {
       </section>
 
       <section className="status-section">
-        <h2>Environment Variables</h2>
-        <table className="status-table">
-          <thead>
-            <tr>
-              <th scope="col">Variable</th>
-              <th scope="col">Status</th>
-              <th scope="col">Preview</th>
-              <th scope="col">Details</th>
-            </tr>
-          </thead>
-          <tbody>
-            {status.variables.map((variable) => (
-              <tr key={variable.key}>
-                <td>
-                  <strong>{variable.key}</strong>
-                  <div className="status-subtle">{variable.label}</div>
-                </td>
-                <td>
-                  <StatusBadge status={variable.status} />
-                </td>
-                <td>{variable.preview}</td>
-                <td>{variable.message}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-
-      <section className="status-section">
-        <h2>API Surface</h2>
-        <div className="status-panels">
+        <div className="status-section__header">
+          <h2>API surface</h2>
+          <p>Availability of the shipped API handlers.</p>
+        </div>
+        <div className="status-list">
           {status.apis.map((api) => (
-            <article key={api.id} className="status-panel">
+            <article key={api.id} className="status-item">
               <header>
-                <div>
-                  <h3>{api.name}</h3>
-                  <StatusBadge status={api.status} />
-                </div>
+                <h3>{api.name}</h3>
+                <StatusBadge status={api.status} />
               </header>
               <p>{api.message}</p>
             </article>
@@ -117,15 +128,16 @@ export default async function StatusPage() {
       </section>
 
       <section className="status-section">
-        <h2>Service Integrations</h2>
-        <div className="status-panels">
+        <div className="status-section__header">
+          <h2>Service integrations</h2>
+          <p>External dependencies monitored from the server.</p>
+        </div>
+        <div className="status-list">
           {status.services.map((service) => (
-            <article key={service.id} className="status-panel">
+            <article key={service.id} className="status-item">
               <header>
-                <div>
-                  <h3>{service.name}</h3>
-                  <StatusBadge status={service.status} />
-                </div>
+                <h3>{service.name}</h3>
+                <StatusBadge status={service.status} />
               </header>
               <p>{service.message}</p>
             </article>

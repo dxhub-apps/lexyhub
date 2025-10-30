@@ -2,20 +2,23 @@
 
 The status page provides a centralized, real-time view of the health of the LexyHub
 platform. It is available in the application navigation under **Status** and can also be
-queried programmatically through the `/api/status` endpoint.
+queried programmatically through the `/api/status` endpoint. The page now mirrors the
+compact look-and-feel of the core app, pairing the new typography scale with condensed
+cards for quicker scanning.
 
 ## What the page reports
 
 - **Runtime diagnostics** – Node.js version, hosting platform, uptime, and request
-  region (when deployed to Vercel).
-- **Environment variables** – Presence and confidence level for the core configuration
-  variables. Sensitive keys are masked and defaults (for example
-  `LEXYHUB_JWT_SECRET=change-me-change-me`) are highlighted as warnings.
+  region (when deployed to Vercel). Displayed as a compact card grid at the top of the
+  page.
 - **API surface** – Verifies that all shipped API handlers are registered and exported.
   Missing exports surface as warnings and module load failures appear as critical alerts.
 - **Service integrations** – Confirms that Supabase credentials can open a server-side
   connection and performs a lightweight query against the `keywords` table. The OpenAI
   API check verifies that an API key is present on the server.
+- **Configuration variables** – Still computed and returned from the API response, but
+  intentionally omitted from the UI for a cleaner surface. Consumers that need these
+  signals can continue to poll the JSON endpoint.
 
 ## Programmatic access
 
