@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { href: "/keywords", label: "Keywords" },
   { href: "/insights", label: "Insights" },
   { href: "/settings", label: "Settings" },
+  { href: "/status", label: "Status" },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
