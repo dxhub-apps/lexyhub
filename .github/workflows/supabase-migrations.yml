@@ -16,7 +16,7 @@ jobs:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       GIT_SHA: ${{ github.sha }}
       ACTOR: ${{ github.actor }}
-      WORKFLOW: "supabase-migrations"
+      WORKFLOW: supabase-migrations
 
     steps:
       - name: Checkout
@@ -55,13 +55,11 @@ jobs:
             STATUS="failure"
             MSG="supabase db push failed"
           fi
-          psql "$SUPABASE_DB_URL" <<SQL
-insert into public.schema_migrations_ci
-  (git_sha, actor, workflow, status, message)
-values
-  ('$GIT_SHA', '$ACTOR', '$WORKFLOW', '$STATUS', '$MSG');
+          psql "$SUPABASE_DB_URL" <<'SQL'
+insert into public.schema_migrations_ci (git_sha, actor, workflow, status, message)
+values ('${GIT_SHA}', '${ACTOR}', '${WORKFLOW}', '${STATUS}', '${MSG}');
 SQL
 
       - name: Fail if migrations failed
-        if: steps.run_migrations.outcome != 'success'
+        if: ${{ steps.run_migrations.outcome != 'success' }}
         run: exit 1
