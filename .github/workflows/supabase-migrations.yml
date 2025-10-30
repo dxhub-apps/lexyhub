@@ -14,6 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      GIT_SHA: ${{ github.sha }}
+      ACTOR: ${{ github.actor }}
+      WORKFLOW: "supabase-migrations"
 
     steps:
       - name: Checkout
@@ -24,8 +27,41 @@ jobs:
         with:
           version: latest
 
+      - name: Install psql
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Clear prepared statements
+        run: |
+          psql "$SUPABASE_DB_URL" -c "DEALLOCATE ALL;"
+
       - name: Ensure migrations dir
         run: mkdir -p supabase/migrations
 
       - name: Run migrations
-        run: supabase db push --db-url "$SUPABASE_DB_URL"
+        id: run_migrations
+        run: |
+          set -e
+          supabase db push --db-url "$SUPABASE_DB_URL"
+        continue-on-error: true
+
+      - name: Record migration run
+        if: always()
+        run: |
+          STATUS="success"
+          MSG="applied"
+          if [ "${{ steps.run_migrations.outcome }}" != "success" ]; then
+            STATUS="failure"
+            MSG="supabase db push failed"
+          fi
+          psql "$SUPABASE_DB_URL" <<SQL
+insert into public.schema_migrations_ci
+  (git_sha, actor, workflow, status, message)
+values
+  ('$GIT_SHA', '$ACTOR', '$WORKFLOW', '$STATUS', '$MSG');
+SQL
+
+      - name: Fail if migrations failed
+        if: steps.run_migrations.outcome != 'success'
+        run: exit 1
