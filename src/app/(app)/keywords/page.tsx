@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useToast } from "@/components/ui/ToastProvider";
 
+type PlanTier = "free" | "growth" | "scale";
+
 type KeywordResult = {
   id?: string;
   term: string;
@@ -15,12 +17,15 @@ type KeywordResult = {
   freshness_ts?: string | null;
   method?: string | null;
   extras?: Record<string, unknown> | null;
+  compositeScore?: number;
 };
 
 type SearchResponse = {
   query: string;
   market: string;
   source: string;
+  plan: PlanTier;
+  sources: string[];
   results: KeywordResult[];
   insights?: {
     summary: string;
@@ -44,6 +49,10 @@ export default function KeywordsPage(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [lastQuery, setLastQuery] = useState<string>("");
   const [bootstrapped, setBootstrapped] = useState(false);
+  const [plan, setPlan] = useState<PlanTier>("growth");
+  const [responsePlan, setResponsePlan] = useState<PlanTier>("growth");
+  const [sourceFilters, setSourceFilters] = useState<string[]>(["synthetic", "amazon"]);
+  const [responseSources, setResponseSources] = useState<string[]>(["synthetic", "amazon"]);
 
   const [optimizerOpen, setOptimizerOpen] = useState(false);
   const [optimizerLoading, setOptimizerLoading] = useState(false);
@@ -53,6 +62,39 @@ export default function KeywordsPage(): JSX.Element {
 
   const { push } = useToast();
 
+  const availableSources = useMemo(() => {
+    if (plan === "free") {
+      return ["synthetic"];
+    }
+    return ["synthetic", "amazon"];
+  }, [plan]);
+
+  const toggleSource = useCallback(
+    (source: string) => {
+      setSourceFilters((current) => {
+        const normalized = source.toLowerCase();
+        if (current.includes(normalized)) {
+          if (current.length === 1) {
+            return current;
+          }
+          return current.filter((item) => item !== normalized);
+        }
+        return Array.from(new Set([...current, normalized]));
+      });
+    },
+    [],
+  );
+
+  useEffect(() => {
+    setSourceFilters((current) => {
+      const normalized = current.filter((item) => availableSources.includes(item));
+      if (normalized.length === 0) {
+        return availableSources;
+      }
+      return normalized;
+    });
+  }, [availableSources]);
+
   const performSearch = useCallback(
     async (term: string) => {
       setLoading(true);
@@ -61,7 +103,13 @@ export default function KeywordsPage(): JSX.Element {
         const response = await fetch("/api/keywords/search", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: term, market: "us", limit: 25 }),
+          body: JSON.stringify({
+            query: term,
+            market: "us",
+            limit: 25,
+            plan,
+            sources: sourceFilters,
+          }),
         });
 
         if (!response.ok) {
@@ -73,6 +121,8 @@ export default function KeywordsPage(): JSX.Element {
         setResults(payload.results ?? []);
         setInsights(payload.insights ?? null);
         setLastQuery(payload.query ?? term);
+        setResponsePlan(payload.plan ?? plan);
+        setResponseSources(payload.sources ?? sourceFilters);
       } catch (err) {
         console.error("Failed to execute keyword search", err);
         setError(err instanceof Error ? err.message : "Unexpected error occurred");
@@ -80,7 +130,7 @@ export default function KeywordsPage(): JSX.Element {
         setLoading(false);
       }
     },
-    [],
+    [plan, sourceFilters],
   );
 
   const handleWatchlist = useCallback(
@@ -162,13 +212,33 @@ export default function KeywordsPage(): JSX.Element {
       return "Results refresh automatically every import cycle. Synthetic provenance is enforced for all records.";
     }
 
-    const uniqueSources = Array.from(new Set(results.map((item) => item.source))).join(", ");
+    const uniqueSources = (responseSources.length ? responseSources : Array.from(new Set(results.map((item) => item.source)))).join(", ");
     const freshest = results[0]?.freshness_ts
       ? new Date(results[0]?.freshness_ts).toLocaleString()
       : "Not yet synced";
 
-    return `Source(s): ${uniqueSources || "synthetic"}. Freshness: ${freshest}. Method: synthetic-ai.`;
-  }, [results]);
+    return `Plan: ${responsePlan}. Source(s): ${uniqueSources || "synthetic"}. Freshness: ${freshest}. Method mix adapts per provider.`;
+  }, [responsePlan, responseSources, results]);
+
+  const dataLineage = useMemo(() => {
+    const freshest = results.reduce<string | null>((latest, record) => {
+      if (!record.freshness_ts) {
+        return latest;
+      }
+      const timestamp = record.freshness_ts;
+      if (!latest) {
+        return timestamp;
+      }
+      return new Date(timestamp).getTime() > new Date(latest).getTime() ? timestamp : latest;
+    }, null);
+
+    return {
+      plan: responsePlan,
+      sources: responseSources.length ? responseSources : ["synthetic"],
+      freshest: freshest ? new Date(freshest).toLocaleString() : "Not yet synced",
+      recordCount: results.length,
+    };
+  }, [responsePlan, responseSources, results]);
 
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -205,6 +275,47 @@ export default function KeywordsPage(): JSX.Element {
         </form>
       </div>
 
+      <div className="keywords-filters">
+        <div>
+          <label htmlFor="plan-tier">Plan tier</label>
+          <select
+            id="plan-tier"
+            value={plan}
+            onChange={(event) => setPlan(event.target.value as PlanTier)}
+            disabled={loading}
+          >
+            <option value="free">Free</option>
+            <option value="growth">Growth</option>
+            <option value="scale">Scale</option>
+          </select>
+        </div>
+        <div className="keywords-source-toggles">
+          <span>Sources</span>
+          {availableSources.map((source) => {
+            const active = sourceFilters.includes(source);
+            return (
+              <button
+                key={source}
+                type="button"
+                className={active ? "source-toggle active" : "source-toggle"}
+                onClick={() => toggleSource(source)}
+                disabled={loading || (active && sourceFilters.length === 1)}
+              >
+                {source}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          className="keywords-refresh"
+          onClick={() => void performSearch(query)}
+          disabled={loading}
+        >
+          Refresh
+        </button>
+      </div>
+
       {error ? (
         <div className="keyword-error">{error}</div>
       ) : (
@@ -223,6 +334,7 @@ export default function KeywordsPage(): JSX.Element {
                   <th>Term</th>
                   <th>Source</th>
                   <th>Similarity</th>
+                  <th>Composite</th>
                   <th>AI Opportunity</th>
                   <th>Trend Momentum</th>
                   <th>Freshness</th>
@@ -238,8 +350,17 @@ export default function KeywordsPage(): JSX.Element {
                         <span className="keyword-pill">{String(keyword.extras["category"])} </span>
                       ) : null}
                     </td>
-                    <td>{keyword.source}</td>
+                    <td>
+                      <span className={`keyword-source-badge source-${keyword.source}`}>
+                        {keyword.source}
+                      </span>
+                    </td>
                     <td>{(keyword.similarity * 100).toFixed(1)}%</td>
+                    <td>
+                      {typeof keyword.compositeScore === "number"
+                        ? `${(keyword.compositeScore * 100).toFixed(1)}%`
+                        : "—"}
+                    </td>
                     <td>{keyword.ai_opportunity_score?.toFixed(2) ?? "—"}</td>
                     <td>{keyword.trend_momentum?.toFixed(2) ?? "—"}</td>
                     <td>
@@ -289,6 +410,28 @@ export default function KeywordsPage(): JSX.Element {
             <section>
               <h3>Compliance & Provenance</h3>
               <p>{complianceNotes}</p>
+            </section>
+
+            <section>
+              <h3>Data Info</h3>
+              <dl className="keyword-data-info">
+                <div>
+                  <dt>Plan</dt>
+                  <dd>{dataLineage.plan}</dd>
+                </div>
+                <div>
+                  <dt>Sources</dt>
+                  <dd>{dataLineage.sources.join(", ")}</dd>
+                </div>
+                <div>
+                  <dt>Freshest Sync</dt>
+                  <dd>{dataLineage.freshest}</dd>
+                </div>
+                <div>
+                  <dt>Records</dt>
+                  <dd>{dataLineage.recordCount}</dd>
+                </div>
+              </dl>
             </section>
 
             <section>
