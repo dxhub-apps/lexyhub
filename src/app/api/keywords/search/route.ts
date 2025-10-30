@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { NextResponse } from "next/server";
 
 import {
@@ -35,6 +37,91 @@ type RankedKeyword = KeywordRow & {
   embeddingModel: string;
   provenance_id: string;
 };
+
+type InsightCacheContextEntry = {
+  term: string;
+  similarity: number;
+  provenance_id: string;
+  embedding_model: string;
+};
+
+type InsightCacheRow = {
+  cache_key: string;
+  summary: string;
+  model: string;
+  generated_at: string;
+};
+
+function createInsightContext(ranked: RankedKeyword[]): InsightCacheContextEntry[] {
+  return ranked.slice(0, 15).map((item) => ({
+    term: item.term,
+    similarity: Number(item.similarity.toFixed(4)),
+    provenance_id: item.provenance_id,
+    embedding_model: item.embeddingModel,
+  }));
+}
+
+function createInsightCacheKey(
+  query: string,
+  market: string,
+  source: string,
+  context: InsightCacheContextEntry[],
+): string {
+  const payload = JSON.stringify({ query, market, source, context });
+  return createHash("sha256").update(payload).digest("hex");
+}
+
+async function readCachedInsight(
+  supabase: ReturnType<typeof getSupabaseServerClient>,
+  cacheKey: string,
+): Promise<InsightCacheRow | null> {
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("keyword_ai_insights")
+    .select("cache_key, summary, model, generated_at")
+    .eq("cache_key", cacheKey)
+    .maybeSingle();
+
+  if (error && error.code !== "PGRST116") {
+    console.error("Failed to read cached AI insight", error);
+    return null;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return data as InsightCacheRow;
+}
+
+async function persistInsight(
+  supabase: ReturnType<typeof getSupabaseServerClient>,
+  payload: {
+    cache_key: string;
+    query: string;
+    market: string;
+    source: string;
+    summary: string;
+    model: string;
+    generated_at: string;
+    context: InsightCacheContextEntry[];
+  },
+): Promise<void> {
+  if (!supabase) {
+    return;
+  }
+
+  const { error } = await supabase.from("keyword_ai_insights").upsert(payload, {
+    onConflict: "cache_key",
+  });
+
+  if (error) {
+    console.error("Failed to persist AI insight cache", error);
+  }
+}
 
 function cosineSimilarity(a: number[], b: number[]): number {
   const dot = a.reduce((sum, value, index) => sum + value * (b[index] ?? 0), 0);
@@ -263,18 +350,45 @@ async function handleSearch(req: Request): Promise<NextResponse> {
   const queryEmbedding = await getOrCreateEmbedding(query, { supabase });
   const ranked = await rankKeywords(queryEmbedding, keywords, supabase);
   const sliced = ranked.slice(0, limit);
-  const summary = await buildSummary(query, sliced);
+  const context = createInsightContext(sliced);
+  const cacheKey = createInsightCacheKey(query, market, source, context);
+  const cachedInsight = await readCachedInsight(supabase, cacheKey);
+
+  let summaryPayload: { summary: string; generatedAt: string; model: string };
+
+  if (cachedInsight) {
+    summaryPayload = {
+      summary: cachedInsight.summary,
+      generatedAt: cachedInsight.generated_at,
+      model: cachedInsight.model,
+    };
+  } else {
+    const summary = await buildSummary(query, sliced);
+    const generatedAt = new Date().toISOString();
+    summaryPayload = {
+      summary,
+      generatedAt,
+      model: queryEmbedding.model,
+    };
+
+    await persistInsight(supabase, {
+      cache_key: cacheKey,
+      query,
+      market,
+      source,
+      summary,
+      model: summaryPayload.model,
+      generated_at: generatedAt,
+      context,
+    });
+  }
 
   return NextResponse.json({
     query,
     market,
     source,
     results: sliced,
-    insights: {
-      summary,
-      generatedAt: new Date().toISOString(),
-      model: queryEmbedding.model,
-    },
+    insights: summaryPayload,
   });
 }
 

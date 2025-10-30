@@ -60,6 +60,7 @@ Each sprint lists epics, cross-functional tasks, acceptance criteria, and instru
   - [x] Create API route `/api/keywords/search` (Next.js route handler) returning ranked results.
   - [x] Integrate pgvector similarity search for neighbors.
   - [x] Add AI explanation call to GPT for top cluster summary.
+  - [x] Persist generated AI insight summaries in Supabase to reuse them across runs.
 - **S1-E4 UI Delivery**
   - [x] Build Keywords page table (columns: term, source, scores, add-to-watchlist).
   - [x] Add AI Insights side panel with summary and `trend_series` sparkline placeholder.
