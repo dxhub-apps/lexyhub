@@ -5,13 +5,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { ToastProvider } from "@/components/ui/ToastProvider";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { Topbar } from "./Topbar";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", description: "Quota pulse" },
   { href: "/keywords", label: "Keywords", description: "AI search" },
   { href: "/insights", label: "Insights", description: "Visual AI" },
   { href: "/settings", label: "Settings", description: "Plan & team" },
-  { href: "/status", label: "Status", description: "Service status"  },
+  { href: "/status", label: "Status", description: "Service status" },
+  { href: "/profile", label: "Profile", description: "Account & billing" },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -32,59 +35,45 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  const toggleSidebar = () => {
+    setCollapsed((value) => !value);
+  };
+
   return (
-    <ToastProvider>
-      <div className={`app-shell ${collapsed ? "app-shell-collapsed" : ""}`}>
-        <aside className={`sidebar ${collapsed ? "sidebar-collapsed" : ""}`}>
-          <div className="sidebar-header">
-            <span className="badge">Sprint 2 — AI Enhancements</span>
-            <button
-              type="button"
-              className="sidebar-toggle"
-              aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
-              onClick={() => setCollapsed((value) => !value)}
-            >
-              {collapsed ? "☰" : "×"}
-            </button>
-          </div>
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={pathname?.startsWith(item.href) ? "page" : undefined}
-              className="sidebar-link"
-              title={collapsed ? item.label : undefined}
-              data-tooltip={item.description}
-            >
-              <span className="sidebar-link-text">{item.label}</span>
-            </Link>
-          ))}
-        </aside>
-        <section className="content">
-          <header className="topbar">
-            <div className="topbar-meta">
-              <strong>LexyHub Control Center</strong>
-              <span className="topbar-subtitle">Momentum-aware quotas & watchlists</span>
+    <ThemeProvider>
+      <ToastProvider>
+        <div className={`app-shell ${collapsed ? "app-shell-collapsed" : ""}`}>
+          <aside className={`sidebar ${collapsed ? "sidebar-collapsed" : ""}`}>
+            <div className="sidebar-header">
+              <span className="badge">Sprint 4 — Etsy Integration</span>
+              <button
+                type="button"
+                className="sidebar-toggle"
+                aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+                onClick={toggleSidebar}
+              >
+                {collapsed ? "☰" : "×"}
+              </button>
             </div>
-            <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-              <span style={{ fontSize: "0.85rem", color: "#cbd5f5" }}>
-                Environment: {process.env.NODE_ENV}
-              </span>
-              {isMobile ? (
-                <button
-                  type="button"
-                  className="sidebar-toggle mobile"
-                  aria-label={collapsed ? "Open navigation" : "Hide navigation"}
-                  onClick={() => setCollapsed((value) => !value)}
-                >
-                  ☰
-                </button>
-              ) : null}
-            </div>
-          </header>
-          <main className="content-inner">{children}</main>
-        </section>
-      </div>
-    </ToastProvider>
+            {nav.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={pathname?.startsWith(item.href) ? "page" : undefined}
+                className="sidebar-link"
+                title={collapsed ? item.label : undefined}
+                data-tooltip={item.description}
+              >
+                <span className="sidebar-link-text">{item.label}</span>
+              </Link>
+            ))}
+          </aside>
+          <section className="content">
+            <Topbar isMobile={isMobile} isCollapsed={collapsed} onToggleSidebar={toggleSidebar} />
+            <main className="content-inner">{children}</main>
+          </section>
+        </div>
+      </ToastProvider>
+    </ThemeProvider>
   );
 }
