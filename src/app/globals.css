@@ -233,6 +233,193 @@ tbody tr:hover {
   outline: none;
 }
 
+.status-page {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.status-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  border-radius: 1.25rem;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.status-header h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.status-header p {
+  margin-top: 0.35rem;
+  max-width: 40rem;
+  color: rgba(203, 213, 225, 0.9);
+}
+
+.status-summary {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.status-summary div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.status-summary span {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.status-summary strong {
+  font-size: 1.1rem;
+}
+
+.status-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.status-section h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.status-card {
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.status-card span {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.status-card strong {
+  font-size: 1.25rem;
+}
+
+.status-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.status-table thead tr {
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.status-table th,
+.status-table td {
+  padding: 1rem 1.25rem;
+  text-align: left;
+}
+
+.status-table tbody tr:nth-child(even) {
+  background: rgba(30, 41, 59, 0.6);
+}
+
+.status-table tbody tr + tr {
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.status-subtle {
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.status-panels {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.status-panel {
+  padding: 1.25rem;
+  border-radius: 1rem;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.status-panel header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.status-panel header h3 {
+  margin: 0;
+}
+
+.status-panel p {
+  margin: 0;
+  color: rgba(203, 213, 225, 0.9);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.status-badge--operational {
+  background: rgba(74, 222, 128, 0.2);
+  color: #86efac;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.status-badge--warning {
+  background: rgba(250, 204, 21, 0.2);
+  color: #fde68a;
+  border: 1px solid rgba(250, 204, 21, 0.3);
+}
+
+.status-badge--critical {
+  background: rgba(248, 113, 113, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
 .keywords-search button {
   background: linear-gradient(135deg, rgba(96, 165, 250, 0.8), rgba(147, 197, 253, 0.6));
   border: none;
