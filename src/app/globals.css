@@ -1668,3 +1668,200 @@ tbody tr:hover {
     margin-left: 0;
   }
 }
+
+.market-twin {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.market-twin > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.market-twin > header h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.75rem;
+}
+
+.market-twin > header p {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.market-twin-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 1.5rem;
+}
+
+.market-twin-form,
+.market-twin-sidebar {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.35);
+}
+
+.market-twin-form label,
+.market-twin-form h2,
+.market-twin-form p {
+  margin: 0;
+}
+
+.market-twin-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.market-twin-form input,
+.market-twin-form textarea,
+.market-twin-form select {
+  font: inherit;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-border-subtle);
+  background: rgba(15, 23, 42, 0.5);
+  color: inherit;
+}
+
+.market-twin-form textarea {
+  resize: vertical;
+  min-height: 90px;
+}
+
+.market-twin-primary {
+  margin-top: 0.5rem;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(14, 165, 233, 0.85));
+  color: #fff;
+  border: none;
+  border-radius: 0.75rem;
+  padding: 0.85rem 1.25rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.market-twin-primary:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.market-twin-primary:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 32px rgba(56, 189, 248, 0.2);
+}
+
+.market-twin-sidebar h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.market-twin-baseline {
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: 0.9rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.market-twin-baseline h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.market-twin-baseline dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 1rem;
+  font-size: 0.85rem;
+}
+
+.market-twin-baseline dt {
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.market-twin-baseline dd {
+  margin: 0;
+}
+
+.market-twin-history {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.market-twin-history li {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.85rem;
+  padding: 0.9rem;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.market-twin-history li > div {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.market-twin-history li > div strong {
+  color: var(--color-text-primary);
+}
+
+.market-twin-history li p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.market-twin-history li footer {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  flex-wrap: wrap;
+}
+
+.market-twin-placeholder {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 1100px) {
+  .market-twin-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.profile-subscription-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.profile-history-empty {
+  padding: 0.75rem 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}

@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", description: "Quota pulse" },
   { href: "/keywords", label: "Keywords", description: "AI search" },
   { href: "/insights", label: "Insights", description: "Visual AI" },
+  { href: "/market-twin", label: "Market Twin", description: "Simulations" },
   { href: "/settings", label: "Settings", description: "Plan & team" },
   { href: "/status", label: "Status", description: "Service status" },
   { href: "/profile", label: "Profile", description: "Account & billing" },

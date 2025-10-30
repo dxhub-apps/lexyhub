@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import { useToast } from "@/components/ui/ToastProvider";
 
@@ -10,11 +10,21 @@ const PLAN_SUMMARY: Record<string, string> = {
   apex: "Unlimited sources, dedicated analyst hours, and real-time refreshes.",
 };
 
-const BILLING_HISTORY = [
-  { id: "inv_1203", period: "May 2024", total: "$249.00", status: "Paid" },
-  { id: "inv_1202", period: "Apr 2024", total: "$249.00", status: "Paid" },
-  { id: "inv_1201", period: "Mar 2024", total: "$249.00", status: "Paid" },
-];
+const DEFAULT_USER_ID = "00000000-0000-0000-0000-000000000001";
+
+type InvoiceHistoryRow = {
+  id: string;
+  period: string;
+  total: string;
+  status: string;
+};
+
+function formatAmount(cents?: number | null): string {
+  if (cents == null) {
+    return "$0.00";
+  }
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
+}
 
 type ProfileDetails = {
   fullName: string;
@@ -48,7 +58,68 @@ export default function ProfilePage(): JSX.Element {
     autoRenew: true,
     paymentMethod: "Visa •••• 4242",
   });
+  const [invoiceHistory, setInvoiceHistory] = useState<InvoiceHistoryRow[]>([]);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string>("active");
+  const [periodEnd, setPeriodEnd] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const activePlanSummary = useMemo(() => PLAN_SUMMARY[billing.plan], [billing.plan]);
+
+  const loadBilling = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/billing/subscription?userId=${DEFAULT_USER_ID}`);
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error ?? "Failed to load billing data");
+      }
+
+      setBilling((state) => {
+        const candidatePlan = (json.profile?.plan ?? json.subscription?.plan ?? state.plan) as BillingPreferences["plan"];
+        const normalizedPlan: BillingPreferences["plan"] =
+          candidatePlan === "spark" || candidatePlan === "scale" || candidatePlan === "apex"
+            ? candidatePlan
+            : state.plan;
+        return {
+          plan: normalizedPlan,
+          billingEmail: json.subscription?.metadata?.billing_email ?? state.billingEmail,
+          autoRenew: !(json.subscription?.cancel_at_period_end ?? false),
+          paymentMethod: json.profile?.settings?.payment_method_label ?? state.paymentMethod,
+        };
+      });
+
+      setInvoiceHistory(
+        (json.invoices ?? []).map((invoice: {
+          stripe_invoice_id: string;
+          invoice_date: string;
+          amount_paid_cents?: number;
+          amount_due_cents?: number;
+          status?: string;
+        }) => ({
+          id: invoice.stripe_invoice_id,
+          period: invoice.invoice_date
+            ? new Date(invoice.invoice_date).toLocaleDateString(undefined, { month: "short", year: "numeric" })
+            : "—",
+          total: formatAmount(invoice.amount_paid_cents ?? invoice.amount_due_cents ?? null),
+          status: invoice.status ?? "open",
+        })),
+      );
+
+      setSubscriptionStatus(json.subscription?.status ?? "active");
+      setPeriodEnd(json.subscription?.current_period_end ?? null);
+    } catch (error) {
+      push({
+        title: "Billing unavailable",
+        description: error instanceof Error ? error.message : String(error),
+        tone: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [push]);
+
+  useEffect(() => {
+    loadBilling();
+  }, [loadBilling]);
 
   const handleProfileSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -59,21 +130,57 @@ export default function ProfilePage(): JSX.Element {
     });
   };
 
-  const handleBillingSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleBillingSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    push({
-      title: "Subscription settings saved",
-      description: "Billing preferences now align with your Market Twin quotas.",
-      tone: "success",
-    });
+    try {
+      const response = await fetch(`/api/billing/subscription?userId=${DEFAULT_USER_ID}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(billing),
+      });
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error ?? "Failed to update billing");
+      }
+      push({
+        title: "Subscription settings saved",
+        description: "Billing preferences now align with your Market Twin quotas.",
+        tone: "success",
+      });
+      await loadBilling();
+    } catch (error) {
+      push({
+        title: "Update failed",
+        description: error instanceof Error ? error.message : String(error),
+        tone: "error",
+      });
+    }
   };
 
-  const handleCancelPlan = () => {
-    push({
-      title: "Cancellation scheduled",
-      description: "Your plan will remain active until the current cycle ends.",
-      tone: "warning",
-    });
+  const handleCancelPlan = async () => {
+    try {
+      const response = await fetch(`/api/billing/subscription?userId=${DEFAULT_USER_ID}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...billing, autoRenew: false }),
+      });
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error ?? "Failed to schedule cancellation");
+      }
+      push({
+        title: "Cancellation scheduled",
+        description: "Your plan will remain active until the current cycle ends.",
+        tone: "warning",
+      });
+      await loadBilling();
+    } catch (error) {
+      push({
+        title: "Cancellation failed",
+        description: error instanceof Error ? error.message : String(error),
+        tone: "error",
+      });
+    }
   };
 
   return (
@@ -179,6 +286,10 @@ export default function ProfilePage(): JSX.Element {
               <strong>{billing.plan.toUpperCase()}</strong>
             </div>
             <p>{activePlanSummary}</p>
+            <div className="profile-subscription-meta">
+              <span>Status: {subscriptionStatus}</span>
+              {periodEnd && <span>Renews {new Date(periodEnd).toLocaleDateString()}</span>}
+            </div>
             <div className="profile-plan-selector">
               {(["spark", "scale", "apex"] as BillingPreferences["plan"][]).map((plan) => (
                 <button
@@ -186,6 +297,7 @@ export default function ProfilePage(): JSX.Element {
                   type="button"
                   className={`profile-plan ${billing.plan === plan ? "profile-plan-active" : ""}`}
                   onClick={() => setBilling((state) => ({ ...state, plan }))}
+                  disabled={loading}
                 >
                   <span>{plan.toUpperCase()}</span>
                   <small>{PLAN_SUMMARY[plan]}</small>
@@ -239,7 +351,8 @@ export default function ProfilePage(): JSX.Element {
               <span>Invoices route to {billing.billingEmail}</span>
             </header>
             <ul>
-              {BILLING_HISTORY.map((invoice) => (
+              {invoiceHistory.length === 0 && <li className="profile-history-empty">No invoices available yet.</li>}
+              {invoiceHistory.map((invoice) => (
                 <li key={invoice.id}>
                   <div>
                     <strong>{invoice.period}</strong>

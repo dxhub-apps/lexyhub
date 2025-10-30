@@ -109,22 +109,23 @@ Each sprint lists epics, cross-functional tasks, acceptance criteria, and instru
 **Objectives:** Connect Etsy shops, sync listings, deliver AI Market Twin simulator.
 
 - **S4-E1 Etsy OAuth & Data Sync**
-  - [ ] Implement OAuth flow via Next.js route `/api/auth/etsy`.
-  - [ ] Sync listings into `listings`, `listing_tags`, `listing_stats` tables.
-  - [ ] Schedule 6h refresh job with delta updates.
+  - [x] Implement OAuth flow via Next.js route `/api/auth/etsy`.
+  - [x] Sync listings into `listings`, `listing_tags`, `listing_stats` tables.
+  - [x] Schedule 6h refresh job with delta updates.
 - **S4-E2 AI Market Twin**
-  - [ ] Build simulator service comparing baseline vs hypothetical listing.
-  - [ ] Compute semantic gap via embeddings, trend correlation delta, predicted visibility.
-  - [ ] GPT explanation generator with confidence score.
-  - [ ] UI wizard to run scenarios and persist history.
+  - [x] Build simulator service comparing baseline vs hypothetical listing.
+  - [x] Compute semantic gap via embeddings, trend correlation delta, predicted visibility.
+  - [x] GPT explanation generator with confidence score.
+  - [x] UI wizard to run scenarios and persist history.
 - **S4-E3 Billing Integration**
-  - [ ] Stripe subscription sync with `user_profiles` plan state.
-  - [ ] Webhooks updating quotas and momentum multipliers.
+  - [x] Stripe subscription sync with `user_profiles` plan state.
+  - [x] Webhooks updating quotas and momentum multipliers.
   - [x] Profile & billing workspace UI for managing plan, payment method, and notifications.
 - **S4-UX Enhancements**
   - [x] Global top bar user menu with avatar, help, logout, and theme selector.
   - [x] Theme system supporting light, dark, and system preferences across the shell.
 - **Exit Criteria:** Etsy sellers can connect, run Market Twin simulations, and manage billing through LexyHub.
+  - Refer to `docs/etsy-integration.md` for configuration, cron jobs, and Market Twin usage guidance.
 
 ### Sprint 5 — Trend & Intent Intelligence
 **Objectives:** Trend Radar, Intent Graph, clustering automation, groundwork for partner API.
