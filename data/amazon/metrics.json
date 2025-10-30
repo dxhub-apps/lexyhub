@@ -1,0 +1,58 @@
+[
+  {
+    "keyword": "handmade jewelry",
+    "searchVolume": 880,
+    "conversionRate": 0.18,
+    "competition": 0.52,
+    "growthRate": 0.21,
+    "asinSamples": [
+      { "asin": "B000000001", "title": "Handmade Gemstone Necklace", "price": 29.99 },
+      { "asin": "B000000002", "title": "Handcrafted Silver Earrings", "price": 24.5 }
+    ]
+  },
+  {
+    "keyword": "handmade necklace",
+    "searchVolume": 760,
+    "conversionRate": 0.16,
+    "competition": 0.48,
+    "growthRate": 0.18,
+    "asinSamples": [
+      { "asin": "B000000003", "title": "Minimalist Handmade Necklace", "price": 19.99 }
+    ]
+  },
+  {
+    "keyword": "handmade earrings",
+    "searchVolume": 640,
+    "conversionRate": 0.14,
+    "competition": 0.43,
+    "growthRate": 0.12
+  },
+  {
+    "keyword": "artisan jewelry",
+    "searchVolume": 520,
+    "conversionRate": 0.13,
+    "competition": 0.4,
+    "growthRate": 0.09
+  },
+  {
+    "keyword": "boho decor",
+    "searchVolume": 910,
+    "conversionRate": 0.19,
+    "competition": 0.55,
+    "growthRate": 0.17
+  },
+  {
+    "keyword": "boho wall art",
+    "searchVolume": 710,
+    "conversionRate": 0.17,
+    "competition": 0.46,
+    "growthRate": 0.2
+  },
+  {
+    "keyword": "bohemian home decor",
+    "searchVolume": 680,
+    "conversionRate": 0.16,
+    "competition": 0.44,
+    "growthRate": 0.19
+  }
+]

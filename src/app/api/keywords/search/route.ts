@@ -11,12 +11,15 @@ import { env } from "@/lib/env";
 import { loadSyntheticDataset } from "@/lib/synthetic/import";
 import { createProvenanceId, normalizeKeywordTerm } from "@/lib/keywords/utils";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
+import type { PlanTier } from "@/lib/usage/quotas";
 
 interface SearchRequestPayload {
   query?: string;
   market?: string;
   limit?: number;
   source?: string;
+  sources?: string[];
+  plan?: PlanTier | string;
 }
 
 type KeywordRow = {
@@ -29,6 +32,9 @@ type KeywordRow = {
   extras?: Record<string, unknown> | null;
   trend_momentum?: number | null;
   ai_opportunity_score?: number | null;
+  demand_index?: number | null;
+  competition_score?: number | null;
+  engagement_score?: number | null;
   freshness_ts?: string | null;
 };
 
@@ -36,6 +42,8 @@ type RankedKeyword = KeywordRow & {
   similarity: number;
   embeddingModel: string;
   provenance_id: string;
+  compositeScore: number;
+  rankingScore: number;
 };
 
 type InsightCacheContextEntry = {
@@ -135,7 +143,8 @@ function cosineSimilarity(a: number[], b: number[]): number {
 
 async function fetchKeywordsFromSupabase(
   market: string,
-  source: string,
+  sources: string[],
+  tiers: string[],
   limit: number,
 ): Promise<KeywordRow[]> {
   const supabase = getSupabaseServerClient();
@@ -144,14 +153,22 @@ async function fetchKeywordsFromSupabase(
     return [];
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("keywords")
     .select(
-      "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts",
+      "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score",
     )
-    .eq("market", market)
-    .eq("source", source)
-    .limit(Math.max(limit * 4, 100));
+    .eq("market", market);
+
+  if (sources.length > 0) {
+    query = query.in("source", sources);
+  }
+
+  if (tiers.length > 0) {
+    query = query.in("tier", tiers);
+  }
+
+  const { data, error } = await query.limit(Math.max(limit * 6, 150));
 
   if (error) {
     console.error("Failed to fetch keywords from Supabase", error);
@@ -173,6 +190,9 @@ async function fallbackKeywords(market: string): Promise<KeywordRow[]> {
         tier: "free",
         method: "synthetic-ai",
         extras: typeof record === "string" ? null : { category: record.category ?? null },
+        demand_index: 0.55,
+        competition_score: 0.45,
+        trend_momentum: 0.5,
       } satisfies KeywordRow;
     });
   } catch (error) {
@@ -253,15 +273,19 @@ async function rankKeywords(
     });
 
     const similarity = cosineSimilarity(queryEmbedding.embedding, embedding.embedding);
+    const compositeScore = computeCompositeScore(keyword);
+    const rankingScore = similarity * 0.55 + compositeScore * 0.45;
     ranked.push({
       ...keyword,
       similarity,
       embeddingModel: embedding.model,
       provenance_id: createProvenanceId(keyword.source, keyword.market, keyword.term),
+      compositeScore,
+      rankingScore,
     });
   }
 
-  return ranked.sort((a, b) => b.similarity - a.similarity);
+  return ranked.sort((a, b) => b.rankingScore - a.rankingScore);
 }
 
 async function loadSearchPayload(req: Request): Promise<SearchRequestPayload> {
@@ -288,15 +312,19 @@ async function buildDeterministicResults(
   const queryEmbedding = createDeterministicEmbedding(query);
   const ranked = dataset.map((record) => {
     const embedding = createDeterministicEmbedding(record.term);
+    const compositeScore = computeCompositeScore(record);
+    const rankingScore = cosineSimilarity(queryEmbedding, embedding) * 0.55 + compositeScore * 0.45;
     return {
       ...record,
       similarity: cosineSimilarity(queryEmbedding, embedding),
       embeddingModel: `${DEFAULT_EMBEDDING_MODEL}-deterministic-fallback`,
       provenance_id: createProvenanceId(record.source, record.market, record.term),
+      compositeScore,
+      rankingScore,
     } satisfies RankedKeyword;
   });
 
-  ranked.sort((a, b) => b.similarity - a.similarity);
+  ranked.sort((a, b) => b.rankingScore - a.rankingScore);
   const sliced = ranked.slice(0, limit);
   const summary = await buildSummary(query, sliced);
   return { results: sliced, summary };
@@ -305,7 +333,20 @@ async function buildDeterministicResults(
 async function handleSearch(req: Request): Promise<NextResponse> {
   const payload = await loadSearchPayload(req);
   const market = payload.market ? normalizeKeywordTerm(payload.market) : "us";
-  const source = payload.source ?? "synthetic";
+  const plan = normalizePlanTier(payload.plan ?? undefined);
+  const requestedSources = Array.isArray(payload.sources)
+    ? payload.sources
+    : payload.source
+      ? payload.source.split(",")
+      : undefined;
+  const allowedSources = PLAN_SOURCES[plan];
+  const candidateSources = (requestedSources ?? allowedSources).map((item) => normalizeKeywordTerm(item));
+  const filteredSources = candidateSources.filter((item) => allowedSources.includes(item));
+  const resolvedSources = filteredSources.length > 0 ? filteredSources : allowedSources;
+  const primarySource = resolvedSources[0] ?? allowedSources[0];
+  const allowedTiers = Object.entries(PLAN_RANK)
+    .filter(([, rank]) => rank <= PLAN_RANK[plan])
+    .map(([tier]) => tier);
   const limit = Math.max(1, Math.min(payload.limit ?? 20, 50));
 
   const queryRaw = payload.query;
@@ -321,7 +362,9 @@ async function handleSearch(req: Request): Promise<NextResponse> {
     return NextResponse.json({
       query,
       market,
-      source,
+      source: primarySource,
+      sources: resolvedSources,
+      plan,
       results: deterministic.results,
       insights: {
         summary: deterministic.summary,
@@ -331,13 +374,15 @@ async function handleSearch(req: Request): Promise<NextResponse> {
     });
   }
 
-  const keywords = await fetchKeywordsFromSupabase(market, source, limit);
+  const keywords = await fetchKeywordsFromSupabase(market, resolvedSources, allowedTiers, limit);
   if (keywords.length === 0) {
     const deterministic = await buildDeterministicResults(query, market, limit);
     return NextResponse.json({
       query,
       market,
-      source,
+      source: primarySource,
+      sources: resolvedSources,
+      plan,
       results: deterministic.results,
       insights: {
         summary: deterministic.summary,
@@ -386,7 +431,9 @@ async function handleSearch(req: Request): Promise<NextResponse> {
   return NextResponse.json({
     query,
     market,
-    source,
+    plan,
+    source: primarySource,
+    sources: resolvedSources,
     results: sliced,
     insights: summaryPayload,
   });
