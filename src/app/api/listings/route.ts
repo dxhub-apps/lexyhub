@@ -31,6 +31,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ listings: [], warning: "Supabase client unavailable" }, { status: 200 });
   }
 
+  if (!userId) {
+    return NextResponse.json({ error: "User identifier required" }, { status: 401 });
+  }
+
   let query = supabase
     .from("listings")
     .select(
@@ -39,9 +43,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     .order("updated_at", { ascending: false })
     .limit(100);
 
-  if (userId) {
-    query = query.eq("marketplace_accounts.user_id", userId);
-  }
+  query = query.eq("marketplace_accounts.user_id", userId);
 
   const { data, error } = await query;
 
