@@ -7,6 +7,7 @@ import {
 } from "@/lib/ai/embeddings";
 import { env } from "@/lib/env";
 import { loadSyntheticDataset } from "@/lib/synthetic/import";
+import { buildKeywordInsightCacheKey, getKeywordInsightFromCache, upsertKeywordInsightCache } from "@/lib/keywords/insights-cache";
 import { createProvenanceId, normalizeKeywordTerm } from "@/lib/keywords/utils";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 import type { PlanTier } from "@/lib/usage/quotas";
@@ -354,7 +355,46 @@ async function handleSearch(req: Request): Promise<NextResponse> {
   const queryEmbedding = await getOrCreateEmbedding(query, { supabase });
   const ranked = await rankKeywords(queryEmbedding, keywords, supabase);
   const sliced = ranked.slice(0, limit);
-  const summary = await buildSummary(query, sliced);
+
+  const cacheSources = [...resolvedSources].sort();
+
+  const cacheKey = buildKeywordInsightCacheKey({
+    query,
+    market,
+    plan,
+    sources: cacheSources,
+    results: sliced,
+  });
+
+  const cachedInsights = await getKeywordInsightFromCache(cacheKey, supabase);
+
+  let insightsSummary: string;
+  let insightsGeneratedAt: string;
+  let insightsModel: string;
+
+  if (cachedInsights) {
+    insightsSummary = cachedInsights.summary;
+    insightsGeneratedAt = cachedInsights.generatedAt;
+    insightsModel = cachedInsights.model;
+  } else {
+    insightsSummary = await buildSummary(query, sliced);
+    insightsGeneratedAt = new Date().toISOString();
+    insightsModel = queryEmbedding.model;
+
+    await upsertKeywordInsightCache(
+      {
+        cacheKey,
+        summary: insightsSummary,
+        generatedAt: insightsGeneratedAt,
+        model: insightsModel,
+        query,
+        market,
+        plan,
+        sources: cacheSources,
+      },
+      supabase,
+    );
+  }
 
   return NextResponse.json({
     query,
@@ -364,9 +404,9 @@ async function handleSearch(req: Request): Promise<NextResponse> {
     sources: resolvedSources,
     results: sliced,
     insights: {
-      summary,
-      generatedAt: new Date().toISOString(),
-      model: queryEmbedding.model,
+      summary: insightsSummary,
+      generatedAt: insightsGeneratedAt,
+      model: insightsModel,
     },
   });
 }

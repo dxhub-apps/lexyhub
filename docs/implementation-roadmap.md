@@ -245,6 +245,7 @@ Detailed instructions on delivering each major feature. Follow sprint alignment 
 ### 5.10 Compliance & Explainability
 1. Populate provenance metadata on every insert/update (source, freshness_ts, method, model, provenance_id).
 2. Implement UI component `DataInfoPanel` showing this metadata for each insight.
+3. Persist keyword insight summaries in Supabase so repeated searches reuse the most recent AI output instead of calling the OpenAI API every time.
 3. Maintain audit logs for API calls and AI completions (`ai_usage_events`).
 
 ---
