@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       migration_file:
-        description: "Migration SQL to run, relative to repo root. Example: supabase/migrations/20250101120000_add_users.sql"
+        description: "Path to SQL file. Example: supabase/migrations/20251030121000_add_users.sql"
         required: true
       database_url:
-        description: "Override DB URL (optional). If empty, uses secret."
+        description: "Optional DB URL override"
         required: false
         default: ""
 
@@ -21,16 +21,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
         with:
-          node-version: 20
+          version: latest
 
-      - name: Install Supabase CLI
-        run: |
-          npm install -g supabase@latest
-
-      - name: Run one migration
+      - name: Execute migration
         run: |
           FILE="${{ github.event.inputs.migration_file }}"
           if [ ! -f "$FILE" ]; then
@@ -38,9 +34,6 @@ jobs:
             exit 1
           fi
 
-          # create temp dir and run as ad-hoc migration
-          mkdir -p .tmp-migration
-          cp "$FILE" .tmp-migration/migration.sql
-
-          # apply to target
-          supabase db execute --file .tmp-migration/migration.sql --db-url "$SUPABASE_DB_URL"
+          supabase db execute \
+            --file "$FILE" \
+            --db-url "$SUPABASE_DB_URL"
