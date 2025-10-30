@@ -1,0 +1,13 @@
+{
+  "handmade jewelry": [
+    { "keyword": "handmade jewelry", "score": 95, "type": "seed" },
+    { "keyword": "handmade necklace", "score": 87, "type": "suggest" },
+    { "keyword": "handmade earrings", "score": 82, "type": "suggest" },
+    { "keyword": "artisan jewelry", "score": 78, "type": "suggest" }
+  ],
+  "boho decor": [
+    { "keyword": "boho decor", "score": 92, "type": "seed" },
+    { "keyword": "boho wall art", "score": 84, "type": "suggest" },
+    { "keyword": "bohemian home decor", "score": 81, "type": "suggest" }
+  ]
+}

@@ -90,19 +90,19 @@ Each sprint lists epics, cross-functional tasks, acceptance criteria, and instru
 **Objectives:** Add Amazon provider, unify multi-source analytics, enforce provenance.
 
 - **S3-E1 Provider Framework**
-  - [ ] Implement `KeywordSourceProvider` interface in `src/lib/providers/base.ts`.
-  - [ ] Build provider registry & scheduler orchestrating background refresh.
+  - [x] Implement `KeywordSourceProvider` interface in `src/lib/providers/base.ts`.
+  - [x] Build provider registry & scheduler orchestrating background refresh.
 - **S3-E2 Amazon Provider**
-  - [ ] Integrate Suggest + PA-API, respecting rate limits.
-  - [ ] Map Amazon data into standard keyword schema with provenance metadata.
-  - [ ] Unit tests with recorded fixtures.
+  - [x] Integrate Suggest + PA-API, respecting rate limits.
+  - [x] Map Amazon data into standard keyword schema with provenance metadata.
+  - [x] Unit tests with recorded fixtures.
 - **S3-E3 Mixed Source Analytics**
-  - [ ] Update keyword search to filter by plan tier, sources.
-  - [ ] Introduce demand/competition composite scoring across sources.
-  - [ ] Display source badges and tooltips in UI.
+  - [x] Update keyword search to filter by plan tier, sources.
+  - [x] Introduce demand/competition composite scoring across sources.
+  - [x] Display source badges and tooltips in UI.
 - **S3-E4 Compliance & Auditing**
-  - [ ] Logging of API calls with token usage.
-  - [ ] Data lineage component in UI (“Data Info” panel).
+  - [x] Logging of API calls with token usage.
+  - [x] Data lineage component in UI (“Data Info” panel).
 - **Exit Criteria:** Amazon data seamlessly augments synthetic base, compliance instrumentation active, quotas enforced.
 
 ### Sprint 4 — Etsy Integration & Market Twin
