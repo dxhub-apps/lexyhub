@@ -1,6 +1,8 @@
 import crypto from "crypto";
 
-const secret = process.env.LEXYHUB_JWT_SECRET || "change-me";
+import { env } from "./env";
+
+const secret = env.LEXYHUB_JWT_SECRET;
 
 export function signToken(payload: object): string {
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");

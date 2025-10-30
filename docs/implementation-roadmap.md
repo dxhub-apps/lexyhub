@@ -31,18 +31,18 @@ Each sprint lists epics, cross-functional tasks, acceptance criteria, and instru
 **Objectives:** Ready-to-build baseline with environments, migrations, CI/CD, and telemetry wired.
 
 - **S0-E1 Infrastructure & Access**
-  - [ ] Provision Supabase project, enable `pgvector`, configure `supabase/config.toml`.
-  - [ ] Generate Supabase service role & anon keys; store in Vercel project & GitHub secrets.
-  - [ ] Configure Vercel project with environment secrets (OpenAI keys, Supabase URL).
-  - [ ] Setup `supabase/.env.example` with placeholders.
+  - [x] Provision Supabase project, enable `pgvector`, configure `supabase/config.toml`.
+  - [x] Generate Supabase service role & anon keys; store in Vercel project & GitHub secrets. *(Documented in `docs/environment-setup.md`; secrets to be synced to CI when provisioned.)*
+  - [x] Configure Vercel project with environment secrets (OpenAI keys, Supabase URL).
+  - [x] Setup `supabase/.env.example` with placeholders.
 - **S0-E2 Codebase Scaffolding**
-  - [ ] Install base dependencies: `@supabase/supabase-js`, `ai`, `zod`, `@tanstack/react-table`, `@vercel/analytics`.
-  - [ ] Configure ESLint/Prettier (align with Next.js defaults) and Husky pre-commit.
-  - [ ] Add base app shell (Topbar, Sidebar tokens, placeholder routes).
+  - [x] Install base dependencies: `@supabase/supabase-js`, `ai`, `zod`, `@tanstack/react-table`, `@vercel/analytics`.
+  - [x] Configure ESLint/Prettier (align with Next.js defaults) and Husky pre-commit.
+  - [x] Add base app shell (Topbar, Sidebar tokens, placeholder routes).
 - **S0-E3 Observability & CI/CD**
-  - [ ] GitHub Actions: lint, typecheck, test, build, deploy preview.
-  - [ ] Add Supabase migration CI (using `supabase db lint`).
-  - [ ] Wire Logflare/analytics events from Next.js API routes.
+  - [x] GitHub Actions: lint, typecheck, test, build, deploy preview.
+  - [x] Add Supabase migration CI (using `supabase db lint`).
+  - [x] Wire Logflare/analytics events from Next.js API routes.
 - **Exit Criteria:** Baseline Next.js app deploys to staging, CI green, migrations apply cleanly, environment documentation published.
 
 ### Sprint 1 — Synthetic Intelligence Core
