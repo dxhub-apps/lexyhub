@@ -2,6 +2,8 @@
 
 import { useCallback, useState } from "react";
 
+import IntentGraph from "@/components/insights/IntentGraph";
+import TrendRadar from "@/components/insights/TrendRadar";
 import { useToast } from "@/components/ui/ToastProvider";
 
 type VisualTagResponse = {
@@ -87,16 +89,24 @@ export default function InsightsPage() {
       <header>
         <h1>Insights Sandbox</h1>
         <p>
-          Sprint 2 surfaces AI-enhanced watchlists and Visual Tag AI. Upload listing imagery to generate
-          tags with deterministic fallbacks when models are offline.
+          Sprint 5 unlocks intent intelligence, a multi-source trend radar, and refreshed automation. Explore the new radar,
+          graph, and partner API foundations alongside the existing AI surfaces.
         </p>
       </header>
+
+      <div className="insights-card insights-card--full">
+        <TrendRadar />
+      </div>
+
+      <div className="insights-card insights-card--full">
+        <IntentGraph />
+      </div>
 
       <div className="insights-card">
         <h2>Visual Tag AI</h2>
         <p className="insights-muted">
-          Assets are uploaded to Supabase storage then captioned locally before GPT refinement. Confidence
-          scores combine fallback heuristics with optional model output.
+          Assets are uploaded to Supabase storage then captioned locally before GPT refinement. Confidence scores combine
+          fallback heuristics with optional model output.
         </p>
         <form className="visual-tag-form" onSubmit={handleSubmit}>
           <label className="visual-tag-upload">
@@ -149,13 +159,13 @@ export default function InsightsPage() {
       <div className="insights-card">
         <h2>Watchlist momentum</h2>
         <p className="insights-muted">
-          Track watchlist adds vs. plan capacity to understand operator momentum. Usage quotas now enforce
-          AI access fairly across tiers and populate Supabase usage tables.
+          Track watchlist adds vs. plan capacity to understand operator momentum. Usage quotas now enforce AI access fairly
+          across tiers and populate Supabase usage tables.
         </p>
         <ul className="insights-list">
-          <li>Plan-aware watchlist provisioning with automatic creation.</li>
-          <li>Usage API summarises AI, query, and watchlist activity within 24h.</li>
-          <li>Tag optimizer modal stores predictions and suggestions for auditability.</li>
+          <li>Trend radar metrics now sync back into keyword momentum for watchlist prioritisation.</li>
+          <li>Intent classification fills extras.classification for downstream personalization.</li>
+          <li>Partner API beta exposes normalized keywords with rate-limited access keys.</li>
         </ul>
       </div>
     </section>

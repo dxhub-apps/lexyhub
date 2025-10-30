@@ -131,19 +131,19 @@ Each sprint lists epics, cross-functional tasks, acceptance criteria, and instru
 **Objectives:** Trend Radar, Intent Graph, clustering automation, groundwork for partner API.
 
 - **S5-E1 Trend Radar**
-  - [ ] Ingest Google Trends, Pinterest board metrics, Reddit topic stats (stubs if API pending).
-  - [ ] Daily trend aggregation job writing to `trend_series` with `trend_momentum` and `expected_growth_30d`.
-  - [ ] UI trend radar visualization with color-coded velocities.
+  - [x] Ingest Google Trends, Pinterest board metrics, Reddit topic stats (stubs if API pending).
+  - [x] Daily trend aggregation job writing to `trend_series` with `trend_momentum` and `expected_growth_30d`.
+  - [x] UI trend radar visualization with color-coded velocities.
 - **S5-E2 Intent Graph**
-  - [ ] GPT-driven classification pipeline storing intents in `extras.classification`.
-  - [ ] Graph layout service using Force Atlas or d3-force, served to client.
-  - [ ] UI graph with legend, filters, and tooltip explanation.
+  - [x] GPT-driven classification pipeline storing intents in `extras.classification`.
+  - [x] Graph layout service using Force Atlas or d3-force, served to client.
+  - [x] UI graph with legend, filters, and tooltip explanation.
 - **S5-E3 Cluster Automation**
-  - [ ] Cron job to rebuild `concept_clusters` using pgvector + GPT labeling.
-  - [ ] Audit trail storing GPT prompts/responses.
+  - [x] Cron job to rebuild `concept_clusters` using pgvector + GPT labeling.
+  - [x] Audit trail storing GPT prompts/responses.
 - **S5-E4 Partner API Foundations**
-  - [ ] Build `/api/v1/keywords` endpoints with API keys.
-  - [ ] Rate limiting and usage tracking per partner.
+  - [x] Build `/api/v1/keywords` endpoints with API keys.
+  - [x] Rate limiting and usage tracking per partner.
 - **Exit Criteria:** Trend and intent visualizations live, automated clustering running, external API ready for beta partners.
 
 ### Sprint 6 — Golden Source Hardening
