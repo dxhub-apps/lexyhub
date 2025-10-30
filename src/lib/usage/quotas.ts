@@ -73,7 +73,7 @@ async function fetchOverrides(userId: string): Promise<{
   const { data, error } = await supabase
     .from("plan_overrides")
     .select(
-      "plan, daily_query_limit, watchlist_limit, ai_suggestion_limit, momentum_multiplier"
+      "plan, daily_query_limit, watchlist_limit, watchlist_item_capacity, ai_suggestion_limit, momentum_multiplier"
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
@@ -93,7 +93,7 @@ async function fetchOverrides(userId: string): Promise<{
     plan: override.plan ? resolveBasePlan(override.plan) : undefined,
     dailyQueryLimit: override.daily_query_limit ?? undefined,
     watchlistLimit: override.watchlist_limit ?? undefined,
-    watchlistItemCapacity: override.watchlist_limit ?? undefined,
+    watchlistItemCapacity: override.watchlist_item_capacity ?? undefined,
     aiSuggestionLimit: override.ai_suggestion_limit ?? undefined,
     momentumMultiplier: override.momentum_multiplier ?? undefined,
   };
