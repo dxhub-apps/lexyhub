@@ -70,22 +70,21 @@ Each sprint lists epics, cross-functional tasks, acceptance criteria, and instru
 **Objectives:** Tag optimization AI, watchlists, plan gating, and improved analytics surfaces.
 
 - **S2-E1 Tag Optimization AI**
-  - [ ] API `/api/ai/tag-optimizer` storing outputs in `ai_predictions` / `ai_suggestions` table.
-  - [ ] GPT prompt library with trace metadata.
-  - [ ] UI modal for tag suggestion results with reasoning.
+  - [x] API `/api/ai/tag-optimizer` storing outputs in `ai_predictions` / `ai_suggestions` table.
+  - [x] GPT prompt library with trace metadata.
+  - [x] UI modal for tag suggestion results with reasoning.
 - **S2-E2 Watchlists & Quotas**
-  - [ ] `watchlists` table & service to add keywords/listings within limits.
-  - [ ] Middleware enforcing daily query and suggestion quotas based on plan + momentum multiplier.
-  - [ ] Dashboard card summarizing usage vs quota.
+  - [x] `watchlists` table & service to add keywords/listings within limits.
+  - [x] Middleware enforcing daily query and suggestion quotas based on plan + momentum multiplier.
+  - [x] Dashboard card summarizing usage vs quota.
 - **S2-E3 Visual Tag AI**
-  - [ ] File upload to Supabase storage bucket (`assets/listings`).
-  - [ ] Local caption generation via BLIP-2 (Edge function or serverless worker) with fallback.
-  - [ ] GPT tag extraction, storing confidences in `extras` JSON.
+  - [x] File upload to Supabase storage bucket (`assets/listings`).
+  - [x] Local caption generation via BLIP-2 (Edge function or serverless worker) with fallback.
+  - [x] GPT tag extraction, storing confidences in `extras` JSON.
 - **S2-E4 UX Polish**
-  - [ ] Toast system per design tokens.
-  - [ ] Responsive sidebar collapse with tooltips.
-  - [x] Compact typography tokens with multilingual font stack (Figtree/Poppins) for denser layouts.
-- **Exit Criteria:** Users can optimize tags, maintain watchlists, and stay within plan limits; AI flows are explainable and logged.
+  - [x] Toast system per design tokens.
+  - [x] Responsive sidebar collapse with tooltips.
+- **Exit Criteria:** Users can optimize tags, maintain watchlists, and stay within plan limits; AI flows are explainable and logged. ✅
 
 ### Sprint 3 — Amazon Data Integration
 **Objectives:** Add Amazon provider, unify multi-source analytics, enforce provenance.
