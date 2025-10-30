@@ -120,7 +120,7 @@ Each sprint lists epics, cross-functional tasks, acceptance criteria, and instru
 - **S4-E3 Billing Integration**
   - [x] Stripe subscription sync with `user_profiles` plan state.
   - [x] Webhooks updating quotas and momentum multipliers.
-  - [x] Profile & billing workspace UI for managing plan, payment method, and notifications.
+  - [x] Profile & billing workspace UI for managing plan, payment method, and notifications (surfaced from the avatar menu in the global top bar).
 - **S4-UX Enhancements**
   - [x] Global top bar user menu with avatar, help, logout, and theme selector.
   - [x] Theme system supporting light, dark, and system preferences across the shell.
