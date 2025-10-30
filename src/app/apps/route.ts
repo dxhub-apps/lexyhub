@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { track } from "@vercel/analytics/server";
+
 import { verifyToken } from "@/lib/tokens";
 
 export async function GET(req: NextRequest) {
@@ -13,13 +15,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
 
+  await track("apps.listed", {
+    actor: payload.sub ?? "anonymous",
+    count: 2,
+  });
+
   return NextResponse.json(
     {
       apps: [
         { id: "keyword-intel", name: "Keyword Intelligence" },
-        { id: "shop-insights", name: "Shop Insights" }
-      ]
+        { id: "shop-insights", name: "Shop Insights" },
+      ],
     },
-    { status: 200 }
+    { status: 200 },
   );
 }

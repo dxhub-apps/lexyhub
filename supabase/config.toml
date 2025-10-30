@@ -1,0 +1,9 @@
+[project]
+api_url = "https://api.supabase.com"
+project_id = "lexyhub"
+
+[db]
+extensions = ["pgvector"]
+
+[functions]
+ignore = []

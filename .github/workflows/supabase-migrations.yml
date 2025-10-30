@@ -38,6 +38,9 @@ jobs:
       - name: Ensure migrations dir
         run: mkdir -p supabase/migrations
 
+      - name: Supabase lint
+        run: supabase db lint
+
       - name: Run migrations
         id: run_migrations
         run: supabase db push --db-url "$SUPABASE_DB_URL"
