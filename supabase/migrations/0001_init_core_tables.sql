@@ -42,19 +42,21 @@ alter table public.keywords
 create table if not exists public.embeddings (
     term_hash text primary key,
     term text not null,
-    -- 3072 dims kept
     embedding vector(3072) not null,
     model text not null,
     created_at timestamptz not null default now()
 );
 
+-- simple btree index is OK
 create index if not exists embeddings_term_idx on public.embeddings(term);
 
--- IVFFlat cannot handle >2000 dims. Use HNSW.
--- Supabase pgvector >=0.7.0 supports HNSW.
-create index if not exists embeddings_vector_hnsw_idx
-    on public.embeddings
-    using hnsw (embedding vector_cosine_ops);
+-- NOTE:
+-- we do NOT create an ANN index (ivfflat/hnsw) here
+-- because current pgvector on this instance rejects >2000 dims for those methods.
+-- Nearest-neighbor queries must be brute-force, e.g.:
+--   select * from public.embeddings
+--   order by embedding <-> $1
+--   limit 50;
 
 create table if not exists public.concept_clusters (
     id uuid primary key default gen_random_uuid(),
@@ -67,10 +69,7 @@ create table if not exists public.concept_clusters (
     updated_at timestamptz not null default now()
 );
 
--- same issue here: use HNSW for 3072
-create index if not exists concept_clusters_centroid_hnsw_idx
-    on public.concept_clusters
-    using hnsw (centroid_vector vector_cosine_ops);
+-- same note: no ANN index on centroid_vector because of 3072 dims
 
 create table if not exists public.trend_series (
     id bigserial primary key,
@@ -138,10 +137,11 @@ drop table if exists public.ai_predictions cascade;
 drop table if exists public.trend_series cascade;
 drop table if exists public.concept_clusters cascade;
 
--- drop both possible names to be safe
-drop index if exists embeddings_vector_hnsw_idx;
-drop index if exists embeddings_vector_idx;
+-- indexes and table for embeddings
 drop index if exists embeddings_term_idx;
+-- no ANN index to drop, but drop defensively:
+drop index if exists embeddings_vector_idx;
+drop index if exists embeddings_vector_hnsw_idx;
 drop table if exists public.embeddings cascade;
 
 drop table if exists public.keywords cascade;
