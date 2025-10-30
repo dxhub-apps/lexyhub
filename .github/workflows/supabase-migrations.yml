@@ -56,11 +56,9 @@ jobs:
             MSG="supabase db push failed"
           fi
 
-          psql "$SUPABASE_DB_URL" <<SQL
-insert into public.schema_migrations_ci (git_sha, actor, workflow, status, message)
-values ('$GIT_SHA', '$ACTOR', '$WORKFLOW', '$STATUS', '$MSG');
-SQL
+          SQL_CMD="insert into public.schema_migrations_ci (git_sha, actor, workflow, status, message) values ('$GIT_SHA', '$ACTOR', '$WORKFLOW', '$STATUS', '$MSG');"
+          echo "$SQL_CMD" | psql "$SUPABASE_DB_URL"
 
       - name: Fail if migrations failed
-        if: "${{ steps.run_migrations.outcome != 'success' }}"
+        if: ${{ steps.run_migrations.outcome != 'success' }}
         run: exit 1
