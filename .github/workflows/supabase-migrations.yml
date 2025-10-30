@@ -12,7 +12,6 @@ on:
 jobs:
   migrations:
     runs-on: ubuntu-latest
-
     env:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -22,35 +21,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
         with:
-          node-version: 20
+          version: latest
 
-      - name: Install Supabase CLI
+      - name: Ensure migrations dir
+        run: mkdir -p supabase/migrations
+
+      - name: Run migrations on CI db
         run: |
-          npm install -g supabase@latest
-
-      - name: Validate migrations folder
-        run: |
-          test -d supabase/migrations || mkdir -p supabase/migrations
-
-      - name: DB diff check
-        run: |
-          # optional: compare remote schema to local; fail if drift
-          supabase db remote commit \
-            --project-ref $SUPABASE_PROJECT_ID \
-            --db-url "$SUPABASE_DB_URL" \
-            --schema public \
-            --dry-run
-
-      - name: Run migrations against temp db
-        run: |
-          supabase db reset --db-url "$SUPABASE_DB_URL" --force
-          supabase db push --db-url "$SUPABASE_DB_URL"
-
-      - name: Upload migration artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: supabase-migrations
-          path: supabase/migrations
+          supabase db push \
+            --db-url "$SUPABASE_DB_URL"
