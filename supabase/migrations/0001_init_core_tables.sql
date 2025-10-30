@@ -42,13 +42,19 @@ alter table public.keywords
 create table if not exists public.embeddings (
     term_hash text primary key,
     term text not null,
+    -- 3072 dims kept
     embedding vector(3072) not null,
     model text not null,
     created_at timestamptz not null default now()
 );
 
 create index if not exists embeddings_term_idx on public.embeddings(term);
-create index if not exists embeddings_vector_idx on public.embeddings using ivfflat (embedding vector_cosine_ops) with (lists = 100);
+
+-- IVFFlat cannot handle >2000 dims. Use HNSW.
+-- Supabase pgvector >=0.7.0 supports HNSW.
+create index if not exists embeddings_vector_hnsw_idx
+    on public.embeddings
+    using hnsw (embedding vector_cosine_ops);
 
 create table if not exists public.concept_clusters (
     id uuid primary key default gen_random_uuid(),
@@ -61,7 +67,10 @@ create table if not exists public.concept_clusters (
     updated_at timestamptz not null default now()
 );
 
-create index if not exists concept_clusters_centroid_idx on public.concept_clusters using ivfflat (centroid_vector vector_cosine_ops) with (lists = 100);
+-- same issue here: use HNSW for 3072
+create index if not exists concept_clusters_centroid_hnsw_idx
+    on public.concept_clusters
+    using hnsw (centroid_vector vector_cosine_ops);
 
 create table if not exists public.trend_series (
     id bigserial primary key,
@@ -75,7 +84,8 @@ create table if not exists public.trend_series (
     created_at timestamptz not null default now()
 );
 
-create unique index if not exists trend_series_term_source_date_idx on public.trend_series(term, source, recorded_on);
+create unique index if not exists trend_series_term_source_date_idx
+    on public.trend_series(term, source, recorded_on);
 
 create table if not exists public.ai_predictions (
     id uuid primary key default gen_random_uuid(),
@@ -98,7 +108,8 @@ create table if not exists public.ai_predictions (
     created_at timestamptz not null default now()
 );
 
-create index if not exists ai_predictions_user_idx on public.ai_predictions(user_id, created_at desc);
+create index if not exists ai_predictions_user_idx
+    on public.ai_predictions(user_id, created_at desc);
 
 create table if not exists public.user_profiles (
     user_id uuid primary key,
@@ -126,8 +137,12 @@ drop table if exists public.user_profiles cascade;
 drop table if exists public.ai_predictions cascade;
 drop table if exists public.trend_series cascade;
 drop table if exists public.concept_clusters cascade;
+
+-- drop both possible names to be safe
+drop index if exists embeddings_vector_hnsw_idx;
 drop index if exists embeddings_vector_idx;
 drop index if exists embeddings_term_idx;
 drop table if exists public.embeddings cascade;
+
 drop table if exists public.keywords cascade;
 drop table if exists public.keyword_seeds cascade;
