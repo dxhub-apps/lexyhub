@@ -1,3 +1,4 @@
+Set-Content -Path ".\src\lib\tokens.ts" -Value @'
 import crypto from "crypto";
 
 const secret = process.env.LEXYHUB_JWT_SECRET || "change-me";
@@ -18,3 +19,4 @@ export function verifyToken(token: string): any | null {
   if (expected !== sig) return null;
   return JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
 }
+'@
