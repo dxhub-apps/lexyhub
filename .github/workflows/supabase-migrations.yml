@@ -49,10 +49,10 @@ jobs:
           RUN_OUTCOME: ${{ steps.run_migrations.outcome }}
         run: |
           if [ "$RUN_OUTCOME" = "success" ]; then
-            STATUS="success"
+            STATUS=success
             MSG="applied"
           else
-            STATUS="failure"
+            STATUS=failure
             MSG="supabase db push failed"
           fi
 
@@ -62,5 +62,5 @@ values ('$GIT_SHA', '$ACTOR', '$WORKFLOW', '$STATUS', '$MSG');
 SQL
 
       - name: Fail if migrations failed
-        if: ${{ steps.run_migrations.outcome != 'success' }}
+        if: "${{ steps.run_migrations.outcome != 'success' }}"
         run: exit 1
