@@ -15,6 +15,10 @@ This guide captures the baseline environment configuration delivered as part of 
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key scoped to backend and CI usage. |
 | `LEXYHUB_JWT_SECRET` | Secret used for signing internal JWTs. |
 | `OPENAI_API_KEY` | API key for AI workflows. |
+| `GOOGLE_TRENDS_API_KEY` | Optional key for live Google Trends ingest. |
+| `PINTEREST_ACCESS_TOKEN` | Optional token unlocking Pinterest board metrics. |
+| `REDDIT_CLIENT_ID` / `REDDIT_CLIENT_SECRET` | OAuth credentials for Reddit trend ingest. |
+| `PARTNER_API_STATIC_KEYS` | Comma or newline separated `key:name:limit` entries for fixed partner keys. |
 
 Mirror these secrets in both Vercel project settings and GitHub Actions secrets. Missing values result in degraded functionality but the application will still build.
 

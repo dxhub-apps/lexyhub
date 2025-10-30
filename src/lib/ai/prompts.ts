@@ -93,6 +93,74 @@ export const VISUAL_TAG_PROMPT: PromptTemplate<VisualTagPromptInput> = {
   },
 };
 
+export type IntentClassifierInput = {
+  term: string;
+  market?: string;
+  source?: string;
+  context?: string;
+  signals?: Array<{ name: string; value: number }>;
+};
+
+function createIntentClassifierMessage(input: IntentClassifierInput): string {
+  const contextLines = [
+    `Keyword: ${input.term}`,
+    input.market ? `Market: ${input.market}` : null,
+    input.source ? `Source: ${input.source}` : null,
+    input.context ? `Context: ${input.context}` : null,
+    input.signals?.length
+      ? `Signals: ${input.signals.map((signal) => `${signal.name}=${signal.value.toFixed(2)}`).join(", ")}`
+      : null,
+    "Return JSON with keys intent (string), purchase_stage (string), persona (string), summary (string), confidence (0-1).",
+  ];
+
+  return contextLines.filter(Boolean).join("\n");
+}
+
+export const INTENT_CLASSIFIER_PROMPT: PromptTemplate<IntentClassifierInput> = {
+  id: "intent_classifier.v1",
+  version: "1.0.0",
+  purpose: "Classify commerce intent, persona, and funnel stage for a keyword",
+  system:
+    "You are LexyHub's intent intelligence analyst. Respond with JSON only. Determine user intent, persona, and purchase stage using e-commerce funnel terminology (awareness, consideration, purchase, retention).",
+  buildUserMessage: createIntentClassifierMessage,
+  metadata: {
+    owner: "insights",
+    release: "sprint-5",
+  },
+};
+
+export type ClusterLabelInput = {
+  keywords: string[];
+  primaryIntent?: string;
+  signals?: Array<{ name: string; value: number }>;
+};
+
+function buildClusterLabelMessage(input: ClusterLabelInput): string {
+  return [
+    `Members: ${input.keywords.join(", ")}`,
+    input.primaryIntent ? `Primary intent: ${input.primaryIntent}` : null,
+    input.signals?.length
+      ? `Signals: ${input.signals.map((signal) => `${signal.name}=${signal.value.toFixed(2)}`).join(", ")}`
+      : null,
+    "Return JSON with keys label (string), description (string), confidence (0-1).",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export const CLUSTER_LABEL_PROMPT: PromptTemplate<ClusterLabelInput> = {
+  id: "cluster_labeler.v1",
+  version: "1.0.0",
+  purpose: "Provide a short label and description for a semantic keyword cluster",
+  system:
+    "You are LexyHub's ontology curator. Provide concise, marketplace-friendly cluster labels and descriptions. Respond with JSON only.",
+  buildUserMessage: buildClusterLabelMessage,
+  metadata: {
+    owner: "insights",
+    release: "sprint-5",
+  },
+};
+
 export function buildPromptTrace<Input>(
   template: PromptTemplate<Input>,
   input: Input,
