@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: "/keywords", label: "Keywords", description: "AI search" },
   { href: "/insights", label: "Insights", description: "Visual AI" },
   { href: "/settings", label: "Settings", description: "Plan & team" },
+  { href: "/status", label: "Status", description: "Service status"  },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
