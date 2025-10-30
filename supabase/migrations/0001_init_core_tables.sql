@@ -1,3 +1,6 @@
+-- ===========================================
+-- 0001_init_core_tables.sql (corrected)
+-- ===========================================
 -- migrate:up
 create extension if not exists pgcrypto;
 create extension if not exists vector;
@@ -47,16 +50,8 @@ create table if not exists public.embeddings (
     created_at timestamptz not null default now()
 );
 
--- simple btree index is OK
 create index if not exists embeddings_term_idx on public.embeddings(term);
-
--- NOTE:
--- we do NOT create an ANN index (ivfflat/hnsw) here
--- because current pgvector on this instance rejects >2000 dims for those methods.
--- Nearest-neighbor queries must be brute-force, e.g.:
---   select * from public.embeddings
---   order by embedding <-> $1
---   limit 50;
+-- no ivfflat/hnsw index here because 3072 > 2000 on this instance
 
 create table if not exists public.concept_clusters (
     id uuid primary key default gen_random_uuid(),
@@ -68,8 +63,7 @@ create table if not exists public.concept_clusters (
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
-
--- same note: no ANN index on centroid_vector because of 3072 dims
+-- no ANN index for the same reason
 
 create table if not exists public.trend_series (
     id bigserial primary key,
@@ -137,9 +131,7 @@ drop table if exists public.ai_predictions cascade;
 drop table if exists public.trend_series cascade;
 drop table if exists public.concept_clusters cascade;
 
--- indexes and table for embeddings
 drop index if exists embeddings_term_idx;
--- no ANN index to drop, but drop defensively:
 drop index if exists embeddings_vector_idx;
 drop index if exists embeddings_vector_hnsw_idx;
 drop table if exists public.embeddings cascade;
