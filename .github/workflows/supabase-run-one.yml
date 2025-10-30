@@ -1,0 +1,46 @@
+name: Run single Supabase migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      migration_file:
+        description: "Migration SQL to run, relative to repo root. Example: supabase/migrations/20250101120000_add_users.sql"
+        required: true
+      database_url:
+        description: "Override DB URL (optional). If empty, uses secret."
+        required: false
+        default: ""
+
+jobs:
+  run-one:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ github.event.inputs.database_url != '' && github.event.inputs.database_url || secrets.SUPABASE_DB_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Supabase CLI
+        run: |
+          npm install -g supabase@latest
+
+      - name: Run one migration
+        run: |
+          FILE="${{ github.event.inputs.migration_file }}"
+          if [ ! -f "$FILE" ]; then
+            echo "File not found: $FILE"
+            exit 1
+          fi
+
+          # create temp dir and run as ad-hoc migration
+          mkdir -p .tmp-migration
+          cp "$FILE" .tmp-migration/migration.sql
+
+          # apply to target
+          supabase db execute --file .tmp-migration/migration.sql --db-url "$SUPABASE_DB_URL"
