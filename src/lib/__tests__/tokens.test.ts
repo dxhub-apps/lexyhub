@@ -13,4 +13,11 @@ describe("token utilities", () => {
     const tampered = `${token}corruption`;
     expect(verifyToken(tampered)).toBeNull();
   });
+
+  it("returns null for malformed payloads", () => {
+    const token = signToken({ sub: "user-123" });
+    const [header, , sig] = token.split(".");
+    const malformed = `${header}.not-base64!.${sig}`;
+    expect(verifyToken(malformed)).toBeNull();
+  });
 });
