@@ -33,35 +33,7 @@ function resolveClient() {
 export async function listHealthMetrics(): Promise<HealthMetric[]> {
   const client = resolveClient();
   if (!client) {
-    const now = new Date().toISOString();
-    return [
-      {
-        id: "demo-health-services",
-        category: "services",
-        metric_key: "uptime",
-        metric_label: "Service uptime",
-        metric_value: 99.95,
-        metric_unit: "percent",
-        status: "ok",
-        delta: 0.02,
-        trend: "up",
-        captured_at: now,
-        extras: { interval: "24h", note: "Supabase not configured" },
-      },
-      {
-        id: "demo-health-users",
-        category: "users",
-        metric_key: "active_users",
-        metric_label: "Active users",
-        metric_value: 1280,
-        metric_unit: "count",
-        status: "warning",
-        delta: -5,
-        trend: "down",
-        captured_at: now,
-        extras: { comparison: "7d" },
-      },
-    ];
+    throw new Error("Supabase client is not configured");
   }
 
   const { data, error } = await client
@@ -113,20 +85,7 @@ export async function upsertHealthMetric(payload: Partial<HealthMetric>): Promis
 export async function listCrawlerStatuses(): Promise<CrawlerStatus[]> {
   const client = resolveClient();
   if (!client) {
-    const now = new Date().toISOString();
-    return [
-      {
-        id: "demo-crawler-etsy",
-        source: "etsy",
-        status: "idle",
-        last_run_at: now,
-        next_run_at: new Date(Date.now() + 3600 * 1000).toISOString(),
-        total_records: 42,
-        error_message: null,
-        run_metadata: { fallback: true },
-        updated_at: now,
-      },
-    ];
+    throw new Error("Supabase client is not configured");
   }
 
   const { data, error } = await client
