@@ -7,25 +7,23 @@ import { createProvenanceId, hashKeywordTerm, normalizeKeywordTerm } from "../ke
 import { getSupabaseServerClient } from "../supabase-server";
 
 export const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-large";
-const DEFAULT_EMBEDDING_DIMENSION = 3072;
-
-const DETERMINISTIC_SUFFIX = "-deterministic-fallback";
 
 const MODEL_DIMENSIONS: Record<string, number> = {
   "text-embedding-3-large": 3072,
+  "text-embedding-3-small": 1536,
+  "text-embedding-ada-002": 1536,
 };
 
-function resolveEmbeddingDimension(model: string): number {
-  if (MODEL_DIMENSIONS[model]) {
-    return MODEL_DIMENSIONS[model];
-  }
+const DEFAULT_EMBEDDING_DIMENSION = MODEL_DIMENSIONS[DEFAULT_EMBEDDING_MODEL];
 
-  if (model.endsWith(DETERMINISTIC_SUFFIX)) {
-    const baseModel = model.slice(0, -DETERMINISTIC_SUFFIX.length);
-    return MODEL_DIMENSIONS[baseModel] ?? DEFAULT_EMBEDDING_DIMENSION;
-  }
+const DETERMINISTIC_SUFFIX = "-deterministic-fallback";
 
-  return DEFAULT_EMBEDDING_DIMENSION;
+function resolveEmbeddingDimension(model: string, fallback?: number): number {
+  const normalizedModel = model.endsWith(DETERMINISTIC_SUFFIX)
+    ? model.slice(0, -DETERMINISTIC_SUFFIX.length)
+    : model;
+
+  return MODEL_DIMENSIONS[normalizedModel] ?? fallback ?? DEFAULT_EMBEDDING_DIMENSION;
 }
 
 function normalizeEmbeddingLength(values: number[], dimension: number): number[] {
@@ -140,7 +138,7 @@ async function readCachedEmbedding(
   }
 
   const payload = data as EmbeddingRow;
-  const dimension = resolveEmbeddingDimension(payload.model);
+  const dimension = resolveEmbeddingDimension(payload.model, payload.embedding?.length);
 
   return {
     ...payload,
@@ -176,12 +174,12 @@ export async function getOrCreateEmbedding(
   const client = getSupabaseClientOverride(supabase);
   const normalized = normalizeKeywordTerm(term);
   const termHash = hashKeywordTerm(term, model);
-  const targetDimension = resolveEmbeddingDimension(model);
+  let targetDimension = resolveEmbeddingDimension(model);
 
   if (client) {
     const cached = await readCachedEmbedding(client, termHash);
     if (cached) {
-      const dimension = resolveEmbeddingDimension(cached.model);
+      const dimension = resolveEmbeddingDimension(cached.model, cached.embedding.length);
       return {
         ...cached,
         embedding: normalizeEmbeddingLength(cached.embedding, dimension),
@@ -195,6 +193,8 @@ export async function getOrCreateEmbedding(
 
   try {
     const rawEmbedding = await fetchEmbeddingFromOpenAI(normalized, model);
+    targetDimension = resolveEmbeddingDimension(model, rawEmbedding.length);
+
     if (rawEmbedding.length !== targetDimension) {
       console.warn(
         `Embedding dimension mismatch for model ${model}: expected ${targetDimension}, received ${rawEmbedding.length}. Normalizing for storage.`,
@@ -206,6 +206,7 @@ export async function getOrCreateEmbedding(
       throw error;
     }
 
+    targetDimension = resolveEmbeddingDimension(model, targetDimension);
     embedding = createDeterministicEmbedding(normalized, targetDimension);
     generatedModel = `${model}${DETERMINISTIC_SUFFIX}`;
   }
