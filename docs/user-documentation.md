@@ -15,7 +15,7 @@ LexyHub is the central workspace for monitoring sales velocity, discovering high
 ## Layout Reference
 LexyHub uses a responsive two-pane layout composed of:
 
-- **Sidebar navigation:** Links to Dashboard, Keywords, Insights, Market Twin, Settings, and Status. Collapse the sidebar by selecting the toggle in the top-left corner; the navigation automatically collapses on mobile breakpoints.
+- **Sidebar navigation:** Links to Dashboard, Watchlists, Keywords, Insights, Market Twin, Settings, and Status. Collapse the sidebar by selecting the toggle in the top-left corner; the navigation automatically collapses on mobile breakpoints.
 - **Top bar:** Displays the product name, contextual subtitle, environment (e.g., `development`, `preview`, `production`), a shortcut to the Status page, and the user menu.
 - **User menu:** Provides profile management, theme switching, how-to documentation, and a logout control. The menu stays consistent across every screen.
 
@@ -44,6 +44,19 @@ The Keywords workspace surfaces organic search opportunities discovered by LexyH
 2. Apply filters that reflect your campaign goals.
 3. Select the desired rows and click **Add to watchlist**.
 4. Choose an existing watchlist or create a new one. Watchlists sync automatically with market updates.
+
+## Watchlists
+The Watchlists hub centralizes every monitored keyword or listing tied to your account.
+
+- **Automatic provisioning:** When a user profile is created, LexyHub now creates an **Operational Watchlist** so new users can start tracking items immediately.
+- **Capacity overview:** Each card shows how many slots are in use, remaining capacity, and the watchlist description.
+- **Item controls:** Review the tracked keywords and listings, follow outbound links, and remove stale entries.
+
+**How to prune a watchlist:**
+1. Navigate to **Watchlists** in the sidebar.
+2. Locate the card for the watchlist you want to adjust.
+3. Click **Remove** next to the keyword or listing you no longer need to monitor.
+4. Refresh the Keyword explorer to add replacements as needed.
 
 ## Insights
 Insights consolidates narrative explanations, anomaly detection, and automated commentary.
@@ -124,4 +137,4 @@ LexyHub publishes sprint-level release notes in `/docs/changelog.md`. Review the
 - **Etsy integration guide:** `/docs/etsy-integration.md`
 - **Trend & intent intelligence:** `/docs/trend-intent-intelligence.md`
 
-_Last updated: 2024-05-09_
+_Last updated: 2024-07-19_
