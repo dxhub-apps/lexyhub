@@ -52,6 +52,7 @@ The Watchlists hub centralizes every monitored keyword or listing tied to your a
 - **Automatic provisioning:** When a user profile is created, LexyHub now creates an **Operational Watchlist** so new users can start tracking items immediately.
 - **Capacity overview:** Each card shows how many slots are in use, remaining capacity, and the watchlist description.
 - **Item controls:** Review the tracked keywords and listings, follow outbound links, and remove stale entries.
+- **Listing coverage:** Listings stay linked to their marketplace counterparts, so watchlist details remain accurate even after catalog updates.
 
 **How to prune a watchlist:**
 1. Navigate to **Watchlists** in the sidebar.
