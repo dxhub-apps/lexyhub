@@ -1,7 +1,7 @@
 # LexyHub User Documentation
 
 ## Overview
-LexyHub is the central workspace for monitoring sales velocity, discovering high-intent keywords, and coordinating market intelligence. This guide explains every surface of the product, recommended workflows, and troubleshooting steps so that new and existing teammates can become productive quickly.
+LexyHub is the central workspace for monitoring sales velocity, discovering high-intent keywords, and coordinating market intelligence. The interface has been refreshed with a simplified, hover-free presentation so navigation stays predictable on both desktop and touch devices. This guide explains every surface of the product, recommended workflows, and troubleshooting steps so that new and existing teammates can become productive quickly.
 
 - **Audience:** growth managers, marketplace operators, analysts, and executives using LexyHub to plan and execute marketplace strategies.
 - **Prerequisites:** an active LexyHub account and access to the data sources configured by your organization.
@@ -15,9 +15,9 @@ LexyHub is the central workspace for monitoring sales velocity, discovering high
 ## Layout Reference
 LexyHub uses a responsive two-pane layout composed of:
 
-- **Command sidebar:** Links to Dashboard, Watchlists, Keywords, Insights, Market Twin, Settings, and Status with clear descriptions so teammates understand what each section unlocks. Collapse the sidebar using the toggle in the upper-left corner; the navigation automatically becomes a slide-over drawer on mobile breakpoints.
-- **Workspace header:** Displays the product name, contextual subtitle for the active area, environment (e.g., `development`, `preview`, `production`), a quick "Need help?" shortcut to this guide, and the user menu. The mobile header exposes a menu button that opens the navigation drawer.
-- **User menu:** Provides profile management, theme switching, how-to documentation, and a logout control. The menu stays consistent across every screen.
+- **Command sidebar:** Links to Dashboard, Watchlists, Keywords, Insights, Market Twin, Settings, and Status with clear descriptions so teammates understand what each section unlocks. The solid backgrounds and removal of hover-only feedback make link states legible in both light and dark themes. Collapse the sidebar using the toggle in the upper-left corner; the navigation automatically becomes a slide-over drawer on mobile breakpoints.
+- **Workspace header:** Displays the product name, contextual subtitle for the active area, environment (e.g., `development`, `preview`, `production`), a quick "Need help?" shortcut to this guide, and the user menu. The header controls now use consistent solid fills so actions remain obvious on touch devices. The mobile header exposes a menu button that opens the navigation drawer.
+- **User menu:** Provides profile management, theme switching, how-to documentation, and a logout control. Focus indicators replace hover effects so keyboard and touch users can clearly see the active option.
 
 ## Dashboard
 The Dashboard offers a high-level snapshot of revenue pacing and target attainment.
@@ -114,8 +114,8 @@ The Status area communicates system uptime and scheduled maintenance.
 3. Confirm the subscription request from the follow-up email.
 
 ## Notifications & Themes
-- **Notifications:** Toasts appear for successes, warnings, and errors across the application. Access past notifications from the bell icon history.
-- **Themes:** Switch between Light, Dark, and System modes using the theme picker in the user menu. Preferences persist per device.
+- **Notifications:** Toasts appear for successes, warnings, and errors across the application using consistent solid backgrounds that respect the current theme. Access past notifications from the bell icon history.
+- **Themes:** Switch between Light, Dark, and System modes using the theme picker in the user menu. All surfaces—including cards, tables, and navigation—now share the same palette so light and dark experiences remain visually balanced. Preferences persist per device.
 
 ## Help & Support
 - **Help Center:** Access this documentation from the new "Need help?" shortcut in the workspace header or the help icon in the global user menu.
@@ -140,4 +140,4 @@ LexyHub publishes sprint-level release notes in `/docs/changelog.md`. Review the
 - **Amazon keyword population guide:** `/docs/amazon-keyword-population-guide.md`
 - **Trend & intent intelligence:** `/docs/trend-intent-intelligence.md`
 
-_Last updated: 2025-10-31_
+_Last updated: 2025-06-09_
