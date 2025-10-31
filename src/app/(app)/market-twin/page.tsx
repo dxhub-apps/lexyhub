@@ -1,6 +1,26 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  Chip,
+  Divider,
+  FormControl,
+  Grid,
+  InputLabel,
+  List,
+  ListItem,
+  MenuItem,
+  Select,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 
 import { useToast } from "@/components/ui/ToastProvider";
 
@@ -189,148 +209,201 @@ export default function MarketTwinPage(): JSX.Element {
   };
 
   return (
-    <div className="market-twin">
-      <header>
-        <div>
-          <h1>AI Market Twin</h1>
-          <p>Compare your baseline Etsy listings against hypothetical upgrades to predict visibility shifts.</p>
-        </div>
-        <span className="badge">Live Simulation</span>
-      </header>
+    <Stack spacing={3}>
+      <Card>
+        <CardHeader
+          title="AI Market Twin"
+          subheader="Compare your baseline Etsy listings against hypothetical upgrades to predict visibility shifts."
+          action={<Chip label="Live simulation" color="success" variant="outlined" />}
+        />
+      </Card>
 
-      <section className="market-twin-grid">
-        <form className="market-twin-form" onSubmit={handleSubmit}>
-          <h2>Simulation wizard</h2>
-          <p>Select a baseline listing, tweak the scenario, and generate AI-backed projections.</p>
+      <Grid container spacing={3} alignItems="flex-start">
+        <Grid item xs={12} lg={7}>
+          <Card>
+            <CardHeader title="Simulation wizard" subheader="Select a baseline listing and tweak the scenario." />
+            <CardContent>
+              <Stack component="form" spacing={2.5} onSubmit={handleSubmit}>
+                <FormControl fullWidth>
+                  <InputLabel id="baseline-listing-label">Baseline listing</InputLabel>
+                  <Select
+                    labelId="baseline-listing-label"
+                    value={selectedListingId ?? ""}
+                    label="Baseline listing"
+                    onChange={(event) => setSelectedListingId(event.target.value || null)}
+                    disabled={loading || listings.length === 0}
+                  >
+                    <MenuItem value="" disabled>
+                      {loading ? "Loading listings…" : "Select a listing"}
+                    </MenuItem>
+                    {listings.map((listing) => (
+                      <MenuItem key={listing.id} value={listing.id}>
+                        {listing.title} — {listing.shopName ?? "Etsy shop"}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <TextField
+                  label="Scenario title"
+                  value={scenarioTitle}
+                  onChange={(event) => setScenarioTitle(event.target.value)}
+                  placeholder="Improved SEO title"
+                  fullWidth
+                />
+                <TextField
+                  label="Scenario price (USD)"
+                  type="number"
+                  inputProps={{ step: 0.01 }}
+                  value={scenarioPrice}
+                  onChange={(event) => setScenarioPrice(event.target.value)}
+                  placeholder="29.99"
+                  fullWidth
+                />
+                <TextField
+                  label="Scenario tags"
+                  value={scenarioTags}
+                  onChange={(event) => setScenarioTags(event.target.value)}
+                  placeholder="handmade, gift, trending"
+                  multiline
+                  minRows={3}
+                  fullWidth
+                />
+                <TextField
+                  label="Goals"
+                  value={goals}
+                  onChange={(event) => setGoals(event.target.value)}
+                  placeholder="Increase visibility;Improve conversion"
+                  fullWidth
+                />
+                <TextField
+                  label="Description tweaks"
+                  value={scenarioDescription}
+                  onChange={(event) => setScenarioDescription(event.target.value)}
+                  placeholder="Highlight faster shipping, new bundles, or creative variations."
+                  multiline
+                  minRows={4}
+                  fullWidth
+                />
+                <Button type="submit" variant="contained" size="large" disabled={submitting}>
+                  {submitting ? "Running simulation…" : "Run Market Twin"}
+                </Button>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} lg={5}>
+          <Stack spacing={3}>
+            <Card>
+              <CardHeader title="Baseline snapshot" />
+              <CardContent>
+                {activeListing ? (
+                  <Stack spacing={1.5}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      {activeListing.title}
+                    </Typography>
+                    <Stack spacing={1}>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="body2" color="text.secondary">
+                          Shop
+                        </Typography>
+                        <Typography variant="body2">{activeListing.shopName ?? "Etsy"}</Typography>
+                      </Stack>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="body2" color="text.secondary">
+                          Status
+                        </Typography>
+                        <Typography variant="body2">{activeListing.status}</Typography>
+                      </Stack>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="body2" color="text.secondary">
+                          Price
+                        </Typography>
+                        <Typography variant="body2">
+                          {formatCurrency(activeListing.priceCents, activeListing.currency)}
+                        </Typography>
+                      </Stack>
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          Tags
+                        </Typography>
+                        <Typography variant="body2">
+                          {activeListing.tags.length ? activeListing.tags.join(", ") : "No tags"}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          Signals
+                        </Typography>
+                        <Typography variant="body2">
+                          {activeListing.stats
+                            ? `${activeListing.stats.views} views · ${activeListing.stats.favorites} favorites`
+                            : "No stats yet"}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Stack>
+                ) : (
+                  <Alert severity="info">Select a listing to inspect baseline metrics.</Alert>
+                )}
+              </CardContent>
+            </Card>
 
-          <label>
-            <span>Baseline listing</span>
-            <select
-              value={selectedListingId ?? ""}
-              onChange={(event) => setSelectedListingId(event.target.value || null)}
-              disabled={loading || listings.length === 0}
-            >
-              <option value="" disabled>
-                {loading ? "Loading listings..." : "Select a listing"}
-              </option>
-              {listings.map((listing) => (
-                <option key={listing.id} value={listing.id}>
-                  {listing.title} — {listing.shopName ?? "Etsy shop"}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            <span>Scenario title</span>
-            <input value={scenarioTitle} onChange={(event) => setScenarioTitle(event.target.value)} placeholder="Improved SEO title" />
-          </label>
-
-          <label>
-            <span>Scenario price (USD)</span>
-            <input
-              type="number"
-              step="0.01"
-              value={scenarioPrice}
-              onChange={(event) => setScenarioPrice(event.target.value)}
-              placeholder="29.99"
-            />
-          </label>
-
-          <label>
-            <span>Scenario tags</span>
-            <textarea
-              rows={3}
-              value={scenarioTags}
-              onChange={(event) => setScenarioTags(event.target.value)}
-              placeholder="handmade, gift, trending"
-            />
-          </label>
-
-          <label>
-            <span>Goals</span>
-            <input value={goals} onChange={(event) => setGoals(event.target.value)} placeholder="Increase visibility;Improve conversion" />
-          </label>
-
-          <label>
-            <span>Description tweaks</span>
-            <textarea
-              rows={4}
-              value={scenarioDescription}
-              onChange={(event) => setScenarioDescription(event.target.value)}
-              placeholder="Highlight faster shipping, new bundles, or creative variations."
-            />
-          </label>
-
-          <button type="submit" className="market-twin-primary" disabled={submitting}>
-            {submitting ? "Running simulation..." : "Run Market Twin"}
-          </button>
-        </form>
-
-        <aside className="market-twin-sidebar">
-          <h2>Baseline snapshot</h2>
-          {activeListing ? (
-            <div className="market-twin-baseline">
-              <h3>{activeListing.title}</h3>
-              <dl>
-                <div>
-                  <dt>Shop</dt>
-                  <dd>{activeListing.shopName ?? "Etsy"}</dd>
-                </div>
-                <div>
-                  <dt>Status</dt>
-                  <dd>{activeListing.status}</dd>
-                </div>
-                <div>
-                  <dt>Price</dt>
-                  <dd>{formatCurrency(activeListing.priceCents, activeListing.currency)}</dd>
-                </div>
-                <div>
-                  <dt>Tags</dt>
-                  <dd>{activeListing.tags.length ? activeListing.tags.join(", ") : "No tags"}</dd>
-                </div>
-                <div>
-                  <dt>Signals</dt>
-                  <dd>
-                    {activeListing.stats ? (
-                      <>
-                        {activeListing.stats.views} views · {activeListing.stats.favorites} favorites
-                      </>
-                    ) : (
-                      "No stats yet"
-                    )}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          ) : (
-            <p className="market-twin-placeholder">Select a listing to inspect baseline metrics.</p>
-          )}
-
-          <h2>Recent simulations</h2>
-          <ul className="market-twin-history">
-            {history.length === 0 && <li className="market-twin-placeholder">No simulations recorded yet.</li>}
-            {history.map((record) => {
-              const timestamp = record.createdAt ?? record.created_at;
-              const label = timestamp ? new Date(timestamp).toLocaleString() : "Pending";
-              return (
-                <li key={record.id ?? record.createdAt ?? label}>
-                  <div>
-                    <strong>{record.baseline?.title ?? record.scenario_input?.scenarioTitle ?? "Scenario"}</strong>
-                    <span>{label}</span>
-                  </div>
-                  <p>{record.result?.explanation ?? record.extras?.explanation ?? "Analysis pending. Check back shortly."}</p>
-                  <footer>
-                    <span>Visibility: {formatPercent(record.result?.predictedVisibility ?? record.predicted_visibility)}</span>
-                    <span>Confidence: {formatPercent(record.result?.confidence ?? record.confidence)}</span>
-                    <span>Semantic gap: {formatPercent(record.result?.semanticGap ?? record.extras?.semanticGap)}</span>
-                  </footer>
-                </li>
-              );
-            })}
-          </ul>
-        </aside>
-      </section>
-    </div>
+            <Card>
+              <CardHeader title="Recent simulations" />
+              <CardContent>
+                {history.length === 0 ? (
+                  <Alert severity="info">No simulations recorded yet.</Alert>
+                ) : (
+                  <List sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    {history.map((record) => {
+                      const timestamp = record.createdAt ?? record.created_at;
+                      const label = timestamp ? new Date(timestamp).toLocaleString() : "Pending";
+                      return (
+                        <ListItem
+                          key={record.id ?? record.createdAt ?? label}
+                          sx={{
+                            border: (theme) => `1px solid ${theme.palette.divider}`,
+                            borderRadius: 2,
+                            alignItems: "flex-start",
+                            flexDirection: "column",
+                            gap: 1,
+                          }}
+                        >
+                          <Stack spacing={0.5} sx={{ width: "100%" }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                              {record.baseline?.title ?? record.scenario_input?.scenarioTitle ?? "Scenario"}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {label}
+                            </Typography>
+                          </Stack>
+                          <Typography variant="body2" color="text.secondary">
+                            {record.result?.explanation ??
+                              record.extras?.explanation ??
+                              "Analysis pending. Check back shortly."}
+                          </Typography>
+                          <Divider flexItem sx={{ my: 1 }} />
+                          <Stack direction="row" spacing={2} sx={{ width: "100%" }}>
+                            <Typography variant="caption" color="text.secondary">
+                              Visibility: {formatPercent(record.result?.predictedVisibility ?? record.predicted_visibility)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Confidence: {formatPercent(record.result?.confidence ?? record.confidence)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Semantic gap: {formatPercent(record.result?.semanticGap ?? record.extras?.semanticGap)}
+                            </Typography>
+                          </Stack>
+                        </ListItem>
+                      );
+                    })}
+                  </List>
+                )}
+              </CardContent>
+            </Card>
+          </Stack>
+        </Grid>
+      </Grid>
+    </Stack>
   );
 }

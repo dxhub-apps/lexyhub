@@ -1,6 +1,26 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  Checkbox,
+  Chip,
+  Divider,
+  FormControl,
+  FormControlLabel,
+  Grid,
+  InputLabel,
+  List,
+  ListItem,
+  MenuItem,
+  Select,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 
 import { useToast } from "@/components/ui/ToastProvider";
 
@@ -18,13 +38,6 @@ type InvoiceHistoryRow = {
   total: string;
   status: string;
 };
-
-function formatAmount(cents?: number | null): string {
-  if (cents == null) {
-    return "$0.00";
-  }
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
-}
 
 type ProfileDetails = {
   fullName: string;
@@ -227,180 +240,210 @@ export default function ProfilePage(): JSX.Element {
   };
 
   return (
-    <div className="profile-page">
-      <header className="profile-header">
-        <div>
-          <h1>Profile &amp; Billing</h1>
-          <p>Control how LexyHub syncs your Etsy shop, AI Market Twin simulations, and billing cadence.</p>
-        </div>
-        <div className="profile-header-meta">
-          <span className="badge">Account Center</span>
-          <span>Plan: {billing.plan.toUpperCase()}</span>
-        </div>
-      </header>
+    <Stack spacing={3}>
+      <Card>
+        <CardHeader
+          title="Profile & Billing"
+          subheader="Control how LexyHub syncs your Etsy shop, AI Market Twin simulations, and billing cadence."
+        />
+        <CardContent>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="center">
+            <Chip label="Account Center" color="primary" variant="outlined" />
+            <Typography variant="body2">Plan: {billing.plan.toUpperCase()}</Typography>
+          </Stack>
+        </CardContent>
+      </Card>
 
-      <div className="profile-grid">
-        <form className="profile-card" onSubmit={handleProfileSubmit}>
-          <h2>Profile</h2>
-          <p className="profile-muted">Update the contact details stored alongside your Supabase user profile.</p>
+      <Grid container spacing={3} alignItems="flex-start">
+        <Grid item xs={12} lg={6}>
+          <Card component="form" onSubmit={handleProfileSubmit}>
+            <CardHeader title="Profile" subheader="Update the contact details stored alongside your Supabase user profile." />
+            <CardContent>
+              <Stack spacing={2}>
+                <TextField
+                  label="Full name"
+                  value={profile.fullName}
+                  onChange={(event) => setProfile((state) => ({ ...state, fullName: event.target.value }))}
+                  disabled={loading}
+                />
+                <TextField
+                  label="Email"
+                  type="email"
+                  value={profile.email}
+                  onChange={(event) => setProfile((state) => ({ ...state, email: event.target.value }))}
+                  disabled={loading}
+                />
+                <TextField
+                  label="Company"
+                  value={profile.company}
+                  onChange={(event) => setProfile((state) => ({ ...state, company: event.target.value }))}
+                  disabled={loading}
+                />
+                <TextField
+                  label="Bio"
+                  value={profile.bio}
+                  onChange={(event) => setProfile((state) => ({ ...state, bio: event.target.value }))}
+                  disabled={loading}
+                  multiline
+                  minRows={3}
+                />
+                <TextField
+                  label="Timezone"
+                  value={profile.timezone}
+                  onChange={(event) => setProfile((state) => ({ ...state, timezone: event.target.value }))}
+                  disabled={loading}
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={profile.notifications}
+                      onChange={(event) =>
+                        setProfile((state) => ({ ...state, notifications: event.target.checked }))
+                      }
+                      disabled={loading}
+                    />
+                  }
+                  label="Send product notifications"
+                />
+                <Stack direction="row" spacing={2} justifyContent="flex-end">
+                  <Button type="submit" variant="contained" disabled={loading}>
+                    Save profile
+                  </Button>
+                </Stack>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} lg={6}>
+          <Card component="form" onSubmit={handleBillingSubmit}>
+            <CardHeader title="Billing" subheader="Manage subscription status, billing email, and payment method labels." />
+            <CardContent>
+              <Stack spacing={2}>
+                <FormControl fullWidth>
+                  <InputLabel id="plan-label">Plan</InputLabel>
+                  <Select
+                    labelId="plan-label"
+                    value={billing.plan}
+                    label="Plan"
+                    onChange={(event) =>
+                      setBilling((state) => ({ ...state, plan: event.target.value as BillingPreferences["plan"] }))
+                    }
+                    disabled={loading}
+                  >
+                    <MenuItem value="spark">Spark</MenuItem>
+                    <MenuItem value="scale">Scale</MenuItem>
+                    <MenuItem value="apex">Apex</MenuItem>
+                  </Select>
+                </FormControl>
+                <TextField
+                  label="Billing email"
+                  type="email"
+                  value={billing.billingEmail}
+                  onChange={(event) => setBilling((state) => ({ ...state, billingEmail: event.target.value }))}
+                  disabled={loading}
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={billing.autoRenew}
+                      onChange={(event) => setBilling((state) => ({ ...state, autoRenew: event.target.checked }))}
+                      disabled={loading}
+                    />
+                  }
+                  label="Auto-renew plan"
+                />
+                <TextField
+                  label="Payment method label"
+                  value={billing.paymentMethod}
+                  onChange={(event) => setBilling((state) => ({ ...state, paymentMethod: event.target.value }))}
+                  disabled={loading}
+                />
+                <Stack direction="row" spacing={2} justifyContent="flex-end">
+                  <Button type="submit" variant="contained" disabled={loading}>
+                    Save billing settings
+                  </Button>
+                  <Button type="button" variant="outlined" color="warning" onClick={handleCancelPlan} disabled={loading}>
+                    Cancel at period end
+                  </Button>
+                </Stack>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
-          <label>
-            <span>Full name</span>
-            <input
-              value={profile.fullName}
-              onChange={(event) => setProfile((state) => ({ ...state, fullName: event.target.value }))}
-              disabled={loading}
-            />
-          </label>
-
-          <label>
-            <span>Email</span>
-            <input
-              type="email"
-              value={profile.email}
-              onChange={(event) => setProfile((state) => ({ ...state, email: event.target.value }))}
-              disabled={loading}
-            />
-          </label>
-
-          <label>
-            <span>Company</span>
-            <input
-              value={profile.company}
-              onChange={(event) => setProfile((state) => ({ ...state, company: event.target.value }))}
-              disabled={loading}
-            />
-          </label>
-
-          <label>
-            <span>Bio</span>
-            <textarea
-              rows={3}
-              value={profile.bio}
-              onChange={(event) => setProfile((state) => ({ ...state, bio: event.target.value }))}
-              disabled={loading}
-            />
-          </label>
-
-          <label>
-            <span>Timezone</span>
-            <input
-              value={profile.timezone}
-              onChange={(event) => setProfile((state) => ({ ...state, timezone: event.target.value }))}
-              disabled={loading}
-            />
-          </label>
-
-          <label className="profile-checkbox">
-            <input
-              type="checkbox"
-              checked={profile.notifications}
-              onChange={(event) => setProfile((state) => ({ ...state, notifications: event.target.checked }))}
-              disabled={loading}
-            />
-            <span>Send product notifications</span>
-          </label>
-
-          <button type="submit" disabled={loading}>
-            Save profile
-          </button>
-        </form>
-
-        <form className="profile-card" onSubmit={handleBillingSubmit}>
-          <h2>Billing</h2>
-          <p className="profile-muted">Manage subscription status, billing email, and payment method labels.</p>
-
-          <label>
-            <span>Plan</span>
-            <select
-              value={billing.plan}
-              onChange={(event) =>
-                setBilling((state) => ({ ...state, plan: event.target.value as BillingPreferences["plan"] }))
-              }
-              disabled={loading}
-            >
-              <option value="spark">Spark</option>
-              <option value="scale">Scale</option>
-              <option value="apex">Apex</option>
-            </select>
-          </label>
-
-          <label>
-            <span>Billing email</span>
-            <input
-              type="email"
-              value={billing.billingEmail}
-              onChange={(event) => setBilling((state) => ({ ...state, billingEmail: event.target.value }))}
-              disabled={loading}
-            />
-          </label>
-
-          <label className="profile-checkbox">
-            <input
-              type="checkbox"
-              checked={billing.autoRenew}
-              onChange={(event) => setBilling((state) => ({ ...state, autoRenew: event.target.checked }))}
-              disabled={loading}
-            />
-            <span>Auto-renew plan</span>
-          </label>
-
-          <label>
-            <span>Payment method label</span>
-            <input
-              value={billing.paymentMethod}
-              onChange={(event) => setBilling((state) => ({ ...state, paymentMethod: event.target.value }))}
-              disabled={loading}
-            />
-          </label>
-
-          <button type="submit" disabled={loading}>
-            Save billing settings
-          </button>
-
-          <button type="button" className="profile-secondary" onClick={handleCancelPlan} disabled={loading}>
-            Cancel at period end
-          </button>
-        </form>
-
-        <aside className="profile-card">
-          <h2>Subscription</h2>
-          <p className="profile-muted">Status and history are sourced directly from Supabase billing tables.</p>
-
-          <dl className="profile-subscription">
-            <div>
-              <dt>Status</dt>
-              <dd className={`status-${subscriptionStatus}`}>{subscriptionStatus}</dd>
-            </div>
-            <div>
-              <dt>Auto-renew</dt>
-              <dd>{billing.autoRenew ? "Enabled" : "Disabled"}</dd>
-            </div>
-            <div>
-              <dt>Current period end</dt>
-              <dd>{periodEnd ? new Date(periodEnd).toLocaleString() : "—"}</dd>
-            </div>
-            <div>
-              <dt>Plan summary</dt>
-              <dd>{activePlanSummary}</dd>
-            </div>
-          </dl>
-
-          <h3>Invoice history</h3>
-          <ul className="profile-invoices">
-            {invoiceHistory.length === 0 ? <li>No invoices yet.</li> : null}
-            {invoiceHistory.map((invoice) => (
-              <li key={invoice.id}>
-                <div>
-                  <strong>{invoice.period}</strong>
-                  <span>{invoice.status}</span>
-                </div>
-                <span>{invoice.total}</span>
-              </li>
-            ))}
-          </ul>
-        </aside>
-      </div>
-    </div>
+      <Card>
+        <CardHeader title="Subscription" subheader="Status and history are sourced directly from Supabase billing tables." />
+        <CardContent>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={3}>
+              <Typography variant="caption" color="text.secondary">
+                Status
+              </Typography>
+              <Typography variant="body2">{subscriptionStatus}</Typography>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Typography variant="caption" color="text.secondary">
+                Auto-renew
+              </Typography>
+              <Typography variant="body2">{billing.autoRenew ? "Enabled" : "Disabled"}</Typography>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Typography variant="caption" color="text.secondary">
+                Current period end
+              </Typography>
+              <Typography variant="body2">{periodEnd ? new Date(periodEnd).toLocaleString() : "—"}</Typography>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Typography variant="caption" color="text.secondary">
+                Plan summary
+              </Typography>
+              <Typography variant="body2">{activePlanSummary}</Typography>
+            </Grid>
+          </Grid>
+          <Divider sx={{ my: 2 }} />
+          <Typography variant="subtitle1" sx={{ mb: 1 }}>
+            Invoice history
+          </Typography>
+          {invoiceHistory.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              No invoices yet.
+            </Typography>
+          ) : (
+            <List>
+              {invoiceHistory.map((invoice) => (
+                <ListItem
+                  key={invoice.id}
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 2,
+                    py: 1,
+                    borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+                  }}
+                >
+                  <Stack>
+                    <Typography variant="subtitle2">{invoice.period}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {invoice.status}
+                    </Typography>
+                  </Stack>
+                  <Typography variant="body2">{invoice.total}</Typography>
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </CardContent>
+      </Card>
+    </Stack>
   );
+}
+
+type FormatAmountInput = number | null | undefined;
+
+function formatAmount(cents: FormatAmountInput): string {
+  if (cents == null) {
+    return "$0.00";
+  }
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
 }

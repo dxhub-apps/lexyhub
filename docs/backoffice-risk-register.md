@@ -50,3 +50,22 @@ Every sync evaluates the current telemetry and updates three managed risks:
 
 Because the register is driven by Supabase, the backoffice dashboard metrics (total, open, mitigated, and
 overdue) now reflect the genuine operational posture rather than demo scenarios.
+
+## Managing the register from the UI
+
+The **Admin → Backoffice → Risk management** page has been rebuilt with Material Design cards and grids so
+administrators can triage telemetry without guessing which controls are interactive. Each section uses the
+same solid backgrounds and contrast tokens from the global theme, making buttons and editable fields obvious
+in both light and dark mode.
+
+1. Review the **Risk appetites** card to understand the current guardrails. Use the form at the top to create
+   or update appetites—fields sit within a responsive grid and persist only after clicking **Create appetite**
+   or **Update appetite**.
+2. Capture mitigation levers in the **Controls** card. Edit and delete buttons remain visible at all times,
+   so you no longer need to hover to discover available actions.
+3. Raise incidents from the **Risk register** card. The redesigned form lets you link appetites and controls
+   via dropdowns, document mitigation plans, and assign owners. After submitting, the register list refreshes
+   inline with chips highlighting severity, likelihood, and ownership.
+
+All inputs inherit the system theme preference managed by the global theme switcher, ensuring accessibility
+and visual consistency across the entire application shell.

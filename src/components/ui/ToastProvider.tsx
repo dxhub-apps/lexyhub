@@ -11,6 +11,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { Alert, AlertTitle, Box, Collapse, Stack } from "@mui/material";
+
 type Toast = {
   id: string;
   title: string;
@@ -66,19 +68,36 @@ export function ToastProvider({ children }: { children: ReactNode }): JSX.Elemen
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="toast-container" role="status" aria-live="polite">
-        {toasts.map((toast) => (
-          <button
-            key={toast.id}
-            type="button"
-            className={`toast toast-${toast.tone ?? "info"}`}
-            onClick={() => dismiss(toast.id)}
-          >
-            <strong>{toast.title}</strong>
-            {toast.description ? <span>{toast.description}</span> : null}
-          </button>
-        ))}
-      </div>
+      <Box
+        role="status"
+        aria-live="polite"
+        sx={{
+          position: "fixed",
+          bottom: 24,
+          right: 24,
+          display: "flex",
+          flexDirection: "column",
+          gap: 2,
+          zIndex: (theme) => theme.zIndex.snackbar,
+          width: "min(360px, calc(100vw - 32px))",
+        }}
+      >
+        <Stack spacing={2}>
+          {toasts.map((toast) => (
+            <Collapse key={toast.id} in>
+              <Alert
+                severity={toast.tone ?? "info"}
+                variant="filled"
+                onClose={() => dismiss(toast.id)}
+                sx={{ alignItems: "flex-start" }}
+              >
+                <AlertTitle>{toast.title}</AlertTitle>
+                {toast.description ?? null}
+              </Alert>
+            </Collapse>
+          ))}
+        </Stack>
+      </Box>
     </ToastContext.Provider>
   );
 }

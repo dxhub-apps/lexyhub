@@ -1,31 +1,32 @@
+import Link from "next/link";
+import { Card, CardContent, CardHeader, List, ListItem, Stack, Typography } from "@mui/material";
+
 export default function SettingsPage() {
   return (
-    <div style={{ display: "grid", gap: "1.25rem", maxWidth: "640px" }}>
-      <header>
-        <h1 style={{ margin: 0 }}>Environment Settings</h1>
-        <p style={{ color: "#cbd5f5" }}>
-          Manage provider credentials, integration secrets, and readiness tasks for your production workspace.
-        </p>
-      </header>
-      <section style={{ background: "rgba(15,23,42,0.65)", padding: "1.5rem", borderRadius: "1rem" }}>
-        <h2 style={{ marginTop: 0 }}>Docs quick links</h2>
-        <ul style={{ margin: 0, paddingLeft: "1.5rem", color: "#cbd5f5" }}>
-          <li>
-            <a
-              href="https://github.com/lexyhub/lexyhub/blob/main/docs/implementation-roadmap.md"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Implementation roadmap
-            </a>
-          </li>
-          <li>
-            <a href="https://supabase.com/docs" target="_blank" rel="noreferrer">
-              Supabase docs
-            </a>
-          </li>
-        </ul>
-      </section>
-    </div>
+    <Stack spacing={3} maxWidth={640}>
+      <Card>
+        <CardHeader
+          title="Environment Settings"
+          subheader="Manage provider credentials, integration secrets, and readiness tasks for your production workspace."
+        />
+      </Card>
+      <Card>
+        <CardHeader title="Docs quick links" />
+        <CardContent>
+          <List>
+            <ListItem disableGutters>
+              <Typography component={Link} href="https://github.com/lexyhub/lexyhub/blob/main/docs/implementation-roadmap.md" target="_blank" rel="noreferrer">
+                Implementation roadmap
+              </Typography>
+            </ListItem>
+            <ListItem disableGutters>
+              <Typography component={Link} href="https://supabase.com/docs" target="_blank" rel="noreferrer">
+                Supabase docs
+              </Typography>
+            </ListItem>
+          </List>
+        </CardContent>
+      </Card>
+    </Stack>
   );
 }

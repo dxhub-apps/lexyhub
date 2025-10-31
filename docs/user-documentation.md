@@ -36,7 +36,7 @@ The Dashboard offers a high-level snapshot of revenue pacing and target attainme
 The Keywords workspace surfaces organic search opportunities discovered by LexyHub's AI.
 
 - **Opportunity table:** Ranked list of recommended keywords, including demand score, competitive pressure, and suggested actions.
-- **Filters:** Narrow the dataset by storefront, seasonality, or intent level.
+- **Filters:** Narrow the dataset by storefront, seasonality, or intent level. The **Plan tier** selector now mirrors the active subscription in the request payload and automatically limits the available data sources so teams always understand which providers power the current view.
 - **Watchlists:** Pin mission-critical keywords to monitor their movement over time.
 - **Helpful Highlights panel:** Shows friendly tips about your keyword search along with the last time guidance was updated.
 - **Data seeding from real searches:** When a query returns no results, LexyHub now captures the term and routes it to our enrichment queue so future searches populate faster.
@@ -141,4 +141,4 @@ LexyHub publishes sprint-level release notes in `/docs/changelog.md`. Review the
 - **Amazon keyword population guide:** `/docs/amazon-keyword-population-guide.md`
 - **Trend & intent intelligence:** `/docs/trend-intent-intelligence.md`
 
-_Last updated: 2025-06-12_
+_Last updated: 2025-07-11_
