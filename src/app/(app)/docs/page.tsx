@@ -33,6 +33,18 @@ const quickLinks = [
   },
 ];
 
+const repositoryDocsBaseUrl =
+  "https://github.com/alex-perevalos-projects/lexyhub/blob/main/docs" as const;
+
+const additionalResourceLinks = {
+  environmentSetup: `${repositoryDocsBaseUrl}/environment-setup.md`,
+  implementationRoadmap: `${repositoryDocsBaseUrl}/implementation-roadmap.md`,
+  etsyIntegration: `${repositoryDocsBaseUrl}/etsy-integration.md`,
+  trendIntentIntelligence: `${repositoryDocsBaseUrl}/trend-intent-intelligence.md`,
+  statusPlaybook: `${repositoryDocsBaseUrl}/status-page.md`,
+  changelog: `${repositoryDocsBaseUrl}/changelog.md`,
+} as const;
+
 export const metadata: Metadata = {
   title: "LexyHub Documentation",
   description: "Product documentation, how-tos, and troubleshooting resources for LexyHub users.",
@@ -378,33 +390,38 @@ export default function DocumentationPage(): JSX.Element {
         <h2>Additional resources</h2>
         <ul>
           <li>
-            <a href="/docs/environment-setup.md" target="_blank" rel="noreferrer">
+            <a href={additionalResourceLinks.environmentSetup} target="_blank" rel="noreferrer">
               Environment setup
             </a>
           </li>
           <li>
-            <a href="/docs/implementation-roadmap.md" target="_blank" rel="noreferrer">
+            <a href={additionalResourceLinks.implementationRoadmap} target="_blank" rel="noreferrer">
               Implementation roadmap
             </a>
           </li>
           <li>
-            <a href="/docs/etsy-integration.md" target="_blank" rel="noreferrer">
+            <a href={additionalResourceLinks.etsyIntegration} target="_blank" rel="noreferrer">
               Etsy integration guide
             </a>
           </li>
           <li>
-            <a href="/docs/trend-intent-intelligence.md" target="_blank" rel="noreferrer">
+            <a href={additionalResourceLinks.trendIntentIntelligence} target="_blank" rel="noreferrer">
               Trend &amp; intent intelligence
             </a>
           </li>
           <li>
-            <a href="/docs/status-page.md" target="_blank" rel="noreferrer">
+            <a href={additionalResourceLinks.statusPlaybook} target="_blank" rel="noreferrer">
               Platform status playbook
             </a>
           </li>
         </ul>
         <p>
-          Release notes are maintained in <code>/docs/changelog.md</code>. Review each sprint update to understand what has
+          Release notes are maintained in
+          {" "}
+          <a href={additionalResourceLinks.changelog} target="_blank" rel="noreferrer">
+            docs/changelog.md
+          </a>
+          . Review each sprint update to understand what has
           shipped, what changed, and any upcoming migrations.
         </p>
       </section>
