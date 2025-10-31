@@ -548,6 +548,8 @@ main {
   display: flex;
   width: 100%;
   min-height: 100vh;
+  background: var(--page);
+  background-image: var(--page-gradient);
 }
 
 .content {
@@ -1621,13 +1623,25 @@ tbody tr:focus-within {
 .keyword-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
   margin-left: 0.5rem;
-  padding: 0.15rem 0.4rem;
+  padding: 0.2rem 0.55rem;
   border-radius: 999px;
   font-size: var(--font-size-xs);
-  background: rgba(99, 102, 241, 0.2);
-  color: #c7d2fe;
+  font-weight: 600;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.35), rgba(129, 140, 248, 0.22));
+  border: 1px solid rgba(129, 140, 248, 0.4);
+  color: #e4e7ff;
+  box-shadow: 0 8px 22px rgba(79, 70, 229, 0.2);
+}
+
+.keyword-pill::before {
+  content: "";
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 50%;
+  background: rgba(196, 181, 253, 0.85);
+  box-shadow: 0 0 8px rgba(196, 181, 253, 0.45);
 }
 
 .keyword-watch {
@@ -2987,7 +3001,6 @@ tbody tr:focus-within {
   display: flex;
   background: var(--page);
   background-image: var(--page-gradient);
-  overflow: hidden;
 }
 
 .app-shell-content {
@@ -2995,9 +3008,15 @@ tbody tr:focus-within {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  margin-left: 280px;
+  width: calc(100% - 280px);
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   background: var(--color-bg-body);
+  transition: margin-left 0.25s ease, width 0.25s ease;
 }
 
 [data-theme="light"] .app-shell-content {
@@ -3005,7 +3024,8 @@ tbody tr:focus-within {
 }
 
 .app-shell-collapsed .app-shell-content {
-  transition: margin-left 0.2s ease;
+  margin-left: 116px;
+  width: calc(100% - 116px);
 }
 
 .app-sidebar {
@@ -3019,11 +3039,11 @@ tbody tr:focus-within {
   color: var(--color-sidebar-link);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  position: sticky;
-  top: 0;
+  position: fixed;
+  inset: 0 auto 0 0;
   height: 100vh;
   overflow-y: auto;
-  transition: width 0.25s ease;
+  transition: width 0.25s ease, padding 0.25s ease;
   z-index: 45;
 }
 
@@ -3044,7 +3064,7 @@ tbody tr:focus-within {
 
 .app-sidebar-collapsed {
   width: 116px;
-  padding-inline: 1rem;
+  padding-inline: 0.85rem;
   align-items: center;
 }
 
@@ -3105,81 +3125,102 @@ tbody tr:focus-within {
 .app-sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 0.4rem;
   align-items: stretch;
-}
-
-.app-sidebar-link {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.55rem;
-  padding: 0.85rem 0.95rem;
-  border-radius: 1rem;
-  border: 1px solid transparent;
-  color: var(--color-sidebar-link-muted);
-  background: transparent;
 }
 
 .app-sidebar-collapsed .app-sidebar-nav {
   align-items: center;
 }
 
-.app-sidebar-collapsed .app-sidebar-link {
-  width: auto;
+.app-sidebar-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.6rem 0.85rem 0.6rem 1.3rem;
+  border-radius: 0.85rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-sidebar-link-muted);
+  transition: color 0.2s ease, background 0.2s ease;
 }
 
+.app-sidebar-link::before {
+  content: "";
+  position: absolute;
+  left: 0.45rem;
+  top: 0.45rem;
+  bottom: 0.45rem;
+  width: 0.28rem;
+  border-radius: 999px;
+  background: transparent;
+  transition: background 0.2s ease;
+}
+
+.app-sidebar-link:hover,
 .app-sidebar-link:focus-visible {
-  background: var(--color-sidebar-active);
   color: var(--color-sidebar-link);
-  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(59, 130, 246, 0.12);
+  outline: none;
+}
+
+.app-sidebar-link:focus-visible::before {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.85), rgba(37, 99, 235, 0.65));
 }
 
 .app-sidebar-link-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.2rem;
-  height: 2.2rem;
-  border-radius: 0.85rem;
-  background: rgba(59, 130, 246, 0.25);
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.75rem;
+  background: rgba(59, 130, 246, 0.12);
   color: var(--color-sidebar-link);
-  font-weight: 700;
-  font-size: 0.82rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.12);
 }
 
 .app-sidebar-link-label {
   font-weight: 600;
-  font-size: 0.9rem;
-  color: var(--color-sidebar-link);
-}
-
-.app-sidebar-link-description {
-  font-size: 0.78rem;
-  color: var(--color-sidebar-link-muted);
+  font-size: 0.92rem;
+  color: currentColor;
 }
 
 .app-sidebar-link-active {
-  background: var(--color-sidebar-active);
-  border-color: rgba(148, 163, 184, 0.32);
   color: var(--color-sidebar-link);
-  box-shadow: 0 16px 38px rgba(15, 23, 42, 0.35);
+  background: rgba(59, 130, 246, 0.12);
 }
 
-.app-sidebar-link-active .app-sidebar-link-description {
-  color: rgba(248, 250, 252, 0.9);
+.app-sidebar-link-active::before {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.85), rgba(37, 99, 235, 0.65));
+}
+
+.app-sidebar-link-active .app-sidebar-link-icon {
+  background: rgba(37, 99, 235, 0.22);
+  box-shadow: 0 8px 22px rgba(37, 99, 235, 0.28);
 }
 
 .app-sidebar-link-collapsed {
-  align-items: center;
-  padding: 0.85rem 0;
+  justify-content: center;
+  padding: 0.6rem 0;
 }
 
-.app-sidebar-link-collapsed .app-sidebar-link-label,
-.app-sidebar-link-collapsed .app-sidebar-link-description {
+.app-sidebar-link-collapsed::before {
   display: none;
+}
+
+.app-sidebar-link-collapsed .app-sidebar-link-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .app-sidebar-link-collapsed .app-sidebar-link-icon {
@@ -3245,12 +3286,14 @@ tbody tr:focus-within {
 .app-main {
   flex: 1;
   width: 100%;
+  overflow-y: auto;
+  padding-bottom: 0;
 }
 
 .app-container {
-  width: min(100%, 88rem);
-  margin: 0 auto;
-  padding: 2.25rem 2.5rem 3rem;
+  width: 100%;
+  margin: 0;
+  padding: 1.5rem 1.75rem 0;
 }
 
 .app-header {
@@ -3261,7 +3304,7 @@ tbody tr:focus-within {
   align-items: center;
   justify-content: space-between;
   gap: 1.75rem;
-  padding: 1.5rem 2.5rem 1.25rem;
+  padding: 1.25rem 1.75rem;
   border-bottom: 1px solid var(--color-header-border);
   background: var(--color-header-bg);
   backdrop-filter: blur(20px);
@@ -3330,23 +3373,29 @@ tbody tr:focus-within {
 .environment-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.35rem 0.85rem;
+  gap: 0.5rem;
+  padding: 0.4rem 0.95rem;
   border-radius: 999px;
-  background: rgba(59, 130, 246, 0.2);
+  background: linear-gradient(
+    135deg,
+    rgba(37, 99, 235, 0.35),
+    rgba(59, 130, 246, 0.18)
+  );
+  border: 1px solid rgba(96, 165, 250, 0.35);
   color: var(--color-sidebar-link);
   font-size: 0.72rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.14em;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.3);
 }
 
 .environment-indicator {
-  width: 0.45rem;
-  height: 0.45rem;
+  width: 0.5rem;
+  height: 0.5rem;
   border-radius: 50%;
-  background: var(--brand-success);
-  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);
+  background: radial-gradient(circle at 30% 30%, #bbf7d0, var(--brand-success));
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.25), 0 0 16px rgba(34, 197, 94, 0.25);
 }
 
 .app-header-help {
@@ -3362,17 +3411,27 @@ tbody tr:focus-within {
 
 @media (max-width: 1280px) {
   .app-container {
-    width: min(100%, 74rem);
+    padding: 1.5rem 1.5rem 0;
   }
 }
 
 @media (max-width: 1024px) {
   .app-sidebar {
-    width: 248px;
+    width: 240px;
+  }
+
+  .app-shell-content {
+    margin-left: 240px;
+    width: calc(100% - 240px);
+  }
+
+  .app-shell-collapsed .app-shell-content {
+    margin-left: 116px;
+    width: calc(100% - 116px);
   }
 
   .app-container {
-    padding: 2rem 1.75rem 2.75rem;
+    padding: 1.5rem 1.35rem 0;
   }
 }
 
@@ -3385,6 +3444,12 @@ tbody tr:focus-within {
     width: 82vw;
   }
 
+  .app-shell-content,
+  .app-shell-collapsed .app-shell-content {
+    margin-left: 0;
+    width: 100%;
+  }
+
   .app-shell-content {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
@@ -3392,11 +3457,11 @@ tbody tr:focus-within {
 
   .app-container {
     width: 100%;
-    padding: 1.75rem 1.5rem 2.5rem;
+    padding: 1.25rem 1.15rem 0;
   }
 
   .app-header {
-    padding: 1.15rem 1.5rem;
+    padding: 1.1rem 1.15rem;
     gap: 1.25rem;
   }
 
@@ -3530,31 +3595,46 @@ tbody tr:focus-within {
   color: var(--color-text-muted);
 }
 
-.dashboard-kpi-badge {
+.dashboard-kpi-indicator {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  padding: 0.25rem 0.65rem;
-  border-radius: 999px;
-  font-size: 0.7rem;
+  gap: 0.4rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
 }
 
-.dashboard-kpi-badge-positive {
-  background: rgba(34, 197, 94, 0.15);
-  color: var(--brand-success);
+.dashboard-kpi-indicator-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
 }
 
-.dashboard-kpi-badge-caution {
-  background: rgba(250, 204, 21, 0.18);
-  color: #f59e0b;
+.dashboard-kpi-indicator-positive {
+  color: var(--color-kpi-positive);
 }
 
-.dashboard-kpi-badge-critical {
-  background: rgba(239, 68, 68, 0.18);
-  color: var(--brand-danger);
+.dashboard-kpi-indicator-positive .dashboard-kpi-indicator-dot {
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.18);
+}
+
+.dashboard-kpi-indicator-caution {
+  color: var(--color-kpi-caution);
+}
+
+.dashboard-kpi-indicator-caution .dashboard-kpi-indicator-dot {
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.18);
+}
+
+.dashboard-kpi-indicator-critical {
+  color: var(--color-kpi-critical);
+}
+
+.dashboard-kpi-indicator-critical .dashboard-kpi-indicator-dot {
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.2);
 }
 
 .dashboard-kpi-progress {
