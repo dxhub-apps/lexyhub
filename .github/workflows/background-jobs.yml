@@ -1,0 +1,77 @@
+name: Background Jobs
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 3 * * *"
+
+jobs:
+  run-jobs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      APP_BASE_URL: ${{ secrets.LEXYHUB_APP_URL }}
+      SERVICE_TOKEN: ${{ secrets.LEXYHUB_SERVICE_TOKEN }}
+      JOB_ENDPOINTS: "trend-aggregation intent-classify rebuild-clusters embed-missing etsy-sync"
+    steps:
+      - name: Validate configuration
+        shell: bash
+        run: |
+          if [ -z "${APP_BASE_URL}" ]; then
+            echo "::error ::LEXYHUB_APP_URL is not configured."
+            exit 1
+          fi
+
+          if [ -z "${SERVICE_TOKEN}" ]; then
+            echo "::warning ::LEXYHUB_SERVICE_TOKEN is empty. The API should allow unauthenticated access before running this workflow."
+          fi
+
+          echo "Using base URL: ${APP_BASE_URL}"
+
+      - name: Trigger background jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p logs
+          base_url="${APP_BASE_URL%/}"
+          success="true"
+
+          for endpoint in $JOB_ENDPOINTS; do
+            url="${base_url}/api/jobs/${endpoint}"
+            response_file="logs/${endpoint}.json"
+            status_file="logs/${endpoint}.status"
+
+            echo "\n▶ Triggering ${endpoint}"
+
+            if [ -n "${SERVICE_TOKEN}" ]; then
+              http_code=$(curl -sS -w "%{http_code}" -o "$response_file" -X POST "$url" \
+                -H "Authorization: Bearer ${SERVICE_TOKEN}" \
+                -H "Content-Type: application/json")
+            else
+              http_code=$(curl -sS -w "%{http_code}" -o "$response_file" -X POST "$url" \
+                -H "Content-Type: application/json")
+            fi
+
+            echo "$http_code" > "$status_file"
+
+            if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+              echo "✅ ${endpoint} succeeded (${http_code})"
+            else
+              echo "::error ::${endpoint} returned status ${http_code}"
+              success="false"
+            fi
+          done
+
+          if [ "$success" != "true" ]; then
+            echo "One or more background jobs failed."
+            exit 1
+          fi
+
+      - name: Upload job responses
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: background-job-logs
+          path: logs
+          if-no-files-found: error

@@ -2425,6 +2425,173 @@ tbody tr:hover {
   text-decoration: underline;
 }
 
+.watchlists-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.watchlists-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.25rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.35);
+}
+
+.watchlists-eyebrow {
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-text-muted);
+}
+
+.watchlists-header h1 {
+  margin: 0;
+  font-size: var(--font-size-title);
+}
+
+.watchlists-header p {
+  margin: 0.4rem 0 0;
+  max-width: 40rem;
+  color: var(--color-text-muted);
+}
+
+.watchlists-header p code {
+  font-family: "Fira Code", "JetBrains Mono", monospace;
+  font-size: 0.8rem;
+  background: rgba(148, 163, 184, 0.18);
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.35rem;
+}
+
+.watchlists-meta {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  margin: 0;
+}
+
+.watchlists-meta div {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.9rem;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.watchlists-meta dt {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.watchlists-meta dd {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.watchlists-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.watchlists-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 1rem;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.32);
+  padding: 1.1rem 1.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.watchlists-card header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.watchlists-card h2 {
+  margin: 0;
+  font-size: var(--font-size-heading);
+}
+
+.watchlists-card p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+}
+
+.watchlists-capacity {
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.watchlists-empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.watchlists-error {
+  color: #f87171;
+  font-weight: 600;
+}
+
+.watchlists-table td[data-type="keyword"] {
+  font-weight: 600;
+}
+
+.watchlists-table td[data-type="listing"] {
+  font-weight: 500;
+}
+
+.watchlists-table a {
+  color: #60a5fa;
+}
+
+.watchlists-remove {
+  background: transparent;
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  color: #fca5a5;
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.watchlists-remove:hover,
+.watchlists-remove:focus-visible {
+  background: rgba(248, 113, 113, 0.2);
+  color: #fecaca;
+}
+
+@media (max-width: 768px) {
+  .watchlists-header {
+    flex-direction: column;
+  }
+
+  .watchlists-meta {
+    width: 100%;
+  }
+}
+
 @media (max-width: 768px) {
   .documentation {
     padding: 1.5rem 1.25rem 2rem;

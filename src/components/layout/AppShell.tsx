@@ -10,6 +10,7 @@ import { Topbar } from "./Topbar";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", description: "Quota pulse" },
+  { href: "/watchlists", label: "Watchlists", description: "Monitored items" },
   { href: "/keywords", label: "Keywords", description: "AI search" },
   { href: "/insights", label: "Insights", description: "Visual AI" },
   { href: "/market-twin", label: "Market Twin", description: "Simulations" },
