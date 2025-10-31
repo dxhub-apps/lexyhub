@@ -172,8 +172,11 @@ export function UserMenu(): JSX.Element {
           height={36}
         />
         <span className="user-menu-label">
-          <strong>Aaliyah Growth</strong>
-          <span>Scale Plan</span>
+          <span className="user-menu-name">Aaliyah</span>
+          <span className="user-menu-divider" aria-hidden="true">
+            |
+          </span>
+          <span className="user-menu-plan">Growth Scale Plan</span>
         </span>
         <span aria-hidden="true" className="user-menu-caret">
           ▾

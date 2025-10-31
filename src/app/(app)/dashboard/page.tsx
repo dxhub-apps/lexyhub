@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-table";
 
 import { useToast } from "@/components/ui/ToastProvider";
+import { ui } from "@/ui/theme";
 
 type Metric = {
   area: string;
@@ -43,6 +44,26 @@ type UsageKpi = {
   };
 };
 
+type StatusBadgeProps = {
+  status: Metric["status"];
+};
+
+function StatusBadge({ status }: StatusBadgeProps) {
+  const tone = status === "configured" ? ui.colors.success : ui.colors.danger;
+  return (
+    <span
+      className="status-badge"
+      style={{
+        color: tone,
+        backgroundColor: `${tone}1a`,
+        borderColor: `${tone}33`,
+      }}
+    >
+      {status}
+    </span>
+  );
+}
+
 export default function DashboardPage(): JSX.Element {
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [metricsLoading, setMetricsLoading] = useState(false);
@@ -57,19 +78,7 @@ export default function DashboardPage(): JSX.Element {
         accessorKey: "status",
         cell: ({ getValue }) => {
           const value = getValue<Metric["status"]>();
-          const color = value === "configured" ? "#34d399" : "#f87171";
-          return (
-            <span
-              style={{
-                color,
-                fontWeight: 600,
-                textTransform: "capitalize",
-                fontSize: "var(--font-size-small)",
-              }}
-            >
-              {value}
-            </span>
-          );
+          return <StatusBadge status={value} />;
         },
       },
       {
@@ -177,9 +186,9 @@ export default function DashboardPage(): JSX.Element {
     if (!usage) {
       return [
         { id: "plan", label: "Plan overview", value: "Loading…" },
-        { id: "queries", label: "Daily keyword queries", value: "—" },
-        { id: "ai", label: "AI suggestions", value: "—" },
-        { id: "watchlist", label: "Watchlist additions", value: "—" },
+        { id: "queries", label: "Daily keyword queries", value: "—", helper: "Waiting for data" },
+        { id: "ai", label: "AI suggestions", value: "—", helper: "Waiting for data" },
+        { id: "watchlist", label: "Watchlist additions", value: "—", helper: "Waiting for data" },
       ];
     }
 
@@ -258,56 +267,112 @@ export default function DashboardPage(): JSX.Element {
     ];
   }, [formatNumber, formatPercent, usage]);
 
+  const planCard = usageCards.find((card) => card.id === "plan");
+  const queryCard = usageCards.find((card) => card.id === "queries");
+  const aiCard = usageCards.find((card) => card.id === "ai");
+  const watchlistCard = usageCards.find((card) => card.id === "watchlist");
+
+  const kpiCards = [planCard, queryCard, aiCard, watchlistCard].filter(
+    (card): card is UsageKpi => Boolean(card),
+  );
+
+  const planRows = [queryCard, aiCard, watchlistCard].filter(
+    (card): card is UsageKpi => Boolean(card),
+  );
+
   return (
-    <div>
-      <div className="metrics-grid">
-        {usageCards.map((card) => (
-          <div key={card.id} className="metric-card">
-            <span className="metric-card__label">{card.label}</span>
-            <strong className="metric-card__value">{card.value}</strong>
-            {card.helper ? <p className="metric-card__helper">{card.helper}</p> : null}
-            {card.progress ? (
-              <>
-                <div className={`metric-card__progress metric-card__progress--${card.progress.tone}`}>
-                  <div style={{ width: `${card.progress.percent}%` }} />
+    <div className="dashboard-grid">
+      <section className="dashboard-card dashboard-hero">
+        <h1>LexyHub Control Center</h1>
+        <p>Momentum-aware quotas &amp; watchlists</p>
+      </section>
+      <section className="dashboard-card dashboard-plan">
+        <div className="dashboard-plan-header">
+          <h2>Plan overview</h2>
+          <span className="dashboard-plan-subtitle">{planCard?.value ?? "Checking plan…"}</span>
+        </div>
+        <div className="dashboard-plan-rows">
+          {planRows.map((row) => (
+            <div key={row.id} className="dashboard-plan-row">
+              <span>{row.label}</span>
+              <strong>{row.value}</strong>
+            </div>
+          ))}
+        </div>
+      </section>
+      <section className="dashboard-kpi-grid">
+        {kpiCards.map((card) => {
+          const toneClass = card.progress ? ` dashboard-kpi-${card.progress.tone}` : "";
+          return (
+            <article key={card.id} className={`dashboard-card dashboard-kpi${toneClass}`}>
+              <div className="dashboard-kpi-header">
+                <span>{card.label}</span>
+                {card.progress ? (
+                  <span className={`dashboard-kpi-badge dashboard-kpi-badge-${card.progress.tone}`}>
+                    {card.progress.caption}
+                  </span>
+                ) : null}
+              </div>
+              <strong className="dashboard-kpi-value">{card.value}</strong>
+              {card.helper ? <p className="dashboard-kpi-helper">{card.helper}</p> : null}
+              {card.progress ? (
+                <div className="dashboard-kpi-progress" aria-hidden="true">
+                  <span style={{ width: `${card.progress.percent}%` }} />
                 </div>
-                <span className="metric-card__caption">{card.progress.caption}</span>
-              </>
+              ) : null}
+            </article>
+          );
+        })}
+      </section>
+      <section className="dashboard-card dashboard-table">
+        <div className="dashboard-section-header">
+          <h2>Area status</h2>
+          <span>Status overview</span>
+        </div>
+        <table>
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th key={header.id}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(header.column.columnDef.header, header.getContext())}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.map((row) => (
+              <tr key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+                ))}
+              </tr>
+            ))}
+            {!metrics.length && !metricsLoading ? (
+              <tr>
+                <td colSpan={4} className="dashboard-table-empty">
+                  Connect your data sources to start seeing live metrics here.
+                </td>
+              </tr>
             ) : null}
-          </div>
-        ))}
-      </div>
-      <table>
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th key={header.id}>
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(header.column.columnDef.header, header.getContext())}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {table.getRowModel().rows.map((row) => (
-            <tr key={row.id}>
-              {row.getVisibleCells().map((cell) => (
-                <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
-              ))}
-            </tr>
-          ))}
-          {!metrics.length && !metricsLoading ? (
-            <tr>
-              <td colSpan={4} style={{ textAlign: "center", padding: "1.5rem" }}>
-                Connect your data sources to start seeing live metrics here.
-              </td>
-            </tr>
-          ) : null}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </section>
+      <aside className="dashboard-card dashboard-sidecard">
+        <h2>Quick actions</h2>
+        <p>Connect your data sources to start seeing live metrics here.</p>
+        <div className="dashboard-sidecard-actions">
+          <button type="button" className="primary-action">
+            Create watchlist
+          </button>
+          <button type="button" className="secondary-action">
+            Add keyword source
+          </button>
+        </div>
+      </aside>
     </div>
   );
 }

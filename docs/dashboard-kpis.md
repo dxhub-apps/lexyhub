@@ -18,3 +18,7 @@ Each card uses color-coded progress states:
 - **Critical (>85%)** — limits are nearly exhausted for the day.
 
 The values refresh automatically from `/api/usage/summary`, ensuring KPIs stay in sync with Supabase usage events.
+
+## PopTrade visual treatment
+
+The dashboard container now follows the PopTrade-inspired 12-column card grid. The hero banner anchors the left eight columns with the “LexyHub Control Center” copy, while the right four columns summarize the active plan and quota rows. Downstream rows render four KPI cards in parallel on desktop, collapsing to two cards on medium screens and a single column on small screens. Area health and quick actions each live in their own cards, mirroring the trading terminal feel while keeping existing data bindings intact.
