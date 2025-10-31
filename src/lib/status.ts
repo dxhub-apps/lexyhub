@@ -36,6 +36,7 @@ type StatusReport = {
   variables: VariableStatus[];
   apis: StatusMessage[];
   services: StatusMessage[];
+  workers: StatusMessage[];
 };
 
 function maskValue(value: string | undefined | null): string {
@@ -232,7 +233,18 @@ export async function generateStatusReport(): Promise<StatusReport> {
     runtimeHeaders = null;
   }
 
-  const [database, openai, listingsApi, keywordsApi, jobsApi] = await Promise.all([
+  const [
+    database,
+    openai,
+    listingsApi,
+    keywordsApi,
+    trendInsightsApi,
+    intentGraphApi,
+    embeddingWorker,
+    trendAggregationWorker,
+    intentClassificationWorker,
+    clusterRebuildWorker,
+  ] = await Promise.all([
     checkDatabaseHealth(),
     checkOpenAI(),
     checkApiModule(
@@ -248,9 +260,39 @@ export async function generateStatusReport(): Promise<StatusReport> {
       ["POST"],
     ),
     checkApiModule(
-      "jobs-api",
-      "Jobs Embedding API",
+      "trends-api",
+      "Trend Insights API",
+      () => import("@/app/api/insights/trends/route"),
+      ["GET"],
+    ),
+    checkApiModule(
+      "intent-graph-api",
+      "Intent Graph API",
+      () => import("@/app/api/insights/intent-graph/route"),
+      ["GET"],
+    ),
+    checkApiModule(
+      "embed-missing-worker",
+      "Embedding Backfill Worker",
       () => import("@/app/api/jobs/embed-missing/route"),
+      ["POST"],
+    ),
+    checkApiModule(
+      "trend-aggregation-worker",
+      "Trend Aggregation Worker",
+      () => import("@/app/api/jobs/trend-aggregation/route"),
+      ["POST"],
+    ),
+    checkApiModule(
+      "intent-classify-worker",
+      "Intent Classification Worker",
+      () => import("@/app/api/jobs/intent-classify/route"),
+      ["POST"],
+    ),
+    checkApiModule(
+      "rebuild-clusters-worker",
+      "Cluster Rebuild Worker",
+      () => import("@/app/api/jobs/rebuild-clusters/route"),
       ["POST"],
     ),
   ]);
@@ -269,8 +311,9 @@ export async function generateStatusReport(): Promise<StatusReport> {
     },
     environment: process.env.NODE_ENV ?? "development",
     variables: VARIABLE_DEFINITIONS.map(resolveVariableStatus),
-    apis: [listingsApi, keywordsApi, jobsApi],
+    apis: [listingsApi, keywordsApi, trendInsightsApi, intentGraphApi],
     services: [database, openai],
+    workers: [embeddingWorker, trendAggregationWorker, intentClassificationWorker, clusterRebuildWorker],
   };
 }
 

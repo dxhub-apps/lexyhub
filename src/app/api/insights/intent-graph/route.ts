@@ -3,41 +3,16 @@ import { NextResponse } from "next/server";
 import { buildIntentGraphLayout, type IntentGraphNode } from "@/lib/intents/layout";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 
-function buildStubNodes(): IntentGraphNode[] {
-  return [
-    {
-      id: "stub-handmade-jewelry",
-      term: "handmade jewelry",
-      intent: "purchase",
-      persona: "trendsetter",
-      purchaseStage: "purchase",
-      score: 0.72,
-    },
-    {
-      id: "stub-eco-candles",
-      term: "eco candles",
-      intent: "consideration",
-      persona: "eco shopper",
-      purchaseStage: "consideration",
-      score: 0.64,
-    },
-    {
-      id: "stub-minimalist-art",
-      term: "minimalist wall art",
-      intent: "discovery",
-      persona: "home curator",
-      purchaseStage: "awareness",
-      score: 0.58,
-    },
-  ];
-}
-
 export async function GET(): Promise<NextResponse> {
   const supabase = getSupabaseServerClient();
 
   if (!supabase) {
-    const layout = buildIntentGraphLayout(buildStubNodes());
-    return NextResponse.json({ generatedAt: new Date().toISOString(), source: "stub", ...layout });
+    return NextResponse.json(
+      {
+        error: "Supabase service credentials are required for intent graph data.",
+      },
+      { status: 503 },
+    );
   }
 
   const { data, error } = await supabase
@@ -48,8 +23,12 @@ export async function GET(): Promise<NextResponse> {
 
   if (error) {
     console.warn("Failed to load keywords for intent graph", error);
-    const layout = buildIntentGraphLayout(buildStubNodes());
-    return NextResponse.json({ generatedAt: new Date().toISOString(), source: "fallback", ...layout });
+    return NextResponse.json(
+      {
+        error: `Unable to load intent classifications: ${error.message}`,
+      },
+      { status: 500 },
+    );
   }
 
   const nodes: IntentGraphNode[] = [];
@@ -78,8 +57,13 @@ export async function GET(): Promise<NextResponse> {
   }
 
   if (!nodes.length) {
-    const layout = buildIntentGraphLayout(buildStubNodes());
-    return NextResponse.json({ generatedAt: new Date().toISOString(), source: "empty", ...layout });
+    return NextResponse.json(
+      {
+        error:
+          "No classified keywords found. Run the intent-classification worker to populate extras.classification with live data.",
+      },
+      { status: 503 },
+    );
   }
 
   const layout = buildIntentGraphLayout(nodes);
