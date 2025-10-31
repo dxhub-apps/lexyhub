@@ -57,7 +57,9 @@ describe("embedding pipeline", () => {
     const result = await getOrCreateEmbedding(term, { supabase: supabase as unknown as any });
 
     expect(result.created).toBe(false);
-    expect(result.embedding).toEqual([0.1, 0.2, 0.3]);
+    expect(result.embedding).toHaveLength(3072);
+    expect(result.embedding.slice(0, 3)).toEqual([0.1, 0.2, 0.3]);
+    expect(result.embedding.slice(3).every((value) => value === 0)).toBe(true);
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(supabase.from).toHaveBeenCalledWith("embeddings");
   });

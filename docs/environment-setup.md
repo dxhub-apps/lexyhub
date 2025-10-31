@@ -6,6 +6,9 @@ This guide captures the baseline environment configuration for the LexyHub produ
 - Project reference: `lexyhub`
 - Extensions: `pgvector` enabled via `supabase/config.toml`
 - Local development variables are managed through `supabase/.env.example`.
+- Default embeddings leverage OpenAI's `text-embedding-3-large` model (3072 dimensions) so that inserts match the `vector(3072)`
+  columns defined in `supabase/migrations/0001_init_core_tables.sql`. Override models only if you also update the underlying
+  Supabase schema.
 
 ### Required Secrets
 | Key | Description |
