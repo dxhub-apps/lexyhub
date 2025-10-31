@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { Box, Grid, Typography, useTheme } from "@mui/material";
 
 type KeywordSparklinePoint = {
   value: number;
@@ -32,6 +33,8 @@ function formatTimestamp(timestamp?: string | null): string | null {
 }
 
 export function KeywordSparkline({ points, width = 240, height = 80 }: KeywordSparklineProps): JSX.Element {
+  const theme = useTheme();
+
   const metrics = useMemo(() => {
     if (!points.length) {
       return null;
@@ -92,65 +95,86 @@ export function KeywordSparkline({ points, width = 240, height = 80 }: KeywordSp
 
   if (!metrics) {
     return (
-      <div className="keyword-sparkline keyword-sparkline--empty">
-        <p>No keyword momentum yet. Run a search to populate the trend sparkline.</p>
-      </div>
+      <Box sx={{ textAlign: "center", py: 4 }}>
+        <Typography variant="body2" color="text.secondary">
+          No keyword momentum yet. Run a search to populate the trend sparkline.
+        </Typography>
+      </Box>
     );
   }
 
+  const primary = theme.palette.primary.main;
+  const areaFill = theme.palette.mode === "light" ? `${primary}26` : `${primary}33`;
+  const lineColor = theme.palette.mode === "light" ? theme.palette.primary.dark : theme.palette.primary.light;
+  const pointColor = theme.palette.mode === "light" ? theme.palette.primary.main : theme.palette.primary.light;
+
   return (
-    <div className="keyword-sparkline" role="figure" aria-label="Keyword composite momentum over recent imports">
-      <svg
-        className="keyword-sparkline__svg"
+    <Box>
+      <Box
+        component="svg"
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
-        aria-hidden="true"
+        sx={{ width: "100%", height: 160 }}
+        role="img"
+        aria-label="Keyword composite momentum over recent imports"
       >
         <defs>
           <linearGradient id="keyword-sparkline-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgba(59,130,246,0.35)" />
-            <stop offset="100%" stopColor="rgba(59,130,246,0.02)" />
+            <stop offset="0%" stopColor={areaFill} />
+            <stop offset="100%" stopColor="transparent" />
           </linearGradient>
         </defs>
         {svgContent.area ? <path d={svgContent.area} fill="url(#keyword-sparkline-fill)" /> : null}
-        {svgContent.path ? <path d={svgContent.path} fill="none" stroke="rgba(96,165,250,0.9)" strokeWidth={2} /> : null}
-        {svgContent.coordinates.map((coord, index) => (
-          <circle key={`${coord.x}-${coord.y}`} cx={coord.x} cy={coord.y} r={2.5} fill="rgba(191,219,254,0.95)" />
+        {svgContent.path ? <path d={svgContent.path} fill="none" stroke={lineColor} strokeWidth={2} /> : null}
+        {svgContent.coordinates.map((coord) => (
+          <circle key={`${coord.x}-${coord.y}`} cx={coord.x} cy={coord.y} r={2.8} fill={pointColor} />
         ))}
-      </svg>
+      </Box>
 
-      <dl className="keyword-sparkline__stats">
-        <div>
-          <dt>Latest</dt>
-          <dd>
+      <Grid container spacing={2} sx={{ mt: 1 }}>
+        <Grid item xs={6} md={3}>
+          <Typography variant="caption" color="text.secondary">
+            Latest
+          </Typography>
+          <Typography variant="subtitle2">
             {toPercentage(metrics.latest.value)}
-            {formatTimestamp(metrics.latest.timestamp) ? (
-              <span>{formatTimestamp(metrics.latest.timestamp)}</span>
-            ) : null}
-          </dd>
-        </div>
-        <div>
-          <dt>Peak</dt>
-          <dd>
-            {toPercentage(metrics.max)}
-            {formatTimestamp(metrics.peak?.timestamp) ? <span>{formatTimestamp(metrics.peak?.timestamp)}</span> : null}
-          </dd>
-        </div>
-        <div>
-          <dt>Average</dt>
-          <dd>{toPercentage(metrics.avg)}</dd>
-        </div>
-        <div>
-          <dt>Lowest</dt>
-          <dd>
-            {toPercentage(metrics.min)}
-            {formatTimestamp(metrics.trough?.timestamp) ? (
-              <span>{formatTimestamp(metrics.trough?.timestamp)}</span>
-            ) : null}
-          </dd>
-        </div>
-      </dl>
-    </div>
+          </Typography>
+          {formatTimestamp(metrics.latest.timestamp) ? (
+            <Typography variant="caption" color="text.secondary">
+              {formatTimestamp(metrics.latest.timestamp)}
+            </Typography>
+          ) : null}
+        </Grid>
+        <Grid item xs={6} md={3}>
+          <Typography variant="caption" color="text.secondary">
+            Peak
+          </Typography>
+          <Typography variant="subtitle2">{toPercentage(metrics.max)}</Typography>
+          {formatTimestamp(metrics.peak?.timestamp) ? (
+            <Typography variant="caption" color="text.secondary">
+              {formatTimestamp(metrics.peak?.timestamp)}
+            </Typography>
+          ) : null}
+        </Grid>
+        <Grid item xs={6} md={3}>
+          <Typography variant="caption" color="text.secondary">
+            Average
+          </Typography>
+          <Typography variant="subtitle2">{toPercentage(metrics.avg)}</Typography>
+        </Grid>
+        <Grid item xs={6} md={3}>
+          <Typography variant="caption" color="text.secondary">
+            Lowest
+          </Typography>
+          <Typography variant="subtitle2">{toPercentage(metrics.min)}</Typography>
+          {formatTimestamp(metrics.trough?.timestamp) ? (
+            <Typography variant="caption" color="text.secondary">
+              {formatTimestamp(metrics.trough?.timestamp)}
+            </Typography>
+          ) : null}
+        </Grid>
+      </Grid>
+    </Box>
   );
 }
 

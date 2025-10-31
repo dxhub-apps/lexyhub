@@ -1,6 +1,19 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  Chip,
+  Grid,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 
 import IntentGraph from "@/components/insights/IntentGraph";
 import TrendRadar from "@/components/insights/TrendRadar";
@@ -85,89 +98,115 @@ export default function InsightsPage() {
   );
 
   return (
-    <section className="insights-grid">
-      <header>
-        <h1>Commerce Insights</h1>
-        <p>
-          Explore real-time trend radar views, purchase intent graphs, and partner analytics to uncover the next products to
-          launch.
-        </p>
-      </header>
+    <Stack spacing={3}>
+      <Card>
+        <CardHeader
+          title="Commerce Insights"
+          subheader="Explore real-time trend radar views, purchase intent graphs, and partner analytics to uncover the next products to launch."
+        />
+      </Card>
 
-      <div className="insights-card insights-card--full">
-        <TrendRadar />
-      </div>
+      <Grid container spacing={3}>
+        <Grid item xs={12} xl={6}>
+          <TrendRadar />
+        </Grid>
+        <Grid item xs={12} xl={6}>
+          <IntentGraph />
+        </Grid>
+      </Grid>
 
-      <div className="insights-card insights-card--full">
-        <IntentGraph />
-      </div>
-
-      <div className="insights-card">
-        <h2>Visual Tag AI</h2>
-        <p className="insights-muted">
-          Upload a listing asset to generate marketplace-ready captions and confidence-scored tags using LexyHub&apos;s visual
-          intelligence engine.
-        </p>
-        <form className="visual-tag-form" onSubmit={handleSubmit}>
-          <label className="visual-tag-upload">
-            <span>Listing asset</span>
-            <input type="file" accept="image/*" onChange={handleFileChange} />
-          </label>
-          {imagePreview ? (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element -- Preview only, not persisted to DOM in production builds */}
-              <img src={imagePreview} alt="Preview" className="visual-tag-preview" />
-            </>
-          ) : (
-            <div className="visual-tag-placeholder">Upload an image to preview</div>
-          )}
-
-          <label className="visual-tag-field">
-            <span>Keyword hints</span>
-            <input
-              type="text"
-              value={hints}
-              onChange={(event) => setHints(event.target.value)}
-              placeholder="e.g. handmade, ceramic, planter"
-            />
-          </label>
-          <button type="submit" disabled={uploading}>
-            {uploading ? "Generating…" : "Generate Tags"}
-          </button>
-        </form>
-
-        {result ? (
-          <div className="visual-tag-result">
-            <h3>Caption</h3>
-            <p>{result.caption}</p>
-            <h3>Tags</h3>
-            <ul>
-              {result.tags.map((tag) => (
-                <li key={tag.tag}>
-                  <code>{tag.tag}</code>
-                  <span>{Math.round(tag.confidence * 100)}%</span>
-                </li>
-              ))}
-            </ul>
-            {result.assetPath ? (
-              <p className="insights-muted">Stored at: {result.assetPath}</p>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="insights-card">
-        <h2>Watchlist momentum</h2>
-        <p className="insights-muted">
-          Track watchlist adds versus plan capacity to understand operator momentum. Usage quotas enforce AI access fairly
-          across tiers and surface alerts before limits are reached.
-        </p>
-        <ul className="insights-list">
-          <li>Trend radar metrics sync with keyword momentum to highlight the strongest opportunities.</li>
-          <li>Intent classification automatically populates downstream personalization signals.</li>
-          <li>The partner API exposes normalized keywords with managed, rate-limited access keys.</li>
-        </ul>
-      </div>
-    </section>
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardHeader title="Visual Tag AI" subheader="Upload an asset to generate caption and tag suggestions." />
+            <CardContent>
+              <Stack component="form" spacing={2} onSubmit={handleSubmit}>
+                <Button variant="outlined" component="label">
+                  Select listing asset
+                  <input type="file" accept="image/*" hidden onChange={handleFileChange} />
+                </Button>
+                {imagePreview ? (
+                  <Box
+                    component="img"
+                    src={imagePreview}
+                    alt="Preview"
+                    sx={{ width: "100%", borderRadius: 2, border: (theme) => `1px solid ${theme.palette.divider}` }}
+                  />
+                ) : (
+                  <Box
+                    sx={{
+                      height: 160,
+                      borderRadius: 2,
+                      border: (theme) => `1px dashed ${theme.palette.divider}`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "text.secondary",
+                    }}
+                  >
+                    Upload an image to preview
+                  </Box>
+                )}
+                <TextField
+                  label="Keyword hints"
+                  value={hints}
+                  onChange={(event) => setHints(event.target.value)}
+                  placeholder="e.g. handmade, ceramic, planter"
+                  fullWidth
+                />
+                <Button type="submit" variant="contained" disabled={uploading}>
+                  {uploading ? "Generating…" : "Generate Tags"}
+                </Button>
+              </Stack>
+              {result ? (
+                <Stack spacing={2} sx={{ mt: 3 }}>
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      Caption
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {result.caption}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      Tags
+                    </Typography>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 1 }}>
+                      {result.tags.map((tag) => (
+                        <Chip key={tag.tag} label={`${tag.tag} · ${Math.round(tag.confidence * 100)}%`} variant="outlined" />
+                      ))}
+                    </Stack>
+                  </Box>
+                  {result.assetPath ? (
+                    <Typography variant="caption" color="text.secondary">
+                      Stored at: {result.assetPath}
+                    </Typography>
+                  ) : null}
+                </Stack>
+              ) : null}
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardHeader title="Watchlist momentum" />
+            <CardContent>
+              <Stack spacing={1.5} component="ul" sx={{ pl: 2 }}>
+                <Typography component="li" variant="body2">
+                  Trend radar metrics sync with keyword momentum to highlight the strongest opportunities.
+                </Typography>
+                <Typography component="li" variant="body2">
+                  Intent classification automatically populates downstream personalization signals.
+                </Typography>
+                <Typography component="li" variant="body2">
+                  The partner API exposes normalized keywords with managed, rate-limited access keys.
+                </Typography>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+    </Stack>
   );
 }

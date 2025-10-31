@@ -1,6 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Alert,
+  Box,
+  Card,
+  CardContent,
+  CardHeader,
+  Chip,
+  Grid,
+  Stack,
+  Typography,
+} from "@mui/material";
+
+const MAX_MOMENTUM = 1.5;
+const RING_VALUES = [0.3, 0.6, 0.9, 1.2, MAX_MOMENTUM];
 
 type TrendRadarEntry = {
   term: string;
@@ -15,9 +29,6 @@ type TrendRadarResponse = {
   generatedAt: string;
   source: string;
 };
-
-const MAX_MOMENTUM = 1.5;
-const RING_VALUES = [0.3, 0.6, 0.9, 1.2, MAX_MOMENTUM];
 
 function polarToCartesian(angle: number, radius: number): { x: number; y: number } {
   return {
@@ -128,66 +139,144 @@ export function TrendRadar(): JSX.Element {
   const viewBoxSize = radius * 2 + 60;
 
   return (
-    <div className="trend-radar">
-      <header className="trend-radar__header">
-        <div>
-          <h2>Trend Radar</h2>
-          <p className="insights-muted">
-            Visualize cross-network velocity. Momentum is normalized across Google, Pinterest, and Reddit signals with expected
-            growth projections.
-          </p>
-        </div>
-        <div className="trend-radar__meta">
-          <span className="trend-radar__badge">{loading ? "Refreshing" : data?.source ?? "unknown"}</span>
-          {data?.generatedAt ? <span>{new Date(data.generatedAt).toLocaleTimeString()}</span> : null}
-        </div>
-      </header>
-
-      {error ? <div className="trend-radar__error">{error}</div> : null}
-
-      <div className="trend-radar__chart" ref={chartRef}>
-        <svg
-          viewBox={`-${viewBoxSize / 2} -${viewBoxSize / 2} ${viewBoxSize} ${viewBoxSize}`}
-          role="img"
-          aria-label="Trend radar visualization"
-          preserveAspectRatio="xMidYMid meet"
-        >
-          {RING_VALUES.map((step) => (
-            <circle key={step} cx={0} cy={0} r={(radius / MAX_MOMENTUM) * step} className="trend-radar__grid" />
-          ))}
-          {axes.map((axis) => (
-            <g key={axis.term}>
-              <line x1={0} y1={0} x2={axis.x} y2={axis.y} className="trend-radar__axis" />
-              <text x={axis.x * 1.08} y={axis.y * 1.08} className="trend-radar__label">
-                {axis.term}
-              </text>
-            </g>
-          ))}
-          {polygonPoints ? <polygon points={polygonPoints} className="trend-radar__polygon" /> : null}
-        </svg>
-        <aside className="trend-radar__details">
-          {entries.map((entry) => (
-            <article key={entry.term}>
-              <h3>{entry.term}</h3>
-              <dl>
-                <div>
-                  <dt>Momentum</dt>
-                  <dd>{entry.momentum.toFixed(2)}</dd>
-                </div>
-                <div>
-                  <dt>Expected 30d</dt>
-                  <dd>{entry.expectedGrowth30d.toFixed(2)}</dd>
-                </div>
-                <div>
-                  <dt>Sources</dt>
-                  <dd>{formatSources(entry.sources)}</dd>
-                </div>
-              </dl>
-            </article>
-          ))}
-        </aside>
-      </div>
-    </div>
+    <Card>
+      <CardHeader
+        title="Trend Radar"
+        subheader="Visualize cross-network velocity and growth projections."
+        action={
+          <Chip
+            label={loading ? "Refreshing" : data?.source ?? "unknown"}
+            color="primary"
+            variant="outlined"
+            size="small"
+          />
+        }
+      />
+      <CardContent>
+        {error ? (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        ) : null}
+        <Grid container spacing={3} alignItems="stretch">
+          <Grid item xs={12} lg={7}>
+            <Box
+              ref={chartRef}
+              sx={{
+                position: "relative",
+                minHeight: 320,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                bgcolor: (theme) =>
+                  theme.palette.mode === "light" ? "rgba(30, 64, 175, 0.04)" : "rgba(148, 163, 184, 0.08)",
+                borderRadius: 3,
+                border: (theme) => `1px solid ${theme.palette.divider}`,
+                p: 3,
+              }}
+            >
+              <svg
+                viewBox={`-${viewBoxSize / 2} -${viewBoxSize / 2} ${viewBoxSize} ${viewBoxSize}`}
+                role="img"
+                aria-label="Trend radar visualization"
+                preserveAspectRatio="xMidYMid meet"
+                style={{ width: "100%", height: "100%" }}
+              >
+                {RING_VALUES.map((step) => (
+                  <circle
+                    key={step}
+                    cx={0}
+                    cy={0}
+                    r={(radius / MAX_MOMENTUM) * step}
+                    stroke="currentColor"
+                    strokeWidth={0.4}
+                    fill="none"
+                    opacity={0.18}
+                  />
+                ))}
+                {axes.map((axis) => (
+                  <g key={axis.term}>
+                    <line
+                      x1={0}
+                      y1={0}
+                      x2={axis.x}
+                      y2={axis.y}
+                      stroke="currentColor"
+                      strokeWidth={0.6}
+                      opacity={0.25}
+                    />
+                    <text
+                      x={axis.x * 1.08}
+                      y={axis.y * 1.08}
+                      textAnchor="middle"
+                      style={{ fontSize: 10, fill: "currentColor", opacity: 0.72 }}
+                    >
+                      {axis.term}
+                    </text>
+                  </g>
+                ))}
+                {polygonPoints ? (
+                  <polygon
+                    points={polygonPoints}
+                    fill="rgba(59,130,246,0.22)"
+                    stroke="rgba(59,130,246,0.9)"
+                    strokeWidth={1.6}
+                  />
+                ) : null}
+              </svg>
+            </Box>
+          </Grid>
+          <Grid item xs={12} lg={5}>
+            <Stack spacing={2} sx={{ height: "100%" }}>
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Last updated
+                </Typography>
+                <Typography variant="body1">
+                  {data?.generatedAt ? new Date(data.generatedAt).toLocaleTimeString() : "—"}
+                </Typography>
+              </Box>
+              <Stack spacing={1.5} sx={{ flexGrow: 1, overflowY: "auto", pr: 1 }}>
+                {entries.map((entry) => (
+                  <Box
+                    key={entry.term}
+                    sx={{
+                      border: (theme) => `1px solid ${theme.palette.divider}`,
+                      borderRadius: 2,
+                      p: 2,
+                    }}
+                  >
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      {entry.term}
+                    </Typography>
+                    <Grid container spacing={1} sx={{ mt: 1 }}>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="text.secondary">
+                          Momentum
+                        </Typography>
+                        <Typography variant="body2">{entry.momentum.toFixed(2)}</Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="text.secondary">
+                          Expected 30d
+                        </Typography>
+                        <Typography variant="body2">{entry.expectedGrowth30d.toFixed(2)}</Typography>
+                      </Grid>
+                      <Grid item xs={12}>
+                        <Typography variant="caption" color="text.secondary">
+                          Sources
+                        </Typography>
+                        <Typography variant="body2">{formatSources(entry.sources)}</Typography>
+                      </Grid>
+                    </Grid>
+                  </Box>
+                ))}
+              </Stack>
+            </Stack>
+          </Grid>
+        </Grid>
+      </CardContent>
+    </Card>
   );
 }
 

@@ -7,9 +7,25 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  Chip,
+  Grid,
+  LinearProgress,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+} from "@mui/material";
 
 import { useToast } from "@/components/ui/ToastProvider";
-import { ui } from "@/ui/theme";
 
 type Metric = {
   area: string;
@@ -49,20 +65,15 @@ type StatusBadgeProps = {
 };
 
 function StatusBadge({ status }: StatusBadgeProps) {
-  const tone = status === "configured" ? ui.colors.success : ui.colors.danger;
-  return (
-    <span
-      className="status-badge"
-      style={{
-        color: tone,
-        backgroundColor: `${tone}1a`,
-        borderColor: `${tone}33`,
-      }}
-    >
-      {status}
-    </span>
-  );
+  const color = status === "configured" ? "success" : "warning";
+  return <Chip label={status} color={color} size="small" variant="outlined" />;
 }
+
+const toneToColor: Record<UsageKpiTone, "success" | "warning" | "error"> = {
+  positive: "success",
+  caution: "warning",
+  critical: "error",
+};
 
 export default function DashboardPage(): JSX.Element {
   const [metrics, setMetrics] = useState<Metric[]>([]);
@@ -272,7 +283,7 @@ export default function DashboardPage(): JSX.Element {
   const aiCard = usageCards.find((card) => card.id === "ai");
   const watchlistCard = usageCards.find((card) => card.id === "watchlist");
 
-  const kpiCards = [planCard, queryCard, aiCard, watchlistCard].filter(
+  const kpiCards = [queryCard, aiCard, watchlistCard].filter(
     (card): card is UsageKpi => Boolean(card),
   );
 
@@ -281,101 +292,136 @@ export default function DashboardPage(): JSX.Element {
   );
 
   return (
-    <div className="dashboard-grid">
-      <section className="dashboard-card dashboard-hero">
-        <h1>LexyHub Control Center</h1>
-        <p>Momentum-aware quotas &amp; watchlists</p>
-      </section>
-      <section className="dashboard-card dashboard-plan">
-        <div className="dashboard-plan-header">
-          <h2>Plan overview</h2>
-          <span className="dashboard-plan-subtitle">{planCard?.value ?? "Checking plan…"}</span>
-        </div>
-        <div className="dashboard-plan-rows">
-          {planRows.map((row) => (
-            <div key={row.id} className="dashboard-plan-row">
-              <span>{row.label}</span>
-              <strong>{row.value}</strong>
-            </div>
-          ))}
-        </div>
-      </section>
-      <section className="dashboard-kpi-grid">
-        {kpiCards.map((card) => {
-          const toneClass = card.progress ? ` dashboard-kpi-${card.progress.tone}` : "";
-          return (
-            <article key={card.id} className={`dashboard-card dashboard-kpi${toneClass}`}>
-              <div className="dashboard-kpi-header">
-                <span>{card.label}</span>
-                {card.progress ? (
-                  <span
-                    className={`dashboard-kpi-indicator dashboard-kpi-indicator-${card.progress.tone}`}
-                  >
-                    <span className="dashboard-kpi-indicator-dot" aria-hidden="true" />
-                    {card.progress.caption}
-                  </span>
-                ) : null}
-              </div>
-              <strong className="dashboard-kpi-value">{card.value}</strong>
-              {card.helper ? <p className="dashboard-kpi-helper">{card.helper}</p> : null}
-              {card.progress ? (
-                <div className="dashboard-kpi-progress" aria-hidden="true">
-                  <span style={{ width: `${card.progress.percent}%` }} />
-                </div>
+    <Stack spacing={3}>
+      <Card>
+        <CardContent>
+          <Typography variant="h4" sx={{ fontWeight: 700 }} gutterBottom>
+            LexyHub Control Center
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Momentum-aware quotas and watchlists curated for growth operators.
+          </Typography>
+        </CardContent>
+      </Card>
+
+      <Grid container spacing={3}>
+        <Grid item xs={12} lg={8}>
+          <Card>
+            <CardHeader title="Plan overview" subheader={planCard?.value ?? "Checking plan…"} />
+            <CardContent>
+              {planCard?.helper ? (
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  {planCard.helper}
+                </Typography>
               ) : null}
-            </article>
-          );
-        })}
-      </section>
-      <section className="dashboard-card dashboard-table">
-        <div className="dashboard-section-header">
-          <h2>Area status</h2>
-          <span>Status overview</span>
-        </div>
-        <table>
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </th>
+              <Stack spacing={1.5}>
+                {planRows.map((row) => (
+                  <Stack key={row.id} direction="row" justifyContent="space-between" alignItems="center">
+                    <Typography variant="body2" color="text.secondary">
+                      {row.label}
+                    </Typography>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      {row.value}
+                    </Typography>
+                  </Stack>
                 ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {table.getRowModel().rows.map((row) => (
-              <tr key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} lg={4}>
+          <Card>
+            <CardHeader
+              title="Quick actions"
+              subheader="Connect sources and enrich your workspace."
+            />
+            <CardContent>
+              <Stack spacing={1.5}>
+                <Button variant="contained" size="large">
+                  Create watchlist
+                </Button>
+                <Button variant="outlined" size="large">
+                  Add keyword source
+                </Button>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      <Grid container spacing={3}>
+        {kpiCards.map((card) => (
+          <Grid item key={card.id} xs={12} md={4}>
+            <Card>
+              <CardHeader title={card.label} />
+              <CardContent>
+                <Typography variant="h4" sx={{ fontWeight: 700 }} gutterBottom>
+                  {card.value}
+                </Typography>
+                {card.helper ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: card.progress ? 2 : 0 }}>
+                    {card.helper}
+                  </Typography>
+                ) : null}
+                {card.progress ? (
+                  <Stack spacing={1.5}>
+                    <LinearProgress
+                      variant="determinate"
+                      value={card.progress.percent}
+                      color={toneToColor[card.progress.tone]}
+                      sx={{ height: 8, borderRadius: 9999 }}
+                    />
+                    <Typography variant="body2" color="text.secondary">
+                      {card.progress.caption}
+                    </Typography>
+                  </Stack>
+                ) : null}
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
+      <Card>
+        <CardHeader title="Area status" subheader="Operational oversight" />
+        <CardContent>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <TableCell key={header.id} sx={{ fontWeight: 600 }}>
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(header.column.columnDef.header, header.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
                 ))}
-              </tr>
-            ))}
-            {!metrics.length && !metricsLoading ? (
-              <tr>
-                <td colSpan={4} className="dashboard-table-empty">
-                  Connect your data sources to start seeing live metrics here.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </section>
-      <aside className="dashboard-card dashboard-sidecard">
-        <h2>Quick actions</h2>
-        <p>Connect your data sources to start seeing live metrics here.</p>
-        <div className="dashboard-sidecard-actions">
-          <button type="button" className="primary-action">
-            Create watchlist
-          </button>
-          <button type="button" className="secondary-action">
-            Add keyword source
-          </button>
-        </div>
-      </aside>
-    </div>
+              </TableHead>
+              <TableBody>
+                {table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id} hover>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+                {!metrics.length && !metricsLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center" sx={{ py: 6 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Connect your data sources to start seeing live metrics here.
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
+    </Stack>
   );
 }

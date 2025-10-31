@@ -1,6 +1,36 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  Grid,
+  InputLabel,
+  MenuItem,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from "@mui/material";
 
 import KeywordSparkline from "@/components/keywords/KeywordSparkline";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -42,6 +72,13 @@ type TagOptimizerResult = {
   model: string;
 };
 
+type DataLineageSummary = {
+  plan: PlanTier;
+  sources: string[];
+  freshest: string;
+  recordCount: number;
+};
+
 export default function KeywordsPage(): JSX.Element {
   const [query, setQuery] = useState("handmade jewelry");
   const [results, setResults] = useState<KeywordResult[]>([]);
@@ -50,7 +87,7 @@ export default function KeywordsPage(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [lastQuery, setLastQuery] = useState<string>("");
   const [bootstrapped, setBootstrapped] = useState(false);
-  const [plan, setPlan] = useState<PlanTier>("growth");
+  const [selectedPlan, setSelectedPlan] = useState<PlanTier>("growth");
   const [responsePlan, setResponsePlan] = useState<PlanTier>("growth");
   const [sourceFilters, setSourceFilters] = useState<string[]>(["synthetic", "amazon"]);
   const [responseSources, setResponseSources] = useState<string[]>(["synthetic", "amazon"]);
@@ -64,16 +101,19 @@ export default function KeywordsPage(): JSX.Element {
   const { push } = useToast();
 
   const availableSources = useMemo(() => {
-    if (plan === "free") {
+    if (selectedPlan === "free") {
       return ["synthetic"];
     }
     return ["synthetic", "amazon"];
-  }, [plan]);
+  }, [selectedPlan]);
 
   const toggleSource = useCallback(
-    (source: string) => {
+    (_event: React.MouseEvent<HTMLElement>, value: string | null) => {
+      if (!value) {
+        return;
+      }
       setSourceFilters((current) => {
-        const normalized = source.toLowerCase();
+        const normalized = value.toLowerCase();
         if (current.includes(normalized)) {
           if (current.length === 1) {
             return current;
@@ -108,7 +148,7 @@ export default function KeywordsPage(): JSX.Element {
             query: term,
             market: "us",
             limit: 25,
-            plan,
+            plan: selectedPlan,
             sources: sourceFilters,
           }),
         });
@@ -122,7 +162,7 @@ export default function KeywordsPage(): JSX.Element {
         setResults(payload.results ?? []);
         setInsights(payload.insights ?? null);
         setLastQuery(payload.query ?? term);
-        setResponsePlan(payload.plan ?? plan);
+        setResponsePlan(payload.plan ?? selectedPlan);
         setResponseSources(payload.sources ?? sourceFilters);
       } catch (err) {
         console.error("Failed to execute keyword search", err);
@@ -131,7 +171,7 @@ export default function KeywordsPage(): JSX.Element {
         setLoading(false);
       }
     },
-    [plan, sourceFilters],
+    [selectedPlan, sourceFilters],
   );
 
   const handleWatchlist = useCallback(
@@ -148,7 +188,7 @@ export default function KeywordsPage(): JSX.Element {
         }
         push({
           title: "Added to watchlist",
-          description: `\"${keyword.term}\" is now monitored.`,
+          description: `"${keyword.term}" is now monitored.`,
           tone: "success",
         });
       } catch (err) {
@@ -213,7 +253,9 @@ export default function KeywordsPage(): JSX.Element {
       return "We refresh your results whenever new data arrives and keep track of where each idea began.";
     }
 
-    const uniqueSources = (responseSources.length ? responseSources : Array.from(new Set(results.map((item) => item.source)))).join(", ");
+    const uniqueSources = (responseSources.length
+      ? responseSources
+      : Array.from(new Set(results.map((item) => item.source)))).join(", ");
     const freshest = results[0]?.freshness_ts
       ? new Date(results[0]?.freshness_ts).toLocaleString()
       : "Not yet synced";
@@ -221,7 +263,7 @@ export default function KeywordsPage(): JSX.Element {
     return `Plan: ${responsePlan}. Source(s): ${uniqueSources || "synthetic"}. Freshness: ${freshest}. Retrieval method adjusts per provider to maintain accuracy.`;
   }, [responsePlan, responseSources, results]);
 
-  const dataLineage = useMemo(() => {
+  const dataLineage = useMemo<DataLineageSummary>(() => {
     const freshest = results.reduce<string | null>((latest, record) => {
       if (!record.freshness_ts) {
         return latest;
@@ -233,12 +275,14 @@ export default function KeywordsPage(): JSX.Element {
       return new Date(timestamp).getTime() > new Date(latest).getTime() ? timestamp : latest;
     }, null);
 
-    return {
+    const summary: DataLineageSummary = {
       plan: responsePlan,
       sources: responseSources.length ? responseSources : ["synthetic"],
       freshest: freshest ? new Date(freshest).toLocaleString() : "Not yet synced",
       recordCount: results.length,
     };
+
+    return summary;
   }, [responsePlan, responseSources, results]);
 
   const sparklinePoints = useMemo(() => {
@@ -294,252 +338,280 @@ export default function KeywordsPage(): JSX.Element {
   );
 
   return (
-    <div className="keywords-page">
-      <div className="keywords-header">
-        <div>
-          <h1>Keyword Intelligence</h1>
-          <p>
-            Explore synthetic demand signals and surface high-propensity commerce keywords. Results are
-            ranked via embeddings with deterministic fallbacks when AI is offline.
-          </p>
-        </div>
-        <form className="keywords-search" onSubmit={handleSubmit}>
-          <label className="sr-only" htmlFor="keyword-query">
-            Search keywords
-          </label>
-          <input
-            id="keyword-query"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="e.g. boho nursery decor"
-            disabled={loading}
-          />
-          <button type="submit" disabled={loading}>
-            {loading ? "Searching…" : "Search"}
-          </button>
-        </form>
-      </div>
-
-      <div className="keywords-filters">
-        <div>
-          <label htmlFor="plan-tier">Plan tier</label>
-          <select
-            id="plan-tier"
-            value={plan}
-            onChange={(event) => setPlan(event.target.value as PlanTier)}
-            disabled={loading}
-          >
-            <option value="free">Free</option>
-            <option value="growth">Growth</option>
-            <option value="scale">Scale</option>
-          </select>
-        </div>
-        <div className="keywords-source-toggles">
-          <span>Sources</span>
-          {availableSources.map((source) => {
-            const active = sourceFilters.includes(source);
-            return (
-              <button
-                key={source}
-                type="button"
-                className={active ? "source-toggle active" : "source-toggle"}
-                onClick={() => toggleSource(source)}
-                disabled={loading || (active && sourceFilters.length === 1)}
+    <Stack spacing={3}>
+      <Card>
+        <CardHeader
+          title="Keyword Intelligence"
+          subheader="Explore synthetic demand signals and surface high-propensity commerce keywords."
+        />
+        <CardContent>
+          <Stack component="form" spacing={2} direction={{ xs: "column", md: "row" }} onSubmit={handleSubmit}>
+            <TextField
+              label="Search keywords"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="e.g. boho nursery decor"
+              fullWidth
+              disabled={loading}
+            />
+            <Button type="submit" variant="contained" size="large" disabled={loading}>
+              {loading ? "Searching…" : "Search"}
+            </Button>
+          </Stack>
+          <Grid container spacing={2} sx={{ mt: 2 }} alignItems="center">
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth>
+                <InputLabel id="plan-tier-label">Plan tier</InputLabel>
+                <Select
+                  labelId="plan-tier-label"
+                  id="plan-tier"
+                  value={selectedPlan}
+                  label="Plan tier"
+                  onChange={(event) => setSelectedPlan(event.target.value as PlanTier)}
+                  disabled={loading}
+                >
+                  <MenuItem value="free">Free</MenuItem>
+                  <MenuItem value="growth">Growth</MenuItem>
+                  <MenuItem value="scale">Scale</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Typography variant="caption" color="text.secondary" gutterBottom>
+                Sources
+              </Typography>
+              <ToggleButtonGroup
+                value={sourceFilters}
+                onChange={toggleSource}
+                size="small"
+                color="primary"
               >
-                {source}
-              </button>
-            );
-          })}
-        </div>
-        <button
-          type="button"
-          className="keywords-refresh"
-          onClick={() => void performSearch(query)}
-          disabled={loading}
-        >
-          Refresh
-        </button>
-      </div>
+                {availableSources.map((source) => (
+                  <ToggleButton key={source} value={source} disabled={loading && !sourceFilters.includes(source)}>
+                    {source}
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+            </Grid>
+            <Grid item xs={12} md={3} sx={{ textAlign: { xs: "left", md: "right" } }}>
+              <Button
+                variant="outlined"
+                onClick={() => void performSearch(query)}
+                disabled={loading}
+              >
+                Refresh
+              </Button>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
 
       {error ? (
-        <div className="keyword-error">{error}</div>
-      ) : (
-        <div className="keywords-grid">
-          <div className="keywords-table">
-            <header>
-              <div>
-                <h2>Results</h2>
-                <span className="keyword-meta">Query: {lastQuery || query}</span>
-              </div>
-              <div className="keyword-meta">{results.length} matches</div>
-            </header>
-            <table>
-              <thead>
-                <tr>
-                  <th>Term</th>
-                  <th>Source</th>
-                  <th>Similarity</th>
-                  <th>Composite</th>
-                  <th>AI Opportunity</th>
-                  <th>Trend Momentum</th>
-                  <th>Freshness</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {results.map((keyword) => (
-                  <tr key={`${keyword.term}-${keyword.market}`}>
-                    <td>
-                      <strong>{keyword.term}</strong>
-                      {keyword.extras && keyword.extras["category"] ? (
-                        <span className="keyword-pill">{String(keyword.extras["category"])} </span>
-                      ) : null}
-                    </td>
-                    <td>
-                      <span className={`keyword-source-badge source-${keyword.source}`}>
-                        {keyword.source}
-                      </span>
-                    </td>
-                    <td>{(keyword.similarity * 100).toFixed(1)}%</td>
-                    <td>
-                      {typeof keyword.compositeScore === "number"
-                        ? `${(keyword.compositeScore * 100).toFixed(1)}%`
-                        : "—"}
-                    </td>
-                    <td>{keyword.ai_opportunity_score?.toFixed(2) ?? "—"}</td>
-                    <td>{keyword.trend_momentum?.toFixed(2) ?? "—"}</td>
-                    <td>
-                      {keyword.freshness_ts
-                        ? new Date(keyword.freshness_ts).toLocaleDateString()
-                        : "Pending"}
-                    </td>
-                    <td className="keyword-actions">
-                      <button className="keyword-watch" onClick={() => handleWatchlist(keyword)}>
-                        Add to Watchlist
-                      </button>
-                      <button className="keyword-optimize" onClick={() => void handleOptimize(keyword)}>
-                        Optimize Tags
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {!results.length && !loading ? (
-                  <tr>
-                    <td colSpan={7} style={{ textAlign: "center", padding: "2rem" }}>
-                      No keywords yet. Run a search to populate this table.
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
-
-          <aside className="keywords-panel">
-            <section>
-              <h3>Helpful Highlights</h3>
-              <p className="keyword-summary">
-                {insights?.summary ?? "Run a search to see helpful keyword tips."}
-              </p>
-              <div className="keyword-insight-meta">
-                <span>
-                  Last updated:
-                  {" "}
-                  {insights?.generatedAt
-                    ? new Date(insights.generatedAt).toLocaleString()
-                    : "Not available yet"}
-                </span>
-              </div>
-              <KeywordSparkline points={sparklinePoints} />
-            </section>
-
-            <section>
-              <h3>Update Notes</h3>
-              <p>{complianceNotes}</p>
-            </section>
-
-            <section>
-              <h3>Data Info</h3>
-              <dl className="keyword-data-info">
-                <div>
-                  <dt>Plan</dt>
-                  <dd>{dataLineage.plan}</dd>
-                </div>
-                <div>
-                  <dt>Sources</dt>
-                  <dd>{dataLineage.sources.join(", ")}</dd>
-                </div>
-                <div>
-                  <dt>Freshest Sync</dt>
-                  <dd>{dataLineage.freshest}</dd>
-                </div>
-                <div>
-                  <dt>Records</dt>
-                  <dd>{dataLineage.recordCount}</dd>
-                </div>
-              </dl>
-            </section>
-
-            <section>
-              <h3>Quick Tips</h3>
-              <ul>
-                <li>Check your keyword list often so it stays up to date.</li>
-                <li>Refresh your sources regularly to keep marketplace news fresh.</li>
-                <li>Add important terms to your watchlist to keep an eye on them.</li>
-              </ul>
-            </section>
-          </aside>
-        </div>
-      )}
-
-      {optimizerOpen ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true">
-          <div className="modal">
-            <header>
-              <h2>Tag Optimizer</h2>
-              <button
-                type="button"
-                className="modal-close"
-                aria-label="Close optimizer"
-                onClick={() => setOptimizerOpen(false)}
-              >
-                ×
-              </button>
-            </header>
-            <div className="modal-body">
-              {selectedKeyword ? (
-                <p className="modal-subtitle">
-                  Keyword context: <strong>{selectedKeyword.term}</strong> ({selectedKeyword.market})
-                </p>
-              ) : null}
-              {optimizerLoading ? <p>Generating AI suggestions…</p> : null}
-              {optimizerError ? <p className="modal-error">{optimizerError}</p> : null}
-              {optimizerResult ? (
-                <div className="optimizer-result">
-                  <h3>
-                    Suggested Tags <span>({optimizerResult.model})</span>
-                  </h3>
-                  <ul>
-                    {optimizerResult.tags.map((tag) => (
-                      <li key={tag}>
-                        <code>{tag}</code>
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="optimizer-reasoning">{optimizerResult.reasoning}</p>
-                  <p className="optimizer-confidence">
-                    Confidence: {(optimizerResult.confidence * 100).toFixed(0)}%
-                  </p>
-                </div>
-              ) : null}
-            </div>
-            <footer>
-              <button type="button" className="keyword-watch" onClick={() => setOptimizerOpen(false)}>
-                Close
-              </button>
-            </footer>
-          </div>
-        </div>
+        <Alert severity="error">{error}</Alert>
       ) : null}
-    </div>
+
+      <Grid container spacing={3} alignItems="stretch">
+        <Grid item xs={12} lg={8}>
+          <Card sx={{ height: "100%" }}>
+            <CardHeader
+              title="Results"
+              subheader={`Query: ${lastQuery || query} · ${results.length} matches`}
+            />
+            <CardContent>
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Term</TableCell>
+                      <TableCell>Source</TableCell>
+                      <TableCell>Similarity</TableCell>
+                      <TableCell>Composite</TableCell>
+                      <TableCell>AI Opportunity</TableCell>
+                      <TableCell>Trend Momentum</TableCell>
+                      <TableCell>Freshness</TableCell>
+                      <TableCell align="right">Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {results.map((keyword) => (
+                      <TableRow key={`${keyword.term}-${keyword.market}`} hover>
+                        <TableCell>
+                          <Stack spacing={0.5}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                              {keyword.term}
+                            </Typography>
+                            {keyword.extras && keyword.extras["category"] ? (
+                              <Chip
+                                label={String(keyword.extras["category"])}
+                                size="small"
+                                color="secondary"
+                                variant="outlined"
+                              />
+                            ) : null}
+                          </Stack>
+                        </TableCell>
+                        <TableCell>
+                          <Chip label={keyword.source} size="small" variant="outlined" />
+                        </TableCell>
+                        <TableCell>{(keyword.similarity * 100).toFixed(1)}%</TableCell>
+                        <TableCell>
+                          {typeof keyword.compositeScore === "number"
+                            ? `${(keyword.compositeScore * 100).toFixed(1)}%`
+                            : "—"}
+                        </TableCell>
+                        <TableCell>{keyword.ai_opportunity_score?.toFixed(2) ?? "—"}</TableCell>
+                        <TableCell>{keyword.trend_momentum?.toFixed(2) ?? "—"}</TableCell>
+                        <TableCell>
+                          {keyword.freshness_ts
+                            ? new Date(keyword.freshness_ts).toLocaleDateString()
+                            : "Pending"}
+                        </TableCell>
+                        <TableCell align="right">
+                          <Stack direction="row" spacing={1} justifyContent="flex-end">
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => handleWatchlist(keyword)}
+                            >
+                              Watchlist
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              onClick={() => void handleOptimize(keyword)}
+                            >
+                              Optimize
+                            </Button>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {!results.length && !loading ? (
+                      <TableRow>
+                        <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            No keywords yet. Run a search to populate this table.
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    ) : null}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} lg={4}>
+          <Stack spacing={3} sx={{ height: "100%" }}>
+            <Card>
+              <CardHeader title="Helpful Highlights" subheader={insights?.model ?? "AI summary"} />
+              <CardContent>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  {insights?.summary ?? "Run a search to see helpful keyword tips."}
+                </Typography>
+                <KeywordSparkline points={sparklinePoints} />
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: "block" }}>
+                  Last updated: {insights?.generatedAt ? new Date(insights.generatedAt).toLocaleString() : "Not available"}
+                </Typography>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader title="Update Notes" />
+              <CardContent>
+                <Typography variant="body2" color="text.secondary">
+                  {complianceNotes}
+                </Typography>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader title="Data Info" />
+              <CardContent>
+                <Stack spacing={1.5}>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography variant="body2" color="text.secondary">
+                      Plan
+                    </Typography>
+                    <Typography variant="body2">{dataLineage.plan}</Typography>
+                  </Stack>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography variant="body2" color="text.secondary">
+                      Sources
+                    </Typography>
+                    <Typography variant="body2">{dataLineage.sources.join(", ")}</Typography>
+                  </Stack>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography variant="body2" color="text.secondary">
+                      Freshest Sync
+                    </Typography>
+                    <Typography variant="body2">{dataLineage.freshest}</Typography>
+                  </Stack>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography variant="body2" color="text.secondary">
+                      Records
+                    </Typography>
+                    <Typography variant="body2">{dataLineage.recordCount}</Typography>
+                  </Stack>
+                </Stack>
+              </CardContent>
+            </Card>
+            <Card sx={{ flexGrow: 1 }}>
+              <CardHeader title="Quick Tips" />
+              <CardContent>
+                <Stack component="ul" spacing={1.5} sx={{ pl: 2 }}>
+                  <Typography component="li" variant="body2">
+                    Check your keyword list often so it stays up to date.
+                  </Typography>
+                  <Typography component="li" variant="body2">
+                    Refresh your sources regularly to keep marketplace news fresh.
+                  </Typography>
+                  <Typography component="li" variant="body2">
+                    Add important terms to your watchlist to keep an eye on them.
+                  </Typography>
+                </Stack>
+                <Button component={Link} href="/docs" sx={{ mt: 2 }}>
+                  Visit documentation
+                </Button>
+              </CardContent>
+            </Card>
+          </Stack>
+        </Grid>
+      </Grid>
+
+      <Dialog open={optimizerOpen} onClose={() => setOptimizerOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Tag Optimizer</DialogTitle>
+        <DialogContent>
+          {selectedKeyword ? (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Keyword context: <strong>{selectedKeyword.term}</strong> ({selectedKeyword.market})
+            </Typography>
+          ) : null}
+          {optimizerLoading ? <Typography>Generating AI suggestions…</Typography> : null}
+          {optimizerError ? <Alert severity="error">{optimizerError}</Alert> : null}
+          {optimizerResult ? (
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  Suggested Tags <Typography component="span" variant="caption">({optimizerResult.model})</Typography>
+                </Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 1 }}>
+                  {optimizerResult.tags.map((tag) => (
+                    <Chip key={tag} label={tag} variant="outlined" />
+                  ))}
+                </Stack>
+              </Box>
+              <Typography variant="body2" color="text.secondary">
+                {optimizerResult.reasoning}
+              </Typography>
+              <Typography variant="body2">
+                Confidence: {(optimizerResult.confidence * 100).toFixed(0)}%
+              </Typography>
+            </Stack>
+          ) : null}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOptimizerOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </Stack>
   );
 }

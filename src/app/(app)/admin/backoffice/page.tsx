@@ -2,52 +2,78 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import {
+  Alert,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  Chip,
+  Grid,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+} from "@mui/material";
 
 import type { CrawlerStatus, HealthMetric } from "@/lib/backoffice/status";
 
 function MetricCard({ metric }: { metric: HealthMetric }) {
-  const statusColor =
-    metric.status === "ok"
-      ? "var(--color-kpi-positive)"
-      : metric.status === "warning"
-        ? "var(--color-kpi-caution)"
-        : "var(--color-kpi-critical)";
+  const tone: Record<HealthMetric["status"], "success" | "warning" | "error"> = {
+    ok: "success",
+    warning: "warning",
+    critical: "error",
+  };
+
   return (
-    <article className="metric-card">
-      <header>
-        <span className="metric-category">{metric.category}</span>
-        <span className="metric-status" style={{ color: statusColor }}>
-          {metric.status.toUpperCase()}
-        </span>
-      </header>
-      <h3>{metric.metric_label}</h3>
-      <p className="metric-value">
-        {metric.metric_value ?? "—"}
-        {metric.metric_unit === "percent" ? "%" : null}
-      </p>
-      {metric.delta !== null && metric.delta !== undefined ? (
-        <p className={`metric-delta ${metric.delta >= 0 ? "positive" : "negative"}`}>
-          {metric.delta >= 0 ? "▲" : "▼"} {Math.abs(metric.delta)}
-          {metric.metric_unit === "percent" ? "%" : ""}
-        </p>
-      ) : null}
-      <footer>
-        <small>Captured {new Date(metric.captured_at).toLocaleString()}</small>
-      </footer>
-    </article>
+    <Card variant="outlined">
+      <CardContent>
+        <Stack spacing={1.5}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Typography variant="caption" color="text.secondary">
+              {metric.category}
+            </Typography>
+            <Chip label={metric.status.toUpperCase()} color={tone[metric.status]} size="small" variant="outlined" />
+          </Stack>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+            {metric.metric_label}
+          </Typography>
+          <Typography variant="h5">
+            {metric.metric_value ?? "—"}
+            {metric.metric_unit === "percent" ? "%" : ""}
+          </Typography>
+          {metric.delta != null ? (
+            <Typography
+              variant="body2"
+              color={metric.delta >= 0 ? "success.main" : "error.main"}
+            >
+              {metric.delta >= 0 ? "▲" : "▼"} {Math.abs(metric.delta)}
+              {metric.metric_unit === "percent" ? "%" : ""}
+            </Typography>
+          ) : null}
+          <Typography variant="caption" color="text.secondary">
+            Captured {new Date(metric.captured_at).toLocaleString()}
+          </Typography>
+        </Stack>
+      </CardContent>
+    </Card>
   );
 }
 
 function CrawlerRow({ crawler }: { crawler: CrawlerStatus }) {
   return (
-    <tr>
-      <td>{crawler.source}</td>
-      <td>{crawler.status}</td>
-      <td>{crawler.total_records ?? "—"}</td>
-      <td>{crawler.last_run_at ? new Date(crawler.last_run_at).toLocaleString() : "—"}</td>
-      <td>{crawler.next_run_at ? new Date(crawler.next_run_at).toLocaleString() : "—"}</td>
-      <td>{crawler.error_message ?? "—"}</td>
-    </tr>
+    <TableRow>
+      <TableCell>{crawler.source}</TableCell>
+      <TableCell>{crawler.status}</TableCell>
+      <TableCell>{crawler.total_records ?? "—"}</TableCell>
+      <TableCell>{crawler.last_run_at ? new Date(crawler.last_run_at).toLocaleString() : "—"}</TableCell>
+      <TableCell>{crawler.next_run_at ? new Date(crawler.next_run_at).toLocaleString() : "—"}</TableCell>
+      <TableCell>{crawler.error_message ?? "—"}</TableCell>
+    </TableRow>
   );
 }
 
@@ -100,70 +126,102 @@ export default function BackofficeOverviewPage(): JSX.Element {
   const cards = useMemo(() => metrics.slice(0, 6), [metrics]);
 
   return (
-    <div className="backoffice-overview">
-      <header className="backoffice-header">
-        <div>
-          <h1>Backoffice overview</h1>
-          <p className="subtitle">Operational dashboard for administrators.</p>
-        </div>
-        <Link className="primary-link" href="/admin/backoffice/risk-management">
-          Manage risk
-        </Link>
-      </header>
-      {error ? <p className="error">{error}</p> : null}
-      <section className="metric-grid">
+    <Stack spacing={3}>
+      <Card>
+        <CardHeader
+          title="Backoffice overview"
+          subheader="Operational dashboard for administrators."
+          action={
+            <Button component={Link} href="/admin/backoffice/risk-management" variant="contained" color="primary">
+              Manage risk
+            </Button>
+          }
+        />
+      </Card>
+
+      {error ? <Alert severity="error">{error}</Alert> : null}
+
+      <Grid container spacing={2}>
         {cards.map((metric) => (
-          <MetricCard key={metric.id} metric={metric} />
+          <Grid item key={metric.id} xs={12} sm={6} lg={4}>
+            <MetricCard metric={metric} />
+          </Grid>
         ))}
-        {cards.length === 0 ? <p>No metrics available.</p> : null}
-      </section>
-      <section className="risk-summary">
-        <h2>Risk posture</h2>
-        {riskSummary ? (
-          <ul>
-            <li>
-              <strong>Total tracked:</strong> {riskSummary.total}
-            </li>
-            <li>
-              <strong>Open:</strong> {riskSummary.open}
-            </li>
-            <li>
-              <strong>Mitigated:</strong> {riskSummary.mitigated}
-            </li>
-            <li>
-              <strong>Overdue:</strong> {riskSummary.overdue}
-            </li>
-          </ul>
-        ) : (
-          <p>Loading risk summary…</p>
-        )}
-      </section>
-      <section>
-        <h2>Crawler status</h2>
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Source</th>
-                <th>Status</th>
-                <th>Records</th>
-                <th>Last run</th>
-                <th>Next run</th>
-                <th>Error</th>
-              </tr>
-            </thead>
-            <tbody>
-              {crawlers.length === 0 ? (
-                <tr>
-                  <td colSpan={6}>No crawler records yet.</td>
-                </tr>
-              ) : (
-                crawlers.map((crawler) => <CrawlerRow key={crawler.id} crawler={crawler} />)
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </div>
+        {cards.length === 0 ? (
+          <Grid item xs={12}>
+            <Alert severity="info">No metrics available.</Alert>
+          </Grid>
+        ) : null}
+      </Grid>
+
+      <Card>
+        <CardHeader title="Risk posture" />
+        <CardContent>
+          {riskSummary ? (
+            <Grid container spacing={2}>
+              <Grid item xs={6} md={3}>
+                <Typography variant="caption" color="text.secondary">
+                  Total tracked
+                </Typography>
+                <Typography variant="h6">{riskSummary.total}</Typography>
+              </Grid>
+              <Grid item xs={6} md={3}>
+                <Typography variant="caption" color="text.secondary">
+                  Open
+                </Typography>
+                <Typography variant="h6">{riskSummary.open}</Typography>
+              </Grid>
+              <Grid item xs={6} md={3}>
+                <Typography variant="caption" color="text.secondary">
+                  Mitigated
+                </Typography>
+                <Typography variant="h6">{riskSummary.mitigated}</Typography>
+              </Grid>
+              <Grid item xs={6} md={3}>
+                <Typography variant="caption" color="text.secondary">
+                  Overdue
+                </Typography>
+                <Typography variant="h6">{riskSummary.overdue}</Typography>
+              </Grid>
+            </Grid>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              Loading risk summary…
+            </Typography>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader title="Crawler status" />
+        <CardContent>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Source</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Records</TableCell>
+                  <TableCell>Last run</TableCell>
+                  <TableCell>Next run</TableCell>
+                  <TableCell>Error</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {crawlers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center">
+                      No crawler records yet.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  crawlers.map((crawler) => <CrawlerRow key={crawler.id} crawler={crawler} />)
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
+    </Stack>
   );
 }
