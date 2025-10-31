@@ -39,6 +39,7 @@ The Keywords workspace surfaces organic search opportunities discovered by LexyH
 - **Filters:** Narrow the dataset by storefront, seasonality, or intent level.
 - **Watchlists:** Pin mission-critical keywords to monitor their movement over time.
 - **Helpful Highlights panel:** Shows friendly tips about your keyword search along with the last time guidance was updated.
+- **Data seeding from real searches:** When a query returns no results, LexyHub now captures the term and routes it to our enrichment queue so future searches populate faster.
 
 **How to build a keyword watchlist:**
 1. Open **Keywords** from the sidebar.
@@ -140,4 +141,4 @@ LexyHub publishes sprint-level release notes in `/docs/changelog.md`. Review the
 - **Amazon keyword population guide:** `/docs/amazon-keyword-population-guide.md`
 - **Trend & intent intelligence:** `/docs/trend-intent-intelligence.md`
 
-_Last updated: 2025-06-09_
+_Last updated: 2025-06-12_

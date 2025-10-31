@@ -258,6 +258,59 @@ async function loadSearchPayload(req: Request): Promise<SearchRequestPayload> {
   return json;
 }
 
+function resolveUserId(req: Request): string | null {
+  const headerUserId = req.headers.get("x-lexy-user-id");
+  if (headerUserId && headerUserId.trim()) {
+    return headerUserId.trim();
+  }
+
+  try {
+    const url = new URL(req.url);
+    const searchParamUserId = url.searchParams.get("userId");
+    return searchParamUserId && searchParamUserId.trim() ? searchParamUserId.trim() : null;
+  } catch (error) {
+    console.warn("Failed to parse request URL while resolving user id", error);
+  }
+
+  return null;
+}
+
+async function recordKeywordSearchRequest({
+  supabase,
+  query,
+  normalizedQuery,
+  market,
+  plan,
+  sources,
+  userId,
+  reason = "no_results",
+}: {
+  supabase: NonNullable<ReturnType<typeof getSupabaseServerClient>>;
+  query: string;
+  normalizedQuery: string;
+  market: string;
+  plan: PlanTier;
+  sources: string[];
+  userId: string | null;
+  reason?: string;
+}): Promise<void> {
+  const payload = {
+    user_id: userId,
+    query,
+    normalized_query: normalizedQuery,
+    market,
+    plan,
+    sources,
+    reason,
+  };
+
+  const { error } = await supabase.from("keyword_search_requests").insert(payload);
+
+  if (error) {
+    console.error("Failed to record keyword search request", { error, payload });
+  }
+}
+
 async function handleSearch(req: Request): Promise<NextResponse> {
   const payload = await loadSearchPayload(req);
   const market = payload.market ? normalizeKeywordTerm(payload.market) : "us";
@@ -282,15 +335,27 @@ async function handleSearch(req: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Query term is required." }, { status: 400 });
   }
 
-  const query = normalizeKeywordTerm(queryRaw);
+  const trimmedQuery = queryRaw.trim();
+  const query = normalizeKeywordTerm(trimmedQuery);
   const supabase = getSupabaseServerClient();
 
   if (!supabase) {
     return NextResponse.json({ error: "Supabase client unavailable" }, { status: 503 });
   }
 
+  const userId = resolveUserId(req);
   const keywords = await fetchKeywordsFromSupabase(market, resolvedSources, allowedTiers, limit);
   if (keywords.length === 0) {
+    await recordKeywordSearchRequest({
+      supabase,
+      query: trimmedQuery,
+      normalizedQuery: query,
+      market,
+      plan,
+      sources: resolvedSources,
+      userId,
+    });
+
     return NextResponse.json({
       query,
       market,
