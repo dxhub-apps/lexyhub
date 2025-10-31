@@ -9,10 +9,11 @@ LexyHub ships a collection of background automation endpoints that hydrate dashb
 | `POST /api/jobs/trend-aggregation` | Aggregates external and synthetic trend signals into `trend_series` and updates `keywords.trend_momentum`. | Every 6 hours |
 | `POST /api/jobs/intent-classify` | Classifies keywords and listings into purchase intent categories for targeting workflows. | Daily |
 | `POST /api/jobs/rebuild-clusters` | Recomputes semantic clusters so that related keywords stay grouped as new data arrives. | Daily |
-| `POST /api/jobs/embed-missing` | Generates vector embeddings for keywords or listings that do not yet have embeddings stored. | Hourly |
-| `POST /api/jobs/etsy-sync` | Pulls the latest listings, tags, and stats from connected Etsy shops. | Hourly or after credential changes |
+| `POST /api/jobs/embed-missing` | Generates 3,072-dimensional vector embeddings (using `text-embedding-3-large`) for keywords or listings that do not yet have embeddings stored. | Hourly |
 
-All endpoints live inside the Next.js application and rely on the Supabase service role credentials configured in the deployment. Requests should be authenticated via an internal bearer token or a restricted network path (e.g., Vercel cron jobs).
+The Etsy sync job is temporarily disabled in automation until the upstream API contract is finalized. You can still invoke it manually while testing the integration.
+
+All active endpoints live inside the Next.js application and rely on the Supabase service role credentials configured in the deployment. Requests should be authenticated via an internal bearer token or a restricted network path (e.g., Vercel cron jobs).
 
 ## Running jobs manually
 
@@ -49,14 +50,14 @@ The workflow supports two triggers:
 
 ### What the workflow does
 
-1. Iterates through the list of job endpoints (`trend-aggregation`, `intent-classify`, `rebuild-clusters`, `embed-missing`, `etsy-sync`).
+1. Iterates through the list of job endpoints (`trend-aggregation`, `intent-classify`, `rebuild-clusters`, `embed-missing`).
 2. Posts to each `/api/jobs/{endpoint}` URL with the configured secrets.
 3. Captures the HTTP status code and response body for auditing and uploads them as an artifact named `background-job-logs`.
 4. Fails the workflow if any endpoint returns a non-2xx response so the team is alerted in GitHub.
 
 ### Customizing the job list
 
-Edit the `JOB_ENDPOINTS` environment variable inside `background-jobs.yml` if you want to add, remove, or reorder tasks. Each endpoint should be the path segment that follows `/api/jobs/`.
+Edit the `JOB_ENDPOINTS` environment variable inside `background-jobs.yml` if you want to add, remove, or reorder tasks. Each endpoint should be the path segment that follows `/api/jobs/`. Re-introduce `etsy-sync` here once the production API is ready to accept automated traffic again.
 
 ## Troubleshooting
 
