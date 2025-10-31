@@ -9,6 +9,17 @@ This document describes the end-to-end delivery roadmap for LexyHub, including s
 - **Tech Stack:** Next.js App Router on Vercel, Supabase Postgres with pgvector, Supabase Auth + JWT, OpenAI APIs, optional CLIP/BLIP-2 models, Supabase storage.
 - **Release Cadence:** Six macro stages aligned with six execution sprints (3-weeks each). Every sprint ends with a demonstrable increment deployed to staging.
 
+-### Marketing Site Blueprint (lexyhub.com)
+- **Purpose:** Present a high-converting, static marketing experience that introduces LexyHub, showcases the roadmap, and funnels qualified operators into the product via `/dashboard`.
+- **Structure:**
+  - `/` — hero copy anchoring LexyHub as the commerce intelligence engine, feature highlights, pricing grid (Free, Basic $7, Pro $29, Growth $49), testimonial-style metrics, and direct calls-to-action ("Start for free", "Launch LexyHub").
+  - `/about` — mission narrative, guiding principles, and future vision for the platform with CTA back into contact.
+  - `/contact` — email-first engagement path, expectations for response, and collaboration tracks for strategy, partnerships, and enterprise onboarding.
+- **Blueprint assets:** Static HTML prototypes live in `docs/blueprint/` (`index.html`, `about.html`, `contact.html`, `styles.css`) for handoff to the dedicated marketing repository.
+- **Navigation:** Persistent top bar with anchor links to features and pricing, plus dedicated links to About, Contact, and a login button routing to `/dashboard`.
+- **Upsell Moments:** Growth tier is surfaced as a "quiet" upsell inside the pricing grid with language encouraging strategist-led pilots.
+- **Tone:** Direct, momentum-focused copy emphasising speed, AI accountability, and cross-market coverage to support executive buy-in.
+
 ### Sprint Themes vs. Release Stages
 | Sprint | Release Stage Alignment | Primary Outcomes |
 | ------ | ---------------------- | ---------------- |
