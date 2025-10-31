@@ -12,11 +12,19 @@ type VisualTagResponse = {
   assetPath?: string;
 };
 
+const TIMEFRAMES = [
+  { value: "today", label: "Today" },
+  { value: "7d", label: "7D" },
+  { value: "30d", label: "30D" },
+];
+
 export default function InsightsPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [hints, setHints] = useState("handmade, ceramic");
   const [result, setResult] = useState<VisualTagResponse | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [trendTimeframe, setTrendTimeframe] = useState<string>("7d");
+  const [intentTimeframe, setIntentTimeframe] = useState<string>("7d");
   const { push } = useToast();
 
   const handleFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,23 +94,58 @@ export default function InsightsPage() {
 
   return (
     <section className="insights-grid">
-      <header>
+      <article className="insights-card insights-card--full surface-card">
         <h1>Commerce Insights</h1>
         <p>
-          Explore real-time trend radar views, purchase intent graphs, and partner analytics to uncover the next products to
+          Explore real-time radar views, purchase intent graphs, and partner analytics to uncover the next products to
           launch.
         </p>
-      </header>
+        <p className="insights-muted">
+          Dashboard timeframes sync with your keyword control center so the same toggles apply everywhere.
+        </p>
+      </article>
 
-      <div className="insights-card insights-card--full">
+      <article className="insights-card insights-card--full surface-card">
+        <div className="insights-toolbar">
+          <h2>Trend radar</h2>
+          <div className="timeframe-toggle" role="group" aria-label="Trend radar timeframe">
+            {TIMEFRAMES.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={option.value === trendTimeframe ? "active" : ""}
+                onClick={() => setTrendTimeframe(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <TrendRadar />
-      </div>
+        <p className="insights-muted">Visualise momentum across categories to prioritise roadmap bets.</p>
+      </article>
 
-      <div className="insights-card insights-card--full">
+      <article className="insights-card insights-card--full surface-card">
+        <div className="insights-toolbar">
+          <h2>Intent graph</h2>
+          <div className="timeframe-toggle" role="group" aria-label="Intent graph timeframe">
+            {TIMEFRAMES.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={option.value === intentTimeframe ? "active" : ""}
+                onClick={() => setIntentTimeframe(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <IntentGraph />
-      </div>
+        <p className="insights-muted">Demand and supply delta informs which watchlists to accelerate.</p>
+      </article>
 
-      <div className="insights-card">
+      <article className="insights-card surface-card">
         <h2>Visual Tag AI</h2>
         <p className="insights-muted">
           Upload a listing asset to generate marketplace-ready captions and confidence-scored tags using LexyHub&apos;s visual
@@ -115,7 +158,7 @@ export default function InsightsPage() {
           </label>
           {imagePreview ? (
             <>
-              {/* eslint-disable-next-line @next/next/no-img-element -- Preview only, not persisted to DOM in production builds */}
+              {/* eslint-disable-next-line @next/next/no-img-element -- Local preview only */}
               <img src={imagePreview} alt="Preview" className="visual-tag-preview" />
             </>
           ) : (
@@ -154,9 +197,9 @@ export default function InsightsPage() {
             ) : null}
           </div>
         ) : null}
-      </div>
+      </article>
 
-      <div className="insights-card">
+      <article className="insights-card surface-card">
         <h2>Watchlist momentum</h2>
         <p className="insights-muted">
           Track watchlist adds versus plan capacity to understand operator momentum. Usage quotas enforce AI access fairly
@@ -167,7 +210,7 @@ export default function InsightsPage() {
           <li>Intent classification automatically populates downstream personalization signals.</li>
           <li>The partner API exposes normalized keywords with managed, rate-limited access keys.</li>
         </ul>
-      </div>
+      </article>
     </section>
   );
 }

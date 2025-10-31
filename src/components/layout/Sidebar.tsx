@@ -21,7 +21,7 @@ type SidebarProps = {
 };
 
 const NAV_TITLE = "LexyHub";
-const NAV_TAGLINE = "Growth intelligence";
+const NAV_TAGLINE = "Keyword intelligence";
 
 export function Sidebar({
   navItems,
@@ -42,6 +42,11 @@ export function Sidebar({
     return pathname.startsWith(href);
   };
 
+  const groups: Array<{ title: string; items: SidebarNavItem[] }> = [
+    { title: "Core", items: navItems.slice(0, 5) as SidebarNavItem[] },
+    { title: "Operations", items: navItems.slice(5) as SidebarNavItem[] },
+  ].filter((group) => group.items.length > 0);
+
   return (
     <aside
       className={[
@@ -52,7 +57,7 @@ export function Sidebar({
       ]
         .filter(Boolean)
         .join(" ")}
-      aria-label="Primary"
+      aria-label="Primary navigation"
     >
       <div className="app-sidebar-header">
         <div className="app-sidebar-brand">
@@ -80,40 +85,47 @@ export function Sidebar({
         )}
       </div>
       {!collapsed ? (
-        <p className="app-sidebar-summary">Your command center for AI growth operations.</p>
+        <p className="app-sidebar-summary">Monitor usage, insights, and watchlists from a single command center.</p>
       ) : null}
       <nav className="app-sidebar-nav">
-        {navItems.map((item) => {
-          const active = isActive(item.href);
-          const ariaLabel = collapsed ? item.label : undefined;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={[
-                "app-sidebar-link",
-                active ? "app-sidebar-link-active" : "",
-                collapsed ? "app-sidebar-link-collapsed" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              aria-current={active ? "page" : undefined}
-              aria-label={ariaLabel}
-              onClick={isMobile ? onDismissMobile : undefined}
-            >
-              <span className="app-sidebar-link-icon" aria-hidden="true">
-                {item.icon}
-              </span>
-              <span className="app-sidebar-link-label">{item.label}</span>
-            </Link>
-          );
-        })}
+        {groups.map((group) => (
+          <div key={group.title} className="app-sidebar-group">
+            {!collapsed ? <span className="app-sidebar-group-title">{group.title}</span> : null}
+            <div className="app-sidebar-links">
+              {group.items.map((item) => {
+                const active = isActive(item.href);
+                const ariaLabel = collapsed ? item.label : undefined;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={[
+                      "app-sidebar-link",
+                      active ? "app-sidebar-link-active" : "",
+                      collapsed ? "app-sidebar-link-collapsed" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={ariaLabel}
+                    onClick={isMobile ? onDismissMobile : undefined}
+                  >
+                    <span className="app-sidebar-link-icon" aria-hidden="true">
+                      {item.icon}
+                    </span>
+                    <span className="app-sidebar-link-label">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
       {!collapsed ? (
         <footer className="app-sidebar-footer">
           <div className="app-sidebar-upgrade">
-            <h3>Need more seats?</h3>
-            <p>Upgrade your plan to unlock full market intelligence coverage.</p>
+            <h3>Upgrade workspace</h3>
+            <p>Extend keyword quotas and unlock advanced market simulations.</p>
             <Link href="/settings" className="app-sidebar-upgrade-link">
               Manage plan
             </Link>

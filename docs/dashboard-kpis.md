@@ -28,3 +28,9 @@ The values refresh automatically from `/api/usage/summary`, ensuring KPIs stay i
 ## PopTrade visual treatment
 
 The dashboard container now follows the PopTrade-inspired 12-column card grid. The hero banner anchors the left eight columns with the “LexyHub Control Center” copy, while the right four columns summarize the active plan and quota rows. Downstream rows render four KPI cards in parallel on desktop, collapsing to two cards on medium screens and a single column on small screens. Area health and quick actions each live in their own cards, mirroring the trading terminal feel while keeping existing data bindings intact.
+
+## Momentum & connectors
+
+- The **Keyword momentum** analytics card spans two-thirds of the grid and provides the staging area for a real chart feed. Until live telemetry lands, a placeholder communicates that the card will render once marketplace data syncs.
+- The paired **Connect your data sources** card surfaces configured versus pending connectors, reiterating the sources that power keyword momentum. Its pills reuse the hero meta styling so plan context stays consistent.
+- Operations remain in a dedicated table card, with colored status pills mapped to configured or pending areas and a companion quick actions card that calls out the next best tasks.

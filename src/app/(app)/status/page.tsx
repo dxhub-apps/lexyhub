@@ -51,7 +51,7 @@ export default async function StatusPage() {
 
   return (
     <div className="status-page">
-      <section className="status-header">
+      <section className="surface-card status-header">
         <div className="status-header__copy">
           <span className="status-eyebrow">LexyHub</span>
           <h1>Platform health</h1>

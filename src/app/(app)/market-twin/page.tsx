@@ -190,13 +190,13 @@ export default function MarketTwinPage(): JSX.Element {
 
   return (
     <div className="market-twin">
-      <header>
+      <section className="surface-card market-twin-hero">
         <div>
           <h1>AI Market Twin</h1>
           <p>Compare your baseline Etsy listings against hypothetical upgrades to predict visibility shifts.</p>
         </div>
         <span className="badge">Live Simulation</span>
-      </header>
+      </section>
 
       <section className="market-twin-grid">
         <form className="market-twin-form" onSubmit={handleSubmit}>
