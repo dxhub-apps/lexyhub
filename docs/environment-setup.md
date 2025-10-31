@@ -24,6 +24,13 @@ Mirror these secrets in both Vercel project settings and GitHub Actions secrets.
 responses—missing values surface as `503` errors rather than synthetic fallbacks. Optional trend provider keys remain
 best-effort; without them the radar returns empty datasets.
 
+> **Keyword tier column compatibility**
+>
+> Some Supabase environments store `public.keywords.tier` as a `text` column while others migrated to `smallint`. The API now
+> automatically retries tier-filtered queries with numeric plan ranks (`0` = free, `1` = growth, `2` = scale) when Supabase
+> reports an invalid text-to-smallint cast. Ensure migrations and seed data stay aligned with this expectation to avoid
+> repeated fallbacks in logs.
+
 ## Tooling & Automation
 - Husky pre-commit runs `npm run lint` and `npm run typecheck`.
 - Prettier is configured at the repo root with `printWidth: 90` to encourage consistent formatting.
