@@ -10,6 +10,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { CssBaseline, ThemeProvider as MuiThemeProvider, createTheme, responsiveFontSizes } from "@mui/material";
+
 export type ThemeOption = "light" | "dark" | "system";
 
 type ThemeContextValue = {
@@ -34,6 +36,82 @@ function applyTheme(theme: "light" | "dark") {
     return;
   }
   document.documentElement.dataset.theme = theme;
+}
+
+function createLexyTheme(mode: "light" | "dark") {
+  const palette =
+    mode === "light"
+      ? {
+          mode,
+          primary: { main: "#1E88E5" },
+          secondary: { main: "#8E24AA" },
+          background: { default: "#EDF1F7", paper: "#FFFFFF" },
+          text: { primary: "#102038", secondary: "#4F5B76" },
+        }
+      : {
+          mode,
+          primary: { main: "#64B5F6" },
+          secondary: { main: "#CE93D8" },
+          background: { default: "#0E1321", paper: "#171D2E" },
+          text: { primary: "#F4F7FB", secondary: "#BAC4DC" },
+        };
+
+  const shape = { borderRadius: 12 } as const;
+
+  return responsiveFontSizes(
+    createTheme({
+      palette,
+      typography: {
+        fontFamily: "'Inter', 'Roboto', 'Helvetica', 'Arial', sans-serif",
+        h1: { fontSize: "2.25rem", fontWeight: 600 },
+        h2: { fontSize: "1.75rem", fontWeight: 600 },
+        h3: { fontSize: "1.5rem", fontWeight: 600 },
+        subtitle1: { fontWeight: 500 },
+        button: { textTransform: "none", fontWeight: 600 },
+      },
+      shape,
+      components: {
+        MuiButton: {
+          styleOverrides: {
+            root: {
+              borderRadius: shape.borderRadius,
+              paddingInline: 20,
+              paddingBlock: 10,
+            },
+          },
+        },
+        MuiCard: {
+          styleOverrides: {
+            root: {
+              borderRadius: shape.borderRadius,
+              boxShadow: mode === "light" ? "0 10px 40px rgba(16,32,56,0.08)" : "0 16px 40px rgba(0,0,0,0.35)",
+            },
+          },
+        },
+        MuiPaper: {
+          styleOverrides: {
+            root: {
+              borderRadius: shape.borderRadius,
+            },
+          },
+        },
+        MuiAppBar: {
+          styleOverrides: {
+            colorPrimary: {
+              backgroundImage: "none",
+            },
+          },
+        },
+        MuiDrawer: {
+          styleOverrides: {
+            paper: {
+              backgroundImage: "none",
+            },
+          },
+        },
+      },
+    }),
+  );
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }): JSX.Element {
@@ -91,12 +169,21 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
     setThemeState(value);
   }, []);
 
+  const materialTheme = useMemo(() => createLexyTheme(resolvedTheme), [resolvedTheme]);
+
   const value = useMemo<ThemeContextValue>(
     () => ({ theme, resolvedTheme, setTheme }),
     [theme, resolvedTheme, setTheme],
   );
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={value}>
+      <MuiThemeProvider theme={materialTheme}>
+        <CssBaseline enableColorScheme />
+        {children}
+      </MuiThemeProvider>
+    </ThemeContext.Provider>
+  );
 }
 
 export function useTheme(): ThemeContextValue {

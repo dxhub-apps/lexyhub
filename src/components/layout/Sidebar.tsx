@@ -1,13 +1,30 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { type ElementType } from "react";
 import Link from "next/link";
+import {
+  Box,
+  Button,
+  Divider,
+  Drawer,
+  IconButton,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Typography,
+} from "@mui/material";
+import {
+  ChevronLeftRounded,
+  ChevronRightRounded,
+  CloseRounded,
+} from "@mui/icons-material";
 
 export type SidebarNavItem = {
   href: string;
   label: string;
   description: string;
-  icon: ReactNode;
+  icon: ElementType;
 };
 
 type SidebarProps = {
@@ -16,6 +33,7 @@ type SidebarProps = {
   collapsed: boolean;
   isMobile: boolean;
   navOpen: boolean;
+  width: number;
   onToggleCollapse: () => void;
   onDismissMobile: () => void;
 };
@@ -29,6 +47,7 @@ export function Sidebar({
   collapsed,
   isMobile,
   navOpen,
+  width,
   onToggleCollapse,
   onDismissMobile,
 }: SidebarProps): JSX.Element {
@@ -42,84 +61,172 @@ export function Sidebar({
     return pathname.startsWith(href);
   };
 
-  return (
-    <aside
-      className={[
-        "app-sidebar",
-        collapsed ? "app-sidebar-collapsed" : "",
-        isMobile ? "app-sidebar-mobile" : "",
-        navOpen ? "app-sidebar-open" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-      aria-label="Primary"
+  const handleNavClick = () => {
+    if (isMobile) {
+      onDismissMobile();
+    }
+  };
+
+  const content = (
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        bgcolor: "background.paper",
+      }}
     >
-      <div className="app-sidebar-header">
-        <div className="app-sidebar-brand">
-          <span className="app-sidebar-title">{NAV_TITLE}</span>
-          {!collapsed ? <span className="app-sidebar-tagline">{NAV_TAGLINE}</span> : null}
-        </div>
-        {isMobile ? (
-          <button
-            type="button"
-            className="app-sidebar-action"
-            aria-label="Close navigation"
-            onClick={onDismissMobile}
-          >
-            Close
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="app-sidebar-action"
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            onClick={onToggleCollapse}
-          >
-            {collapsed ? "Expand" : "Collapse"}
-          </button>
-        )}
-      </div>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: collapsed ? "center" : "space-between",
+          px: 3,
+          py: 3,
+          gap: 2,
+        }}
+      >
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: collapsed ? "center" : "flex-start" }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            {NAV_TITLE}
+          </Typography>
+          {!collapsed ? (
+            <Typography variant="body2" color="text.secondary">
+              {NAV_TAGLINE}
+            </Typography>
+          ) : null}
+        </Box>
+        <IconButton
+          color="primary"
+          onClick={isMobile ? onDismissMobile : onToggleCollapse}
+          aria-label={isMobile ? "Close navigation" : collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          size="small"
+        >
+          {isMobile ? <CloseRounded /> : collapsed ? <ChevronRightRounded /> : <ChevronLeftRounded />}
+        </IconButton>
+      </Box>
       {!collapsed ? (
-        <p className="app-sidebar-summary">Your command center for AI growth operations.</p>
+        <Typography variant="body2" color="text.secondary" sx={{ px: 3, pb: 2 }}>
+          Your command center for AI growth operations.
+        </Typography>
       ) : null}
-      <nav className="app-sidebar-nav">
+      <Divider sx={{ mx: 3 }} />
+      <List sx={{ flexGrow: 1, py: 2, px: collapsed ? 1.2 : 2 }}>
         {navItems.map((item) => {
+          const Icon = item.icon;
           const active = isActive(item.href);
-          const ariaLabel = collapsed ? item.label : undefined;
           return (
-            <Link
+            <ListItemButton
               key={item.href}
+              component={Link}
               href={item.href}
-              className={[
-                "app-sidebar-link",
-                active ? "app-sidebar-link-active" : "",
-                collapsed ? "app-sidebar-link-collapsed" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              aria-current={active ? "page" : undefined}
-              aria-label={ariaLabel}
-              onClick={isMobile ? onDismissMobile : undefined}
+              selected={active}
+              onClick={handleNavClick}
+              sx={{
+                mb: 0.5,
+                borderRadius: 2,
+                px: collapsed ? 1.2 : 2,
+                justifyContent: collapsed ? "center" : "flex-start",
+                '&.Mui-selected': {
+                  bgcolor: "primary.main",
+                  color: "primary.contrastText",
+                  '&:hover': { bgcolor: "primary.main" },
+                  '& .MuiListItemIcon-root': { color: "inherit" },
+                  '& .MuiTypography-root': { color: "inherit" },
+                },
+              }}
             >
-              <span className="app-sidebar-link-icon" aria-hidden="true">
-                {item.icon}
-              </span>
-              <span className="app-sidebar-link-label">{item.label}</span>
-            </Link>
+              <ListItemIcon
+                sx={{
+                  minWidth: collapsed ? 0 : 40,
+                  color: active ? "inherit" : "text.secondary",
+                  justifyContent: "center",
+                }}
+              >
+                <Icon fontSize="small" />
+              </ListItemIcon>
+              {!collapsed ? (
+                <ListItemText
+                  primary={item.label}
+                  secondary={item.description}
+                  primaryTypographyProps={{ fontWeight: active ? 700 : 600 }}
+                  secondaryTypographyProps={{ variant: "caption", color: "text.secondary" }}
+                />
+              ) : null}
+            </ListItemButton>
           );
         })}
-      </nav>
+      </List>
       {!collapsed ? (
-        <footer className="app-sidebar-footer">
-          <div className="app-sidebar-upgrade">
-            <h3>Need more seats?</h3>
-            <p>Upgrade your plan to unlock full market intelligence coverage.</p>
-            <Link href="/settings" className="app-sidebar-upgrade-link">
+        <Box sx={{ px: 3, pb: 3 }}>
+          <Box
+            sx={{
+              bgcolor: (theme) => theme.palette.mode === "light" ? "primary.light" : "primary.dark",
+              color: (theme) => theme.palette.getContrastText(theme.palette.primary.main),
+              p: 2.5,
+              borderRadius: 3,
+              textAlign: "left",
+            }}
+          >
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+              Need more seats?
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.92, mb: 2 }}>
+              Upgrade your plan to unlock full market intelligence coverage.
+            </Typography>
+            <Button
+              component={Link}
+              href="/settings"
+              variant="contained"
+              color="secondary"
+              size="small"
+              fullWidth
+            >
               Manage plan
-            </Link>
-          </div>
-        </footer>
+            </Button>
+          </Box>
+        </Box>
       ) : null}
-    </aside>
+    </Box>
+  );
+
+  if (isMobile) {
+    return (
+      <Drawer
+        variant="temporary"
+        open={navOpen}
+        onClose={onDismissMobile}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          display: { xs: "block", lg: "none" },
+          '& .MuiDrawer-paper': {
+            width: 320,
+            boxSizing: "border-box",
+            borderRight: (theme) => `1px solid ${theme.palette.divider}`,
+          },
+        }}
+      >
+        {content}
+      </Drawer>
+    );
+  }
+
+  return (
+    <Drawer
+      variant="permanent"
+      open
+      sx={{
+        width,
+        flexShrink: 0,
+        display: { xs: "none", lg: "block" },
+        '& .MuiDrawer-paper': {
+          width,
+          boxSizing: "border-box",
+          borderRight: (theme) => `1px solid ${theme.palette.divider}`,
+        },
+      }}
+    >
+      {content}
+    </Drawer>
   );
 }

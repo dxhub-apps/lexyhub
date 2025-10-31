@@ -2,6 +2,22 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import {
+  Alert,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  Chip,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+} from "@mui/material";
 
 import { useToast } from "@/components/ui/ToastProvider";
 
@@ -97,7 +113,7 @@ export default function WatchlistsPage(): JSX.Element {
         }
         push({
           title: "Removed from watchlist",
-          description: `\"${item.label}\" will no longer be tracked.`,
+          description: `"${item.label}" will no longer be tracked.`,
           tone: "success",
         });
         await loadWatchlists();
@@ -114,97 +130,115 @@ export default function WatchlistsPage(): JSX.Element {
   );
 
   return (
-    <div className="watchlists-page">
-      <header className="watchlists-header">
-        <div>
-          <span className="watchlists-eyebrow">Monitoring</span>
-          <h1>Watchlists</h1>
-          <p>
-            Every new account receives an Operational Watchlist automatically. Populate it from the{" "}
-            <Link href="/keywords">keyword explorer</Link>{" "}
-            or by calling the <code>/api/watchlists/add</code> endpoint.
-          </p>
-        </div>
-        <dl className="watchlists-meta">
-          <div>
-            <dt>Total watchlists</dt>
-            <dd>{watchlists.length}</dd>
-          </div>
-          <div>
-            <dt>Tracked items</dt>
-            <dd>{totalItems}</dd>
-          </div>
-        </dl>
-      </header>
+    <Stack spacing={3}>
+      <Card>
+        <CardHeader
+          title="Watchlists"
+          subheader="Every new account receives an Operational Watchlist automatically."
+        />
+        <CardContent>
+          <Typography variant="body2" color="text.secondary">
+            Populate it from the <Link href="/keywords">keyword explorer</Link> or by calling the
+            <code style={{ marginLeft: 6, marginRight: 6 }}>/api/watchlists/add</code> endpoint.
+          </Typography>
+        </CardContent>
+      </Card>
 
-      <section className="watchlists-content">
-        {loading ? (
-          <p className="watchlists-empty">Loading watchlists…</p>
-        ) : error ? (
-          <p className="watchlists-error">{error}</p>
-        ) : watchlists.length === 0 ? (
-          <p className="watchlists-empty">
-            No watchlists found. They will be provisioned automatically when a user profile is created.
-          </p>
-        ) : (
-          watchlists.map((watchlist) => {
-            const remaining = Math.max(watchlist.capacity - watchlist.items.length, 0);
-            return (
-              <article key={watchlist.id} className="watchlists-card">
-                <header>
-                  <h2>{watchlist.name}</h2>
-                  <p>{watchlist.description ?? "Auto-created starter watchlist."}</p>
-                  <span className="watchlists-capacity">
-                    {watchlist.items.length} of {watchlist.capacity} slots used · {remaining} remaining
-                  </span>
-                </header>
+      <Card>
+        <CardContent>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="center">
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Typography variant="subtitle2" color="text.secondary">
+                Total watchlists
+              </Typography>
+              <Chip label={watchlists.length} color="primary" variant="outlined" />
+            </Stack>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Typography variant="subtitle2" color="text.secondary">
+                Tracked items
+              </Typography>
+              <Chip label={totalItems} color="primary" variant="outlined" />
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      {loading ? <Alert severity="info">Loading watchlists…</Alert> : null}
+      {error ? <Alert severity="error">{error}</Alert> : null}
+
+      {!loading && !error && watchlists.length === 0 ? (
+        <Alert severity="info">
+          No watchlists found. They will be provisioned automatically when a user profile is created.
+        </Alert>
+      ) : null}
+
+      <Stack spacing={3}>
+        {watchlists.map((watchlist) => {
+          const remaining = Math.max(watchlist.capacity - watchlist.items.length, 0);
+          return (
+            <Card key={watchlist.id}>
+              <CardHeader
+                title={watchlist.name}
+                subheader={watchlist.description ?? "Auto-created starter watchlist."}
+              />
+              <CardContent>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  {watchlist.items.length} of {watchlist.capacity} slots used · {remaining} remaining
+                </Typography>
                 {watchlist.items.length === 0 ? (
-                  <p className="watchlists-empty">This watchlist is empty. Add items from the keyword explorer.</p>
+                  <Alert severity="info">This watchlist is empty. Add items from the keyword explorer.</Alert>
                 ) : (
-                  <table className="watchlists-table">
-                    <thead>
-                      <tr>
-                        <th scope="col">Item</th>
-                        <th scope="col">Context</th>
-                        <th scope="col">Added</th>
-                        <th scope="col" aria-label="actions" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {watchlist.items.map((item) => {
-                        const addedAt = new Date(item.addedAt);
-                        const formatted = Number.isNaN(addedAt.getTime())
-                          ? "Unknown"
-                          : addedAt.toLocaleString();
-                        return (
-                          <tr key={item.id}>
-                            <td data-type={item.type}>
-                              {item.url ? (
-                                <a href={item.url} target="_blank" rel="noreferrer">
-                                  {item.label}
-                                </a>
-                              ) : (
-                                item.label
-                              )}
-                            </td>
-                            <td>{item.context ?? ""}</td>
-                            <td>{formatted}</td>
-                            <td>
-                              <button type="button" className="watchlists-remove" onClick={() => handleRemove(item)}>
-                                Remove
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Item</TableCell>
+                          <TableCell>Context</TableCell>
+                          <TableCell>Added</TableCell>
+                          <TableCell align="right">Actions</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {watchlist.items.map((item) => {
+                          const addedAt = new Date(item.addedAt);
+                          const formatted = Number.isNaN(addedAt.getTime())
+                            ? "Unknown"
+                            : addedAt.toLocaleString();
+                          return (
+                            <TableRow key={item.id} hover>
+                              <TableCell>
+                                {item.url ? (
+                                  <Link href={item.url} target="_blank" rel="noreferrer">
+                                    {item.label}
+                                  </Link>
+                                ) : (
+                                  item.label
+                                )}
+                              </TableCell>
+                              <TableCell>{item.context ?? ""}</TableCell>
+                              <TableCell>{formatted}</TableCell>
+                              <TableCell align="right">
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  color="error"
+                                  onClick={() => handleRemove(item)}
+                                >
+                                  Remove
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
                 )}
-              </article>
-            );
-          })
-        )}
-      </section>
-    </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </Stack>
+    </Stack>
   );
 }

@@ -1,257 +1,148 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
+import { useState } from "react";
 import Link from "next/link";
+import {
+  Avatar,
+  Box,
+  Button,
+  Divider,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
+  Stack,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from "@mui/material";
+import {
+  ComputerRounded,
+  DarkModeRounded,
+  ExpandMoreRounded,
+  HelpOutlineRounded,
+  LightModeRounded,
+  LogoutRounded,
+  PaletteRounded,
+  PersonRounded,
+} from "@mui/icons-material";
 
-import { useTheme, type ThemeOption } from "@/components/theme/ThemeProvider";
+import { useTheme } from "@/components/theme/ThemeProvider";
 
 const AVATAR_URL = "https://avatar.vercel.sh/lexyhub.svg?size=72&background=111827";
 
-type MenuItem = {
-  label: string;
-  description?: string;
-  href?: string;
-  action?: () => void;
-  icon: JSX.Element;
-  subMenu?: {
-    label: string;
-    options: Array<{ value: ThemeOption; label: string; icon: JSX.Element }>;
-  };
-};
-
-function SunIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" width={18} height={18} className="menu-icon">
-      <path
-        fill="currentColor"
-        d="M12 7a5 5 0 1 1 0 10a5 5 0 0 1 0-10m0-5a1 1 0 0 1 1 1v2a1 1 0 1 1-2 0V3a1 1 0 0 1 1-1m0 18a1 1 0 0 1 1 1v2a1 1 0 1 1-2 0v-2a1 1 0 0 1 1-1M3 11h2a1 1 0 1 1 0 2H3a1 1 0 1 1 0-2m16 0h2a1 1 0 1 1 0 2h-2a1 1 0 1 1 0-2M5.64 5.64a1 1 0 0 1 1.41 0L8.4 7a1 1 0 1 1-1.41 1.41L5.64 7.05a1 1 0 0 1 0-1.41m10.96 10.96a1 1 0 0 1 1.41 0l1.35 1.35a1 1 0 0 1-1.41 1.41l-1.35-1.35a1 1 0 0 1 0-1.41m0-10.96l1.35-1.35a1 1 0 0 1 1.41 1.41l-1.35 1.35A1 1 0 1 1 16.6 7m-10.96 10.96l1.35 1.35a1 1 0 0 1-1.41 1.41l-1.35-1.35a1 1 0 1 1 1.41-1.41"
-      />
-    </svg>
-  );
-}
-
-function MoonIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" width={18} height={18} className="menu-icon">
-      <path
-        fill="currentColor"
-        d="M12.01 2a1 1 0 0 1 .95.68a8 8 0 0 0 8.36 5.3a1 1 0 0 1 .96 1.45A9.98 9.98 0 1 1 11.3 1.06a1 1 0 0 1 .71.94ZM12 4.27a7.98 7.98 0 0 0 7.57 6.83A7.98 7.98 0 1 1 12 4.27Z"
-      />
-    </svg>
-  );
-}
-
-function MonitorIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" width={18} height={18} className="menu-icon">
-      <path
-        fill="currentColor"
-        d="M4 5a3 3 0 0 0-3 3v7a3 3 0 0 0 3 3h5v1H7a1 1 0 1 0 0 2h10a1 1 0 1 0 0-2h-2v-1h5a3 3 0 0 0 3-3V8a3 3 0 0 0-3-3H4Zm-1 3a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8Z"
-      />
-    </svg>
-  );
-}
-
-function UserIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" width={18} height={18} className="menu-icon">
-      <path
-        fill="currentColor"
-        d="M12 2a5 5 0 1 0 0 10a5 5 0 0 0 0-10m0 12c-5.33 0-8 3.16-8 6a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1c0-2.84-2.67-6-8-6"
-      />
-    </svg>
-  );
-}
-
-function HelpIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" width={18} height={18} className="menu-icon">
-      <path
-        fill="currentColor"
-        d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2m.01 5a3.5 3.5 0 0 1 3.45 3.99l-.05.25a2.8 2.8 0 0 1-1.23 1.81l-.77.54a1 1 0 0 0-.41.81V14a1 1 0 0 1-2 0v-.75a2.8 2.8 0 0 1 1.23-2.31l.77-.54a.8.8 0 0 0 .34-.51l.05-.25A1.5 1.5 0 0 0 12 9a1 1 0 1 1 0-2m0 10.5a1.25 1.25 0 1 1-1.25 1.25A1.25 1.25 0 0 1 12 15.5"
-      />
-    </svg>
-  );
-}
-
-function LogoutIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" width={18} height={18} className="menu-icon">
-      <path
-        fill="currentColor"
-        d="M10 5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v3a1 1 0 1 1-2 0V6h-6v12h6v-2a1 1 0 1 1 2 0v3a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1zm-1.7 4.3a1 1 0 0 0-1.4 1.4L8.6 12l-1.7 1.7a1 1 0 1 0 1.4 1.4L11 13.4a1 1 0 0 0 0-1.4z"
-      />
-    </svg>
-  );
-}
-
-function ThemeIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" width={18} height={18} className="menu-icon">
-      <path
-        fill="currentColor"
-        d="M12 2a10 10 0 0 0 0 20a10 10 0 0 0 0-20m0 2a8 8 0 0 1 0 16Z"
-      />
-    </svg>
-  );
-}
-
 export function UserMenu(): JSX.Element {
   const { theme, resolvedTheme, setTheme } = useTheme();
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
 
-  useEffect(() => {
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!menuRef.current) {
-        return;
-      }
-      if (!menuRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, []);
-
-  const logout = () => {
-    console.info("Logout requested");
-    setOpen(false);
+  const handleToggleTheme = (_: React.MouseEvent<HTMLElement>, value: typeof theme | null) => {
+    if (value) {
+      setTheme(value);
+    }
   };
 
-  const menuItems: MenuItem[] = [
-    {
-      label: "Theme",
-      description: `Following ${theme === "system" ? "system" : theme} preference`,
-      icon: <ThemeIcon />,
-      subMenu: {
-        label: "Choose theme",
-        options: [
-          { value: "light", label: "Light", icon: <SunIcon /> },
-          { value: "dark", label: "Dark", icon: <MoonIcon /> },
-          { value: "system", label: "System", icon: <MonitorIcon /> },
-        ],
-      },
-    },
-    {
-      label: "Profile",
-      description: "Manage account",
-      href: "/profile",
-      icon: <UserIcon />,
-    },
-    {
-      label: "Help Center",
-      description: "Guides & how-tos",
-      href: "/docs",
-      icon: <HelpIcon />,
-    },
-    {
-      label: "Logout",
-      description: "End session",
-      action: logout,
-      icon: <LogoutIcon />,
-    },
-  ];
+  const closeMenu = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    console.info("Logout requested");
+    closeMenu();
+  };
 
   return (
-    <div className="user-menu" ref={menuRef}>
-      <button
-        type="button"
-        className="user-menu-trigger"
+    <>
+      <Button
+        variant="outlined"
+        color="inherit"
+        onClick={(event) => setAnchorEl(event.currentTarget)}
         aria-haspopup="true"
         aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
+        endIcon={<ExpandMoreRounded />}
+        sx={{
+          textTransform: "none",
+          fontWeight: 600,
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          borderRadius: 9999,
+          pl: 0.5,
+          pr: 1,
+          py: 0.5,
+        }}
       >
-        <Image
-          src={AVATAR_URL}
-          alt="User avatar"
-          className="user-menu-avatar"
-          width={36}
-          height={36}
-        />
-        <span className="user-menu-label">
-          <span className="user-menu-name">Aaliyah</span>
-          <span className="user-menu-divider" aria-hidden="true">
-            |
-          </span>
-          <span className="user-menu-plan">Growth Scale Plan</span>
-        </span>
-        <span aria-hidden="true" className="user-menu-caret">
-          ▾
-        </span>
-      </button>
-      {open ? (
-        <div className="user-menu-dropdown" role="menu">
-          <div className="user-menu-header">
-            <strong>Aaliyah Growth</strong>
-            <span>aaliyah@lexyhub.ai</span>
-          </div>
-          <div className="user-menu-section" aria-label="Theme controls">
-            <span className="user-menu-section-label">Theme</span>
-            <div className="user-menu-theme-options">
-              {menuItems[0].subMenu?.options.map((option) => {
-                const isActive = theme === option.value || (theme === "system" && option.value === "system");
-                const highlight = option.value === "system" ? isActive : option.value === resolvedTheme;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={`theme-choice ${highlight ? "theme-choice-active" : ""}`}
-                    onClick={() => setTheme(option.value)}
-                  >
-                    {option.icon}
-                    <span>{option.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <div className="user-menu-section" role="none">
-            {menuItems.slice(1).map((item) => {
-              const content = (
-                <div className="user-menu-item-inner">
-                  {item.icon}
-                  <div>
-                    <span>{item.label}</span>
-                    {item.description ? <small>{item.description}</small> : null}
-                  </div>
-                </div>
-              );
-
-              if (item.href) {
-                return (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    className="user-menu-item"
-                    role="menuitem"
-                    onClick={() => setOpen(false)}
-                  >
-                    {content}
-                  </Link>
-                );
-              }
-
-              return (
-                <button
-                  key={item.label}
-                  type="button"
-                  className="user-menu-item"
-                  role="menuitem"
-                  onClick={() => {
-                    item.action?.();
-                    setOpen(false);
-                  }}
-                >
-                  {content}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
-    </div>
+        <Avatar src={AVATAR_URL} alt="User avatar" sx={{ width: 36, height: 36 }} />
+        <Box sx={{ textAlign: "left", display: { xs: "none", sm: "block" } }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+            Aaliyah
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Growth Scale Plan
+          </Typography>
+        </Box>
+      </Button>
+      <Menu
+        anchorEl={anchorEl}
+        open={open}
+        onClose={closeMenu}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        slotProps={{ paper: { sx: { minWidth: 280, borderRadius: 3 } } }}
+      >
+        <Box sx={{ px: 2.5, pt: 2, pb: 1.5 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+            Aaliyah Growth
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            aaliyah@lexyhub.ai
+          </Typography>
+        </Box>
+        <Divider>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ px: 2, py: 1 }}>
+            <PaletteRounded fontSize="small" color="primary" />
+            <Typography variant="caption" color="text.secondary">
+              Theme
+            </Typography>
+          </Stack>
+        </Divider>
+        <Box sx={{ px: 2.5, py: 1.5 }}>
+          <ToggleButtonGroup value={theme} exclusive onChange={handleToggleTheme} fullWidth color="primary">
+            <ToggleButton value="light" aria-label="Use light theme">
+              <LightModeRounded fontSize="small" />
+            </ToggleButton>
+            <ToggleButton value="dark" aria-label="Use dark theme">
+              <DarkModeRounded fontSize="small" />
+            </ToggleButton>
+            <ToggleButton value="system" aria-label="Follow system theme">
+              <ComputerRounded fontSize="small" />
+            </ToggleButton>
+          </ToggleButtonGroup>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block", textAlign: "center" }}>
+            Following {theme === "system" ? `system (${resolvedTheme})` : `${theme} preference`}
+          </Typography>
+        </Box>
+        <Divider />
+        <MenuItem component={Link} href="/profile" onClick={closeMenu}>
+          <ListItemIcon>
+            <PersonRounded fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Profile" secondary="Manage account" />
+        </MenuItem>
+        <MenuItem component={Link} href="/docs" onClick={closeMenu}>
+          <ListItemIcon>
+            <HelpOutlineRounded fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Help Center" secondary="Guides & how-tos" />
+        </MenuItem>
+        <Divider sx={{ my: 0.5 }} />
+        <MenuItem onClick={handleLogout}>
+          <ListItemIcon>
+            <LogoutRounded fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Logout" secondary="End session" />
+        </MenuItem>
+      </Menu>
+    </>
   );
 }

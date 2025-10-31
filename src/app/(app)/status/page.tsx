@@ -1,3 +1,14 @@
+import {
+  Box,
+  Card,
+  CardContent,
+  CardHeader,
+  Chip,
+  Grid,
+  Stack,
+  Typography,
+} from "@mui/material";
+
 import { generateStatusReport, type StatusLevel } from "@/lib/status";
 
 export const dynamic = "force-dynamic";
@@ -9,12 +20,12 @@ const STATUS_LABELS: Record<StatusLevel, string> = {
 };
 
 function StatusBadge({ status }: { status: StatusLevel }) {
-  return (
-    <span className={`status-badge status-badge--${status}`}>
-      <span className={`status-badge__dot status-badge__dot--${status}`} aria-hidden="true" />
-      {STATUS_LABELS[status]}
-    </span>
-  );
+  const color: Record<StatusLevel, "success" | "warning" | "error"> = {
+    operational: "success",
+    warning: "warning",
+    critical: "error",
+  };
+  return <Chip label={STATUS_LABELS[status]} color={color[status]} variant="outlined" size="small" />;
 }
 
 function getOverallStatus(report: Awaited<ReturnType<typeof generateStatusReport>>): StatusLevel {
@@ -50,118 +61,139 @@ export default async function StatusPage() {
   const generatedAt = new Date(status.generatedAt);
 
   return (
-    <div className="status-page">
-      <section className="status-header">
-        <div className="status-header__copy">
-          <span className="status-eyebrow">LexyHub</span>
-          <h1>Platform health</h1>
-          <p>
-            A compact snapshot of runtime diagnostics, first-party APIs, and service integrations
-            monitored from the server.
-          </p>
-        </div>
-        <dl className="status-meta">
-          <div className="status-meta__item">
-            <dt>Overall</dt>
-            <dd>
-              <StatusBadge status={overallStatus} />
-            </dd>
-          </div>
-          <div className="status-meta__item">
-            <dt>Last updated</dt>
-            <dd>
-              <time dateTime={status.generatedAt}>{generatedAt.toLocaleString()}</time>
-            </dd>
-          </div>
-          <div className="status-meta__item">
-            <dt>Environment</dt>
-            <dd>{status.environment}</dd>
-          </div>
-        </dl>
-      </section>
+    <Stack spacing={3}>
+      <Card>
+        <CardHeader title="Platform health" subheader="A compact snapshot of runtime diagnostics, first-party APIs, and service integrations monitored from the server." />
+        <CardContent>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={4}>
+              <Typography variant="caption" color="text.secondary">
+                Overall
+              </Typography>
+              <Box sx={{ mt: 0.5 }}>
+                <StatusBadge status={overallStatus} />
+              </Box>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <Typography variant="caption" color="text.secondary">
+                Last updated
+              </Typography>
+              <Typography variant="body2">{generatedAt.toLocaleString()}</Typography>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <Typography variant="caption" color="text.secondary">
+                Environment
+              </Typography>
+              <Typography variant="body2">{status.environment}</Typography>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
 
-      <section className="status-section">
-        <div className="status-section__header">
-          <h2>Runtime snapshot</h2>
-          <p>Key diagnostics from the current deployment.</p>
-        </div>
-        <div className="status-grid">
-          <article className="status-card">
-            <span>Node.js</span>
-            <strong>{status.runtime.node}</strong>
-          </article>
-          <article className="status-card">
-            <span>Platform</span>
-            <strong>
-              {status.runtime.platform} {status.runtime.release}
-            </strong>
-          </article>
-          <article className="status-card">
-            <span>Process Uptime</span>
-            <strong>{formatSeconds(status.runtime.uptimeSeconds)}</strong>
-          </article>
-          {status.runtime.region ? (
-            <article className="status-card">
-              <span>Region</span>
-              <strong>{status.runtime.region}</strong>
-            </article>
-          ) : null}
-        </div>
-      </section>
+      <Card>
+        <CardHeader title="Runtime snapshot" subheader="Key diagnostics from the current deployment." />
+        <CardContent>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={3}>
+              <Typography variant="caption" color="text.secondary">
+                Node.js
+              </Typography>
+              <Typography variant="h6">{status.runtime.node}</Typography>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Typography variant="caption" color="text.secondary">
+                Platform
+              </Typography>
+              <Typography variant="h6">
+                {status.runtime.platform} {status.runtime.release}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Typography variant="caption" color="text.secondary">
+                Process uptime
+              </Typography>
+              <Typography variant="h6">{formatSeconds(status.runtime.uptimeSeconds)}</Typography>
+            </Grid>
+            {status.runtime.region ? (
+              <Grid item xs={12} md={3}>
+                <Typography variant="caption" color="text.secondary">
+                  Region
+                </Typography>
+                <Typography variant="h6">{status.runtime.region}</Typography>
+              </Grid>
+            ) : null}
+          </Grid>
+        </CardContent>
+      </Card>
 
-      <section className="status-section">
-        <div className="status-section__header">
-          <h2>API surface</h2>
-          <p>Availability of the shipped API handlers.</p>
-        </div>
-        <div className="status-list">
-          {status.apis.map((api) => (
-            <article key={api.id} className="status-item">
-              <header>
-                <h3>{api.name}</h3>
-                <StatusBadge status={api.status} />
-              </header>
-              <p>{api.message}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+      <Card>
+        <CardHeader title="API surface" subheader="Availability of the shipped API handlers." />
+        <CardContent>
+          <Stack spacing={2}>
+            {status.apis.map((api) => (
+              <Card key={api.id} variant="outlined">
+                <CardContent>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      {api.name}
+                    </Typography>
+                    <StatusBadge status={api.status} />
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary">
+                    {api.message}
+                  </Typography>
+                </CardContent>
+              </Card>
+            ))}
+          </Stack>
+        </CardContent>
+      </Card>
 
-      <section className="status-section">
-        <div className="status-section__header">
-          <h2>Service integrations</h2>
-          <p>External dependencies monitored from the server.</p>
-        </div>
-        <div className="status-list">
-          {status.services.map((service) => (
-            <article key={service.id} className="status-item">
-              <header>
-                <h3>{service.name}</h3>
-                <StatusBadge status={service.status} />
-              </header>
-              <p>{service.message}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+      <Card>
+        <CardHeader title="Service integrations" subheader="External dependencies monitored from the server." />
+        <CardContent>
+          <Stack spacing={2}>
+            {status.services.map((service) => (
+              <Card key={service.id} variant="outlined">
+                <CardContent>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      {service.name}
+                    </Typography>
+                    <StatusBadge status={service.status} />
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary">
+                    {service.message}
+                  </Typography>
+                </CardContent>
+              </Card>
+            ))}
+          </Stack>
+        </CardContent>
+      </Card>
 
-      <section className="status-section">
-        <div className="status-section__header">
-          <h2>Background workers</h2>
-          <p>Automation endpoints that populate live intelligence data.</p>
-        </div>
-        <div className="status-list">
-          {status.workers.map((worker) => (
-            <article key={worker.id} className="status-item">
-              <header>
-                <h3>{worker.name}</h3>
-                <StatusBadge status={worker.status} />
-              </header>
-              <p>{worker.message}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-    </div>
+      <Card>
+        <CardHeader title="Background workers" subheader="Automation endpoints that populate live intelligence data." />
+        <CardContent>
+          <Stack spacing={2}>
+            {status.workers.map((worker) => (
+              <Card key={worker.id} variant="outlined">
+                <CardContent>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      {worker.name}
+                    </Typography>
+                    <StatusBadge status={worker.status} />
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary">
+                    {worker.message}
+                  </Typography>
+                </CardContent>
+              </Card>
+            ))}
+          </Stack>
+        </CardContent>
+      </Card>
+    </Stack>
   );
 }
