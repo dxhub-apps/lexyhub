@@ -27,7 +27,7 @@ best-effort; without them the radar returns empty datasets.
 ## Tooling & Automation
 - Husky pre-commit runs `npm run lint` and `npm run typecheck`.
 - Prettier is configured at the repo root with `printWidth: 90` to encourage consistent formatting.
-- CI pipeline executes lint, typecheck, test, build, and optional Vercel preview deployment jobs.
+- CI pipeline executes lint, typecheck, test, build, and optional Vercel preview deployment jobs. The preview deployment gracefully skips when the `VERCEL_TOKEN` secret is not configured, allowing forks to run CI without configuration errors.
 - Supabase migrations workflow now lints SQL via `supabase db lint` prior to applying changes.
 
 ## Observability
