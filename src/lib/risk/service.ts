@@ -55,6 +55,7 @@ function resolveClient() {
 export async function listRiskAppetites(): Promise<RiskAppetite[]> {
   const client = resolveClient();
   if (!client) {
+    const now = new Date().toISOString();
     return [
       {
         id: "demo-risk-appetite",
@@ -64,8 +65,41 @@ export async function listRiskAppetites(): Promise<RiskAppetite[]> {
         owner: "Operations",
         tolerance: { slaMinutes: 30, allowedViolations: 1 },
         notes: "Development fallback record when Supabase is not configured.",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: now,
+        updated_at: now,
+      },
+      {
+        id: "demo-risk-appetite-operations",
+        label: "Fulfillment Continuity",
+        category: "Logistics",
+        appetite_level: "conservative",
+        owner: "Operations",
+        tolerance: { maxDailyDelayedOrders: 20 },
+        notes: "Tracks tolerance for carrier and warehouse slowdowns.",
+        created_at: now,
+        updated_at: now,
+      },
+      {
+        id: "demo-risk-appetite-security",
+        label: "Customer Data Protection",
+        category: "Security",
+        appetite_level: "minimal",
+        owner: "Security",
+        tolerance: { allowedIncidentsPerQuarter: 0 },
+        notes: "Sets baseline expectations for safeguarding customer data.",
+        created_at: now,
+        updated_at: now,
+      },
+      {
+        id: "demo-risk-appetite-growth",
+        label: "Revenue Operations",
+        category: "Commercial",
+        appetite_level: "balanced",
+        owner: "Revenue",
+        tolerance: { maxCheckoutErrorRate: 0.01 },
+        notes: "Captures tolerance for growth experiments that impact checkout.",
+        created_at: now,
+        updated_at: now,
       },
     ];
   }
@@ -158,6 +192,7 @@ export async function deleteRiskAppetite(id: string): Promise<void> {
 export async function listRiskControls(): Promise<RiskControl[]> {
   const client = resolveClient();
   if (!client) {
+    const now = new Date().toISOString();
     return [
       {
         id: "demo-risk-control",
@@ -167,8 +202,41 @@ export async function listRiskControls(): Promise<RiskControl[]> {
         status: "draft",
         coverage_area: "Scraping",
         metadata: { cadence: "weekly" },
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: now,
+        updated_at: now,
+      },
+      {
+        id: "demo-risk-control-fulfillment",
+        name: "Carrier SLA Monitoring",
+        description: "Review carrier performance dashboards and escalate breaches.",
+        owner: "Operations",
+        status: "active",
+        coverage_area: "Logistics",
+        metadata: { cadence: "daily", tooling: "Project44" },
+        created_at: now,
+        updated_at: now,
+      },
+      {
+        id: "demo-risk-control-security",
+        name: "Security Log Triage",
+        description: "SOC reviews credential stuffing alerts and blocks offending IPs.",
+        owner: "Security",
+        status: "active",
+        coverage_area: "Authentication",
+        metadata: { cadence: "hourly", playbook: "SOC-07" },
+        created_at: now,
+        updated_at: now,
+      },
+      {
+        id: "demo-risk-control-checkout",
+        name: "Payment Gateway Failover",
+        description: "Automatically reroute to backup gateway on error rate spikes.",
+        owner: "Engineering",
+        status: "active",
+        coverage_area: "Checkout",
+        metadata: { cadence: "continuous", coverage: "Stripe & Adyen" },
+        created_at: now,
+        updated_at: now,
       },
     ];
   }
@@ -228,28 +296,119 @@ export async function deleteRiskControl(id: string): Promise<void> {
 export async function listRiskRegister(): Promise<RiskRegisterEntry[]> {
   const client = resolveClient();
   if (!client) {
-    const now = new Date().toISOString();
+    const now = new Date();
+    const daysFromNow = (days: number) => new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+    const iso = (date: Date) => date.toISOString();
+    const isoOrNull = (date: Date | null) => (date ? date.toISOString() : null);
     return [
       {
-        id: "demo-risk-entry",
-        title: "Etsy Scraper blocked",
-        summary: "Placeholder risk record when Supabase is offline.",
+        id: "demo-risk-entry-fulfillment-delays",
+        title: "Carrier delays across West Coast",
+        summary:
+          "UPS and USPS lanes into the Bay Area are trending 36 hours behind SLA, risking late deliveries and churn.",
         status: "open",
         severity: "high",
         likelihood: "likely",
         impact: "major",
-        owner: "Platform",
+        owner: "Operations",
+        appetite_id: "demo-risk-appetite-operations",
+        control_id: "demo-risk-control-fulfillment",
+        mitigation: "Shift volume to FedEx and notify customers of revised delivery windows.",
+        follow_up: "Confirm new pickup commitments with carriers and monitor backlog burn-down daily.",
+        raised_by: "system",
+        raised_at: iso(daysFromNow(-10)),
+        due_at: isoOrNull(daysFromNow(-1)),
+        resolved_at: null,
+        metadata: { fallback: true, category: "Fulfillment" },
+        created_at: iso(daysFromNow(-10)),
+        updated_at: iso(daysFromNow(-1)),
+      },
+      {
+        id: "demo-risk-entry-payment-gateway",
+        title: "Checkout payment gateway latency",
+        summary: "Stripe primary region experiencing intermittent timeouts causing elevated checkout abandonment.",
+        status: "mitigated",
+        severity: "medium",
+        likelihood: "possible",
+        impact: "moderate",
+        owner: "Engineering",
+        appetite_id: "demo-risk-appetite-growth",
+        control_id: "demo-risk-control-checkout",
+        mitigation: "Fail over to backup gateway and enable checkout queueing banner.",
+        follow_up: "Audit failover runbook with engineering leadership and update post-incident report.",
+        raised_by: "oncall",
+        raised_at: iso(daysFromNow(-5)),
+        due_at: isoOrNull(daysFromNow(2)),
+        resolved_at: isoOrNull(daysFromNow(-1)),
+        metadata: { fallback: true, category: "Checkout" },
+        created_at: iso(daysFromNow(-5)),
+        updated_at: iso(daysFromNow(0)),
+      },
+      {
+        id: "demo-risk-entry-security-bruteforce",
+        title: "Credential stuffing spike",
+        summary:
+          "Automated login attempts from known botnets are bypassing basic rate limits and hitting 3x normal volume.",
+        status: "in-progress",
+        severity: "high",
+        likelihood: "likely",
+        impact: "major",
+        owner: "Security",
+        appetite_id: "demo-risk-appetite-security",
+        control_id: "demo-risk-control-security",
+        mitigation: "Deploy adaptive MFA challenge for high-risk IP ranges and coordinate with CDN for blocks.",
+        follow_up: "Ship permanent device fingerprinting update to authentication service.",
+        raised_by: "soc",
+        raised_at: iso(daysFromNow(-3)),
+        due_at: isoOrNull(daysFromNow(1)),
+        resolved_at: null,
+        metadata: { fallback: true, category: "Security" },
+        created_at: iso(daysFromNow(-3)),
+        updated_at: iso(daysFromNow(0)),
+      },
+      {
+        id: "demo-risk-entry-pricing-errors",
+        title: "Catalog pricing discrepancy",
+        summary:
+          "Marketplace catalog import applied outdated currency exchange leading to underpriced vintage listings.",
+        status: "open",
+        severity: "medium",
+        likelihood: "possible",
+        impact: "moderate",
+        owner: "Merchandising",
         appetite_id: "demo-risk-appetite",
         control_id: "demo-risk-control",
-        mitigation: "Rotate proxies and throttle requests.",
-        follow_up: "Review robots.txt weekly.",
-        raised_by: "system",
-        raised_at: now,
-        due_at: null,
+        mitigation: "Pause affected imports and reprice impacted SKUs based on latest FX rates.",
+        follow_up: "Add validation step in ingestion workflow to confirm FX timestamp freshness.",
+        raised_by: "merch_ops",
+        raised_at: iso(daysFromNow(-7)),
+        due_at: isoOrNull(daysFromNow(3)),
         resolved_at: null,
-        metadata: { fallback: true },
-        created_at: now,
-        updated_at: now,
+        metadata: { fallback: true, category: "Merchandising" },
+        created_at: iso(daysFromNow(-7)),
+        updated_at: iso(daysFromNow(-2)),
+      },
+      {
+        id: "demo-risk-entry-chargebacks",
+        title: "Chargeback spike on vintage goods",
+        summary:
+          "Chargebacks on high-value vintage items doubled week-over-week following social media promotion.",
+        status: "open",
+        severity: "medium",
+        likelihood: "possible",
+        impact: "major",
+        owner: "Finance",
+        appetite_id: "demo-risk-appetite-growth",
+        control_id: "demo-risk-control-checkout",
+        mitigation: "Increase manual review for flagged orders and coordinate with seller success on documentation.",
+        follow_up: "Publish updated seller guidance on proof-of-authenticity requirements.",
+        raised_by: "finance_ops",
+        raised_at: iso(daysFromNow(-2)),
+        due_at: isoOrNull(daysFromNow(5)),
+        resolved_at: null,
+        metadata: { fallback: true, category: "Finance" },
+        created_at: iso(daysFromNow(-2)),
+        updated_at: iso(daysFromNow(0)),
       },
     ];
   }
