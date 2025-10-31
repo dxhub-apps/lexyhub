@@ -73,15 +73,12 @@ type TagOptimizerResult = {
 };
 
 export default function KeywordsPage(): JSX.Element {
-  const [query, setQuery] = useState("handmade jewelry");
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState<KeywordResult[]>([]);
   const [insights, setInsights] = useState<SearchResponse["insights"] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastQuery, setLastQuery] = useState<string>("");
-  const [bootstrapped, setBootstrapped] = useState(false);
-  const [plan, setPlan] = useState<PlanTier>("growth");
-  const [responsePlan, setResponsePlan] = useState<PlanTier>("growth");
   const [sourceFilters, setSourceFilters] = useState<string[]>(["synthetic", "amazon"]);
   const [responseSources, setResponseSources] = useState<string[]>(["synthetic", "amazon"]);
 
@@ -93,12 +90,7 @@ export default function KeywordsPage(): JSX.Element {
 
   const { push } = useToast();
 
-  const availableSources = useMemo(() => {
-    if (plan === "free") {
-      return ["synthetic"];
-    }
-    return ["synthetic", "amazon"];
-  }, [plan]);
+  const availableSources = useMemo(() => ["synthetic", "amazon"], []);
 
   const toggleSource = useCallback(
     (_event: React.MouseEvent<HTMLElement>, value: string | null) => {
@@ -131,6 +123,10 @@ export default function KeywordsPage(): JSX.Element {
 
   const performSearch = useCallback(
     async (term: string) => {
+      const normalizedTerm = term.trim();
+      if (!normalizedTerm) {
+        return;
+      }
       setLoading(true);
       setError(null);
       try {
@@ -138,10 +134,10 @@ export default function KeywordsPage(): JSX.Element {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            query: term,
+            query: normalizedTerm,
             market: "us",
             limit: 25,
-            plan,
+            plan: "growth",
             sources: sourceFilters,
           }),
         });
@@ -154,8 +150,7 @@ export default function KeywordsPage(): JSX.Element {
         const payload = (await response.json()) as SearchResponse;
         setResults(payload.results ?? []);
         setInsights(payload.insights ?? null);
-        setLastQuery(payload.query ?? term);
-        setResponsePlan(payload.plan ?? plan);
+        setLastQuery(payload.query ?? normalizedTerm);
         setResponseSources(payload.sources ?? sourceFilters);
       } catch (err) {
         console.error("Failed to execute keyword search", err);
@@ -164,7 +159,7 @@ export default function KeywordsPage(): JSX.Element {
         setLoading(false);
       }
     },
-    [plan, sourceFilters],
+    [sourceFilters],
   );
 
   const handleWatchlist = useCallback(
@@ -233,14 +228,6 @@ export default function KeywordsPage(): JSX.Element {
     [],
   );
 
-  useEffect(() => {
-    if (bootstrapped) {
-      return;
-    }
-    setBootstrapped(true);
-    void performSearch(query);
-  }, [bootstrapped, performSearch, query]);
-
   const complianceNotes = useMemo(() => {
     if (!results.length) {
       return "We refresh your results whenever new data arrives and keep track of where each idea began.";
@@ -253,8 +240,8 @@ export default function KeywordsPage(): JSX.Element {
       ? new Date(results[0]?.freshness_ts).toLocaleString()
       : "Not yet synced";
 
-    return `Plan: ${responsePlan}. Source(s): ${uniqueSources || "synthetic"}. Freshness: ${freshest}. Retrieval method adjusts per provider to maintain accuracy.`;
-  }, [responsePlan, responseSources, results]);
+    return `Source(s): ${uniqueSources || "synthetic"}. Freshness: ${freshest}. Retrieval method adjusts per provider to maintain accuracy.`;
+  }, [responseSources, results]);
 
   const dataLineage = useMemo(() => {
     const freshest = results.reduce<string | null>((latest, record) => {
@@ -269,12 +256,11 @@ export default function KeywordsPage(): JSX.Element {
     }, null);
 
     return {
-      plan: responsePlan,
       sources: responseSources.length ? responseSources : ["synthetic"],
       freshest: freshest ? new Date(freshest).toLocaleString() : "Not yet synced",
       recordCount: results.length,
     };
-  }, [responsePlan, responseSources, results]);
+  }, [responseSources, results]);
 
   const sparklinePoints = useMemo(() => {
     const deriveValue = (keyword: KeywordResult): number | null => {
@@ -327,6 +313,9 @@ export default function KeywordsPage(): JSX.Element {
     },
     [performSearch, query],
   );
+
+  const lastSuccessfulQuery = lastQuery;
+  const canRefresh = Boolean(lastSuccessfulQuery);
 
   return (
     <Stack spacing={3}>
