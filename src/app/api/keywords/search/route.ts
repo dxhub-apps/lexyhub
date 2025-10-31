@@ -138,7 +138,7 @@ async function buildSummary(query: string, ranked: RankedKeyword[]): Promise<str
     const preview = ranked.slice(0, 5).map((item) => item.term).join(", ");
     return preview
       ? `Top related synthetic keywords: ${preview}. (Generated via deterministic fallback)`
-      : "No matching keywords were found for the supplied query.";
+      : "We couldn't find any keywords for that search.";
   }
 
   try {
@@ -187,7 +187,7 @@ async function buildSummary(query: string, ranked: RankedKeyword[]): Promise<str
     const preview = ranked.slice(0, 5).map((item) => item.term).join(", ");
     return preview
       ? `Top related synthetic keywords: ${preview}. (AI summary unavailable)`
-      : "No matching keywords were found for the supplied query.";
+      : "We couldn't find any keywords for that search.";
   }
 }
 
@@ -276,7 +276,7 @@ async function handleSearch(req: Request): Promise<NextResponse> {
       sources: resolvedSources,
       results: [],
       insights: {
-        summary: "No matching keywords were found. Populate Supabase keywords to enable search.",
+        summary: "We couldn't find any keywords yet. Add some keywords to get search results.",
         generatedAt: new Date().toISOString(),
         model: "lexyhub-keywords",
       },

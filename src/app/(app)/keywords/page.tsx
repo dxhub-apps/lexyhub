@@ -210,7 +210,7 @@ export default function KeywordsPage(): JSX.Element {
 
   const complianceNotes = useMemo(() => {
     if (!results.length) {
-      return "Results refresh automatically with each data sync. Source provenance is recorded for every recommendation.";
+      return "We refresh your results whenever new data arrives and keep track of where each idea began.";
     }
 
     const uniqueSources = (responseSources.length ? responseSources : Array.from(new Set(results.map((item) => item.source)))).join(", ");
@@ -436,21 +436,24 @@ export default function KeywordsPage(): JSX.Element {
 
           <aside className="keywords-panel">
             <section>
-              <h3>AI Insights</h3>
+              <h3>Helpful Highlights</h3>
               <p className="keyword-summary">
-                {insights?.summary ?? "Run a search to generate AI-backed keyword guidance."}
+                {insights?.summary ?? "Run a search to see helpful keyword tips."}
               </p>
               <div className="keyword-insight-meta">
-                <span>Model: {insights?.model ?? "deterministic-fallback"}</span>
                 <span>
-                  Generated: {insights?.generatedAt ? new Date(insights.generatedAt).toLocaleString() : "—"}
+                  Last updated:
+                  {" "}
+                  {insights?.generatedAt
+                    ? new Date(insights.generatedAt).toLocaleString()
+                    : "Not available yet"}
                 </span>
               </div>
               <KeywordSparkline points={sparklinePoints} />
             </section>
 
             <section>
-              <h3>Compliance & Provenance</h3>
+              <h3>Update Notes</h3>
               <p>{complianceNotes}</p>
             </section>
 
@@ -477,11 +480,11 @@ export default function KeywordsPage(): JSX.Element {
             </section>
 
             <section>
-              <h3>Workflow Shortcuts</h3>
+              <h3>Quick Tips</h3>
               <ul>
-                <li>Review keyword freshness in your scheduled analytics digest.</li>
-                <li>Refresh source feeds regularly to keep marketplace signals current.</li>
-                <li>Promote high-similarity terms to watchlists for active monitoring.</li>
+                <li>Check your keyword list often so it stays up to date.</li>
+                <li>Refresh your sources regularly to keep marketplace news fresh.</li>
+                <li>Add important terms to your watchlist to keep an eye on them.</li>
               </ul>
             </section>
           </aside>
