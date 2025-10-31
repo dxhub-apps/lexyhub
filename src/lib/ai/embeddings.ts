@@ -6,8 +6,39 @@ import { env } from "../env";
 import { createProvenanceId, hashKeywordTerm, normalizeKeywordTerm } from "../keywords/utils";
 import { getSupabaseServerClient } from "../supabase-server";
 
-export const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
-const DEFAULT_EMBEDDING_DIMENSION = 1536;
+export const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-large";
+const DEFAULT_EMBEDDING_DIMENSION = 3072;
+
+const DETERMINISTIC_SUFFIX = "-deterministic-fallback";
+
+const MODEL_DIMENSIONS: Record<string, number> = {
+  "text-embedding-3-large": 3072,
+};
+
+function resolveEmbeddingDimension(model: string): number {
+  if (MODEL_DIMENSIONS[model]) {
+    return MODEL_DIMENSIONS[model];
+  }
+
+  if (model.endsWith(DETERMINISTIC_SUFFIX)) {
+    const baseModel = model.slice(0, -DETERMINISTIC_SUFFIX.length);
+    return MODEL_DIMENSIONS[baseModel] ?? DEFAULT_EMBEDDING_DIMENSION;
+  }
+
+  return DEFAULT_EMBEDDING_DIMENSION;
+}
+
+function normalizeEmbeddingLength(values: number[], dimension: number): number[] {
+  if (values.length === dimension) {
+    return values;
+  }
+
+  if (values.length > dimension) {
+    return values.slice(0, dimension);
+  }
+
+  return [...values, ...new Array(dimension - values.length).fill(0)];
+}
 
 type EmbeddingRow = {
   term_hash: string;
@@ -108,7 +139,13 @@ async function readCachedEmbedding(
     return null;
   }
 
-  return data as EmbeddingRow;
+  const payload = data as EmbeddingRow;
+  const dimension = resolveEmbeddingDimension(payload.model);
+
+  return {
+    ...payload,
+    embedding: normalizeEmbeddingLength(payload.embedding ?? [], dimension),
+  };
 }
 
 async function persistEmbedding(
@@ -139,11 +176,17 @@ export async function getOrCreateEmbedding(
   const client = getSupabaseClientOverride(supabase);
   const normalized = normalizeKeywordTerm(term);
   const termHash = hashKeywordTerm(term, model);
+  const targetDimension = resolveEmbeddingDimension(model);
 
   if (client) {
     const cached = await readCachedEmbedding(client, termHash);
     if (cached) {
-      return { ...cached, created: false };
+      const dimension = resolveEmbeddingDimension(cached.model);
+      return {
+        ...cached,
+        embedding: normalizeEmbeddingLength(cached.embedding, dimension),
+        created: false,
+      };
     }
   }
 
@@ -151,14 +194,20 @@ export async function getOrCreateEmbedding(
   let generatedModel = model;
 
   try {
-    embedding = await fetchEmbeddingFromOpenAI(normalized, model);
+    const rawEmbedding = await fetchEmbeddingFromOpenAI(normalized, model);
+    if (rawEmbedding.length !== targetDimension) {
+      console.warn(
+        `Embedding dimension mismatch for model ${model}: expected ${targetDimension}, received ${rawEmbedding.length}. Normalizing for storage.`,
+      );
+    }
+    embedding = normalizeEmbeddingLength(rawEmbedding, targetDimension);
   } catch (error) {
     if (!fallbackToDeterministic) {
       throw error;
     }
 
-    embedding = createDeterministicEmbedding(normalized);
-    generatedModel = `${model}-deterministic-fallback`;
+    embedding = createDeterministicEmbedding(normalized, targetDimension);
+    generatedModel = `${model}${DETERMINISTIC_SUFFIX}`;
   }
 
   const payload: EmbeddingRow = {
