@@ -6,9 +6,9 @@ import { usePathname } from "next/navigation";
 import { ToastProvider } from "@/components/ui/ToastProvider";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { Topbar } from "./Topbar";
-import { ui } from "@/ui/theme";
+import { Sidebar, type SidebarNavItem } from "./Sidebar";
 
-const NAV_ITEMS = [
+const NAV_ITEMS: readonly SidebarNavItem[] = [
   { href: "/dashboard", label: "Dashboard", description: "Quota pulse" },
   { href: "/watchlists", label: "Watchlists", description: "Monitored items" },
   { href: "/keywords", label: "Keywords", description: "AI search" },
@@ -22,13 +22,34 @@ const NAV_ITEMS = [
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const nav = useMemo(() => NAV_ITEMS, []);
+  const activeNavItem = useMemo(() => {
+    const currentPath = pathname ?? "/";
+    if (currentPath === "/") {
+      return nav[0];
+    }
+    return (
+      nav.find((item) => {
+        if (item.href === "/dashboard") {
+          return currentPath.startsWith("/dashboard");
+        }
+        if (item.href === "/admin/backoffice") {
+          return currentPath.startsWith("/admin/backoffice");
+        }
+        return currentPath.startsWith(item.href);
+      }) ?? nav[0]
+    );
+  }, [nav, pathname]);
   const [isMobile, setIsMobile] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
       const nextIsMobile = window.innerWidth <= 768;
       setIsMobile(nextIsMobile);
+      if (nextIsMobile) {
+        setSidebarCollapsed(false);
+      }
       if (!nextIsMobile) {
         setNavOpen(false);
       }
@@ -47,20 +68,48 @@ export function AppShell({ children }: { children: ReactNode }) {
     setNavOpen((value) => !value);
   };
 
+  const closeNav = () => {
+    setNavOpen(false);
+  };
+
+  const toggleSidebarCollapsed = () => {
+    setSidebarCollapsed((value) => !value);
+  };
+
   return (
     <ThemeProvider>
       <ToastProvider>
-        <div className="app-frame" style={{ background: ui.colors.page }}>
-          <Topbar
+        <div className={`app-shell${sidebarCollapsed ? " app-shell-collapsed" : ""}`}>
+          <Sidebar
             navItems={nav}
             pathname={pathname ?? "/"}
+            collapsed={sidebarCollapsed}
             isMobile={isMobile}
             navOpen={navOpen}
-            onToggleNav={toggleNav}
+            onToggleCollapse={toggleSidebarCollapsed}
+            onDismissMobile={closeNav}
           />
-          <main className="app-main">
-            <div className="app-container">{children}</div>
-          </main>
+          {isMobile && navOpen ? (
+            <button
+              type="button"
+              className="app-sidebar-overlay"
+              aria-label="Close navigation"
+              onClick={closeNav}
+            />
+          ) : null}
+          <div className="app-shell-content">
+            <Topbar
+              isMobile={isMobile}
+              navOpen={navOpen}
+              onToggleNav={toggleNav}
+              onToggleSidebar={toggleSidebarCollapsed}
+              sidebarCollapsed={sidebarCollapsed}
+              activeNavItem={activeNavItem}
+            />
+            <main className="app-main">
+              <div className="app-container">{children}</div>
+            </main>
+          </div>
         </div>
       </ToastProvider>
     </ThemeProvider>

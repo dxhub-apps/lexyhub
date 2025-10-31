@@ -9,14 +9,14 @@ LexyHub is the central workspace for monitoring sales velocity, discovering high
 ## Getting Started
 1. **Sign in:** Visit the LexyHub URL provided by your administrator and authenticate with your work email. The avatar menu (top right) confirms the active plan and account.
 2. **Select a workspace:** If your organization manages multiple storefronts, use the workspace switcher presented during sign in to pick the correct environment. All metrics and automations respect the chosen workspace.
-3. **Review onboarding alerts:** The notification indicator in the top bar highlights setup tasks such as connecting an Etsy shop or approving data scopes.
-4. **Explore the app shell:** The left navigation provides access to product areas, while the top bar shows platform status, environment labels, and the global user menu.
+3. **Review onboarding alerts:** The notification indicator in the workspace header highlights setup tasks such as connecting an Etsy shop or approving data scopes.
+4. **Explore the app shell:** The refreshed left navigation sidebar provides access to product areas, while the workspace header surfaces platform status, environment labels, quick help, and the global user menu.
 
 ## Layout Reference
 LexyHub uses a responsive two-pane layout composed of:
 
-- **Sidebar navigation:** Links to Dashboard, Watchlists, Keywords, Insights, Market Twin, Settings, and Status. Collapse the sidebar by selecting the toggle in the top-left corner; the navigation automatically collapses on mobile breakpoints.
-- **Top bar:** Displays the product name, contextual subtitle, environment (e.g., `development`, `preview`, `production`), a shortcut to the Status page, and the user menu.
+- **Command sidebar:** Links to Dashboard, Watchlists, Keywords, Insights, Market Twin, Settings, and Status with clear descriptions so teammates understand what each section unlocks. Collapse the sidebar using the toggle in the upper-left corner; the navigation automatically becomes a slide-over drawer on mobile breakpoints.
+- **Workspace header:** Displays the product name, contextual subtitle for the active area, environment (e.g., `development`, `preview`, `production`), a quick "Need help?" shortcut to this guide, and the user menu. The mobile header exposes a menu button that opens the navigation drawer.
 - **User menu:** Provides profile management, theme switching, how-to documentation, and a logout control. The menu stays consistent across every screen.
 
 ## Dashboard
@@ -118,7 +118,7 @@ The Status area communicates system uptime and scheduled maintenance.
 - **Themes:** Switch between Light, Dark, and System modes using the theme picker in the user menu. Preferences persist per device.
 
 ## Help & Support
-- **Help Center:** Access this documentation from the help icon in the global user menu.
+- **Help Center:** Access this documentation from the new "Need help?" shortcut in the workspace header or the help icon in the global user menu.
 - **Contact support:** Email `support@lexyhub.ai` or open the in-app messenger (Settings → Support) for urgent issues.
 - **Feedback:** Submit feature requests from Settings or by replying to any LexyHub email notification.
 
@@ -140,4 +140,4 @@ LexyHub publishes sprint-level release notes in `/docs/changelog.md`. Review the
 - **Amazon keyword population guide:** `/docs/amazon-keyword-population-guide.md`
 - **Trend & intent intelligence:** `/docs/trend-intent-intelligence.md`
 
-_Last updated: 2024-08-27_
+_Last updated: 2025-10-31_
