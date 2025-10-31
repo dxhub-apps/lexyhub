@@ -44,7 +44,7 @@ type TagOptimizerResult = {
 };
 
 export default function KeywordsPage(): JSX.Element {
-  const [query, setQuery] = useState("handmade jewelry");
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState<KeywordResult[]>([]);
   const [insights, setInsights] = useState<SearchResponse["insights"] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -71,6 +71,7 @@ export default function KeywordsPage(): JSX.Element {
     }
     return ["synthetic", "amazon"];
   }, [planTier]);
+  const availableSources = useMemo(() => ["synthetic", "amazon"], []);
 
   const toggleSource = useCallback(
     (source: string) => {
@@ -100,6 +101,10 @@ export default function KeywordsPage(): JSX.Element {
 
   const performSearch = useCallback(
     async (term: string) => {
+      const normalizedTerm = term.trim();
+      if (!normalizedTerm) {
+        return;
+      }
       setLoading(true);
       setError(null);
       try {
@@ -107,10 +112,11 @@ export default function KeywordsPage(): JSX.Element {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            query: term,
+            query: normalizedTerm,
             market: "us",
             limit: 25,
             plan: planTier,
+            plan: "growth",
             sources: sourceFilters,
           }),
         });
@@ -125,6 +131,7 @@ export default function KeywordsPage(): JSX.Element {
         setInsights(payload.insights ?? null);
         setLastQuery(payload.query ?? term);
         setResponsePlan(payload.plan ?? planTier);
+        setLastQuery(payload.query ?? normalizedTerm);
         setResponseSources(payload.sources ?? sourceFilters);
         analytics.capture("keywords.search.completed", {
           term,
@@ -144,6 +151,7 @@ export default function KeywordsPage(): JSX.Element {
       }
     },
     [analytics, planTier, sourceFilters],
+    [sourceFilters],
   );
 
   const handleWatchlist = useCallback(
@@ -233,14 +241,6 @@ export default function KeywordsPage(): JSX.Element {
     [analytics],
   );
 
-  useEffect(() => {
-    if (bootstrapped) {
-      return;
-    }
-    setBootstrapped(true);
-    void performSearch(query);
-  }, [bootstrapped, performSearch, query]);
-
   const complianceNotes = useMemo(() => {
     if (!results.length) {
       return "We refresh your results whenever new data arrives and keep track of where each idea began.";
@@ -251,8 +251,8 @@ export default function KeywordsPage(): JSX.Element {
       ? new Date(results[0]?.freshness_ts).toLocaleString()
       : "Not yet synced";
 
-    return `Plan: ${responsePlan}. Source(s): ${uniqueSources || "synthetic"}. Freshness: ${freshest}. Retrieval method adjusts per provider to maintain accuracy.`;
-  }, [responsePlan, responseSources, results]);
+    return `Source(s): ${uniqueSources || "synthetic"}. Freshness: ${freshest}. Retrieval method adjusts per provider to maintain accuracy.`;
+  }, [responseSources, results]);
 
   const dataLineage = useMemo(() => {
     const freshest = results.reduce<string | null>((latest, record) => {
@@ -267,12 +267,11 @@ export default function KeywordsPage(): JSX.Element {
     }, null);
 
     return {
-      plan: responsePlan,
       sources: responseSources.length ? responseSources : ["synthetic"],
       freshest: freshest ? new Date(freshest).toLocaleString() : "Not yet synced",
       recordCount: results.length,
     };
-  }, [responsePlan, responseSources, results]);
+  }, [responseSources, results]);
 
   const sparklinePoints = useMemo(() => {
     const deriveValue = (keyword: KeywordResult): number | null => {
@@ -326,6 +325,9 @@ export default function KeywordsPage(): JSX.Element {
     [performSearch, query],
   );
 
+  const lastSuccessfulQuery = lastQuery;
+  const canRefresh = Boolean(lastSuccessfulQuery);
+
   return (
     <div className="keywords-page">
       <div className="keywords-header">
@@ -336,6 +338,9 @@ export default function KeywordsPage(): JSX.Element {
             ranked via embeddings with deterministic fallbacks when AI is offline.
           </p>
         </div>
+      </div>
+
+      <div className="keywords-filters">
         <form className="keywords-search" onSubmit={handleSubmit}>
           <label className="sr-only" htmlFor="keyword-query">
             Search keywords
@@ -347,7 +352,7 @@ export default function KeywordsPage(): JSX.Element {
             placeholder="e.g. boho nursery decor"
             disabled={loading}
           />
-          <button type="submit" disabled={loading}>
+          <button type="submit" disabled={loading || !query.trim()}>
             {loading ? "Searching…" : "Search"}
           </button>
         </form>
@@ -387,8 +392,8 @@ export default function KeywordsPage(): JSX.Element {
         <button
           type="button"
           className="keywords-refresh"
-          onClick={() => void performSearch(query)}
-          disabled={loading}
+          onClick={() => void performSearch(query.trim() || lastSuccessfulQuery)}
+          disabled={loading || (!query.trim() && !canRefresh)}
         >
           Refresh
         </button>
@@ -402,7 +407,7 @@ export default function KeywordsPage(): JSX.Element {
             <header>
               <div>
                 <h2>Results</h2>
-                <span className="keyword-meta">Query: {lastQuery || query}</span>
+                <span className="keyword-meta">Query: {lastSuccessfulQuery || "—"}</span>
               </div>
               <div className="keyword-meta">{results.length} matches</div>
             </header>
@@ -493,10 +498,6 @@ export default function KeywordsPage(): JSX.Element {
             <section>
               <h3>Data Info</h3>
               <dl className="keyword-data-info">
-                <div>
-                  <dt>Plan</dt>
-                  <dd>{dataLineage.plan}</dd>
-                </div>
                 <div>
                   <dt>Sources</dt>
                   <dd>{dataLineage.sources.join(", ")}</dd>
