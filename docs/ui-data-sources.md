@@ -46,6 +46,15 @@ Keyword search now normalizes cached embedding payloads retrieved from Supabase 
 | Simulation form submission | POST `/api/market-twin` runs the simulator, which fetches baseline listing details, related keyword trends, embeddings, and persists the prediction before returning the result cards.【F:src/app/(app)/market-twin/page.tsx†L132-L189】【F:src/app/api/market-twin/route.ts†L46-L130】【F:src/lib/market-twin/simulator.ts†L49-L245】 | `listings`, `listing_tags`, `listing_stats`, `keywords` (trend momentum lookup), `embeddings`, `ai_predictions` (simulation history).【F:src/lib/market-twin/simulator.ts†L49-L245】【F:src/app/api/market-twin/route.ts†L18-L130】 |
 | Simulation history list | `/api/market-twin` `GET` returns the most recent prediction rows, which render in the history panel.【F:src/app/(app)/market-twin/page.tsx†L80-L109】【F:src/app/api/market-twin/route.ts†L18-L44】 | `ai_predictions` (stored scenario inputs, scores, and explanations).【F:src/app/api/market-twin/route.ts†L18-L44】 |
 
+## Editing (`/editing`)
+
+| UI element | How data is loaded | Supabase tables / stores |
+| --- | --- | --- |
+| Overview cards | Static copy describing each editing capability; no data access required.【F:src/app/(app)/editing/page.tsx†L1-L33】 | — |
+| Listing intelligence form | Submitting the form posts to `/api/listings/intelligence`, which optionally fetches the selected listing, analyzes it, persists a row in `listing_quality_audits`, and returns the scorecard consumed by the UI.【F:src/app/(app)/editing/listing-intelligence/page.tsx†L1-L8】【F:src/components/editing/ListingIntelligenceForm.tsx†L32-L193】【F:src/app/api/listings/intelligence/route.ts†L1-L126】 | `listings`, `listing_tags`, `listing_quality_audits`. |
+| Competitor analysis form | Runs `/api/insights/competitors`, storing a snapshot and returning the benchmark payload rendered into market KPIs, shared phrases, adjectives, tag overlap, and narrative sections.【F:src/app/(app)/editing/competitor-analysis/page.tsx†L1-L8】【F:src/components/editing/CompetitorAnalysisForm.tsx†L20-L195】【F:src/app/api/insights/competitors/route.ts†L1-L63】 | `competitor_snapshots`, `competitor_snapshot_listings`. |
+| Tag optimizer form | Calls `/api/tags/health` to evaluate the provided tags against the catalog, updates Supabase with diagnostics when a listing ID is supplied, and renders the returned health metrics, duplicates, and recommendations.【F:src/app/(app)/editing/tag-optimizer/page.tsx†L1-L8】【F:src/components/editing/TagOptimizerForm.tsx†L16-L136】【F:src/app/api/tags/health/route.ts†L1-L98】 | `tag_catalog`, `listing_tag_health`, `tag_optimizer_runs`, `listing_tags`. |
+
 ## Profile & Billing (`/profile`)
 
 | UI element | How data is loaded | Supabase tables / stores |
