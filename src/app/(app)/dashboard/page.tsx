@@ -29,34 +29,9 @@ type UsageSummary = {
   usage: Record<string, number>;
 };
 
-const DATA: Metric[] = [
-  {
-    area: "Supabase",
-    status: "configured",
-    owner: "Data",
-    notes: "Project scaffolded with pgvector",
-  },
-  {
-    area: "CI/CD",
-    status: "configured",
-    owner: "Platform",
-    notes: "Lint, test, typecheck, build",
-  },
-  {
-    area: "Analytics",
-    status: "configured",
-    owner: "Product",
-    notes: "Vercel Analytics wired",
-  },
-  {
-    area: "Secrets",
-    status: "pending",
-    owner: "Security",
-    notes: "Add service role and OpenAI keys via docs",
-  },
-];
-
-export default function DashboardPage() {
+export default function DashboardPage(): JSX.Element {
+  const [metrics, setMetrics] = useState<Metric[]>([]);
+  const [metricsLoading, setMetricsLoading] = useState(false);
   const columns = useMemo<ColumnDef<Metric>[]>(
     () => [
       {
@@ -96,7 +71,7 @@ export default function DashboardPage() {
   );
 
   const table = useReactTable({
-    data: DATA,
+    data: metrics,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -105,12 +80,47 @@ export default function DashboardPage() {
   const [usage, setUsage] = useState<UsageSummary | null>(null);
 
   useEffect(() => {
+    let active = true;
+    setMetricsLoading(true);
+    fetch("/api/dashboard/metrics")
+      .then(async (response) => {
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload.error ?? `Metric load failed (${response.status})`);
+        }
+        return response.json();
+      })
+      .then((payload: { metrics: Metric[] }) => {
+        if (active) {
+          setMetrics(payload.metrics ?? []);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load dashboard metrics", error);
+        push({
+          title: "Metrics unavailable",
+          description: error instanceof Error ? error.message : "Unknown error",
+          tone: "error",
+        });
+      })
+      .finally(() => {
+        if (active) {
+          setMetricsLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [push]);
+
+  useEffect(() => {
     let isMounted = true;
     const load = async () => {
       try {
         const response = await fetch("/api/usage/summary");
         if (!response.ok) {
-          throw new Error(`Usage summary failed (${response.status})`);
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload.error ?? `Usage summary failed (${response.status})`);
         }
         const json = (await response.json()) as UsageSummary;
         if (isMounted) {
@@ -190,6 +200,13 @@ export default function DashboardPage() {
               ))}
             </tr>
           ))}
+          {!metrics.length && !metricsLoading ? (
+            <tr>
+              <td colSpan={4} style={{ textAlign: "center", padding: "1.5rem" }}>
+                Metrics will appear once Supabase data is available.
+              </td>
+            </tr>
+          ) : null}
         </tbody>
       </table>
     </div>

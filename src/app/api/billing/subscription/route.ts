@@ -15,7 +15,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const userId = request.nextUrl.searchParams.get("userId");
 
   if (!supabase) {
-    return NextResponse.json({ error: "Supabase client unavailable" }, { status: 500 });
+    return NextResponse.json({ error: "Supabase client unavailable" }, { status: 503 });
   }
 
   if (!userId) {
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 export async function PATCH(request: NextRequest): Promise<NextResponse> {
   const supabase = getSupabaseServerClient();
   if (!supabase) {
-    return NextResponse.json({ error: "Supabase client unavailable" }, { status: 500 });
+    return NextResponse.json({ error: "Supabase client unavailable" }, { status: 503 });
   }
 
   const userId = requireUserId(request);
@@ -94,12 +94,31 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
   }
 
   if (paymentMethod) {
-    const { error } = await supabase.from("user_profiles").update({
-      settings: { payment_method_label: paymentMethod },
-      updated_at: new Date().toISOString(),
-    }).eq("user_id", userId);
-    if (error) {
-      console.warn("Failed to store payment method label", error);
+    const { data: existingSettings, error: settingsError } = await supabase
+      .from("user_profiles")
+      .select("settings")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (settingsError && settingsError.code !== "PGRST116") {
+      console.warn("Failed to read existing settings", settingsError);
+    } else {
+      const nextSettings = {
+        ...((existingSettings?.settings as Record<string, unknown>) ?? {}),
+        payment_method_label: paymentMethod,
+      };
+
+      const { error: updateError } = await supabase
+        .from("user_profiles")
+        .update({
+          settings: nextSettings,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", userId);
+
+      if (updateError) {
+        console.warn("Failed to store payment method label", updateError);
+      }
     }
   }
 

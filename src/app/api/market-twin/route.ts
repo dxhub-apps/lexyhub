@@ -8,7 +8,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const userId = request.nextUrl.searchParams.get("userId");
 
   if (!supabase) {
-    return NextResponse.json({ simulations: [] }, { status: 200 });
+    return NextResponse.json({ error: "Supabase client unavailable" }, { status: 503 });
   }
 
   if (!userId) {
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const supabase = getSupabaseServerClient();
 
   if (!supabase) {
-    return NextResponse.json({ error: "Supabase client unavailable" }, { status: 500 });
+    return NextResponse.json({ error: "Supabase client unavailable" }, { status: 503 });
   }
 
   const payload = await request.json();

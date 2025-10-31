@@ -42,69 +42,94 @@ type BillingPreferences = {
   paymentMethod: string;
 };
 
+const EMPTY_PROFILE: ProfileDetails = {
+  fullName: "",
+  email: "",
+  company: "",
+  bio: "",
+  timezone: "",
+  notifications: false,
+};
+
 export default function ProfilePage(): JSX.Element {
   const { push } = useToast();
-  const [profile, setProfile] = useState<ProfileDetails>({
-    fullName: "Aaliyah Growth",
-    email: "aaliyah@lexyhub.ai",
-    company: "LexyHub Labs",
-    bio: "Commerce intelligence lead connecting Etsy sellers with AI Market Twins.",
-    timezone: "America/Chicago",
-    notifications: true,
-  });
+  const [profile, setProfile] = useState<ProfileDetails>(EMPTY_PROFILE);
   const [billing, setBilling] = useState<BillingPreferences>({
-    plan: "scale",
-    billingEmail: "billing@lexyhub.ai",
+    plan: "spark",
+    billingEmail: "",
     autoRenew: true,
-    paymentMethod: "Visa •••• 4242",
+    paymentMethod: "",
   });
   const [invoiceHistory, setInvoiceHistory] = useState<InvoiceHistoryRow[]>([]);
-  const [subscriptionStatus, setSubscriptionStatus] = useState<string>("active");
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string>("unknown");
   const [periodEnd, setPeriodEnd] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const activePlanSummary = useMemo(() => PLAN_SUMMARY[billing.plan], [billing.plan]);
 
-  const loadBilling = useCallback(async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
+    try {
+      const profileResponse = await fetch(`/api/profile?userId=${DEFAULT_USER_ID}`);
+      if (!profileResponse.ok) {
+        const payload = await profileResponse.json().catch(() => ({}));
+        throw new Error(payload.error ?? `Failed to load profile (${profileResponse.status})`);
+      }
+      const profileJson = (await profileResponse.json()) as {
+        profile?: ProfileDetails;
+      };
+      if (profileJson.profile) {
+        setProfile({ ...EMPTY_PROFILE, ...profileJson.profile });
+      }
+    } catch (error) {
+      push({
+        title: "Profile unavailable",
+        description: error instanceof Error ? error.message : String(error),
+        tone: "error",
+      });
+    }
+
     try {
       const response = await fetch(`/api/billing/subscription?userId=${DEFAULT_USER_ID}`);
       const json = await response.json();
       if (!response.ok) {
-        throw new Error(json.error ?? "Failed to load billing data");
+        throw new Error(json.error ?? `Failed to load billing data (${response.status})`);
       }
 
       setBilling((state) => {
-        const candidatePlan = (json.profile?.plan ?? json.subscription?.plan ?? state.plan) as BillingPreferences["plan"];
+        const nextPlan = (json.profile?.plan ?? json.subscription?.plan ?? state.plan) as BillingPreferences["plan"];
         const normalizedPlan: BillingPreferences["plan"] =
-          candidatePlan === "spark" || candidatePlan === "scale" || candidatePlan === "apex"
-            ? candidatePlan
-            : state.plan;
+          nextPlan === "spark" || nextPlan === "scale" || nextPlan === "apex" ? nextPlan : state.plan;
+
+        const settings = (json.profile?.settings ?? {}) as { payment_method_label?: string };
+
         return {
           plan: normalizedPlan,
-          billingEmail: json.subscription?.metadata?.billing_email ?? state.billingEmail,
+          billingEmail: json.subscription?.metadata?.billing_email ?? state.billingEmail ?? "",
           autoRenew: !(json.subscription?.cancel_at_period_end ?? false),
-          paymentMethod: json.profile?.settings?.payment_method_label ?? state.paymentMethod,
+          paymentMethod: settings.payment_method_label ?? state.paymentMethod ?? "",
         };
       });
 
       setInvoiceHistory(
-        (json.invoices ?? []).map((invoice: {
-          stripe_invoice_id: string;
-          invoice_date: string;
-          amount_paid_cents?: number;
-          amount_due_cents?: number;
-          status?: string;
-        }) => ({
-          id: invoice.stripe_invoice_id,
-          period: invoice.invoice_date
-            ? new Date(invoice.invoice_date).toLocaleDateString(undefined, { month: "short", year: "numeric" })
-            : "—",
-          total: formatAmount(invoice.amount_paid_cents ?? invoice.amount_due_cents ?? null),
-          status: invoice.status ?? "open",
-        })),
+        (json.invoices ?? []).map(
+          (invoice: {
+            stripe_invoice_id: string;
+            invoice_date: string;
+            amount_paid_cents?: number;
+            amount_due_cents?: number;
+            status?: string;
+          }) => ({
+            id: invoice.stripe_invoice_id,
+            period: invoice.invoice_date
+              ? new Date(invoice.invoice_date).toLocaleDateString(undefined, { month: "short", year: "numeric" })
+              : "—",
+            total: formatAmount(invoice.amount_paid_cents ?? invoice.amount_due_cents ?? null),
+            status: invoice.status ?? "open",
+          }),
+        ),
       );
 
-      setSubscriptionStatus(json.subscription?.status ?? "active");
+      setSubscriptionStatus(json.subscription?.status ?? "unknown");
       setPeriodEnd(json.subscription?.current_period_end ?? null);
     } catch (error) {
       push({
@@ -118,16 +143,34 @@ export default function ProfilePage(): JSX.Element {
   }, [push]);
 
   useEffect(() => {
-    loadBilling();
-  }, [loadBilling]);
+    void loadData();
+  }, [loadData]);
 
-  const handleProfileSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleProfileSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    push({
-      title: "Profile updated",
-      description: "Your preferences are saved and synced with upcoming Etsy refreshes.",
-      tone: "success",
-    });
+    try {
+      const response = await fetch(`/api/profile?userId=${DEFAULT_USER_ID}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profile),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(json.error ?? "Failed to update profile");
+      }
+      push({
+        title: "Profile updated",
+        description: "Your preferences are saved to Supabase.",
+        tone: "success",
+      });
+      await loadData();
+    } catch (error) {
+      push({
+        title: "Profile update failed",
+        description: error instanceof Error ? error.message : String(error),
+        tone: "error",
+      });
+    }
   };
 
   const handleBillingSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -144,10 +187,10 @@ export default function ProfilePage(): JSX.Element {
       }
       push({
         title: "Subscription settings saved",
-        description: "Billing preferences now align with your Market Twin quotas.",
+        description: "Billing preferences are now stored in Supabase.",
         tone: "success",
       });
-      await loadBilling();
+      await loadData();
     } catch (error) {
       push({
         title: "Update failed",
@@ -173,7 +216,7 @@ export default function ProfilePage(): JSX.Element {
         description: "Your plan will remain active until the current cycle ends.",
         tone: "warning",
       });
-      await loadBilling();
+      await loadData();
     } catch (error) {
       push({
         title: "Cancellation failed",
@@ -198,113 +241,89 @@ export default function ProfilePage(): JSX.Element {
 
       <div className="profile-grid">
         <form className="profile-card" onSubmit={handleProfileSubmit}>
-          <div className="profile-card-header">
-            <h2>Account preferences</h2>
-            <p>Update your personal details, company context, and notification cadence.</p>
-          </div>
-          <div className="profile-form-grid">
-            <label>
-              <span>Full name</span>
-              <input
-                type="text"
-                value={profile.fullName}
-                onChange={(event) => setProfile((state) => ({ ...state, fullName: event.target.value }))}
-                required
-              />
-            </label>
-            <label>
-              <span>Email</span>
-              <input
-                type="email"
-                value={profile.email}
-                onChange={(event) => setProfile((state) => ({ ...state, email: event.target.value }))}
-                required
-              />
-            </label>
-            <label>
-              <span>Company</span>
-              <input
-                type="text"
-                value={profile.company}
-                onChange={(event) => setProfile((state) => ({ ...state, company: event.target.value }))}
-                placeholder="LexyHub Labs"
-              />
-            </label>
-            <label>
-              <span>Timezone</span>
-              <select
-                value={profile.timezone}
-                onChange={(event) => setProfile((state) => ({ ...state, timezone: event.target.value }))}
-              >
-                <option value="America/Chicago">America/Chicago</option>
-                <option value="America/New_York">America/New_York</option>
-                <option value="Europe/London">Europe/London</option>
-                <option value="Asia/Tokyo">Asia/Tokyo</option>
-              </select>
-            </label>
-            <label className="profile-textarea">
-              <span>Mission brief</span>
-              <textarea
-                value={profile.bio}
-                onChange={(event) => setProfile((state) => ({ ...state, bio: event.target.value }))}
-                rows={4}
-              />
-            </label>
-          </div>
+          <h2>Profile</h2>
+          <p className="profile-muted">Update the contact details stored alongside your Supabase user profile.</p>
 
-          <label className="profile-toggle">
+          <label>
+            <span>Full name</span>
+            <input
+              value={profile.fullName}
+              onChange={(event) => setProfile((state) => ({ ...state, fullName: event.target.value }))}
+              disabled={loading}
+            />
+          </label>
+
+          <label>
+            <span>Email</span>
+            <input
+              type="email"
+              value={profile.email}
+              onChange={(event) => setProfile((state) => ({ ...state, email: event.target.value }))}
+              disabled={loading}
+            />
+          </label>
+
+          <label>
+            <span>Company</span>
+            <input
+              value={profile.company}
+              onChange={(event) => setProfile((state) => ({ ...state, company: event.target.value }))}
+              disabled={loading}
+            />
+          </label>
+
+          <label>
+            <span>Bio</span>
+            <textarea
+              rows={3}
+              value={profile.bio}
+              onChange={(event) => setProfile((state) => ({ ...state, bio: event.target.value }))}
+              disabled={loading}
+            />
+          </label>
+
+          <label>
+            <span>Timezone</span>
+            <input
+              value={profile.timezone}
+              onChange={(event) => setProfile((state) => ({ ...state, timezone: event.target.value }))}
+              disabled={loading}
+            />
+          </label>
+
+          <label className="profile-checkbox">
             <input
               type="checkbox"
               checked={profile.notifications}
               onChange={(event) => setProfile((state) => ({ ...state, notifications: event.target.checked }))}
+              disabled={loading}
             />
-            <div>
-              <strong>Send product and billing notifications</strong>
-              <span>Receive AI Market Twin insights, billing reminders, and quota alerts.</span>
-            </div>
+            <span>Send product notifications</span>
           </label>
 
-          <div className="profile-card-actions">
-            <button type="submit" className="profile-primary">
-              Save profile
-            </button>
-            <button type="button" className="profile-secondary" onClick={() => window.history.back()}>
-              Cancel
-            </button>
-          </div>
+          <button type="submit" disabled={loading}>
+            Save profile
+          </button>
         </form>
 
         <form className="profile-card" onSubmit={handleBillingSubmit}>
-          <div className="profile-card-header">
-            <h2>Subscription &amp; billing</h2>
-            <p>Control your plan, payment method, and invoice routing.</p>
-          </div>
+          <h2>Billing</h2>
+          <p className="profile-muted">Manage subscription status, billing email, and payment method labels.</p>
 
-          <div className="profile-plan-details">
-            <div>
-              <span className="profile-plan-label">Active plan</span>
-              <strong>{billing.plan.toUpperCase()}</strong>
-            </div>
-            <p>{activePlanSummary}</p>
-            <div className="profile-subscription-meta">
-              <span>Status: {subscriptionStatus}</span>
-              {periodEnd && <span>Renews {new Date(periodEnd).toLocaleDateString()}</span>}
-            </div>
-            <div className="profile-plan-selector">
-              {(["spark", "scale", "apex"] as BillingPreferences["plan"][]).map((plan) => (
-                <button
-                  key={plan}
-                  type="button"
-                  className={`profile-plan ${billing.plan === plan ? "profile-plan-active" : ""}`}
-                  onClick={() => setBilling((state) => ({ ...state, plan }))}
-                  disabled={loading}
-                >
-                  <span>{plan.toUpperCase()}</span>
-                  <small>{PLAN_SUMMARY[plan]}</small>
-                </button>
-              ))}
-            </div>
-          </div>
+          <label>
+            <span>Plan</span>
+            <select
+              value={billing.plan}
+              onChange={(event) =>
+                setBilling((state) => ({ ...state, plan: event.target.value as BillingPreferences["plan"] }))
+              }
+              disabled={loading}
+            >
+              <option value="spark">Spark</option>
+              <option value="scale">Scale</option>
+              <option value="apex">Apex</option>
+            </select>
+          </label>
 
           <label>
             <span>Billing email</span>
@@ -312,61 +331,75 @@ export default function ProfilePage(): JSX.Element {
               type="email"
               value={billing.billingEmail}
               onChange={(event) => setBilling((state) => ({ ...state, billingEmail: event.target.value }))}
+              disabled={loading}
             />
           </label>
 
-          <label>
-            <span>Payment method</span>
-            <input
-              type="text"
-              value={billing.paymentMethod}
-              onChange={(event) => setBilling((state) => ({ ...state, paymentMethod: event.target.value }))}
-            />
-          </label>
-
-          <label className="profile-toggle">
+          <label className="profile-checkbox">
             <input
               type="checkbox"
               checked={billing.autoRenew}
               onChange={(event) => setBilling((state) => ({ ...state, autoRenew: event.target.checked }))}
+              disabled={loading}
             />
-            <div>
-              <strong>Auto-renew subscription</strong>
-              <span>Keep your Market Twin insights live without quota interruptions.</span>
-            </div>
+            <span>Auto-renew plan</span>
           </label>
 
-          <div className="profile-card-actions">
-            <button type="submit" className="profile-primary">
-              Update billing
-            </button>
-            <button type="button" className="profile-danger" onClick={handleCancelPlan}>
-              Cancel plan
-            </button>
-          </div>
+          <label>
+            <span>Payment method label</span>
+            <input
+              value={billing.paymentMethod}
+              onChange={(event) => setBilling((state) => ({ ...state, paymentMethod: event.target.value }))}
+              disabled={loading}
+            />
+          </label>
 
-          <section className="profile-card-subsection">
-            <header>
-              <h3>Billing history</h3>
-              <span>Invoices route to {billing.billingEmail}</span>
-            </header>
-            <ul>
-              {invoiceHistory.length === 0 && <li className="profile-history-empty">No invoices available yet.</li>}
-              {invoiceHistory.map((invoice) => (
-                <li key={invoice.id}>
-                  <div>
-                    <strong>{invoice.period}</strong>
-                    <span>{invoice.id}</span>
-                  </div>
-                  <div>
-                    <span>{invoice.total}</span>
-                    <span className="profile-status-paid">{invoice.status}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
+          <button type="submit" disabled={loading}>
+            Save billing settings
+          </button>
+
+          <button type="button" className="profile-secondary" onClick={handleCancelPlan} disabled={loading}>
+            Cancel at period end
+          </button>
         </form>
+
+        <aside className="profile-card">
+          <h2>Subscription</h2>
+          <p className="profile-muted">Status and history are sourced directly from Supabase billing tables.</p>
+
+          <dl className="profile-subscription">
+            <div>
+              <dt>Status</dt>
+              <dd className={`status-${subscriptionStatus}`}>{subscriptionStatus}</dd>
+            </div>
+            <div>
+              <dt>Auto-renew</dt>
+              <dd>{billing.autoRenew ? "Enabled" : "Disabled"}</dd>
+            </div>
+            <div>
+              <dt>Current period end</dt>
+              <dd>{periodEnd ? new Date(periodEnd).toLocaleString() : "—"}</dd>
+            </div>
+            <div>
+              <dt>Plan summary</dt>
+              <dd>{activePlanSummary}</dd>
+            </div>
+          </dl>
+
+          <h3>Invoice history</h3>
+          <ul className="profile-invoices">
+            {invoiceHistory.length === 0 ? <li>No invoices yet.</li> : null}
+            {invoiceHistory.map((invoice) => (
+              <li key={invoice.id}>
+                <div>
+                  <strong>{invoice.period}</strong>
+                  <span>{invoice.status}</span>
+                </div>
+                <span>{invoice.total}</span>
+              </li>
+            ))}
+          </ul>
+        </aside>
       </div>
     </div>
   );

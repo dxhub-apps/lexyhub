@@ -10,20 +10,12 @@ function resolveUserId(headers: Headers): string {
 export async function GET(req: Request): Promise<NextResponse> {
   const userId = resolveUserId(req.headers);
   const supabase = getSupabaseServerClient();
-  const plan = await resolvePlanContext(userId);
 
   if (!supabase) {
-    return NextResponse.json({
-      plan: plan.plan,
-      momentum: plan.momentum,
-      limits: plan.limits,
-      usage: {
-        ai_suggestion: 0,
-        keyword_query: 0,
-        watchlist_add: 0,
-      },
-    });
+    return NextResponse.json({ error: "Supabase client unavailable" }, { status: 503 });
   }
+
+  const plan = await resolvePlanContext(userId);
 
   const { data, error } = await supabase
     .from("usage_events")

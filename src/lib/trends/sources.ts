@@ -10,69 +10,6 @@ function normalizeScore(score: number, max: number = 100): number {
   return Math.max(0, Math.min(1, score / max));
 }
 
-function createStubSignals(source: TrendSignal["source"]): TrendSignal[] {
-  if (source === "google_trends") {
-    return [
-      {
-        term: "handmade jewelry",
-        source,
-        score: 82,
-        normalizedScore: normalizeScore(82),
-        change: 0.18,
-        metadata: { region: "US", sample: true },
-      },
-      {
-        term: "eco candles",
-        source,
-        score: 64,
-        normalizedScore: normalizeScore(64),
-        change: 0.12,
-        metadata: { region: "US", sample: true },
-      },
-    ];
-  }
-
-  if (source === "pinterest") {
-    return [
-      {
-        term: "minimalist wall art",
-        source,
-        score: 5400,
-        normalizedScore: normalizeScore(5400, 6000),
-        change: 0.22,
-        metadata: { boardSample: true },
-      },
-      {
-        term: "handmade jewelry",
-        source,
-        score: 4300,
-        normalizedScore: normalizeScore(4300, 6000),
-        change: 0.17,
-        metadata: { boardSample: true },
-      },
-    ];
-  }
-
-  return [
-    {
-      term: "cottagecore dress",
-      source,
-      score: 2800,
-      normalizedScore: normalizeScore(2800, 3000),
-      change: 0.25,
-      metadata: { subreddit: "r/EtsySellers", sample: true },
-    },
-    {
-      term: "eco candles",
-      source,
-      score: 2100,
-      normalizedScore: normalizeScore(2100, 3000),
-      change: 0.19,
-      metadata: { subreddit: "r/DIYcandles", sample: true },
-    },
-  ];
-}
-
 async function fetchJson(url: string, init: RequestInit): Promise<unknown> {
   try {
     const response = await fetch(url, init);
@@ -88,7 +25,7 @@ async function fetchJson(url: string, init: RequestInit): Promise<unknown> {
 
 export async function fetchGoogleTrendsSignals(): Promise<TrendSignal[]> {
   if (!env.GOOGLE_TRENDS_API_KEY) {
-    return createStubSignals("google_trends");
+    return [];
   }
 
   const result = (await fetchJson(
@@ -103,7 +40,7 @@ export async function fetchGoogleTrendsSignals(): Promise<TrendSignal[]> {
   )) as { terms?: Array<{ term: string; score: number; delta: number; region?: string }> } | null;
 
   if (!result?.terms?.length) {
-    return createStubSignals("google_trends");
+    return [];
   }
 
   return result.terms.map((entry) => ({
@@ -118,7 +55,7 @@ export async function fetchGoogleTrendsSignals(): Promise<TrendSignal[]> {
 
 export async function fetchPinterestTrendSignals(): Promise<TrendSignal[]> {
   if (!env.PINTEREST_ACCESS_TOKEN) {
-    return createStubSignals("pinterest");
+    return [];
   }
 
   const result = (await fetchJson("https://api.pinterest.com/v5/analytics/trends", {
@@ -129,7 +66,7 @@ export async function fetchPinterestTrendSignals(): Promise<TrendSignal[]> {
   })) as { trends?: Array<{ term: string; score: number; velocity?: number }> } | null;
 
   if (!result?.trends?.length) {
-    return createStubSignals("pinterest");
+    return [];
   }
 
   const maxScore = result.trends.reduce((max, trend) => Math.max(max, trend.score ?? 0), 0) || 1;
@@ -146,7 +83,7 @@ export async function fetchPinterestTrendSignals(): Promise<TrendSignal[]> {
 
 export async function fetchRedditTrendSignals(): Promise<TrendSignal[]> {
   if (!env.REDDIT_CLIENT_ID || !env.REDDIT_CLIENT_SECRET) {
-    return createStubSignals("reddit");
+    return [];
   }
 
   const auth = Buffer.from(`${env.REDDIT_CLIENT_ID}:${env.REDDIT_CLIENT_SECRET}`).toString("base64");
@@ -161,7 +98,7 @@ export async function fetchRedditTrendSignals(): Promise<TrendSignal[]> {
 
   const token = tokenPayload?.access_token;
   if (!token) {
-    return createStubSignals("reddit");
+    return [];
   }
 
   const result = (await fetchJson("https://oauth.reddit.com/r/EtsySellers/hot", {
@@ -174,7 +111,7 @@ export async function fetchRedditTrendSignals(): Promise<TrendSignal[]> {
 
   const posts = result?.data?.children ?? [];
   if (!posts.length) {
-    return createStubSignals("reddit");
+    return [];
   }
 
   const maxScore = posts.reduce((max, post) => Math.max(max, post.data?.score ?? 0), 1);
