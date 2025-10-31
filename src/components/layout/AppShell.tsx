@@ -52,6 +52,14 @@ const MarketTwinIcon = () => (
   </svg>
 );
 
+const EditingIcon = () => (
+  <svg viewBox="0 0 24 24" {...iconProps}>
+    <path d="m5.5 17.5-.5 3 3-.5 10.5-10.5-2.5-2.5z" />
+    <path d="m16.5 7.5 2.5 2.5" />
+    <path d="M5.5 17.5 4 19" />
+  </svg>
+);
+
 const SettingsIcon = () => (
   <svg viewBox="0 0 24 24" {...iconProps}>
     <path d="M12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" />
@@ -88,6 +96,12 @@ const NAV_ITEMS: readonly SidebarNavItem[] = [
     label: "Market Twin",
     description: "Simulations",
     icon: <MarketTwinIcon />,
+  },
+  {
+    href: "/editing",
+    label: "Editing",
+    description: "Etsy suite",
+    icon: <EditingIcon />,
   },
   { href: "/settings", label: "Settings", description: "Plan & team", icon: <SettingsIcon /> },
   { href: "/status", label: "Status", description: "Service status", icon: <StatusIcon /> },

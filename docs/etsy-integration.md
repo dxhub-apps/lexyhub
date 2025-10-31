@@ -4,7 +4,7 @@ LexyHub's Sprint 4 milestone introduces end-to-end Etsy connectivity. This guide
 
 ## 1. Prerequisites
 - Etsy developer application with OAuth credentials
-- Supabase project seeded with migrations up to `0004_billing_and_api.sql`
+- Supabase project seeded with migrations up to `0011_editing_suite.sql`
 - Environment variables set in both Next.js runtime and Supabase edge functions:
   - `ETSY_CLIENT_ID`
   - `ETSY_CLIENT_SECRET`
@@ -37,14 +37,22 @@ Stateful security:
 - Simulation runs are persisted in `ai_predictions` with method `market-twin`.
 - The React wizard at `/market-twin` uses `/api/listings` to surface the newest Etsy metrics, now ensuring the freshest stats per listing.
 
-## 5. Billing Automation
+## 5. Editing Suite Intelligence
+- The `/editing` workspace exposes three new tools fed by Etsy data:
+  - **Listing intelligence** (`POST /api/listings/intelligence`) hydrates `listing_quality_audits` with quality, sentiment, keyword, and quick-fix insights for any synced or ad-hoc listing payload.
+  - **Competitor analysis** (`POST /api/insights/competitors`) builds `competitor_snapshots` and `competitor_snapshot_listings` records so editors can benchmark pricing, tone, and saturation.
+  - **Tag optimizer** (`POST /api/tags/health`) scores listing tags against the internal `tag_catalog`, storing diagnostics inside `listing_tag_health` and history in `tag_optimizer_runs`.
+- Each endpoint surfaces analytics via Vercel (`listing.intelligence.run`, `competitor.analysis.run`, `tag.optimizer.run`) so adoption can be monitored without extra instrumentation.
+- The navigation entry is wired through `AppShell`, and all pages are guarded by the authenticated `(app)` layout.
+
+## 6. Billing Automation
 - Stripe webhooks (`/api/billing/webhook`) validate signatures before recording invoice and subscription updates.
 - Subscriptions sync plan and quota metadata into `billing_subscriptions`, `user_profiles`, and `plan_overrides`.
 - The profile workspace (`/profile`) fetches data from `/api/billing/subscription` to render plan controls and billing history.
 
-## 6. Local Development Tips
+## 7. Local Development Tips
 - Without live Etsy credentials the client helpers fall back to deterministic demo payloads so flows stay testable.
 - Use `npm run lint`, `npm run test`, and `npm run build` to validate the full Sprint 4 surface.
 - For repeated manual syncs, supply a specific `userId` to `/api/jobs/etsy-sync?userId=<uuid>` to scope the run during development.
 
-With these pieces configured, Etsy sellers can authenticate, keep their catalog up to date, and simulate go-to-market adjustments entirely inside LexyHub.
+With these pieces configured, Etsy sellers can authenticate, keep their catalog up to date, simulate go-to-market adjustments, and optimise listing content entirely inside LexyHub.
