@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import posthog from "posthog-js";
 
 type AnalyticsProps = Record<string, unknown>;
@@ -37,5 +37,10 @@ export function useAnalytics() {
     posthog.reset();
   }, []);
 
-  return { capture, identify, reset } as const;
+  const analytics = useMemo(
+    () => ({ capture, identify, reset } as const),
+    [capture, identify, reset],
+  );
+
+  return analytics;
 }
