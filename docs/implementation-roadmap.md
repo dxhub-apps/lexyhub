@@ -186,7 +186,20 @@ These activities span multiple sprints and must be kept current.
 
 ---
 
-## 4. Database Migration Plan
+## 4. Backoffice & Risk Governance
+
+The administrator backoffice now exposes a dedicated workspace at `/admin/backoffice` with two primary surfaces:
+
+- **Operational Overview:** Aggregates `system_health_metrics` snapshots and `crawler_statuses` telemetry into a dashboard for service health, revenue/users pulse, and scraping job execution. It surfaces risk register rollups for total/open/mitigated/overdue counts and links directly into the risk register workspace.
+- **Risk Management Workspace:** Enables CRUD management of `risk_appetites`, `risk_controls`, and `risk_register_entries` with inline forms, edit/delete actions, and automatic refresh. Each action is gated behind the admin header (`x-user-role: admin`) to keep the area restricted when running in production.
+
+Scraping jobs can be triggered via `/api/admin/scraping/run` for Etsy and Reddit/TikTok seed sources. Job outcomes persist keyword candidates into the canonical `keywords` table while updating crawler health rows. The overview page consumes `/api/admin/backoffice/overview`, which combines health/crawler state with `summarizeRiskRegister()` metadata to provide a one-stop control center.
+
+> **Implementation notes:** The UI falls back to seeded demo data when Supabase credentials are not present, simplifying local testing. When service keys are configured, ensure migrations through `0008_backoffice_risk_management.sql` have been applied before exercising these flows.
+
+---
+
+## 5. Database Migration Plan
 Supabase migrations live under `supabase/migrations` and execute sequentially. Apply using `supabase db reset` locally and GitHub Action in CI.
 
 | File | Purpose |
@@ -195,6 +208,10 @@ Supabase migrations live under `supabase/migrations` and execute sequentially. A
 | `0002_watchlists_and_usage.sql` | Watchlists, usage tracking, quotas, audit logs. |
 | `0003_marketplace_entities.sql` | Listings, listing tags/stats, provider metadata, ontology scaffolding. |
 | `0004_billing_and_api.sql` | Billing (Stripe) integration tables, API keys, request logs. |
+| `0005_ai_suggestions_and_assets.sql` | AI suggestion storage, asset ingestion support, creative metadata. |
+| `0006_keyword_insights_cache.sql` | Keyword insights cache, aggregation helpers, refresh cursors. |
+| `0007_watchlists_defaults_and_provider.sql` | Watchlist defaults, provider bootstrap routines. |
+| `0008_backoffice_risk_management.sql` | Risk appetites, controls, register tables plus crawler + health metrics snapshots. |
 
 Each migration uses `create table if not exists` and `comment on` for documentation. Additional migrations must follow numeric sequence and include down-migration statements when feasible.
 
