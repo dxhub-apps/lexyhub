@@ -234,7 +234,7 @@ export default function ProfilePage(): JSX.Element {
           <p>Control how LexyHub syncs your Etsy shop, AI Market Twin simulations, and billing cadence.</p>
         </div>
         <div className="profile-header-meta">
-          <span className="badge">Sprint 4 Feature</span>
+          <span className="badge">Account Center</span>
           <span>Plan: {billing.plan.toUpperCase()}</span>
         </div>
       </header>

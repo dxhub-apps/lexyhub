@@ -4,7 +4,7 @@ export default function SettingsPage() {
       <header>
         <h1 style={{ margin: 0 }}>Environment Settings</h1>
         <p style={{ color: "#cbd5f5" }}>
-          Track secrets, provider keys, and operational readiness as we scale future sprints.
+          Manage provider credentials, integration secrets, and readiness tasks for your production workspace.
         </p>
       </header>
       <section style={{ background: "rgba(15,23,42,0.65)", padding: "1.5rem", borderRadius: "1rem" }}>

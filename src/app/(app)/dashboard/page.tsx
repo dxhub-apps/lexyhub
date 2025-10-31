@@ -302,7 +302,7 @@ export default function DashboardPage(): JSX.Element {
           {!metrics.length && !metricsLoading ? (
             <tr>
               <td colSpan={4} style={{ textAlign: "center", padding: "1.5rem" }}>
-                Metrics will appear once Supabase data is available.
+                Connect your data sources to start seeing live metrics here.
               </td>
             </tr>
           ) : null}
