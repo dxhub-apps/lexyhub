@@ -45,6 +45,34 @@ type EmbeddingRow = {
   model: string;
 };
 
+function coerceEmbeddingValues(values: unknown): number[] {
+  if (Array.isArray(values)) {
+    return values.map((value) => Number(value) || 0);
+  }
+
+  if (typeof values === "string") {
+    try {
+      const parsed = JSON.parse(values) as unknown;
+      if (Array.isArray(parsed)) {
+        return parsed.map((value) => Number(value) || 0);
+      }
+    } catch (error) {
+      console.warn("Failed to parse embedding payload", error);
+    }
+    return [];
+  }
+
+  if (values && typeof values === "object" && "length" in values) {
+    try {
+      return Array.from(values as ArrayLike<number>).map((value) => Number(value) || 0);
+    } catch (error) {
+      console.warn("Failed to normalize embedding payload", error);
+    }
+  }
+
+  return [];
+}
+
 export type EmbeddingResult = EmbeddingRow & { created: boolean };
 
 export class EmbeddingError extends Error {}
@@ -138,11 +166,12 @@ async function readCachedEmbedding(
   }
 
   const payload = data as EmbeddingRow;
-  const dimension = resolveEmbeddingDimension(payload.model, payload.embedding?.length);
+  const rawEmbedding = coerceEmbeddingValues(payload.embedding);
+  const dimension = resolveEmbeddingDimension(payload.model, rawEmbedding.length);
 
   return {
     ...payload,
-    embedding: normalizeEmbeddingLength(payload.embedding ?? [], dimension),
+    embedding: normalizeEmbeddingLength(rawEmbedding, dimension),
   };
 }
 
