@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type TrendRadarEntry = {
   term: string;
@@ -16,6 +16,9 @@ type TrendRadarResponse = {
   source: string;
 };
 
+const MAX_MOMENTUM = 1.5;
+const RING_VALUES = [0.3, 0.6, 0.9, 1.2, MAX_MOMENTUM];
+
 function polarToCartesian(angle: number, radius: number): { x: number; y: number } {
   return {
     x: Math.cos(angle) * radius,
@@ -30,8 +33,8 @@ function buildPolygonPoints(entries: TrendRadarEntry[], radius: number): string 
   const step = (Math.PI * 2) / entries.length;
   return entries
     .map((entry, index) => {
-      const momentum = Math.min(1.5, Math.max(0, entry.momentum));
-      const value = (momentum / 1.5) * radius;
+      const momentum = Math.min(MAX_MOMENTUM, Math.max(0, entry.momentum));
+      const value = (momentum / MAX_MOMENTUM) * radius;
       const { x, y } = polarToCartesian(step * index - Math.PI / 2, value);
       return `${x},${y}`;
     })
@@ -46,6 +49,8 @@ export function TrendRadar(): JSX.Element {
   const [data, setData] = useState<TrendRadarResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [radius, setRadius] = useState(110);
+  const chartRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -78,15 +83,43 @@ export function TrendRadar(): JSX.Element {
     };
   }, []);
 
+  useEffect(() => {
+    const element = chartRef.current;
+    if (!element || typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      const width = entry?.contentRect?.width ?? 0;
+      if (!width) {
+        return;
+      }
+
+      const nextRadius = Math.max(72, Math.min(120, width / 2 - 24));
+      setRadius((previous) => {
+        if (Math.abs(previous - nextRadius) < 1) {
+          return previous;
+        }
+        return nextRadius;
+      });
+    });
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   const entries = useMemo(() => data?.summary ?? [], [data]);
-  const polygonPoints = useMemo(() => buildPolygonPoints(entries, 120), [entries]);
+  const polygonPoints = useMemo(() => buildPolygonPoints(entries, radius), [entries, radius]);
   const axes = useMemo(() => {
     const step = entries.length ? (Math.PI * 2) / entries.length : 0;
     return entries.map((entry, index) => {
-      const { x, y } = polarToCartesian(step * index - Math.PI / 2, 120);
+      const { x, y } = polarToCartesian(step * index - Math.PI / 2, radius);
       return { ...entry, x, y };
     });
-  }, [entries]);
+  }, [entries, radius]);
+
+  const viewBoxSize = radius * 2 + 60;
 
   return (
     <div className="trend-radar">
@@ -106,10 +139,15 @@ export function TrendRadar(): JSX.Element {
 
       {error ? <div className="trend-radar__error">{error}</div> : null}
 
-      <div className="trend-radar__chart">
-        <svg viewBox="-150 -150 300 300" role="img" aria-label="Trend radar visualization">
-          {[0.3, 0.6, 0.9, 1.2].map((radius) => (
-            <circle key={radius} cx={0} cy={0} r={radius * 100} className="trend-radar__grid" />
+      <div className="trend-radar__chart" ref={chartRef}>
+        <svg
+          viewBox={`-${viewBoxSize / 2} -${viewBoxSize / 2} ${viewBoxSize} ${viewBoxSize}`}
+          role="img"
+          aria-label="Trend radar visualization"
+          preserveAspectRatio="xMidYMid meet"
+        >
+          {RING_VALUES.map((step) => (
+            <circle key={step} cx={0} cy={0} r={(radius / MAX_MOMENTUM) * step} className="trend-radar__grid" />
           ))}
           {axes.map((axis) => (
             <g key={axis.term}>

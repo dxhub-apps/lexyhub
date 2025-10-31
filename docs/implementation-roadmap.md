@@ -62,7 +62,7 @@ Each sprint lists epics, cross-functional tasks, acceptance criteria, and instru
   - [x] Add AI explanation call to GPT for top cluster summary.
 - **S1-E4 UI Delivery**
   - [x] Build Keywords page table (columns: term, source, scores, add-to-watchlist).
-  - [x] Add AI Insights side panel with summary and `trend_series` sparkline placeholder.
+- [x] Add AI Insights side panel with summary and production-ready `KeywordSparkline` visualization.
   - [x] Include compliance info (source, freshness, method).
 - **Exit Criteria:** Synthetic dataset searchable with AI explanations, embeddings stored, UI demonstrates insights with explainability.
 
@@ -134,6 +134,7 @@ Each sprint lists epics, cross-functional tasks, acceptance criteria, and instru
   - [x] Ingest Google Trends, Pinterest board metrics, Reddit topic stats (stubs if API pending).
   - [x] Daily trend aggregation job writing to `trend_series` with `trend_momentum` and `expected_growth_30d`.
   - [x] UI trend radar visualization with color-coded velocities.
+  - [x] Responsive sizing + layout polish to keep radar and detail panes production-ready across breakpoints.
 - **S5-E2 Intent Graph**
   - [x] GPT-driven classification pipeline storing intents in `extras.classification`.
   - [x] Graph layout service using Force Atlas or d3-force, served to client.

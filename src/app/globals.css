@@ -1366,7 +1366,61 @@ tbody tr:hover {
   margin-top: 0.75rem;
 }
 
-.sparkline-placeholder {
+.keyword-sparkline {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.keyword-sparkline__svg {
+  width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+  background: linear-gradient(180deg, rgba(30, 64, 175, 0.45), rgba(30, 64, 175, 0));
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.08);
+}
+
+.keyword-sparkline__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.keyword-sparkline__stats div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.75rem;
+  border-radius: 0.65rem;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(59, 130, 246, 0.18);
+}
+
+.keyword-sparkline__stats dt {
+  font-size: var(--font-size-small);
+  color: rgba(191, 219, 254, 0.85);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.keyword-sparkline__stats dd {
+  margin: 0;
+  font-weight: 600;
+  color: rgba(226, 232, 240, 0.95);
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.keyword-sparkline__stats dd span {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.keyword-sparkline--empty {
   margin-top: 1rem;
   border-radius: 0.75rem;
   border: 1px dashed rgba(148, 163, 184, 0.35);
@@ -1374,13 +1428,7 @@ tbody tr:hover {
   text-align: center;
   font-size: var(--font-size-small);
   color: rgba(148, 163, 184, 0.75);
-  background: repeating-linear-gradient(
-    90deg,
-    rgba(59, 130, 246, 0.1),
-    rgba(59, 130, 246, 0.1) 6px,
-    transparent 6px,
-    transparent 12px
-  );
+  background: rgba(15, 23, 42, 0.6);
 }
 
 .keywords-panel ul {
@@ -1675,6 +1723,13 @@ tbody tr:hover {
   align-items: stretch;
 }
 
+.trend-radar__chart svg {
+  width: min(100%, 420px);
+  height: auto;
+  justify-self: center;
+  margin: 0 auto;
+}
+
 .trend-radar__grid {
   fill: none;
   stroke: rgba(148, 163, 184, 0.2);
@@ -1842,6 +1897,7 @@ tbody tr:hover {
 @media (max-width: 1024px) {
   .trend-radar__chart {
     grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
   }
 
   .intent-graph__canvas {
@@ -1850,6 +1906,32 @@ tbody tr:hover {
 
   .intent-graph__legend {
     order: -1;
+  }
+}
+
+@media (max-width: 768px) {
+  .trend-radar__header {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .trend-radar__meta {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .trend-radar__details {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .trend-radar__details {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+
+  .trend-radar__details article {
+    padding: 0.85rem;
   }
 }
 

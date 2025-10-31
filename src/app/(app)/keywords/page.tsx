@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import KeywordSparkline from "@/components/keywords/KeywordSparkline";
 import { useToast } from "@/components/ui/ToastProvider";
 
 type PlanTier = "free" | "growth" | "scale";
@@ -240,6 +241,50 @@ export default function KeywordsPage(): JSX.Element {
     };
   }, [responsePlan, responseSources, results]);
 
+  const sparklinePoints = useMemo(() => {
+    const deriveValue = (keyword: KeywordResult): number | null => {
+      if (typeof keyword.compositeScore === "number" && Number.isFinite(keyword.compositeScore)) {
+        return Math.max(0, Math.min(1, keyword.compositeScore));
+      }
+      if (typeof keyword.trend_momentum === "number" && Number.isFinite(keyword.trend_momentum)) {
+        return Math.max(0, Math.min(1, keyword.trend_momentum));
+      }
+      if (typeof keyword.ai_opportunity_score === "number" && Number.isFinite(keyword.ai_opportunity_score)) {
+        return Math.max(0, Math.min(1, keyword.ai_opportunity_score));
+      }
+      if (Number.isFinite(keyword.similarity)) {
+        return Math.max(0, Math.min(1, keyword.similarity));
+      }
+      return null;
+    };
+
+    const parseTimestamp = (value: string | null | undefined): number => {
+      if (!value) {
+        return 0;
+      }
+      const time = new Date(value).getTime();
+      return Number.isNaN(time) ? 0 : time;
+    };
+
+    return results
+      .map((keyword) => {
+        const value = deriveValue(keyword);
+        if (value == null) {
+          return null;
+        }
+        return {
+          value,
+          label: keyword.term,
+          timestamp: keyword.freshness_ts ?? null,
+          order: parseTimestamp(keyword.freshness_ts),
+        };
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+      .sort((a, b) => a.order - b.order)
+      .map(({ value, label, timestamp }) => ({ value, label, timestamp }))
+      .slice(-24);
+  }, [results]);
+
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -402,9 +447,7 @@ export default function KeywordsPage(): JSX.Element {
                   Generated: {insights?.generatedAt ? new Date(insights.generatedAt).toLocaleString() : "—"}
                 </span>
               </div>
-              <div className="sparkline-placeholder" aria-hidden>
-                <span>trend_series sparkline</span>
-              </div>
+              <KeywordSparkline points={sparklinePoints} />
             </section>
 
             <section>
