@@ -1,6 +1,6 @@
 # LexyHub Environment Setup
 
-This guide captures the baseline environment configuration delivered as part of **Sprint 0 — Foundational Systems Ready**.
+This guide captures the baseline environment configuration for the LexyHub production deployment.
 
 ## Supabase
 - Project reference: `lexyhub`
@@ -20,9 +20,9 @@ This guide captures the baseline environment configuration delivered as part of 
 | `REDDIT_CLIENT_ID` / `REDDIT_CLIENT_SECRET` | OAuth credentials for Reddit trend ingest. |
 | `PARTNER_API_STATIC_KEYS` | Comma or newline separated `key:name:limit` entries for fixed partner keys. |
 
-Mirror these secrets in both Vercel project settings and GitHub Actions secrets. Supabase credentials are now mandatory for API
-responses—missing values surface as `503` errors instead of synthetic fallbacks. Optional trend provider keys remain
-best-effort; without them the radar simply returns empty datasets.
+Mirror these secrets in both Vercel project settings and GitHub Actions secrets. Supabase credentials are mandatory for API
+responses—missing values surface as `503` errors rather than synthetic fallbacks. Optional trend provider keys remain
+best-effort; without them the radar returns empty datasets.
 
 ## Tooling & Automation
 - Husky pre-commit runs `npm run lint` and `npm run typecheck`.

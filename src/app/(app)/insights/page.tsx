@@ -87,10 +87,10 @@ export default function InsightsPage() {
   return (
     <section className="insights-grid">
       <header>
-        <h1>Insights Sandbox</h1>
+        <h1>Commerce Insights</h1>
         <p>
-          Sprint 5 unlocks intent intelligence, a multi-source trend radar, and refreshed automation. Explore the new radar,
-          graph, and partner API foundations alongside the existing AI surfaces.
+          Explore real-time trend radar views, purchase intent graphs, and partner analytics to uncover the next products to
+          launch.
         </p>
       </header>
 
@@ -105,8 +105,8 @@ export default function InsightsPage() {
       <div className="insights-card">
         <h2>Visual Tag AI</h2>
         <p className="insights-muted">
-          Assets are uploaded to Supabase storage then captioned locally before GPT refinement. Confidence scores combine
-          fallback heuristics with optional model output.
+          Upload a listing asset to generate marketplace-ready captions and confidence-scored tags using LexyHub&apos;s visual
+          intelligence engine.
         </p>
         <form className="visual-tag-form" onSubmit={handleSubmit}>
           <label className="visual-tag-upload">
@@ -159,13 +159,13 @@ export default function InsightsPage() {
       <div className="insights-card">
         <h2>Watchlist momentum</h2>
         <p className="insights-muted">
-          Track watchlist adds vs. plan capacity to understand operator momentum. Usage quotas now enforce AI access fairly
-          across tiers and populate Supabase usage tables.
+          Track watchlist adds versus plan capacity to understand operator momentum. Usage quotas enforce AI access fairly
+          across tiers and surface alerts before limits are reached.
         </p>
         <ul className="insights-list">
-          <li>Trend radar metrics now sync back into keyword momentum for watchlist prioritisation.</li>
-          <li>Intent classification fills extras.classification for downstream personalization.</li>
-          <li>Partner API beta exposes normalized keywords with rate-limited access keys.</li>
+          <li>Trend radar metrics sync with keyword momentum to highlight the strongest opportunities.</li>
+          <li>Intent classification automatically populates downstream personalization signals.</li>
+          <li>The partner API exposes normalized keywords with managed, rate-limited access keys.</li>
         </ul>
       </div>
     </section>

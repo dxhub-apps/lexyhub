@@ -195,7 +195,7 @@ export default function MarketTwinPage(): JSX.Element {
           <h1>AI Market Twin</h1>
           <p>Compare your baseline Etsy listings against hypothetical upgrades to predict visibility shifts.</p>
         </div>
-        <span className="badge">Sprint 4 Launch</span>
+        <span className="badge">Live Simulation</span>
       </header>
 
       <section className="market-twin-grid">
@@ -319,12 +319,12 @@ export default function MarketTwinPage(): JSX.Element {
                     <strong>{record.baseline?.title ?? record.scenario_input?.scenarioTitle ?? "Scenario"}</strong>
                     <span>{label}</span>
                   </div>
-                <p>{record.result?.explanation ?? record.extras?.explanation ?? "AI analysis pending."}</p>
-                <footer>
-                  <span>Visibility: {formatPercent(record.result?.predictedVisibility ?? record.predicted_visibility)}</span>
-                  <span>Confidence: {formatPercent(record.result?.confidence ?? record.confidence)}</span>
-                  <span>Semantic gap: {formatPercent(record.result?.semanticGap ?? record.extras?.semanticGap)}</span>
-                </footer>
+                  <p>{record.result?.explanation ?? record.extras?.explanation ?? "Analysis pending. Check back shortly."}</p>
+                  <footer>
+                    <span>Visibility: {formatPercent(record.result?.predictedVisibility ?? record.predicted_visibility)}</span>
+                    <span>Confidence: {formatPercent(record.result?.confidence ?? record.confidence)}</span>
+                    <span>Semantic gap: {formatPercent(record.result?.semanticGap ?? record.extras?.semanticGap)}</span>
+                  </footer>
                 </li>
               );
             })}

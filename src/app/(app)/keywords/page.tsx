@@ -210,7 +210,7 @@ export default function KeywordsPage(): JSX.Element {
 
   const complianceNotes = useMemo(() => {
     if (!results.length) {
-      return "Results refresh automatically every import cycle. Synthetic provenance is enforced for all records.";
+      return "Results refresh automatically with each data sync. Source provenance is recorded for every recommendation.";
     }
 
     const uniqueSources = (responseSources.length ? responseSources : Array.from(new Set(results.map((item) => item.source)))).join(", ");
@@ -218,7 +218,7 @@ export default function KeywordsPage(): JSX.Element {
       ? new Date(results[0]?.freshness_ts).toLocaleString()
       : "Not yet synced";
 
-    return `Plan: ${responsePlan}. Source(s): ${uniqueSources || "synthetic"}. Freshness: ${freshest}. Method mix adapts per provider.`;
+    return `Plan: ${responsePlan}. Source(s): ${uniqueSources || "synthetic"}. Freshness: ${freshest}. Retrieval method adjusts per provider to maintain accuracy.`;
   }, [responsePlan, responseSources, results]);
 
   const dataLineage = useMemo(() => {
@@ -426,7 +426,7 @@ export default function KeywordsPage(): JSX.Element {
                 {!results.length && !loading ? (
                   <tr>
                     <td colSpan={7} style={{ textAlign: "center", padding: "2rem" }}>
-                      No keywords yet. Import synthetic data to populate the graph.
+                      No keywords yet. Run a search to populate this table.
                     </td>
                   </tr>
                 ) : null}
@@ -438,8 +438,7 @@ export default function KeywordsPage(): JSX.Element {
             <section>
               <h3>AI Insights</h3>
               <p className="keyword-summary">
-                {insights?.summary ??
-                  "Embeddings pipeline ready. Trigger a search to generate AI-backed keyword guidance."}
+                {insights?.summary ?? "Run a search to generate AI-backed keyword guidance."}
               </p>
               <div className="keyword-insight-meta">
                 <span>Model: {insights?.model ?? "deterministic-fallback"}</span>
@@ -480,9 +479,9 @@ export default function KeywordsPage(): JSX.Element {
             <section>
               <h3>Workflow Shortcuts</h3>
               <ul>
-                <li>Review embeddings freshness in the hourly cron report.</li>
-                <li>Use the importer CLI to load new taxonomy seeds.</li>
-                <li>Promote high-similarity terms to watchlists for monitoring.</li>
+                <li>Review keyword freshness in your scheduled analytics digest.</li>
+                <li>Refresh source feeds regularly to keep marketplace signals current.</li>
+                <li>Promote high-similarity terms to watchlists for active monitoring.</li>
               </ul>
             </section>
           </aside>

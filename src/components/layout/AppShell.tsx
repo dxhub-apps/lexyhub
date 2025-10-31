@@ -45,7 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className={`app-shell ${collapsed ? "app-shell-collapsed" : ""}`}>
           <aside className={`sidebar ${collapsed ? "sidebar-collapsed" : ""}`}>
             <div className="sidebar-header">
-              <span className="badge">Sprint 4 — Etsy Integration</span>
+              <span className="badge">LexyHub Platform</span>
               <button
                 type="button"
                 className="sidebar-toggle"
