@@ -26,7 +26,7 @@ Stateful security:
 - Listings, tags, and stats are upserted into Supabase via `syncEtsyAccount`.
 - Incremental refreshes respect the `last_synced_at` cursor to avoid redundant writes.
 - The cron-compatible endpoint `POST /api/jobs/etsy-sync` supports two modes:
-  - Default incremental sync every six hours
+  - Default incremental sync every six hours (currently manual-only while the public API is finalized)
   - Full reload with `?mode=full`
 - Sync results are written to `provider_sync_states` for observability.
 

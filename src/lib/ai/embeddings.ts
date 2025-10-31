@@ -6,8 +6,8 @@ import { env } from "../env";
 import { createProvenanceId, hashKeywordTerm, normalizeKeywordTerm } from "../keywords/utils";
 import { getSupabaseServerClient } from "../supabase-server";
 
-export const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
-const DEFAULT_EMBEDDING_DIMENSION = 1536;
+export const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-large";
+const DEFAULT_EMBEDDING_DIMENSION = 3072;
 
 type EmbeddingRow = {
   term_hash: string;

@@ -12,7 +12,8 @@ jobs:
     env:
       APP_BASE_URL: ${{ secrets.LEXYHUB_APP_URL }}
       SERVICE_TOKEN: ${{ secrets.LEXYHUB_SERVICE_TOKEN }}
-      JOB_ENDPOINTS: "trend-aggregation intent-classify rebuild-clusters embed-missing etsy-sync"
+      # Temporary: Etsy sync is disabled until the external API is ready again.
+      JOB_ENDPOINTS: "trend-aggregation intent-classify rebuild-clusters embed-missing"
     steps:
       - name: Validate configuration
         shell: bash
