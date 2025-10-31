@@ -53,6 +53,14 @@ function calculateNumericSummary(values: number[]): NumericSummary {
   };
 }
 
+function coerceFiniteNumber(value: unknown): number | undefined {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+  const numeric = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(numeric) ? numeric : undefined;
+}
+
 function estimateListingScore(listing: CompetitorListing): number {
   const reviews = listing.reviews ?? 0;
   const rating = listing.rating ?? 0;
@@ -164,13 +172,19 @@ export function analyzeCompetitors(query: string, listings: CompetitorListing[])
     .sort((a, b) => b.score - a.score);
 
   const priceSummary = calculateNumericSummary(
-    rankedListings.map((listing) => Number(listing.priceCents ?? 0)).filter((value) => Number.isFinite(value)),
+    rankedListings
+      .map((listing) => coerceFiniteNumber(listing.priceCents))
+      .filter((value): value is number => value !== undefined),
   );
   const reviewSummary = calculateNumericSummary(
-    rankedListings.map((listing) => Number(listing.reviews ?? 0)).filter((value) => Number.isFinite(value)),
+    rankedListings
+      .map((listing) => coerceFiniteNumber(listing.reviews))
+      .filter((value): value is number => value !== undefined),
   );
   const ratingSummary = calculateNumericSummary(
-    rankedListings.map((listing) => Number(listing.rating ?? 0)).filter((value) => Number.isFinite(value)),
+    rankedListings
+      .map((listing) => coerceFiniteNumber(listing.rating))
+      .filter((value): value is number => value !== undefined),
   );
 
   let strong = 0;
