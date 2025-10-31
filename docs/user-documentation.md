@@ -136,6 +136,7 @@ LexyHub publishes sprint-level release notes in `/docs/changelog.md`. Review the
 - **Environment setup:** `/docs/environment-setup.md`
 - **Implementation roadmap:** `/docs/implementation-roadmap.md`
 - **Etsy integration guide:** `/docs/etsy-integration.md`
+- **Amazon keyword population guide:** `/docs/amazon-keyword-population-guide.md`
 - **Trend & intent intelligence:** `/docs/trend-intent-intelligence.md`
 
-_Last updated: 2024-07-19_
+_Last updated: 2024-08-27_
