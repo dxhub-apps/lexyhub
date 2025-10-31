@@ -8,6 +8,10 @@ import { useTheme, type ThemeOption } from "@/components/theme/ThemeProvider";
 
 const AVATAR_URL = "https://avatar.vercel.sh/lexyhub.svg?size=72&background=111827";
 
+type UserMenuProps = {
+  environmentLabel: string;
+};
+
 type MenuItem = {
   label: string;
   description?: string;
@@ -97,7 +101,7 @@ function ThemeIcon() {
   );
 }
 
-export function UserMenu(): JSX.Element {
+export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -155,6 +159,8 @@ export function UserMenu(): JSX.Element {
     },
   ];
 
+  const toggleLabel = open ? "Close user menu" : "Open user menu";
+
   return (
     <div className="user-menu" ref={menuRef}>
       <button
@@ -162,6 +168,7 @@ export function UserMenu(): JSX.Element {
         className="user-menu-trigger"
         aria-haspopup="true"
         aria-expanded={open}
+        aria-label={toggleLabel}
         onClick={() => setOpen((value) => !value)}
       >
         <Image
@@ -171,22 +178,14 @@ export function UserMenu(): JSX.Element {
           width={36}
           height={36}
         />
-        <span className="user-menu-label">
-          <span className="user-menu-name">Aaliyah</span>
-          <span className="user-menu-divider" aria-hidden="true">
-            |
-          </span>
-          <span className="user-menu-plan">Growth Scale Plan</span>
-        </span>
-        <span aria-hidden="true" className="user-menu-caret">
-          ▾
-        </span>
+        <span className="sr-only">{toggleLabel}</span>
       </button>
       {open ? (
         <div className="user-menu-dropdown" role="menu">
           <div className="user-menu-header">
             <strong>Aaliyah Growth</strong>
             <span>aaliyah@lexyhub.ai</span>
+            <span>{environmentLabel}</span>
           </div>
           <div className="user-menu-section" aria-label="Theme controls">
             <span className="user-menu-section-label">Theme</span>

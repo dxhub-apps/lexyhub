@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo } from "react";
 
 import { UserMenu } from "./UserMenu";
@@ -71,18 +70,7 @@ export function Topbar({
           </div>
         </div>
         <div className="app-header-right">
-          <div className="app-header-plan">
-            <strong>Growth Scale Plan</strong>
-            <span>Workspace · Core Market</span>
-          </div>
-          <span className="environment-pill">
-            <span className="environment-indicator" aria-hidden="true" />
-            {environmentLabel}
-          </span>
-          <Link href="/docs" className="app-header-help">
-            Docs &amp; help
-          </Link>
-          <UserMenu />
+          <UserMenu environmentLabel={environmentLabel} />
         </div>
       </div>
     </header>
