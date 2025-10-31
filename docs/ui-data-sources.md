@@ -19,6 +19,8 @@ This guide maps every interactive surface in the LexyHub web app to the Supabase
 | “Add to watchlist” row action | Clicking the action posts to `/api/watchlists/add`, which ensures the destination list exists, enforces quotas, and inserts the linkage before recording usage; the UI reloads counts afterwards.【F:src/app/(app)/keywords/page.tsx†L140-L164】【F:src/app/api/watchlists/add/route.ts†L9-L56】 | `watchlists`, `watchlist_items`, `keywords`, `listings` (denormalized joins), and `usage_events` (quota tracking).【F:src/lib/watchlists/service.ts†L30-L260】 |
 | Tag Optimizer drawer | The optimizer posts to `/api/ai/tag-optimizer`, which optionally calls OpenAI, persists results, and records consumption; responses populate the drawer UI.【F:src/app/(app)/keywords/page.tsx†L166-L199】【F:src/app/api/ai/tag-optimizer/route.ts†L133-L230】 | `ai_predictions`, `ai_suggestions`, `usage_events` (AI quota), with optional OpenAI augmentation.【F:src/app/api/ai/tag-optimizer/route.ts†L133-L230】 |
 
+Keyword search now normalizes cached embedding payloads retrieved from Supabase before scoring to guard against malformed JSON arrays or typed-array responses. This prevents runtime errors in production environments where the driver returns serialized vectors and ensures `/api/keywords/search` always receives numeric inputs for similarity calculations.【F:src/lib/ai/embeddings.ts†L27-L75】【F:src/lib/ai/embeddings.ts†L92-L120】
+
 ## Watchlists (`/watchlists`)
 
 | UI element | How data is loaded | Supabase tables / stores |
