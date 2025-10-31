@@ -38,6 +38,7 @@ The Keywords workspace surfaces organic search opportunities discovered by LexyH
 - **Opportunity table:** Ranked list of recommended keywords, including demand score, competitive pressure, and suggested actions.
 - **Filters:** Narrow the dataset by storefront, seasonality, or intent level.
 - **Watchlists:** Pin mission-critical keywords to monitor their movement over time.
+- **Helpful Highlights panel:** Shows friendly tips about your keyword search along with the last time guidance was updated.
 
 **How to build a keyword watchlist:**
 1. Open **Keywords** from the sidebar.
