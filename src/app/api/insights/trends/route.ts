@@ -7,20 +7,12 @@ export async function GET(): Promise<NextResponse> {
   const supabase = getSupabaseServerClient();
 
   if (!supabase) {
-    const { records, momentumByTerm } = await aggregateTrendSignals();
-    const summary = Array.from(momentumByTerm.entries()).map(([term, metrics]) => ({
-      term,
-      momentum: metrics.momentum,
-      expectedGrowth30d: metrics.expectedGrowth,
-      sources: metrics.contributors,
-    }));
-
-    return NextResponse.json({
-      generatedAt: new Date().toISOString(),
-      source: "stub",
-      summary,
-      records,
-    });
+    return NextResponse.json(
+      {
+        error: "Supabase service credentials are required for live trend data.",
+      },
+      { status: 503 },
+    );
   }
 
   const since = new Date();
@@ -35,16 +27,37 @@ export async function GET(): Promise<NextResponse> {
 
   if (error) {
     console.warn("Failed to load trend_series", error);
+    return NextResponse.json(
+      {
+        error: `Unable to load trend radar data: ${error.message}`,
+      },
+      { status: 500 },
+    );
+  }
+
+  if (!data?.length) {
     const { records, momentumByTerm } = await aggregateTrendSignals();
+
+    if (!records.length) {
+      return NextResponse.json(
+        {
+          error:
+            "No trend data is available. Configure provider API keys and run the trend-aggregation worker to populate trend_series.",
+        },
+        { status: 503 },
+      );
+    }
+
     const summary = Array.from(momentumByTerm.entries()).map(([term, metrics]) => ({
       term,
       momentum: metrics.momentum,
       expectedGrowth30d: metrics.expectedGrowth,
       sources: metrics.contributors,
     }));
+
     return NextResponse.json({
       generatedAt: new Date().toISOString(),
-      source: "fallback",
+      source: "aggregated",
       summary,
       records,
     });

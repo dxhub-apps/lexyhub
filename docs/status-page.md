@@ -16,6 +16,9 @@ cards for quicker scanning.
 - **Service integrations** – Confirms that Supabase credentials can open a server-side
   connection and performs a lightweight query against the `keywords` table. The OpenAI
   API check verifies that an API key is present on the server.
+- **Background workers** – Validates that the automation endpoints (embedding backfill,
+  trend aggregation, intent classification, and cluster rebuild) are exported and ready
+  to run. These workers must be scheduled for trend and intent data to appear.
 - **Configuration variables** – Still computed and returned from the API response, but
   intentionally omitted from the UI for a cleaner surface. Consumers that need these
   signals can continue to poll the JSON endpoint.
@@ -45,12 +48,18 @@ GET /api/status
     }
   ],
   "apis": [
-    { "id": "listings-api", "status": "operational" }
+    { "id": "listings-api", "status": "operational" },
+    { "id": "trends-api", "status": "warning" }
   ],
   "services": [
     { "id": "database", "status": "warning" }
+  ],
+  "workers": [
+    { "id": "trend-aggregation-worker", "status": "critical" }
   ]
 }
 ```
 
-The endpoint is marked as `force-dynamic` to ensure fresh data on every request.
+The endpoint is marked as `force-dynamic` to ensure fresh data on every request. When
+trend or intent data is missing, the corresponding APIs now return `503` errors with
+guidance to configure provider keys and run the background workers against live data.

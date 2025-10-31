@@ -44,9 +44,14 @@ export function IntentGraph(): JSX.Element {
   useEffect(() => {
     let mounted = true;
     fetch("/api/insights/intent-graph")
-      .then((response) => {
+      .then(async (response) => {
         if (!response.ok) {
-          throw new Error(`Intent graph request failed (${response.status})`);
+          const payload = await response.json().catch(() => null);
+          const message =
+            payload && typeof payload === "object" && "error" in payload
+              ? String((payload as { error?: unknown }).error ?? "")
+              : "";
+          throw new Error(message || `Intent graph request failed (${response.status})`);
         }
         return response.json();
       })
@@ -59,6 +64,7 @@ export function IntentGraph(): JSX.Element {
         console.warn("Intent graph fetch failed", cause);
         if (mounted) {
           setError(cause instanceof Error ? cause.message : "Unable to load intent graph");
+          setData(null);
         }
       });
     return () => {

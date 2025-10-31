@@ -24,7 +24,7 @@ function getOverallStatus(report: Awaited<ReturnType<typeof generateStatusReport
     critical: 2,
   };
 
-  const checks = [...report.apis, ...report.services];
+  const checks = [...report.apis, ...report.services, ...report.workers];
 
   return checks.reduce<StatusLevel>((current, { status }) => {
     return priority[status] > priority[current] ? status : current;
@@ -140,6 +140,24 @@ export default async function StatusPage() {
                 <StatusBadge status={service.status} />
               </header>
               <p>{service.message}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="status-section">
+        <div className="status-section__header">
+          <h2>Background workers</h2>
+          <p>Automation endpoints that populate live intelligence data.</p>
+        </div>
+        <div className="status-list">
+          {status.workers.map((worker) => (
+            <article key={worker.id} className="status-item">
+              <header>
+                <h3>{worker.name}</h3>
+                <StatusBadge status={worker.status} />
+              </header>
+              <p>{worker.message}</p>
             </article>
           ))}
         </div>

@@ -51,9 +51,14 @@ export function TrendRadar(): JSX.Element {
     let mounted = true;
     setLoading(true);
     fetch("/api/insights/trends")
-      .then((response) => {
+      .then(async (response) => {
         if (!response.ok) {
-          throw new Error(`Trend radar request failed (${response.status})`);
+          const payload = await response.json().catch(() => null);
+          const message =
+            payload && typeof payload === "object" && "error" in payload
+              ? String((payload as { error?: unknown }).error ?? "")
+              : "";
+          throw new Error(message || `Trend radar request failed (${response.status})`);
         }
         return response.json();
       })
@@ -66,6 +71,7 @@ export function TrendRadar(): JSX.Element {
         console.warn("Trend radar fetch failed", cause);
         if (mounted) {
           setError(cause instanceof Error ? cause.message : "Unable to load trend radar");
+          setData(null);
         }
       })
       .finally(() => {
