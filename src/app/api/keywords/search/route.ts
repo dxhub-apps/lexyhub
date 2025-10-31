@@ -21,7 +21,7 @@ type KeywordRow = {
   term: string;
   market: string;
   source: string;
-  tier?: string;
+  tier?: string | number;
   method?: string | null;
   extras?: Record<string, unknown> | null;
   trend_momentum?: number | null;
@@ -99,7 +99,7 @@ function cosineSimilarity(a: number[], b: number[]): number {
 async function fetchKeywordsFromSupabase(
   market: string,
   sources: string[],
-  tiers: string[],
+  tiers: Array<string | number>,
   limit: number,
 ): Promise<KeywordRow[]> {
   const supabase = getSupabaseServerClient();
@@ -108,22 +108,45 @@ async function fetchKeywordsFromSupabase(
     return [];
   }
 
-  let query = supabase
-    .from("keywords")
-    .select(
-      "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score",
-    )
-    .eq("market", market);
+  const createQuery = (tierFilters: Array<string | number>) => {
+    let queryBuilder = supabase
+      .from("keywords")
+      .select(
+        "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score",
+      )
+      .eq("market", market);
 
-  if (sources.length > 0) {
-    query = query.in("source", sources);
+    if (sources.length > 0) {
+      queryBuilder = queryBuilder.in("source", sources);
+    }
+
+    if (tierFilters.length > 0) {
+      queryBuilder = queryBuilder.in("tier", tierFilters);
+    }
+
+    return queryBuilder;
+  };
+
+  const executeQuery = (tierFilters: Array<string | number>) =>
+    createQuery(tierFilters).limit(Math.max(limit * 6, 150));
+
+  let { data, error } = await executeQuery(tiers);
+
+  if (error && error.code === "22P02") {
+    const numericTierFilters = tiers
+      .map((tier) => {
+        if (typeof tier === "number") {
+          return tier;
+        }
+        const rank = PLAN_RANK[tier as keyof typeof PLAN_RANK];
+        return typeof rank === "number" ? rank : null;
+      })
+      .filter((value): value is number => value != null);
+
+    if (numericTierFilters.length > 0) {
+      ({ data, error } = await executeQuery(numericTierFilters));
+    }
   }
-
-  if (tiers.length > 0) {
-    query = query.in("tier", tiers);
-  }
-
-  const { data, error } = await query.limit(Math.max(limit * 6, 150));
 
   if (error) {
     console.error("Failed to fetch keywords from Supabase", error);
