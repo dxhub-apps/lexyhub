@@ -14,12 +14,7 @@ export async function ensureWatchlist(
 ): Promise<WatchlistRecord | null> {
   const supabase = getSupabaseServerClient();
   if (!supabase) {
-    return {
-      id: "local-watchlist",
-      name: options.name ?? "Default Watchlist",
-      description: options.description ?? null,
-      capacity: 25,
-    };
+    throw new Error("Supabase client unavailable");
   }
 
   const name = options.name ?? "Operational Watchlist";
@@ -92,7 +87,7 @@ export async function addItemToWatchlist({
 
   const supabase = getSupabaseServerClient();
   if (!supabase) {
-    return { id: `${watchlistId}-${keywordId ?? listingId ?? "item"}` };
+    throw new Error("Supabase client unavailable");
   }
 
   const plan = await assertQuota(userId, "watchlist_add");

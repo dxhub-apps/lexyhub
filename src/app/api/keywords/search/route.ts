@@ -1,12 +1,7 @@
 import { NextResponse } from "next/server";
 
-import {
-  DEFAULT_EMBEDDING_MODEL,
-  createDeterministicEmbedding,
-  getOrCreateEmbedding,
-} from "@/lib/ai/embeddings";
+import { DEFAULT_EMBEDDING_MODEL, getOrCreateEmbedding } from "@/lib/ai/embeddings";
 import { env } from "@/lib/env";
-import { loadSyntheticDataset } from "@/lib/synthetic/import";
 import { buildKeywordInsightCacheKey, getKeywordInsightFromCache, upsertKeywordInsightCache } from "@/lib/keywords/insights-cache";
 import { createProvenanceId, normalizeKeywordTerm } from "@/lib/keywords/utils";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
@@ -138,29 +133,6 @@ async function fetchKeywordsFromSupabase(
   return data ?? [];
 }
 
-async function fallbackKeywords(market: string): Promise<KeywordRow[]> {
-  try {
-    const dataset = await loadSyntheticDataset("data/synthetic/keywords.json");
-    return dataset.map((record) => {
-      const term = normalizeKeywordTerm(typeof record === "string" ? record : record.term);
-      return {
-        term,
-        market,
-        source: "synthetic",
-        tier: "free",
-        method: "synthetic-ai",
-        extras: typeof record === "string" ? null : { category: record.category ?? null },
-        demand_index: 0.55,
-        competition_score: 0.45,
-        trend_momentum: 0.5,
-      } satisfies KeywordRow;
-    });
-  } catch (error) {
-    console.warn("Fallback keyword dataset unavailable", error);
-    return [];
-  }
-}
-
 async function buildSummary(query: string, ranked: RankedKeyword[]): Promise<string> {
   if (!env.OPENAI_API_KEY) {
     const preview = ranked.slice(0, 5).map((item) => item.term).join(", ");
@@ -263,33 +235,6 @@ async function loadSearchPayload(req: Request): Promise<SearchRequestPayload> {
   return json;
 }
 
-async function buildDeterministicResults(
-  query: string,
-  market: string,
-  limit: number,
-): Promise<{ results: RankedKeyword[]; summary: string }> {
-  const dataset = await fallbackKeywords(market);
-  const queryEmbedding = createDeterministicEmbedding(query);
-  const ranked = dataset.map((record) => {
-    const embedding = createDeterministicEmbedding(record.term);
-    const compositeScore = computeCompositeScore(record);
-    const rankingScore = cosineSimilarity(queryEmbedding, embedding) * 0.55 + compositeScore * 0.45;
-    return {
-      ...record,
-      similarity: cosineSimilarity(queryEmbedding, embedding),
-      embeddingModel: `${DEFAULT_EMBEDDING_MODEL}-deterministic-fallback`,
-      provenance_id: createProvenanceId(record.source, record.market, record.term),
-      compositeScore,
-      rankingScore,
-    } satisfies RankedKeyword;
-  });
-
-  ranked.sort((a, b) => b.rankingScore - a.rankingScore);
-  const sliced = ranked.slice(0, limit);
-  const summary = await buildSummary(query, sliced);
-  return { results: sliced, summary };
-}
-
 async function handleSearch(req: Request): Promise<NextResponse> {
   const payload = await loadSearchPayload(req);
   const market = payload.market ? normalizeKeywordTerm(payload.market) : "us";
@@ -318,36 +263,22 @@ async function handleSearch(req: Request): Promise<NextResponse> {
   const supabase = getSupabaseServerClient();
 
   if (!supabase) {
-    const deterministic = await buildDeterministicResults(query, market, limit);
-    return NextResponse.json({
-      query,
-      market,
-      source: primarySource,
-      sources: resolvedSources,
-      plan,
-      results: deterministic.results,
-      insights: {
-        summary: deterministic.summary,
-        generatedAt: new Date().toISOString(),
-        model: "deterministic-fallback",
-      },
-    });
+    return NextResponse.json({ error: "Supabase client unavailable" }, { status: 503 });
   }
 
   const keywords = await fetchKeywordsFromSupabase(market, resolvedSources, allowedTiers, limit);
   if (keywords.length === 0) {
-    const deterministic = await buildDeterministicResults(query, market, limit);
     return NextResponse.json({
       query,
       market,
+      plan,
       source: primarySource,
       sources: resolvedSources,
-      plan,
-      results: deterministic.results,
+      results: [],
       insights: {
-        summary: deterministic.summary,
+        summary: "No matching keywords were found. Populate Supabase keywords to enable search.",
         generatedAt: new Date().toISOString(),
-        model: "deterministic-fallback",
+        model: "lexyhub-keywords",
       },
     });
   }

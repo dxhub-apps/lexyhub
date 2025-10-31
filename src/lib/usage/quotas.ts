@@ -45,6 +45,13 @@ export class QuotaError extends Error {
   }
 }
 
+export class MissingSupabaseClientError extends Error {
+  constructor() {
+    super("Supabase client unavailable");
+    this.name = "MissingSupabaseClientError";
+  }
+}
+
 function resolveBasePlan(plan?: string | null): PlanTier {
   if (plan === "growth" || plan === "scale") {
     return plan;
@@ -67,7 +74,7 @@ async function fetchOverrides(userId: string): Promise<{
 }> {
   const supabase = getSupabaseServerClient();
   if (!supabase) {
-    return {};
+    throw new MissingSupabaseClientError();
   }
 
   const { data, error } = await supabase
@@ -104,13 +111,7 @@ export async function resolvePlanContext(userId: string): Promise<PlanContext> {
   const basePlan: PlanTier = "free";
 
   if (!supabase) {
-    return {
-      userId,
-      plan: basePlan,
-      momentum: "new",
-      limits: DEFAULT_LIMITS[basePlan],
-      momentumMultiplier: 1,
-    };
+    throw new MissingSupabaseClientError();
   }
 
   const { data, error } = await supabase
@@ -157,7 +158,7 @@ async function sumUsage(
 ): Promise<number> {
   const supabase = getSupabaseServerClient();
   if (!supabase) {
-    return 0;
+    throw new MissingSupabaseClientError();
   }
 
   const { data, error } = await supabase
@@ -214,7 +215,7 @@ export async function recordUsage(
 ): Promise<void> {
   const supabase = getSupabaseServerClient();
   if (!supabase) {
-    return;
+    throw new MissingSupabaseClientError();
   }
 
   const { error } = await supabase.from("usage_events").insert({

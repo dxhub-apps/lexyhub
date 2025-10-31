@@ -28,7 +28,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const userId = normalizeUserId(request);
 
   if (!supabase) {
-    return NextResponse.json({ listings: [], warning: "Supabase client unavailable" }, { status: 200 });
+    return NextResponse.json({ error: "Supabase client unavailable" }, { status: 503 });
   }
 
   if (!userId) {

@@ -46,7 +46,12 @@ export async function POST(req: Request): Promise<NextResponse> {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to update watchlist.";
-    const status = message.toLowerCase().includes("quota") ? 429 : 400;
+    const normalized = message.toLowerCase();
+    const status = normalized.includes("quota")
+      ? 429
+      : normalized.includes("supabase")
+        ? 503
+        : 400;
     return NextResponse.json({ error: message }, { status });
   }
 }
