@@ -56,3 +56,38 @@ Stateful security:
 - For repeated manual syncs, supply a specific `userId` to `/api/jobs/etsy-sync?userId=<uuid>` to scope the run during development.
 
 With these pieces configured, Etsy sellers can authenticate, keep their catalog up to date, simulate go-to-market adjustments, and optimise listing content entirely inside LexyHub.
+
+## 8. GitHub Scraper Workflow
+
+In addition to the in-app synchronisation flows, the repository now ships with a dedicated GitHub Actions workflow that can pull fresh listing intelligence on demand or on a daily cadence. This is helpful when you need a lightweight export without invoking the full Supabase ETL pipeline.
+
+### Required secrets
+
+- `ETSY_API_KEY` &mdash; create an Etsy developer application and copy the **API Key** value. Store it as an Actions secret at the repository or organisation level.
+
+### Running the workflow manually
+
+1. Navigate to **Actions → Etsy Scraper** in GitHub.
+2. Click **Run workflow** and provide the search parameters:
+   - **Search keywords** defaults to `handmade gifts` and accepts any query Etsy supports.
+   - **Maximum number of listings** accepts values between 1 and 100 (Etsy caps the per-page limit at 100).
+   - **Field to sort on** uses Etsy's `sort_on` values such as `score`, `created`, or `price`.
+   - **Sort direction** can be `up` (ascending) or `down` (descending).
+   - Toggle **Include listing descriptions** to capture the full `description` text in the JSON payload.
+3. Confirm. The workflow installs Node.js 20, runs `npm ci`, executes `npm run scrape:etsy`, and uploads the generated JSON as an artifact named `etsy-listings`.
+
+### Scheduled runs
+
+The workflow is also scheduled to execute every day at 09:00 UTC. Each run generates a timestamped JSON file under `data/etsy/` and publishes it as an artifact for seven days. Adjust the `cron` expression in `.github/workflows/etsy-scraper.yml` if you need a different cadence.
+
+### Local verification
+
+You can reproduce the workflow locally by exporting the same environment variables:
+
+```bash
+export ETSY_API_KEY=sk_live_your_key
+export ETSY_QUERY="handmade candles"
+npm run scrape:etsy
+```
+
+The script writes a JSON file containing the raw listing metadata plus a condensed summary for each item. Subsequent automation can ingest these files or push them into Supabase for deeper analysis.
