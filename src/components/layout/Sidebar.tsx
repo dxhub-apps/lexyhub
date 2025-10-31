@@ -1,11 +1,13 @@
 "use client";
 
+import { type ReactNode } from "react";
 import Link from "next/link";
 
 export type SidebarNavItem = {
   href: string;
   label: string;
   description: string;
+  icon: ReactNode;
 };
 
 type SidebarProps = {
@@ -83,6 +85,7 @@ export function Sidebar({
       <nav className="app-sidebar-nav">
         {navItems.map((item) => {
           const active = isActive(item.href);
+          const ariaLabel = collapsed ? item.label : undefined;
           return (
             <Link
               key={item.href}
@@ -95,15 +98,13 @@ export function Sidebar({
                 .filter(Boolean)
                 .join(" ")}
               aria-current={active ? "page" : undefined}
+              aria-label={ariaLabel}
               onClick={isMobile ? onDismissMobile : undefined}
             >
               <span className="app-sidebar-link-icon" aria-hidden="true">
-                {item.label.slice(0, 2)}
+                {item.icon}
               </span>
               <span className="app-sidebar-link-label">{item.label}</span>
-              {!collapsed ? (
-                <span className="app-sidebar-link-description">{item.description}</span>
-              ) : null}
             </Link>
           );
         })}

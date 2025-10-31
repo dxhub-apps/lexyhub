@@ -308,7 +308,10 @@ export default function DashboardPage(): JSX.Element {
               <div className="dashboard-kpi-header">
                 <span>{card.label}</span>
                 {card.progress ? (
-                  <span className={`dashboard-kpi-badge dashboard-kpi-badge-${card.progress.tone}`}>
+                  <span
+                    className={`dashboard-kpi-indicator dashboard-kpi-indicator-${card.progress.tone}`}
+                  >
+                    <span className="dashboard-kpi-indicator-dot" aria-hidden="true" />
                     {card.progress.caption}
                   </span>
                 ) : null}

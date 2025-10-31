@@ -19,6 +19,12 @@ Each card uses color-coded progress states:
 
 The values refresh automatically from `/api/usage/summary`, ensuring KPIs stay in sync with Supabase usage events.
 
+### Visual refinements
+
+- KPI progress captions now render as inline indicators with luminous status dots instead of pill badges, which keeps the usage narrative readable while matching the simplified chrome.
+- The fixed sidebar and topbar free the main canvas to stretch edge-to-edge with only subtle padding across the top and sides, giving KPI sections more room on dense dashboards.
+- Shared pill treatments (environment and keyword tags) use soft gradients and halo glows so status cues pop without resorting to heavy card frames.
+
 ## PopTrade visual treatment
 
 The dashboard container now follows the PopTrade-inspired 12-column card grid. The hero banner anchors the left eight columns with the “LexyHub Control Center” copy, while the right four columns summarize the active plan and quota rows. Downstream rows render four KPI cards in parallel on desktop, collapsing to two cards on medium screens and a single column on small screens. Area health and quick actions each live in their own cards, mirroring the trading terminal feel while keeping existing data bindings intact.
