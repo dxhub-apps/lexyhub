@@ -1,0 +1,66 @@
+name: Etsy Scraper
+
+on:
+  workflow_dispatch:
+    inputs:
+      query:
+        description: Search keywords to send to Etsy
+        required: true
+        default: handmade gifts
+      limit:
+        description: Maximum number of listings to fetch (1-100)
+        required: false
+        default: '25'
+      sort_on:
+        description: Field to sort on (score, created, price, etc.)
+        required: false
+        default: score
+      sort_order:
+        description: Sort direction (up/down)
+        required: false
+        default: down
+      include_description:
+        description: Include listing descriptions in the output JSON
+        required: false
+        default: 'false'
+  schedule:
+    - cron: '0 9 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  scrape:
+    name: Fetch Etsy listings
+    runs-on: ubuntu-latest
+    env:
+      ETSY_QUERY: ${{ github.event.inputs.query || 'handmade gifts' }}
+      ETSY_LIMIT: ${{ github.event.inputs.limit || '25' }}
+      ETSY_SORT_ON: ${{ github.event.inputs.sort_on || 'score' }}
+      ETSY_SORT_ORDER: ${{ github.event.inputs.sort_order || 'down' }}
+      ETSY_INCLUDE_DESCRIPTION: ${{ github.event.inputs.include_description || 'false' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Etsy scraper
+        env:
+          ETSY_API_KEY: ${{ secrets.ETSY_API_KEY }}
+        run: npm run scrape:etsy
+
+      - name: Upload scraped listings
+        uses: actions/upload-artifact@v4
+        with:
+          name: etsy-listings
+          path: data/etsy/*.json
+          if-no-files-found: error
+          retention-days: 7
