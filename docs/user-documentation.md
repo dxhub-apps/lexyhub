@@ -1,7 +1,7 @@
 # LexyHub User Documentation
 
 ## Overview
-LexyHub is the central workspace for monitoring sales velocity, discovering high-intent keywords, and coordinating market intelligence. The interface has been refreshed with a simplified, hover-free presentation so navigation stays predictable on both desktop and touch devices. This guide explains every surface of the product, recommended workflows, and troubleshooting steps so that new and existing teammates can become productive quickly.
+LexyHub is the central workspace for monitoring sales velocity, discovering high-intent keywords, and coordinating market intelligence. The interface now follows Material Design across every screen—solid buttons, card actions, and chips highlight exactly what is interactive on both desktop and touch devices. This guide explains every surface of the product, recommended workflows, and troubleshooting steps so that new and existing teammates can become productive quickly.
 
 - **Audience:** growth managers, marketplace operators, analysts, and executives using LexyHub to plan and execute marketplace strategies.
 - **Prerequisites:** an active LexyHub account and access to the data sources configured by your organization.
@@ -55,12 +55,14 @@ The Watchlists hub centralizes every monitored keyword or listing tied to your a
 - **Capacity overview:** Each card shows how many slots are in use, remaining capacity, and the watchlist description.
 - **Item controls:** Review the tracked keywords and listings, follow outbound links, and remove stale entries.
 - **Listing coverage:** Listings stay linked to their marketplace counterparts, so watchlist details remain accurate even after catalog updates.
+- **Material quick actions:** A contained **Open keywords workspace** button, outlined **Review guide** button, and **POST /api/watchlists/add** chip clarify how to curate watchlists manually or programmatically.
 
 **How to prune a watchlist:**
 1. Navigate to **Watchlists** in the sidebar.
 2. Locate the card for the watchlist you want to adjust.
 3. Click **Remove** next to the keyword or listing you no longer need to monitor.
 4. Refresh the Keyword explorer to add replacements as needed.
+5. Use **Review guide** to open the watchlist workflow reference if you need additional context.
 
 ## Insights
 Insights consolidates narrative explanations, anomaly detection, and automated commentary.
@@ -142,4 +144,4 @@ LexyHub publishes sprint-level release notes in `/docs/changelog.md`. Review the
 - **Amazon keyword population guide:** `/docs/amazon-keyword-population-guide.md`
 - **Trend & intent intelligence:** `/docs/trend-intent-intelligence.md`
 
-_Last updated: 2025-07-12_
+_Last updated: 2025-07-14_

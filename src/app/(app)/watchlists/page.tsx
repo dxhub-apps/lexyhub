@@ -18,6 +18,7 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
+import { OpenInNewRounded } from "@mui/icons-material";
 
 import { useToast } from "@/components/ui/ToastProvider";
 
@@ -137,10 +138,27 @@ export default function WatchlistsPage(): JSX.Element {
           subheader="Every new account receives an Operational Watchlist automatically."
         />
         <CardContent>
-          <Typography variant="body2" color="text.secondary">
-            Populate it from the <Link href="/keywords">keyword explorer</Link> or by calling the
-            <code style={{ marginLeft: 6, marginRight: 6 }}>/api/watchlists/add</code> endpoint.
-          </Typography>
+          <Stack spacing={2}>
+            <Typography variant="body2" color="text.secondary">
+              Populate watchlists directly from the keyword explorer or automate ingestion through the API endpoint below.
+            </Typography>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems="flex-start">
+              <Button component={Link} href="/keywords" variant="contained" color="primary">
+                Open keywords workspace
+              </Button>
+              <Button
+                component="a"
+                href="https://github.com/lexyhub/lexyhub/blob/main/docs/user-documentation.md#watchlists"
+                target="_blank"
+                rel="noreferrer"
+                variant="outlined"
+                endIcon={<OpenInNewRounded fontSize="small" />}
+              >
+                Review guide
+              </Button>
+            </Stack>
+            <Chip label="POST /api/watchlists/add" color="secondary" variant="outlined" />
+          </Stack>
         </CardContent>
       </Card>
 

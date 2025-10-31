@@ -57,6 +57,10 @@ function createLexyTheme(mode: "light" | "dark") {
         };
 
   const shape = { borderRadius: 12 } as const;
+  const divider = mode === "light" ? "rgba(16, 32, 56, 0.12)" : "rgba(226, 232, 240, 0.16)";
+  const hoverOverlay = mode === "light" ? "rgba(30, 136, 229, 0.08)" : "rgba(100, 181, 246, 0.16)";
+  const listItemSelected = mode === "light" ? "rgba(30, 136, 229, 0.16)" : "rgba(100, 181, 246, 0.24)";
+  const primaryContrast = mode === "light" ? "#0B172B" : "#FFFFFF";
 
   return responsiveFontSizes(
     createTheme({
@@ -95,6 +99,17 @@ function createLexyTheme(mode: "light" | "dark") {
             },
           },
         },
+        MuiCardActionArea: {
+          styleOverrides: {
+            root: {
+              borderRadius: shape.borderRadius,
+              transition: "transform 120ms ease", // subtle scale for clickable surfaces
+              '&:hover': {
+                transform: "translateY(-2px)",
+              },
+            },
+          },
+        },
         MuiAppBar: {
           styleOverrides: {
             colorPrimary: {
@@ -106,6 +121,101 @@ function createLexyTheme(mode: "light" | "dark") {
           styleOverrides: {
             paper: {
               backgroundImage: "none",
+            },
+          },
+        },
+        MuiListItemButton: {
+          styleOverrides: {
+            root: {
+              borderRadius: shape.borderRadius,
+              marginBottom: 4,
+              transition: "background-color 160ms ease, transform 160ms ease", // emphasise clickable
+              '&:hover': {
+                backgroundColor: hoverOverlay,
+                transform: "translateX(4px)",
+              },
+              '&.Mui-selected': {
+                backgroundColor: listItemSelected,
+                color: primaryContrast,
+                '&:hover': {
+                  backgroundColor: listItemSelected,
+                },
+              },
+            },
+          },
+        },
+        MuiToggleButton: {
+          styleOverrides: {
+            root: {
+              borderRadius: shape.borderRadius,
+            },
+          },
+        },
+        MuiToggleButtonGroup: {
+          styleOverrides: {
+            root: {
+              borderRadius: shape.borderRadius,
+              padding: 4,
+              backgroundColor: mode === "light" ? "#F3F6FC" : "rgba(148, 163, 184, 0.12)",
+            },
+          },
+        },
+        MuiLink: {
+          defaultProps: {
+            underline: "hover",
+          },
+          styleOverrides: {
+            root: {
+              fontWeight: 600,
+              color: palette.primary.main,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+            },
+          },
+        },
+        MuiChip: {
+          styleOverrides: {
+            root: {
+              fontWeight: 600,
+              borderRadius: shape.borderRadius,
+            },
+          },
+        },
+        MuiTableHead: {
+          styleOverrides: {
+            root: {
+              backgroundColor: mode === "light" ? "#F3F6FC" : "rgba(148, 163, 184, 0.12)",
+            },
+          },
+        },
+        MuiTableCell: {
+          styleOverrides: {
+            root: {
+              borderBottom: `1px solid ${divider}`,
+            },
+            head: {
+              fontWeight: 600,
+              textTransform: "uppercase",
+              fontSize: "0.75rem",
+              letterSpacing: 0.5,
+              color: mode === "light" ? "#1F2A44" : "#E2E8F0",
+            },
+          },
+        },
+        MuiDivider: {
+          styleOverrides: {
+            root: {
+              borderColor: divider,
+            },
+          },
+        },
+        MuiTypography: {
+          styleOverrides: {
+            root: {
+              '&[role="link"]': {
+                fontWeight: 600,
+              },
             },
           },
         },

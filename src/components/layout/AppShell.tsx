@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { Box, Toolbar, useMediaQuery } from "@mui/material";
+import { Box, Container, Toolbar, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import {
   AdminPanelSettingsRounded,
@@ -120,7 +120,10 @@ function AppShellContent({ children }: { children: ReactNode }) {
           flexDirection: "column",
           flexGrow: 1,
           minHeight: "100vh",
-          bgcolor: "background.default",
+          background: (theme) =>
+            theme.palette.mode === "light"
+              ? "linear-gradient(180deg, #F6F8FC 0%, #FFFFFF 32%, #EEF2F8 100%)"
+              : "linear-gradient(180deg, #0B1220 0%, #111A2E 35%, #0E1321 100%)",
         }}
       >
         <Topbar
@@ -132,27 +135,18 @@ function AppShellContent({ children }: { children: ReactNode }) {
           activeNavItem={activeNavItem}
         />
         <Toolbar />
-        <Box
-          component="main"
-          sx={{
-            flexGrow: 1,
-            px: { xs: 2, md: 3, xl: 5 },
-            py: { xs: 2, md: 3 },
-            bgcolor: "background.default",
-          }}
-        >
-          <Box
+        <Box component="main" sx={{ flexGrow: 1, py: { xs: 2, md: 3 } }}>
+          <Container
+            maxWidth="lg"
             sx={{
-              maxWidth: "min(1280px, 100%)",
-              mx: "auto",
-              width: "100%",
               display: "flex",
               flexDirection: "column",
               gap: { xs: 2.5, md: 3 },
+              pb: { xs: 4, md: 6 },
             }}
           >
             {children}
-          </Box>
+          </Container>
         </Box>
       </Box>
     </Box>

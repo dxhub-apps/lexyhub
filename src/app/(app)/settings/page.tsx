@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { Card, CardContent, CardHeader, List, ListItem, Stack, Typography } from "@mui/material";
+import { Card, CardContent, CardHeader, Divider, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Stack, Typography } from "@mui/material";
+import { ArticleRounded, HelpOutlineRounded, OpenInNewRounded } from "@mui/icons-material";
 
 export default function SettingsPage() {
   return (
@@ -11,18 +11,40 @@ export default function SettingsPage() {
         />
       </Card>
       <Card>
-        <CardHeader title="Docs quick links" />
-        <CardContent>
-          <List>
-            <ListItem disableGutters>
-              <Typography component={Link} href="https://github.com/lexyhub/lexyhub/blob/main/docs/implementation-roadmap.md" target="_blank" rel="noreferrer">
-                Implementation roadmap
-              </Typography>
+        <CardHeader title="Docs quick links" subheader="Open frequently referenced setup guides." />
+        <CardContent sx={{ px: 0 }}>
+          <List disablePadding>
+            <ListItem disablePadding>
+              <ListItemButton
+                component="a"
+                href="https://github.com/lexyhub/lexyhub/blob/main/docs/implementation-roadmap.md"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <ListItemIcon>
+                  <ArticleRounded fontSize="small" color="primary" />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Implementation roadmap"
+                  secondary="Step-by-step milestones for rollout"
+                  secondaryTypographyProps={{ color: "text.secondary" }}
+                />
+                <OpenInNewRounded fontSize="small" color="disabled" />
+              </ListItemButton>
             </ListItem>
-            <ListItem disableGutters>
-              <Typography component={Link} href="https://supabase.com/docs" target="_blank" rel="noreferrer">
-                Supabase docs
-              </Typography>
+            <Divider component="li" />
+            <ListItem disablePadding>
+              <ListItemButton component="a" href="https://supabase.com/docs" target="_blank" rel="noreferrer">
+                <ListItemIcon>
+                  <HelpOutlineRounded fontSize="small" color="primary" />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Supabase docs"
+                  secondary="Reference for data platform configuration"
+                  secondaryTypographyProps={{ color: "text.secondary" }}
+                />
+                <OpenInNewRounded fontSize="small" color="disabled" />
+              </ListItemButton>
             </ListItem>
           </List>
         </CardContent>

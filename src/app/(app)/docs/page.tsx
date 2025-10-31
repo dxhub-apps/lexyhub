@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import {
   Box,
   Card,
+  CardActionArea,
   CardContent,
   CardHeader,
   Chip,
@@ -30,6 +31,11 @@ const quickLinks = [
     href: "#keywords",
     label: "Keywords",
     description: "Discover and monitor high-intent terms.",
+  },
+  {
+    href: "#watchlists",
+    label: "Watchlists",
+    description: "Track priority terms and listings with workspace actions or API calls.",
   },
   {
     href: "#market-twin",
@@ -100,15 +106,19 @@ export default function DocumentationPage(): JSX.Element {
           <Grid container spacing={2}>
             {quickLinks.map((link) => (
               <Grid item key={link.href} xs={12} sm={6} lg={4}>
-                <Card variant="outlined" component="a" href={link.href} sx={{ textDecoration: "none" }}>
-                  <CardContent>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                      {link.label}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {link.description}
-                    </Typography>
-                  </CardContent>
+                <Card variant="outlined" sx={{ height: "100%" }}>
+                  <CardActionArea component="a" href={link.href} sx={{ height: "100%", alignItems: "stretch" }}>
+                    <CardContent>
+                      <Stack spacing={1}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                          {link.label}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {link.description}
+                        </Typography>
+                      </Stack>
+                    </CardContent>
+                  </CardActionArea>
                 </Card>
               </Grid>
             ))}
@@ -123,6 +133,10 @@ export default function DocumentationPage(): JSX.Element {
             LexyHub is the central workspace for monitoring sales velocity, discovering high-intent keywords, and coordinating
             market intelligence. This guide explains every surface of the product, recommended workflows, and troubleshooting
             steps so that new and existing teammates can become productive quickly.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            The refreshed interface follows Material Design across every screen, so contained buttons, list actions, and chips
+            consistently communicate what is interactive.
           </Typography>
           <Box component="ul" sx={{ pl: 3, color: "text.secondary" }}>
             <Typography component="li" variant="body2" sx={{ mb: 1 }}>
@@ -230,9 +244,9 @@ export default function DocumentationPage(): JSX.Element {
       <Card id="keywords">
         <CardHeader title="Keywords" />
         <CardContent>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              The Keywords workspace surfaces organic search opportunities discovered by LexyHub’s AI.
-            </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            The Keywords workspace surfaces organic search opportunities discovered by LexyHub’s AI.
+          </Typography>
           <Box component="ul" sx={{ pl: 3, color: "text.secondary" }}>
             <Typography component="li" variant="body2" sx={{ mb: 1 }}>
               <strong>Opportunity table:</strong> Ranked list of recommended keywords, including demand score, competitive
@@ -263,6 +277,29 @@ export default function DocumentationPage(): JSX.Element {
                 Export selected keywords or send them to the Market Twin simulator for further analysis.
               </Typography>
             </Box>
+          </Box>
+        </CardContent>
+      </Card>
+
+      <Card id="watchlists">
+        <CardHeader title="Watchlists" />
+        <CardContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Watchlists capture the terms and listings that matter most. Material Design call-to-action buttons on the Watchlists
+            page make it obvious how to add entries from the keywords workspace or via API.
+          </Typography>
+          <Box component="ul" sx={{ pl: 3, color: "text.secondary" }}>
+            <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+              <strong>Open keywords workspace:</strong> Use the contained button to jump directly into discovery and add
+              opportunities with a single click.
+            </Typography>
+            <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+              <strong>Review guide:</strong> The outlined button opens the in-depth watchlist workflow reference in a new tab.
+            </Typography>
+            <Typography component="li" variant="body2">
+              <strong>API chip:</strong> The <code>POST /api/watchlists/add</code> label reinforces the endpoint to automate
+              ingestion.
+            </Typography>
           </Box>
         </CardContent>
       </Card>
