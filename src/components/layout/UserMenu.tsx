@@ -143,7 +143,7 @@ export function UserMenu(): JSX.Element {
     },
     {
       label: "Help Center",
-      description: "Product guide",
+      description: "Guides & how-tos",
       href: "/docs",
       icon: <HelpIcon />,
     },
