@@ -1,0 +1,82 @@
+[
+  {
+    "id": "synthetic-growth-ops",
+    "term": "automation workflow software",
+    "intent": "optimize",
+    "persona": "Growth Operations Manager",
+    "purchaseStage": "consideration",
+    "confidence": 0.86
+  },
+  {
+    "id": "synthetic-ai-assistant",
+    "term": "customer support ai assistant",
+    "intent": "automate",
+    "persona": "Support Lead",
+    "purchaseStage": "evaluation",
+    "confidence": 0.78
+  },
+  {
+    "id": "synthetic-funnel-audit",
+    "term": "conversion funnel audit",
+    "intent": "optimize",
+    "persona": "Growth Strategist",
+    "purchaseStage": "awareness",
+    "confidence": 0.72
+  },
+  {
+    "id": "synthetic-product-demo",
+    "term": "interactive product demo",
+    "intent": "differentiate",
+    "persona": "Product Marketing Manager",
+    "purchaseStage": "consideration",
+    "confidence": 0.81
+  },
+  {
+    "id": "synthetic-churn-model",
+    "term": "saas churn prediction model",
+    "intent": "retain",
+    "persona": "Lifecycle Marketer",
+    "purchaseStage": "evaluation",
+    "confidence": 0.69
+  },
+  {
+    "id": "synthetic-data-enrichment",
+    "term": "buyer intent data enrichment",
+    "intent": "discover",
+    "persona": "Revenue Operations Director",
+    "purchaseStage": "awareness",
+    "confidence": 0.74
+  },
+  {
+    "id": "synthetic-segment-playbook",
+    "term": "abm segment playbook",
+    "intent": "expand",
+    "persona": "Account Executive",
+    "purchaseStage": "decision",
+    "confidence": 0.77
+  },
+  {
+    "id": "synthetic-lead-scoring",
+    "term": "predictive lead scoring",
+    "intent": "prioritize",
+    "persona": "Demand Generation Manager",
+    "purchaseStage": "consideration",
+    "confidence": 0.83
+  },
+  {
+    "id": "synthetic-market-insights",
+    "term": "market intelligence dashboard",
+    "intent": "discover",
+    "persona": "Market Analyst",
+    "purchaseStage": "awareness",
+    "confidence": 0.71
+  },
+  {
+    "id": "synthetic-onboarding-sequence",
+    "term": "product onboarding email sequence",
+    "intent": "retain",
+    "persona": "Customer Success Manager",
+    "purchaseStage": "post-purchase",
+    "confidence": 0.76
+  }
+]
