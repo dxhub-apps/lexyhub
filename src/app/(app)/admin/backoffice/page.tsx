@@ -101,7 +101,7 @@ export default function BackofficeOverviewPage(): JSX.Element {
 
   return (
     <div className="backoffice-overview">
-      <header className="backoffice-header">
+      <section className="surface-card backoffice-header">
         <div>
           <h1>Backoffice overview</h1>
           <p className="subtitle">Operational dashboard for administrators.</p>
@@ -109,8 +109,12 @@ export default function BackofficeOverviewPage(): JSX.Element {
         <Link className="primary-link" href="/admin/backoffice/risk-management">
           Manage risk
         </Link>
-      </header>
-      {error ? <p className="error">{error}</p> : null}
+      </section>
+      {error ? (
+        <article className="surface-card backoffice-card">
+          <p className="error">{error}</p>
+        </article>
+      ) : null}
       <section className="metric-grid">
         {cards.map((metric) => (
           <MetricCard key={metric.id} metric={metric} />

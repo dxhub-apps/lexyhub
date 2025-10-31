@@ -9,7 +9,6 @@ import {
 } from "@tanstack/react-table";
 
 import { useToast } from "@/components/ui/ToastProvider";
-import { ui } from "@/ui/theme";
 
 type Metric = {
   area: string;
@@ -49,19 +48,8 @@ type StatusBadgeProps = {
 };
 
 function StatusBadge({ status }: StatusBadgeProps) {
-  const tone = status === "configured" ? ui.colors.success : ui.colors.danger;
-  return (
-    <span
-      className="status-badge"
-      style={{
-        color: tone,
-        backgroundColor: `${tone}1a`,
-        borderColor: `${tone}33`,
-      }}
-    >
-      {status}
-    </span>
-  );
+  const label = status === "configured" ? "Configured" : "Pending";
+  return <span className={`status-badge status-badge--${status}`}>{label}</span>;
 }
 
 export default function DashboardPage(): JSX.Element {
@@ -276,41 +264,35 @@ export default function DashboardPage(): JSX.Element {
     (card): card is UsageKpi => Boolean(card),
   );
 
-  const planRows = [queryCard, aiCard, watchlistCard].filter(
-    (card): card is UsageKpi => Boolean(card),
-  );
+  const configuredCount = metrics.filter((metric) => metric.status === "configured").length;
+  const pendingCount = metrics.filter((metric) => metric.status === "pending").length;
 
   return (
-    <div className="dashboard-grid">
+    <div className="dashboard-page">
       <section className="dashboard-card dashboard-hero">
-        <h1>LexyHub Control Center</h1>
-        <p>Momentum-aware quotas &amp; watchlists</p>
-      </section>
-      <section className="dashboard-card dashboard-plan">
-        <div className="dashboard-plan-header">
-          <h2>Plan overview</h2>
-          <span className="dashboard-plan-subtitle">{planCard?.value ?? "Checking plan…"}</span>
+        <div>
+          <h1>LexyHub Control Center</h1>
+          <p>Momentum-aware quotas and watchlists to keep your operators in sync.</p>
         </div>
-        <div className="dashboard-plan-rows">
-          {planRows.map((row) => (
-            <div key={row.id} className="dashboard-plan-row">
-              <span>{row.label}</span>
-              <strong>{row.value}</strong>
-            </div>
-          ))}
+        <div className="dashboard-hero-meta">
+          <span>Plan · {planCard?.value ?? "Calculating"}</span>
+          <span>
+            Daily query limit · {usage ? formatNumber.format(usage.limits.dailyQueryLimit) : "—"}
+          </span>
+          <span>Momentum · {usage?.momentum ?? "Pending sync"}</span>
+          <span>Workspace · Core Market</span>
         </div>
       </section>
+
       <section className="dashboard-kpi-grid">
         {kpiCards.map((card) => {
-          const toneClass = card.progress ? ` dashboard-kpi-${card.progress.tone}` : "";
+          const toneClass = card.progress ? ` dashboard-kpi-indicator-${card.progress.tone}` : "";
           return (
-            <article key={card.id} className={`dashboard-card dashboard-kpi${toneClass}`}>
+            <article key={card.id} className="dashboard-kpi">
               <div className="dashboard-kpi-header">
                 <span>{card.label}</span>
                 {card.progress ? (
-                  <span
-                    className={`dashboard-kpi-indicator dashboard-kpi-indicator-${card.progress.tone}`}
-                  >
+                  <span className={`dashboard-kpi-indicator${toneClass}`}>
                     <span className="dashboard-kpi-indicator-dot" aria-hidden="true" />
                     {card.progress.caption}
                   </span>
@@ -327,55 +309,92 @@ export default function DashboardPage(): JSX.Element {
           );
         })}
       </section>
-      <section className="dashboard-card dashboard-table">
-        <div className="dashboard-section-header">
-          <h2>Area status</h2>
-          <span>Status overview</span>
-        </div>
-        <table>
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {table.getRowModel().rows.map((row) => (
-              <tr key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
-                ))}
-              </tr>
-            ))}
-            {!metrics.length && !metricsLoading ? (
-              <tr>
-                <td colSpan={4} className="dashboard-table-empty">
-                  Connect your data sources to start seeing live metrics here.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+
+      <section className="dashboard-analytics-grid">
+        <article className="dashboard-card">
+          <div className="dashboard-section-header">
+            <h2>Keyword momentum</h2>
+            <div className="dashboard-analytics-legend">
+              <span>Today</span>
+              <span>·</span>
+              <span>Top movers</span>
+            </div>
+          </div>
+          <div className="dashboard-chart-placeholder">Live chart connects once data is provisioned.</div>
+          <p className="dashboard-kpi-helper">
+            Track volume acceleration and AI opportunity picks to prioritise daily outreach.
+          </p>
+        </article>
+        <article className="dashboard-card">
+          <div className="dashboard-section-header">
+            <h2>Connect your data sources</h2>
+            <span className="dashboard-kpi-helper">{configuredCount} configured · {pendingCount} pending</span>
+          </div>
+          <div className="dashboard-hero-meta">
+            <span>Marketplace ingestion · {configuredCount ? "Active" : "Connect"}</span>
+            <span>Commerce feeds · {pendingCount ? "Pending" : "Configured"}</span>
+            <span>Watchlist sync · Always-on</span>
+          </div>
+          <p className="dashboard-kpi-helper">
+            Connect marketplaces, catalog feeds, and partner APIs to unlock trend scoring and watchlist automation.
+          </p>
+        </article>
       </section>
-      <aside className="dashboard-card dashboard-sidecard">
-        <h2>Quick actions</h2>
-        <p>Connect your data sources to start seeing live metrics here.</p>
-        <div className="dashboard-sidecard-actions">
-          <button type="button" className="primary-action">
-            Create watchlist
-          </button>
-          <button type="button" className="secondary-action">
-            Add keyword source
-          </button>
-        </div>
-      </aside>
+
+      <div className="dashboard-operations-grid">
+        <section className="dashboard-card dashboard-table">
+          <div className="dashboard-section-header">
+            <h2>Operations status</h2>
+            <span>Status across watchlists, connectors, and alerts</span>
+          </div>
+          <table>
+            <thead>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <th key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody>
+              {table.getRowModel().rows.map((row) => (
+                <tr key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+                  ))}
+                </tr>
+              ))}
+              {!metrics.length && !metricsLoading ? (
+                <tr>
+                  <td colSpan={4} className="dashboard-table-empty">
+                    Connect your data sources to start seeing live metrics here.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </section>
+        <aside className="dashboard-card dashboard-sidecard">
+          <h2>Next best actions</h2>
+          <p>Keep the pipeline moving with the highest leverage tasks for today.</p>
+          <div className="dashboard-sidecard-actions">
+            <button type="button" className="primary-action">
+              Add new keyword set
+            </button>
+            <button type="button" className="secondary-action">
+              Connect marketplace source
+            </button>
+            <button type="button" className="secondary-action">
+              Review AI opportunities
+            </button>
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }
