@@ -6,6 +6,7 @@ export default defineConfig({
     environment: "node",
     setupFiles: [],
     coverage: {
+      provider: "v8",
       reporter: ["text", "html"],
     },
   },
