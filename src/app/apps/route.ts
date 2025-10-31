@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { track } from "@vercel/analytics/server";
 
 import { verifyToken } from "@/lib/tokens";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
+import { captureServerEvent } from "@/lib/analytics/posthog-server";
+import { captureException, withSentryRouteHandler } from "@/lib/observability/sentry";
 
-export async function GET(req: NextRequest) {
+export const GET = withSentryRouteHandler(async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
   if (!auth?.startsWith("Bearer ")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -31,6 +32,14 @@ export async function GET(req: NextRequest) {
   ]);
 
   if (providersResult.error) {
+    captureException(providersResult.error, {
+      tags: { route: "apps", stage: "providers" },
+      user: payload.sub ? { id: payload.sub } : undefined,
+      extra: {
+        code: providersResult.error.code,
+        details: providersResult.error.details,
+      },
+    });
     return NextResponse.json(
       { error: `Unable to load providers: ${providersResult.error.message}` },
       { status: 500 },
@@ -38,6 +47,14 @@ export async function GET(req: NextRequest) {
   }
 
   if (accountsResult.error) {
+    captureException(accountsResult.error, {
+      tags: { route: "apps", stage: "accounts" },
+      user: payload.sub ? { id: payload.sub } : undefined,
+      extra: {
+        code: accountsResult.error.code,
+        details: accountsResult.error.details,
+      },
+    });
     return NextResponse.json(
       { error: `Unable to load marketplace accounts: ${accountsResult.error.message}` },
       { status: 500 },
@@ -60,10 +77,13 @@ export async function GET(req: NextRequest) {
     connectedAccounts: accountsByProvider.get(provider.id) ?? 0,
   }));
 
-  await track("apps.listed", {
-    actor: payload.sub ?? "anonymous",
-    count: apps.length,
+  await captureServerEvent("apps.listed", {
+    distinctId: payload.sub ?? "anonymous",
+    properties: {
+      count: apps.length,
+      providers: apps.map((app) => app.id),
+    },
   });
 
   return NextResponse.json({ apps }, { status: 200 });
-}
+}, { name: "apps#GET", tags: { route: "/apps" } });

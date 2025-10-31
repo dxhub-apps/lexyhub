@@ -1,7 +1,8 @@
 import "./globals.css";
 
 import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/react";
+
+import { AppProviders } from "./providers";
 
 export const metadata: Metadata = {
   title: "LexyHub",
@@ -16,8 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {children}
-        <Analytics />
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );

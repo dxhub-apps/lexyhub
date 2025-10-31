@@ -1,4 +1,5 @@
 import { getSupabaseServerClient } from "../supabase-server";
+import { captureException } from "../observability/sentry";
 
 export type PlanTier = "free" | "growth" | "scale";
 
@@ -87,6 +88,12 @@ async function fetchOverrides(userId: string): Promise<{
     .limit(1);
 
   if (error) {
+    captureException(error, {
+      tags: { domain: "usage", operation: "fetchOverrides" },
+      user: { id: userId },
+      level: "warning",
+      extra: { code: error.code },
+    });
     console.warn("Failed to load plan overrides", error);
     return {};
   }
@@ -121,6 +128,12 @@ export async function resolvePlanContext(userId: string): Promise<PlanContext> {
     .maybeSingle();
 
   if (error) {
+    captureException(error, {
+      tags: { domain: "usage", operation: "resolvePlan" },
+      user: { id: userId },
+      level: "warning",
+      extra: { code: error.code },
+    });
     console.warn("Unable to fetch user profile for quotas", error);
   }
 
@@ -169,6 +182,12 @@ async function sumUsage(
     .gte("occurred_at", since.toISOString());
 
   if (error) {
+    captureException(error, {
+      tags: { domain: "usage", operation: "sumUsage" },
+      user: { id: userId },
+      level: "warning",
+      extra: { code: error.code, eventType },
+    });
     console.warn("Failed to read usage events", error);
     return 0;
   }

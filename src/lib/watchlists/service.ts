@@ -1,5 +1,6 @@
 import { getSupabaseServerClient } from "../supabase-server";
 import { assertQuota, QuotaError, recordUsage, resolvePlanContext } from "../usage/quotas";
+import { captureException } from "../observability/sentry";
 
 export type WatchlistRecord = {
   id: string;
@@ -46,6 +47,11 @@ export async function ensureWatchlist(
     .maybeSingle();
 
   if (fetchError && fetchError.code !== "PGRST116") {
+    captureException(fetchError, {
+      tags: { domain: "watchlists", operation: "ensure" },
+      user: { id: userId },
+      extra: { code: fetchError.code },
+    });
     throw new Error(fetchError.message);
   }
 
@@ -61,6 +67,11 @@ export async function ensureWatchlist(
     .eq("user_id", userId);
 
   if (countError) {
+    captureException(countError, {
+      tags: { domain: "watchlists", operation: "ensure", stage: "count" },
+      user: { id: userId },
+      extra: { code: countError.code },
+    });
     throw new Error(countError.message);
   }
 
@@ -83,6 +94,11 @@ export async function ensureWatchlist(
     .maybeSingle();
 
   if (error) {
+    captureException(error, {
+      tags: { domain: "watchlists", operation: "ensure", stage: "create" },
+      user: { id: userId },
+      extra: { code: error.code },
+    });
     throw new Error(error.message);
   }
 
@@ -113,6 +129,11 @@ export async function listWatchlists(userId: string): Promise<WatchlistWithItems
     .order("added_at", { ascending: false, foreignTable: "items" });
 
   if (error) {
+    captureException(error, {
+      tags: { domain: "watchlists", operation: "list" },
+      user: { id: userId },
+      extra: { code: error.code },
+    });
     throw new Error(error.message);
   }
 
@@ -161,6 +182,11 @@ export async function removeWatchlistItem(userId: string, itemId: string): Promi
     .maybeSingle();
 
   if (fetchError) {
+    captureException(fetchError, {
+      tags: { domain: "watchlists", operation: "remove", stage: "lookup" },
+      user: { id: userId },
+      extra: { code: fetchError.code },
+    });
     throw new Error(fetchError.message);
   }
 
@@ -178,6 +204,11 @@ export async function removeWatchlistItem(userId: string, itemId: string): Promi
     .eq("id", itemId);
 
   if (deleteError) {
+    captureException(deleteError, {
+      tags: { domain: "watchlists", operation: "remove", stage: "delete" },
+      user: { id: userId },
+      extra: { code: deleteError.code },
+    });
     throw new Error(deleteError.message);
   }
 
@@ -214,6 +245,13 @@ export async function addItemToWatchlist({
     .maybeSingle();
 
   if (watchlistError || !watchlist) {
+    if (watchlistError) {
+      captureException(watchlistError, {
+        tags: { domain: "watchlists", operation: "add", stage: "watchlist" },
+        user: { id: userId },
+        extra: { code: watchlistError.code },
+      });
+    }
     throw new Error(watchlistError?.message ?? "Watchlist not found");
   }
 
@@ -223,6 +261,11 @@ export async function addItemToWatchlist({
     .eq("watchlist_id", watchlistId);
 
   if (countError) {
+    captureException(countError, {
+      tags: { domain: "watchlists", operation: "add", stage: "count" },
+      user: { id: userId },
+      extra: { code: countError.code },
+    });
     throw new Error(countError.message);
   }
 
@@ -248,6 +291,15 @@ export async function addItemToWatchlist({
     if (error.code === "23505") {
       throw new QuotaError("This item is already on the watchlist.");
     }
+    captureException(error, {
+      tags: { domain: "watchlists", operation: "add", stage: "insert" },
+      user: { id: userId },
+      extra: {
+        code: error.code,
+        keywordId,
+        listingId,
+      },
+    });
     throw new Error(error.message);
   }
 

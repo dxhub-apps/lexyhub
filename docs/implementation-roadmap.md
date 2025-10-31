@@ -47,7 +47,7 @@ Each sprint lists epics, cross-functional tasks, acceptance criteria, and instru
   - [x] Configure Vercel project with environment secrets (OpenAI keys, Supabase URL).
   - [x] Setup `supabase/.env.example` with placeholders.
 - **S0-E2 Codebase Scaffolding**
-  - [x] Install base dependencies: `@supabase/supabase-js`, `ai`, `zod`, `@tanstack/react-table`, `@vercel/analytics`.
+  - [x] Install base dependencies: `@supabase/supabase-js`, `ai`, `zod`, `@tanstack/react-table`, `@sentry/nextjs`, `posthog-js`, `posthog-node`.
   - [x] Configure ESLint/Prettier (align with Next.js defaults) and Husky pre-commit.
   - [x] Add base app shell (Topbar, Sidebar tokens, placeholder routes).
 - **S0-E3 Observability & CI/CD**
