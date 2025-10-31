@@ -1,5 +1,9 @@
+import { withSentryConfig } from "@sentry/nextjs";
+
+import sentryConfig from "./sentry.config.mjs";
+
 /** @type {import('next').NextConfig} */
-const nextConfig = {
+const baseConfig = {
   reactStrictMode: true,
   images: {
     remotePatterns: [
@@ -10,5 +14,13 @@ const nextConfig = {
     ],
   },
 };
+
+const nextConfig = withSentryConfig(
+  baseConfig,
+  sentryConfig,
+  {
+    silent: true,
+  },
+);
 
 export default nextConfig;

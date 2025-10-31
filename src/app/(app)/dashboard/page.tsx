@@ -10,6 +10,7 @@ import {
 
 import { useToast } from "@/components/ui/ToastProvider";
 import { ui } from "@/ui/theme";
+import { useAnalytics } from "@/lib/analytics/use-analytics";
 
 type Metric = {
   area: string;
@@ -100,6 +101,7 @@ export default function DashboardPage(): JSX.Element {
   });
 
   const { push } = useToast();
+  const analytics = useAnalytics();
   const [usage, setUsage] = useState<UsageSummary | null>(null);
 
   const formatNumber = useMemo(
@@ -133,6 +135,9 @@ export default function DashboardPage(): JSX.Element {
       .then((payload: { metrics: Metric[] }) => {
         if (active) {
           setMetrics(payload.metrics ?? []);
+          analytics.capture("dashboard.metrics.loaded", {
+            count: payload.metrics?.length ?? 0,
+          });
         }
       })
       .catch((error) => {
@@ -141,6 +146,9 @@ export default function DashboardPage(): JSX.Element {
           title: "Metrics unavailable",
           description: error instanceof Error ? error.message : "Unknown error",
           tone: "error",
+        });
+        analytics.capture("dashboard.metrics.failed", {
+          message: error instanceof Error ? error.message : String(error),
         });
       })
       .finally(() => {
@@ -151,7 +159,7 @@ export default function DashboardPage(): JSX.Element {
     return () => {
       active = false;
     };
-  }, [push]);
+  }, [analytics, push]);
 
   useEffect(() => {
     let isMounted = true;
@@ -165,6 +173,11 @@ export default function DashboardPage(): JSX.Element {
         const json = (await response.json()) as UsageSummary;
         if (isMounted) {
           setUsage(json);
+          analytics.capture("dashboard.usage.loaded", {
+            plan: json.plan,
+            aiSuggestions: json.usage?.ai_suggestion ?? 0,
+            keywordQueries: json.usage?.keyword_query ?? 0,
+          });
         }
       } catch (error) {
         console.error("Failed to load usage summary", error);
@@ -173,6 +186,9 @@ export default function DashboardPage(): JSX.Element {
           description: error instanceof Error ? error.message : "Unknown error",
           tone: "warning",
         });
+        analytics.capture("dashboard.usage.failed", {
+          message: error instanceof Error ? error.message : String(error),
+        });
       }
     };
 
@@ -180,7 +196,7 @@ export default function DashboardPage(): JSX.Element {
     return () => {
       isMounted = false;
     };
-  }, [push]);
+  }, [analytics, push]);
 
   const usageCards = useMemo<UsageKpi[]>(() => {
     if (!usage) {

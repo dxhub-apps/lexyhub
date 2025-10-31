@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import KeywordSparkline from "@/components/keywords/KeywordSparkline";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useAnalytics } from "@/lib/analytics/use-analytics";
 
 type PlanTier = "free" | "growth" | "scale";
 
@@ -50,7 +51,7 @@ export default function KeywordsPage(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [lastQuery, setLastQuery] = useState<string>("");
   const [bootstrapped, setBootstrapped] = useState(false);
-  const [plan, setPlan] = useState<PlanTier>("growth");
+  const [planTier, setPlanTier] = useState<PlanTier>("growth");
   const [responsePlan, setResponsePlan] = useState<PlanTier>("growth");
   const [sourceFilters, setSourceFilters] = useState<string[]>(["synthetic", "amazon"]);
   const [responseSources, setResponseSources] = useState<string[]>(["synthetic", "amazon"]);
@@ -62,13 +63,14 @@ export default function KeywordsPage(): JSX.Element {
   const [selectedKeyword, setSelectedKeyword] = useState<KeywordResult | null>(null);
 
   const { push } = useToast();
+  const analytics = useAnalytics();
 
   const availableSources = useMemo(() => {
-    if (plan === "free") {
+    if (planTier === "free") {
       return ["synthetic"];
     }
     return ["synthetic", "amazon"];
-  }, [plan]);
+  }, [planTier]);
 
   const toggleSource = useCallback(
     (source: string) => {
@@ -108,7 +110,7 @@ export default function KeywordsPage(): JSX.Element {
             query: term,
             market: "us",
             limit: 25,
-            plan,
+            plan: planTier,
             sources: sourceFilters,
           }),
         });
@@ -122,16 +124,26 @@ export default function KeywordsPage(): JSX.Element {
         setResults(payload.results ?? []);
         setInsights(payload.insights ?? null);
         setLastQuery(payload.query ?? term);
-        setResponsePlan(payload.plan ?? plan);
+        setResponsePlan(payload.plan ?? planTier);
         setResponseSources(payload.sources ?? sourceFilters);
+        analytics.capture("keywords.search.completed", {
+          term,
+          responsePlan: payload.plan ?? planTier,
+          resultCount: payload.results?.length ?? 0,
+          sources: payload.sources ?? sourceFilters,
+        });
       } catch (err) {
         console.error("Failed to execute keyword search", err);
         setError(err instanceof Error ? err.message : "Unexpected error occurred");
+        analytics.capture("keywords.search.failed", {
+          term,
+          message: err instanceof Error ? err.message : String(err),
+        });
       } finally {
         setLoading(false);
       }
     },
-    [plan, sourceFilters],
+    [analytics, planTier, sourceFilters],
   );
 
   const handleWatchlist = useCallback(
@@ -151,6 +163,11 @@ export default function KeywordsPage(): JSX.Element {
           description: `\"${keyword.term}\" is now monitored.`,
           tone: "success",
         });
+        analytics.capture("watchlists.item.added", {
+          keywordId: keyword.id,
+          keywordTerm: keyword.term,
+          market: keyword.market,
+        });
       } catch (err) {
         console.error("Failed to add keyword to watchlist", err);
         push({
@@ -158,9 +175,14 @@ export default function KeywordsPage(): JSX.Element {
           description: err instanceof Error ? err.message : "Unexpected error",
           tone: "error",
         });
+        analytics.capture("watchlists.item.add.failed", {
+          keywordId: keyword.id,
+          keywordTerm: keyword.term,
+          message: err instanceof Error ? err.message : String(err),
+        });
       }
     },
-    [push],
+    [analytics, push],
   );
 
   const handleOptimize = useCallback(
@@ -190,14 +212,25 @@ export default function KeywordsPage(): JSX.Element {
 
         const payload = (await response.json()) as TagOptimizerResult;
         setOptimizerResult(payload);
+        analytics.capture("keywords.optimizer.completed", {
+          keywordId: keyword.id,
+          keywordTerm: keyword.term,
+          confidence: payload.confidence,
+          model: payload.model,
+        });
       } catch (err) {
         console.error("Failed to optimize tags", err);
         setOptimizerError(err instanceof Error ? err.message : "Unexpected error");
+        analytics.capture("keywords.optimizer.failed", {
+          keywordId: keyword.id,
+          keywordTerm: keyword.term,
+          message: err instanceof Error ? err.message : String(err),
+        });
       } finally {
         setOptimizerLoading(false);
       }
     },
-    [],
+    [analytics],
   );
 
   useEffect(() => {
@@ -325,8 +358,8 @@ export default function KeywordsPage(): JSX.Element {
           <label htmlFor="plan-tier">Plan tier</label>
           <select
             id="plan-tier"
-            value={plan}
-            onChange={(event) => setPlan(event.target.value as PlanTier)}
+            value={planTier}
+            onChange={(event) => setPlanTier(event.target.value as PlanTier)}
             disabled={loading}
           >
             <option value="free">Free</option>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import { useToast } from "@/components/ui/ToastProvider";
+import { useAnalytics } from "@/lib/analytics/use-analytics";
 
 type WatchlistItem = {
   id: string;
@@ -27,6 +28,7 @@ export default function WatchlistsPage(): JSX.Element {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { push } = useToast();
+  const analytics = useAnalytics();
 
   const loadWatchlists = useCallback(async () => {
     setLoading(true);
@@ -71,13 +73,20 @@ export default function WatchlistsPage(): JSX.Element {
       });
 
       setWatchlists(normalized);
+      analytics.capture("watchlists.list.loaded", {
+        watchlists: normalized.length,
+        totalItems: normalized.reduce((sum, watchlist) => sum + watchlist.items.length, 0),
+      });
     } catch (err) {
       console.error("Failed to load watchlists", err);
       setError(err instanceof Error ? err.message : "Unexpected error while loading watchlists.");
+      analytics.capture("watchlists.list.failed", {
+        message: err instanceof Error ? err.message : String(err),
+      });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [analytics]);
 
   useEffect(() => {
     void loadWatchlists();
@@ -100,6 +109,11 @@ export default function WatchlistsPage(): JSX.Element {
           description: `\"${item.label}\" will no longer be tracked.`,
           tone: "success",
         });
+        analytics.capture("watchlists.item.removed", {
+          itemId: item.id,
+          type: item.type,
+          label: item.label,
+        });
         await loadWatchlists();
       } catch (err) {
         console.error("Failed to remove watchlist item", err);
@@ -108,9 +122,15 @@ export default function WatchlistsPage(): JSX.Element {
           description: err instanceof Error ? err.message : "Unexpected error",
           tone: "error",
         });
+        analytics.capture("watchlists.item.remove_failed", {
+          itemId: item.id,
+          type: item.type,
+          label: item.label,
+          message: err instanceof Error ? err.message : String(err),
+        });
       }
     },
-    [loadWatchlists, push],
+    [analytics, loadWatchlists, push],
   );
 
   return (
