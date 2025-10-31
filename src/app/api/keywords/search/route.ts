@@ -127,7 +127,7 @@ async function fetchKeywordsFromSupabase(
     return queryBuilder;
   };
 
-  const executeQuery = async (tierFilters: Array<string | number>) =>
+  const executeQuery = (tierFilters: Array<string | number>) =>
     createQuery(tierFilters).limit(Math.max(limit * 6, 150));
 
   let { data, error } = await executeQuery(tiers);
