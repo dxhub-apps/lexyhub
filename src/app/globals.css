@@ -2153,6 +2153,8 @@ tbody tr:hover {
   gap: 0.75rem;
   font-size: 0.8rem;
   color: rgba(148, 163, 184, 0.8);
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .intent-graph__badge {
@@ -2163,16 +2165,96 @@ tbody tr:hover {
   font-weight: 600;
 }
 
+.intent-graph__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+.intent-graph__controls label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.intent-graph__controls input[type="range"] {
+  appearance: none;
+  width: 140px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+  outline: none;
+}
+
+.intent-graph__controls input[type="range"]::-webkit-slider-runnable-track {
+  background: rgba(148, 163, 184, 0.2);
+  height: 4px;
+  border-radius: 999px;
+}
+
+.intent-graph__controls input[type="range"]::-moz-range-track {
+  background: rgba(148, 163, 184, 0.2);
+  height: 4px;
+  border-radius: 999px;
+}
+
+.intent-graph__controls input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(236, 72, 153, 0.85);
+  cursor: pointer;
+  border: none;
+}
+
+.intent-graph__controls input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(236, 72, 153, 0.85);
+  cursor: pointer;
+  border: none;
+}
+
+.intent-graph__controls span:last-child {
+  font-variant-numeric: tabular-nums;
+  color: rgba(226, 232, 240, 0.85);
+  font-weight: 600;
+}
+
 .intent-graph__canvas {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 200px;
   gap: 1.5rem;
-  align-items: center;
+  align-items: start;
 }
 
 .intent-graph__surface {
   fill: rgba(15, 23, 42, 0.4);
   stroke: rgba(148, 163, 184, 0.18);
+}
+
+.intent-graph__viewer {
+  position: relative;
+  width: 100%;
+  background: radial-gradient(circle at 50% 30%, rgba(15, 23, 42, 0.35), rgba(15, 23, 42, 0.6));
+  border-radius: 1.25rem;
+  overflow: hidden;
+}
+
+.intent-graph__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  max-height: min(640px, 70vh);
 }
 
 .intent-graph__edge {
@@ -2249,6 +2331,15 @@ tbody tr:hover {
 
   .intent-graph__legend {
     order: -1;
+  }
+
+  .intent-graph__meta {
+    justify-content: space-between;
+  }
+
+  .intent-graph__controls {
+    width: 100%;
+    justify-content: space-between;
   }
 }
 
