@@ -13,6 +13,8 @@ Sprint 5 introduces LexyHub's cross-network radar, intent graph, clustering auto
 - `buildIntentGraphLayout` computes a Force-style layout, consumed by `/api/insights/intent-graph` and rendered via the
   `IntentGraph` component.
 - Fallback heuristics ensure classifications even when OpenAI is unavailable.
+- When Supabase credentials are missing or empty results are returned, `/api/insights/intent-graph` now serves a deterministic
+  synthetic dataset from `src/data/synthetic/intent-graph.json` so the UI remains available in local and preview environments.
 
 ## Concept Cluster Automation
 - `/api/jobs/rebuild-clusters` retrieves embeddings, clusters keywords via a lightweight k-means, and labels clusters with GPT.
