@@ -55,19 +55,7 @@ function resolveClient() {
 export async function listRiskAppetites(): Promise<RiskAppetite[]> {
   const client = resolveClient();
   if (!client) {
-    return [
-      {
-        id: "demo-risk-appetite",
-        label: "Default eCommerce",
-        category: "Marketplace",
-        appetite_level: "balanced",
-        owner: "Operations",
-        tolerance: { slaMinutes: 30, allowedViolations: 1 },
-        notes: "Development fallback record when Supabase is not configured.",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-    ];
+    throw new Error("Supabase client is not configured");
   }
 
   const { data, error } = await client
@@ -158,19 +146,7 @@ export async function deleteRiskAppetite(id: string): Promise<void> {
 export async function listRiskControls(): Promise<RiskControl[]> {
   const client = resolveClient();
   if (!client) {
-    return [
-      {
-        id: "demo-risk-control",
-        name: "Manual Etsy QA",
-        description: "Placeholder control when Supabase is unavailable.",
-        owner: "Risk",
-        status: "draft",
-        coverage_area: "Scraping",
-        metadata: { cadence: "weekly" },
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-    ];
+    throw new Error("Supabase client is not configured");
   }
 
   const { data, error } = await client
@@ -228,30 +204,7 @@ export async function deleteRiskControl(id: string): Promise<void> {
 export async function listRiskRegister(): Promise<RiskRegisterEntry[]> {
   const client = resolveClient();
   if (!client) {
-    const now = new Date().toISOString();
-    return [
-      {
-        id: "demo-risk-entry",
-        title: "Etsy Scraper blocked",
-        summary: "Placeholder risk record when Supabase is offline.",
-        status: "open",
-        severity: "high",
-        likelihood: "likely",
-        impact: "major",
-        owner: "Platform",
-        appetite_id: "demo-risk-appetite",
-        control_id: "demo-risk-control",
-        mitigation: "Rotate proxies and throttle requests.",
-        follow_up: "Review robots.txt weekly.",
-        raised_by: "system",
-        raised_at: now,
-        due_at: null,
-        resolved_at: null,
-        metadata: { fallback: true },
-        created_at: now,
-        updated_at: now,
-      },
-    ];
+    throw new Error("Supabase client is not configured");
   }
 
   const { data, error } = await client
