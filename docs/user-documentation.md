@@ -37,6 +37,7 @@ The Keywords workspace surfaces organic search opportunities discovered by LexyH
 
 - **Opportunity table:** Ranked list of recommended keywords, including demand score, competitive pressure, and suggested actions.
 - **Filters:** Narrow the dataset by storefront, seasonality, or intent level.
+- **Search bar:** Enter a keyword in the filter row to trigger a search; the workspace now loads without a starter query until you submit your own term.
 - **Watchlists:** Pin mission-critical keywords to monitor their movement over time.
 - **Helpful Highlights panel:** Shows friendly tips about your keyword search along with the last time guidance was updated.
 - **Data seeding from real searches:** When a query returns no results, LexyHub now captures the term and routes it to our enrichment queue so future searches populate faster.
