@@ -304,14 +304,26 @@ a:focus {
 }
 
 @media (max-width: 720px) {
-  .nav-links {
-    display: none;
-  }
   .topbar-inner {
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  .nav-links {
+    width: 100%;
+    overflow-x: auto;
+    gap: 1rem;
+    justify-content: flex-start;
+    padding-bottom: 0.25rem;
+    -webkit-overflow-scrolling: touch;
+  }
+  .nav-links a {
+    white-space: nowrap;
   }
   .cta-group {
     width: 100%;
-    justify-content: flex-end;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
   }
 }
