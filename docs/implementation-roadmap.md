@@ -95,6 +95,7 @@ Each sprint lists epics, cross-functional tasks, acceptance criteria, and instru
 - **S2-E4 UX Polish**
   - [x] Toast system per design tokens.
   - [x] Responsive sidebar collapse with tooltips.
+  - [x] Simplify topbar user menu to avatar-only trigger with environment context surfaced in the dropdown.
 - **Exit Criteria:** Users can optimize tags, maintain watchlists, and stay within plan limits; AI flows are explainable and logged. ✅
 
 ### Sprint 3 — Amazon Data Integration
