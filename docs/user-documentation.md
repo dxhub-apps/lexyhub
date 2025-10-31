@@ -35,17 +35,18 @@ The Dashboard offers a high-level snapshot of revenue pacing and target attainme
 ## Keywords
 The Keywords workspace surfaces organic search opportunities discovered by LexyHub's AI.
 
-- **Opportunity table:** Ranked list of recommended keywords, including demand score, competitive pressure, and suggested actions.
-- **Filters:** Narrow the dataset by storefront, seasonality, or intent level.
-- **Search bar:** Enter a keyword in the filter row to trigger a search; the workspace now loads without a starter query until you submit your own term.
-- **Watchlists:** Pin mission-critical keywords to monitor their movement over time.
-- **Helpful Highlights panel:** Shows friendly tips about your keyword search along with the last time guidance was updated.
-- **Data seeding from real searches:** When a query returns no results, LexyHub now captures the term and routes it to our enrichment queue so future searches populate faster.
+- **Hero insights:** A summary banner highlights active data sources, total results in view, and the freshest sync timestamp so you understand the health of the dataset before diving in.
+- **Guided search controls:** The redesigned search form includes helpful copy, inline validation, and a dedicated refresh action that replays the most recent query without retyping it.
+- **Source selectors:** Toggle marketplace and synthetic signals with card-style checkboxes—no chips required. Each option explains what the source contributes so teams can make confident comparisons.
+- **Opportunity matrix:** Results are grouped into contextual columns—term details, relevance scores, AI opportunity signals, freshness, and actions—making it easier to scan without scrolling horizontally.
+- **Inline actions:** Add promising ideas to a watchlist or open the tag optimizer directly from the table using elevated buttons with clear focus states.
+- **Helpful Highlights panel:** Shows friendly tips about your keyword search along with the last time guidance was updated, plus sparkline telemetry for recent ranking momentum.
+- **Data seeding from real searches:** When a query returns no results, LexyHub captures the term and routes it to our enrichment queue so future searches populate faster.
 
 **How to build a keyword watchlist:**
 1. Open **Keywords** from the sidebar.
-2. Apply filters that reflect your campaign goals.
-3. Select the desired rows and click **Add to watchlist**.
+2. Run a search and adjust the source cards so the dataset reflects your campaign goals.
+3. Select the desired rows and click **Add to watchlist** in the Actions column.
 4. Choose an existing watchlist or create a new one. Watchlists sync automatically with market updates.
 
 ## Watchlists
@@ -142,4 +143,4 @@ LexyHub publishes sprint-level release notes in `/docs/changelog.md`. Review the
 - **Amazon keyword population guide:** `/docs/amazon-keyword-population-guide.md`
 - **Trend & intent intelligence:** `/docs/trend-intent-intelligence.md`
 
-_Last updated: 2025-06-12_
+_Last updated: 2025-06-23_

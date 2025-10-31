@@ -42,6 +42,17 @@ type TagOptimizerResult = {
   model: string;
 };
 
+const SOURCE_DETAILS: Record<string, { title: string; description: string }> = {
+  synthetic: {
+    title: "Synthetic AI",
+    description: "Simulated demand signals to explore new territory.",
+  },
+  amazon: {
+    title: "Amazon Marketplace",
+    description: "Real buyer search data for commercial alignment.",
+  },
+};
+
 export default function KeywordsPage(): JSX.Element {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<KeywordResult[]>([]);
@@ -60,7 +71,7 @@ export default function KeywordsPage(): JSX.Element {
 
   const { push } = useToast();
 
-  const availableSources = useMemo(() => ["synthetic", "amazon"], []);
+  const availableSources = useMemo(() => Object.keys(SOURCE_DETAILS), []);
 
   const toggleSource = useCallback(
     (source: string) => {
@@ -282,135 +293,225 @@ export default function KeywordsPage(): JSX.Element {
   const lastSuccessfulQuery = lastQuery;
   const canRefresh = Boolean(lastSuccessfulQuery);
 
+  const sourceLineageLabel = useMemo(() => {
+    if (!responseSources.length) {
+      return "synthetic";
+    }
+    const mapped = responseSources
+      .map((source) => SOURCE_DETAILS[source]?.title ?? source)
+      .join(", ");
+    return mapped || "synthetic";
+  }, [responseSources]);
+
   return (
     <div className="keywords-page">
-      <div className="keywords-header">
-        <div>
-          <h1>Keyword Intelligence</h1>
-          <p>
-            Explore synthetic demand signals and surface high-propensity commerce keywords. Results are
-            ranked via embeddings with deterministic fallbacks when AI is offline.
-          </p>
+      <section className="keywords-hero" aria-labelledby="keywords-title">
+        <p className="keywords-hero__eyebrow">Search intelligence</p>
+        <div className="keywords-hero__content">
+          <div>
+            <h1 id="keywords-title">Keyword Intelligence</h1>
+            <p>
+              Explore synthetic demand signals and surface high-propensity commerce keywords. Results are ranked via
+              embeddings with deterministic fallbacks when AI is offline.
+            </p>
+          </div>
+          <dl className="keywords-hero__meta">
+            <div>
+              <dt>Active data sources</dt>
+              <dd>{sourceLineageLabel}</dd>
+            </div>
+            <div>
+              <dt>Ideas in view</dt>
+              <dd aria-live="polite">{results.length}</dd>
+            </div>
+            <div>
+              <dt>Latest sync</dt>
+              <dd>{dataLineage.freshest}</dd>
+            </div>
+          </dl>
         </div>
-      </div>
+      </section>
 
-      <div className="keywords-filters">
-        <form className="keywords-search" onSubmit={handleSubmit}>
-          <label className="sr-only" htmlFor="keyword-query">
-            Search keywords
-          </label>
-          <input
-            id="keyword-query"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="e.g. boho nursery decor"
-            disabled={loading}
-          />
-          <button type="submit" disabled={loading || !query.trim()}>
-            {loading ? "Searching…" : "Search"}
-          </button>
+      <section className="keywords-controls" aria-label="Keyword search controls">
+        <form className="keywords-search-form" onSubmit={handleSubmit}>
+          <div className="keywords-search-form__field">
+            <label htmlFor="keyword-query">Keyword or product idea</label>
+            <div className="keywords-search-form__input">
+              <input
+                id="keyword-query"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search for opportunities, e.g. boho nursery decor"
+                disabled={loading}
+                autoComplete="off"
+                aria-describedby="keyword-hint"
+              />
+            </div>
+            <p id="keyword-hint" className="keywords-search-form__hint">
+              Press Enter or use the Search button to run analysis.
+            </p>
+          </div>
+          <div className="keywords-search-form__actions">
+            <button type="submit" disabled={loading || !query.trim()}>
+              {loading ? "Searching…" : "Search"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void performSearch(query.trim() || lastSuccessfulQuery)}
+              disabled={loading || (!query.trim() && !canRefresh)}
+            >
+              Refresh last search
+            </button>
+          </div>
         </form>
-        <div className="keywords-source-toggles">
-          <span>Sources</span>
-          {availableSources.map((source) => {
-            const active = sourceFilters.includes(source);
-            return (
-              <button
-                key={source}
-                type="button"
-                className={active ? "source-toggle active" : "source-toggle"}
-                onClick={() => toggleSource(source)}
-                disabled={loading || (active && sourceFilters.length === 1)}
-              >
-                {source}
-              </button>
-            );
-          })}
-        </div>
-        <button
-          type="button"
-          className="keywords-refresh"
-          onClick={() => void performSearch(query.trim() || lastSuccessfulQuery)}
-          disabled={loading || (!query.trim() && !canRefresh)}
-        >
-          Refresh
-        </button>
-      </div>
+
+        <fieldset className="keywords-sources" disabled={loading}>
+          <legend>Data sources</legend>
+          <p className="keywords-sources__hint">
+            Blend synthetic exploration with marketplace signals. Disable a source to focus insights on a single channel.
+          </p>
+          <div className="keywords-sources__options">
+            {availableSources.map((source) => {
+              const active = sourceFilters.includes(source);
+              const detail = SOURCE_DETAILS[source];
+              return (
+                <label key={source} className={active ? "source-option is-active" : "source-option"}>
+                  <input
+                    type="checkbox"
+                    checked={active}
+                    onChange={() => toggleSource(source)}
+                    disabled={loading || (active && sourceFilters.length === 1)}
+                  />
+                  <span className="source-option__content">
+                    <span className="source-option__title">{detail?.title ?? source}</span>
+                    <span className="source-option__description">{detail?.description ?? ""}</span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+      </section>
 
       {error ? (
         <div className="keyword-error">{error}</div>
       ) : (
-        <div className="keywords-grid">
-          <div className="keywords-table">
-            <header>
+        <div className="keywords-layout">
+          <section className="keywords-results" aria-live="polite">
+            <header className="keywords-results__header">
               <div>
-                <h2>Results</h2>
-                <span className="keyword-meta">Query: {lastSuccessfulQuery || "—"}</span>
+                <h2>Results overview</h2>
+                <p className="keyword-meta">Query: {lastSuccessfulQuery || "—"}</p>
               </div>
-              <div className="keyword-meta">{results.length} matches</div>
+              <dl className="keywords-results__stats">
+                <div>
+                  <dt>Matches</dt>
+                  <dd>{results.length}</dd>
+                </div>
+                <div>
+                  <dt>Sources</dt>
+                  <dd>{sourceLineageLabel}</dd>
+                </div>
+                <div>
+                  <dt>Freshest sync</dt>
+                  <dd>{dataLineage.freshest}</dd>
+                </div>
+              </dl>
             </header>
-            <table>
-              <thead>
-                <tr>
-                  <th>Term</th>
-                  <th>Source</th>
-                  <th>Similarity</th>
-                  <th>Composite</th>
-                  <th>AI Opportunity</th>
-                  <th>Trend Momentum</th>
-                  <th>Freshness</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {results.map((keyword) => (
-                  <tr key={`${keyword.term}-${keyword.market}`}>
-                    <td>
-                      <strong>{keyword.term}</strong>
-                      {keyword.extras && keyword.extras["category"] ? (
-                        <span className="keyword-pill">{String(keyword.extras["category"])} </span>
-                      ) : null}
-                    </td>
-                    <td>
-                      <span className={`keyword-source-badge source-${keyword.source}`}>
-                        {keyword.source}
-                      </span>
-                    </td>
-                    <td>{(keyword.similarity * 100).toFixed(1)}%</td>
-                    <td>
-                      {typeof keyword.compositeScore === "number"
-                        ? `${(keyword.compositeScore * 100).toFixed(1)}%`
-                        : "—"}
-                    </td>
-                    <td>{keyword.ai_opportunity_score?.toFixed(2) ?? "—"}</td>
-                    <td>{keyword.trend_momentum?.toFixed(2) ?? "—"}</td>
-                    <td>
-                      {keyword.freshness_ts
-                        ? new Date(keyword.freshness_ts).toLocaleDateString()
-                        : "Pending"}
-                    </td>
-                    <td className="keyword-actions">
-                      <button className="keyword-watch" onClick={() => handleWatchlist(keyword)}>
-                        Add to Watchlist
-                      </button>
-                      <button className="keyword-optimize" onClick={() => void handleOptimize(keyword)}>
-                        Optimize Tags
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {!results.length && !loading ? (
+            <div className="keywords-table">
+              <table>
+                <thead>
                   <tr>
-                    <td colSpan={7} style={{ textAlign: "center", padding: "2rem" }}>
-                      No keywords yet. Run a search to populate this table.
-                    </td>
+                    <th scope="col">Term &amp; context</th>
+                    <th scope="col">Relevance</th>
+                    <th scope="col">Opportunity signals</th>
+                    <th scope="col">Freshness</th>
+                    <th scope="col">Actions</th>
                   </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {results.map((keyword) => {
+                    const category = keyword.extras?.["category"];
+                    const opportunityScore =
+                      typeof keyword.ai_opportunity_score === "number"
+                        ? keyword.ai_opportunity_score.toFixed(2)
+                        : "—";
+                    const trendMomentum =
+                      typeof keyword.trend_momentum === "number"
+                        ? keyword.trend_momentum.toFixed(2)
+                        : "—";
+                    return (
+                      <tr key={`${keyword.term}-${keyword.market}`}>
+                        <td>
+                          <div className="keyword-term">
+                            <strong>{keyword.term}</strong>
+                            <ul className="keyword-term__meta">
+                              <li>{keyword.market.toUpperCase()}</li>
+                              <li>{SOURCE_DETAILS[keyword.source]?.title ?? keyword.source}</li>
+                              {category ? <li>Category: {String(category)}</li> : null}
+                            </ul>
+                          </div>
+                        </td>
+                        <td>
+                          <dl className="keyword-score-list">
+                            <div>
+                              <dt>Similarity</dt>
+                              <dd>{(keyword.similarity * 100).toFixed(1)}%</dd>
+                            </div>
+                            <div>
+                              <dt>Composite</dt>
+                              <dd>
+                                {typeof keyword.compositeScore === "number"
+                                  ? `${(keyword.compositeScore * 100).toFixed(1)}%`
+                                  : "—"}
+                              </dd>
+                            </div>
+                          </dl>
+                        </td>
+                        <td>
+                          <dl className="keyword-score-list">
+                            <div>
+                              <dt>AI opportunity</dt>
+                              <dd>{opportunityScore}</dd>
+                            </div>
+                            <div>
+                              <dt>Trend momentum</dt>
+                              <dd>{trendMomentum}</dd>
+                            </div>
+                          </dl>
+                        </td>
+                        <td>
+                          <span className="keyword-freshness">
+                            {keyword.freshness_ts
+                              ? new Date(keyword.freshness_ts).toLocaleString()
+                              : "Pending sync"}
+                          </span>
+                        </td>
+                        <td className="keyword-actions">
+                          <button className="keyword-watch" onClick={() => handleWatchlist(keyword)}>
+                            Add to watchlist
+                          </button>
+                          <button className="keyword-optimize" onClick={() => void handleOptimize(keyword)}>
+                            Optimize tags
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {!results.length && !loading ? (
+                    <tr>
+                      <td colSpan={5} className="keywords-empty">
+                        <h3>No keyword insights yet</h3>
+                        <p>Start by running a search above to populate the opportunity map.</p>
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          </section>
 
-          <aside className="keywords-panel">
+          <aside className="keywords-panel" aria-label="Keyword insights and guidance">
             <section>
               <h3>Helpful Highlights</h3>
               <p className="keyword-summary">
