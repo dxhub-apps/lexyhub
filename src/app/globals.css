@@ -158,6 +158,105 @@ main {
   padding: var(--space-3);
 }
 
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3);
+  background: var(--color-page);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.auth-subtitle {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.auth-field label {
+  font-weight: 600;
+}
+
+.auth-field input {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.auth-field input:focus-visible {
+  outline: none;
+  border-color: transparent;
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+  background: var(--color-surface);
+}
+
+.auth-error {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
+.auth-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: #fff;
+  padding: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.auth-submit:hover:not([disabled]),
+.auth-submit:focus-visible:not([disabled]) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.auth-submit[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-meta {
+  margin: 0;
+  margin-top: var(--space-1);
+  text-align: center;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-soft);
+}
+
 .app-sidebar {
   position: fixed;
   top: 0;

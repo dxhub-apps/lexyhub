@@ -7,7 +7,7 @@ LexyHub is the central workspace for monitoring sales velocity, discovering high
 - **Prerequisites:** an active LexyHub account and access to the data sources configured by your organization.
 
 ## Getting Started
-1. **Sign in:** Visit the LexyHub URL provided by your administrator and authenticate with your work email. The avatar menu (top right) confirms the active plan and account.
+1. **Sign in:** Visit the LexyHub URL (or `/login` directly), enter your Supabase credentials, and click **Sign in**. Sessions persist, so returning users skip the prompt until they explicitly log out. The avatar menu (top right) confirms the active admin plan and account details.
 2. **Select a workspace:** If your organization manages multiple storefronts, use the workspace switcher presented during sign in to pick the correct environment. All metrics and automations respect the chosen workspace.
 3. **Review onboarding alerts:** The notification indicator in the workspace header highlights setup tasks such as connecting an Etsy shop or approving data scopes.
 4. **Explore the app shell:** The refreshed left navigation sidebar provides access to product areas, while the workspace header surfaces platform status, environment labels, quick help, and the global user menu.
