@@ -2,6 +2,12 @@
 
 This guide maps every interactive surface in the LexyHub web app to the Supabase tables, storage buckets, and supporting APIs that power it. Use it when tracing data lineage, onboarding new contributors, or verifying that new schema changes feed the correct UI widgets.
 
+## App shell (global navigation)
+
+| UI element | How data is loaded | Supabase tables / stores |
+| --- | --- | --- |
+| Topbar user menu | The menu bootstraps with the Supabase session but hydrates avatar, name, and email by fetching `/api/profile` for the authenticated user ID when the component mounts.【F:src/components/layout/UserMenu.tsx†L137-L207】 | `user_profiles` (profile settings JSON keyed by `user_id`).【F:src/app/api/profile/route.ts†L36-L82】 |
+
 ## Dashboard (`/dashboard`)
 
 | UI element | How data is loaded | Supabase tables / stores |
