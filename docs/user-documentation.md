@@ -18,6 +18,7 @@ LexyHub uses a responsive two-pane layout composed of:
 - **Command sidebar:** Links to Dashboard, Watchlists, Keywords, Insights, Market Twin, Settings, and Status with clear descriptions so teammates understand what each section unlocks. The solid backgrounds and removal of hover-only feedback make link states legible in both light and dark themes. Collapse the sidebar using the toggle in the upper-left corner; the navigation automatically becomes a slide-over drawer on mobile breakpoints.
 - **Workspace header:** Displays the product name, contextual subtitle for the active area, environment (e.g., `development`, `preview`, `production`), a quick "Need help?" shortcut to this guide, and the user menu. The header controls now use consistent solid fills so actions remain obvious on touch devices. The mobile header exposes a menu button that opens the navigation drawer.
 - **User menu:** Provides profile management, theme switching, how-to documentation, and a logout control. Focus indicators replace hover effects so keyboard and touch users can clearly see the active option.
+- **Full-width workspace canvas:** Main content pages now expand to the available width with subtle side padding, allowing dashboards, tables, and cards to line up cleanly without feeling boxed-in on large displays. Grids stretch their cards to equal heights so scanning related metrics is faster.
 
 ## Dashboard
 The Dashboard offers a high-level snapshot of revenue pacing and target attainment.

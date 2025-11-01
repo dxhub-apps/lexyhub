@@ -153,9 +153,9 @@ main {
 
 .app-container {
   width: 100%;
-  max-width: 1360px;
-  margin: 0 auto;
-  padding: var(--space-3);
+  margin: 0;
+  padding-block: var(--space-3);
+  padding-inline: clamp(var(--space-2), 4vw, var(--space-4));
 }
 
 .auth-page {
@@ -757,11 +757,15 @@ main {
 .status-card,
 .backoffice-card,
 .form-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
   background: var(--color-surface);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   padding: var(--space-2);
   box-shadow: var(--shadow-card);
+  min-height: 100%;
 }
 
 .surface-card h2,
@@ -815,6 +819,7 @@ main {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: var(--space-2);
+  align-items: stretch;
 }
 
 .dashboard-kpi {
@@ -896,6 +901,17 @@ main {
   display: grid;
   grid-template-columns: 2fr 1.1fr;
   gap: var(--space-2);
+  align-items: stretch;
+}
+
+.dashboard-operations-grid,
+.metric-grid,
+.status-grid,
+.watchlists-content,
+.insights-grid,
+.keywords-layout,
+.market-twin-grid {
+  align-items: stretch;
 }
 
 .dashboard-analytics-grid .dashboard-card {
