@@ -106,42 +106,22 @@ export default function InsightsPage() {
       </article>
 
       <article className="insights-card insights-card--full surface-card">
-        <div className="insights-toolbar">
-          <h2>Trend radar</h2>
-          <div className="timeframe-toggle" role="group" aria-label="Trend radar timeframe">
-            {TIMEFRAMES.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={option.value === trendTimeframe ? "active" : ""}
-                onClick={() => setTrendTimeframe(option.value)}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <TrendRadar />
+        <TrendRadar
+          title="Trend radar"
+          timeframe={trendTimeframe}
+          timeframeOptions={TIMEFRAMES}
+          onTimeframeChange={setTrendTimeframe}
+        />
         <p className="insights-muted">Visualise momentum across categories to prioritise roadmap bets.</p>
       </article>
 
       <article className="insights-card insights-card--full surface-card">
-        <div className="insights-toolbar">
-          <h2>Intent graph</h2>
-          <div className="timeframe-toggle" role="group" aria-label="Intent graph timeframe">
-            {TIMEFRAMES.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={option.value === intentTimeframe ? "active" : ""}
-                onClick={() => setIntentTimeframe(option.value)}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <IntentGraph />
+        <IntentGraph
+          title="Intent graph"
+          timeframe={intentTimeframe}
+          timeframeOptions={TIMEFRAMES}
+          onTimeframeChange={setIntentTimeframe}
+        />
         <p className="insights-muted">Demand and supply delta informs which watchlists to accelerate.</p>
       </article>
 

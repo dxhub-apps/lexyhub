@@ -16,6 +16,20 @@ type TrendRadarResponse = {
   source: string;
 };
 
+type TrendRadarTimeframeOption = {
+  value: string;
+  label: string;
+};
+
+type TrendRadarProps = {
+  title?: string;
+  description?: string;
+  timeframe?: string;
+  timeframeOptions?: TrendRadarTimeframeOption[];
+  onTimeframeChange?: (value: string) => void;
+  titleId?: string;
+};
+
 const MAX_MOMENTUM = 1.5;
 const RING_VALUES = [0.3, 0.6, 0.9, 1.2, MAX_MOMENTUM];
 
@@ -45,7 +59,15 @@ function formatSources(sources: string[]): string {
   return sources.map((source) => source.replace("_", " ")).join(", ");
 }
 
-export function TrendRadar(): JSX.Element {
+export function TrendRadar({
+  title = "Trend Radar",
+  description =
+    "Visualize cross-network velocity. Momentum is normalized across Google, Pinterest, and Reddit signals with expected growth projections.",
+  timeframe,
+  timeframeOptions,
+  onTimeframeChange,
+  titleId,
+}: TrendRadarProps): JSX.Element {
   const [data, setData] = useState<TrendRadarResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -127,19 +149,39 @@ export function TrendRadar(): JSX.Element {
 
   const viewBoxSize = radius * 2 + 60;
 
+  const hasTimeframeControls =
+    Array.isArray(timeframeOptions) && timeframeOptions.length > 0 && typeof onTimeframeChange === "function";
+
   return (
     <div className="trend-radar">
       <header className="trend-radar__header">
-        <div>
-          <h2>Trend Radar</h2>
-          <p className="insights-muted">
-            Visualize cross-network velocity. Momentum is normalized across Google, Pinterest, and Reddit signals with expected
-            growth projections.
-          </p>
+        <div className="trend-radar__intro">
+          <h2 id={titleId}>{title}</h2>
+          <p className="insights-muted">{description}</p>
         </div>
-        <div className="trend-radar__meta">
-          <span className="trend-radar__badge">{loading ? "Refreshing" : data?.source ?? "unknown"}</span>
-          {data?.generatedAt ? <span>{new Date(data.generatedAt).toLocaleTimeString()}</span> : null}
+        <div className="trend-radar__toolbar">
+          {hasTimeframeControls ? (
+            <div className="timeframe-toggle" role="group" aria-label={`${title} timeframe`}>
+              {timeframeOptions!.map((option) => {
+                const isActive = option.value === timeframe;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={isActive ? "active" : ""}
+                    onClick={() => onTimeframeChange!(option.value)}
+                    aria-pressed={isActive}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+          <div className="trend-radar__meta">
+            <span className="trend-radar__badge">{loading ? "Refreshing" : data?.source ?? "unknown"}</span>
+            {data?.generatedAt ? <span>{new Date(data.generatedAt).toLocaleTimeString()}</span> : null}
+          </div>
         </div>
       </header>
 

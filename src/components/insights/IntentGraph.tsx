@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import type { WheelEvent } from "react";
 
 type IntentGraphNode = {
   id: string;
@@ -33,7 +34,31 @@ type IntentGraphResponse = {
   source: string;
 };
 
-export function IntentGraph(): JSX.Element {
+type IntentGraphTimeframeOption = {
+  value: string;
+  label: string;
+};
+
+type IntentGraphProps = {
+  title?: string;
+  description?: string;
+  timeframe?: string;
+  timeframeOptions?: IntentGraphTimeframeOption[];
+  onTimeframeChange?: (value: string) => void;
+  titleId?: string;
+};
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+export function IntentGraph({
+  title = "Intent Graph",
+  description =
+    "Classification pairs intents, personas, and funnel stages. Force layout reveals adjacency between similar behaviors across marketplaces.",
+  timeframe,
+  timeframeOptions,
+  onTimeframeChange,
+  titleId,
+}: IntentGraphProps): JSX.Element {
   const [data, setData] = useState<IntentGraphResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -77,6 +102,9 @@ export function IntentGraph(): JSX.Element {
   useEffect(() => {
     setZoom(1);
   }, [data?.generatedAt, data?.source]);
+
+  const hasTimeframeControls =
+    Array.isArray(timeframeOptions) && timeframeOptions.length > 0 && typeof onTimeframeChange === "function";
 
   const layout = useMemo(() => {
     if (!nodes.length) {
@@ -153,17 +181,47 @@ export function IntentGraph(): JSX.Element {
     return `${x} ${y} ${viewWidth} ${viewHeight}`;
   }, [layout.centerX, layout.centerY, layout.height, layout.width, zoom]);
 
+  const handleWheel = useCallback((event: WheelEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const delta = event.deltaY;
+    if (!Number.isFinite(delta)) {
+      return;
+    }
+    setZoom((previous) => {
+      const nextZoom = clamp(previous - delta * 0.0015, 0.5, 2.5);
+      if (Math.abs(nextZoom - previous) < 0.001) {
+        return previous;
+      }
+      return nextZoom;
+    });
+  }, []);
+
   return (
     <div className="intent-graph">
       <header className="intent-graph__header">
-        <div>
-          <h2>Intent Graph</h2>
-          <p className="insights-muted">
-            Classification pairs intents, personas, and funnel stages. Force layout reveals adjacency between similar behaviors
-            across marketplaces.
-          </p>
+        <div className="intent-graph__intro">
+          <h2 id={titleId}>{title}</h2>
+          <p className="insights-muted">{description}</p>
         </div>
         <div className="intent-graph__meta">
+          {hasTimeframeControls ? (
+            <div className="timeframe-toggle" role="group" aria-label={`${title} timeframe`}>
+              {timeframeOptions!.map((option) => {
+                const isActive = option.value === timeframe;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={isActive ? "active" : ""}
+                    onClick={() => onTimeframeChange!(option.value)}
+                    aria-pressed={isActive}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
           <span className="intent-graph__badge">{data?.source ?? "unknown"}</span>
           {data?.generatedAt ? <span>{new Date(data.generatedAt).toLocaleTimeString()}</span> : null}
           <div className="intent-graph__controls">
@@ -183,7 +241,7 @@ export function IntentGraph(): JSX.Element {
       </header>
       {error ? <div className="intent-graph__error">{error}</div> : null}
       <div className="intent-graph__canvas">
-        <div className="intent-graph__viewer">
+        <div className="intent-graph__viewer" onWheel={handleWheel} role="presentation" tabIndex={0}>
           <svg
             viewBox={viewBox}
             role="img"
