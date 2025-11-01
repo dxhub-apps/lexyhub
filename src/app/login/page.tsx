@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import type { Session } from "@supabase/supabase-js";
 
 import { LoginForm } from "@/components/auth/LoginForm";
 import { SupabaseProvider } from "@/components/providers/SupabaseProvider";
@@ -23,6 +24,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     data: { user },
   } = userResult;
 
+  const validatedSession: Session | null =
+    session && user ? { ...session, user } : session;
+
   if (user) {
     redirect("/dashboard");
   }
@@ -30,7 +34,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const redirectTo = typeof searchParams?.redirect_to === "string" && searchParams.redirect_to ? searchParams.redirect_to : "/dashboard";
 
   return (
-    <SupabaseProvider initialSession={session}>
+    <SupabaseProvider initialSession={validatedSession}>
       <div className="auth-page">
         <div className="auth-card" role="main">
           <h1>Welcome back</h1>

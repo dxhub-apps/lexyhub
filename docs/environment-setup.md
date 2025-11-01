@@ -36,6 +36,10 @@ best-effort; without them the radar returns empty datasets.
 - After the first successful login, the backend ensures a corresponding `user_profiles` record exists with the `admin` plan and
   an effectively unlimited AI usage quota so administrators avoid throttling. Update `src/lib/auth/ensure-profile.ts` if a
   different onboarding plan is required.
+- To avoid trusting potentially tampered cookie data, server components and middleware call `supabase.auth.getUser()` to
+  validate the authenticated user and then merge the returned payload into the session object passed to React context.
+  This keeps initial session hydration working for the client while ensuring authorization decisions rely on data that is
+  revalidated against Supabase Auth.
 
 > **Keyword tier column compatibility**
 >

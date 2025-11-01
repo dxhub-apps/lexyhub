@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import type { Session } from "@supabase/supabase-js";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { SupabaseProvider } from "@/components/providers/SupabaseProvider";
@@ -24,6 +25,9 @@ export default async function AppLayout({
     data: { user },
   } = userResult;
 
+  const validatedSession: Session | null =
+    session && user ? { ...session, user } : session;
+
   if (!user) {
     redirect("/login");
   }
@@ -31,7 +35,7 @@ export default async function AppLayout({
   await ensureAdminProfile(user);
 
   return (
-    <SupabaseProvider initialSession={session}>
+    <SupabaseProvider initialSession={validatedSession}>
       <AppShell>{children}</AppShell>
     </SupabaseProvider>
   );
