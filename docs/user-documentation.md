@@ -55,6 +55,7 @@ The Watchlists hub centralizes every monitored keyword or listing tied to your a
 - **Automatic provisioning:** When a user profile is created, LexyHub now creates an **Operational Watchlist** so new users can start tracking items immediately.
 - **Friendly status summary:** The hero panel now explains how many watchlists you have and how many keywords they cover using approachable language instead of system metrics.
 - **At-a-glance tracking:** Each card highlights how many keywords it monitors and when the list was last updated, so you can gauge freshness without digging into quotas.
+- **Quota flexibility:** Administrators can apply overrides that include zero-valued limits when you need to pause watchlist growth without changing the underlying subscription plan.
 - **Item controls:** Review the tracked keywords and listings, follow outbound links, and remove stale entries.
 - **Listing coverage:** Listings stay linked to their marketplace counterparts, so watchlist details remain accurate even after catalog updates.
 

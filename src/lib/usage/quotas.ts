@@ -129,16 +129,16 @@ export async function resolvePlanContext(userId: string): Promise<PlanContext> {
   const plan = overrides.plan ?? resolveBasePlan(data?.plan);
   const limits = { ...DEFAULT_LIMITS[plan] };
 
-  if (overrides.dailyQueryLimit) {
+  if (overrides.dailyQueryLimit !== undefined) {
     limits.dailyQueryLimit = overrides.dailyQueryLimit;
   }
-  if (overrides.watchlistLimit) {
+  if (overrides.watchlistLimit !== undefined) {
     limits.watchlistLimit = overrides.watchlistLimit;
   }
-  if (overrides.watchlistItemCapacity) {
+  if (overrides.watchlistItemCapacity !== undefined) {
     limits.watchlistItemCapacity = overrides.watchlistItemCapacity;
   }
-  if (overrides.aiSuggestionLimit) {
+  if (overrides.aiSuggestionLimit !== undefined) {
     limits.aiSuggestionLimit = overrides.aiSuggestionLimit;
   }
 
