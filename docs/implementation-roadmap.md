@@ -189,14 +189,15 @@ These activities span multiple sprints and must be kept current.
 
 ## 4. Backoffice & Risk Governance
 
-The administrator backoffice now exposes a dedicated workspace at `/admin/backoffice` with two primary surfaces:
+The administrator backoffice now exposes a dedicated workspace at `/admin/backoffice` with three primary surfaces:
 
 - **Operational Overview:** Aggregates `system_health_metrics` snapshots and `crawler_statuses` telemetry into a dashboard for service health, revenue/users pulse, and scraping job execution. It surfaces risk register rollups for total/open/mitigated/overdue counts and links directly into the risk register workspace.
 - **Risk Management Workspace:** Enables CRUD management of `risk_appetites`, `risk_controls`, and `risk_register_entries` with inline forms, edit/delete actions, and automatic refresh. Each action is gated behind the admin header (`x-user-role: admin`) to keep the area restricted when running in production.
+- **Task Tracker Workspace:** `/admin/backoffice/tasks` provides Jira-style task management backed by the `backoffice_task_statuses`, `backoffice_tasks`, and `backoffice_task_dependencies` tables added in migration `0013_backoffice_task_tracker.sql`. Administrators can configure workflow stages, assign owners, set start/due dates, and link blocking dependencies using the same admin-authenticated APIs described in `docs/backoffice-task-tracker.md`.
 
 Scraping jobs can be triggered via `/api/admin/scraping/run` for Etsy and Reddit/TikTok seed sources. Job outcomes persist keyword candidates into the canonical `keywords` table while updating crawler health rows. The overview page consumes `/api/admin/backoffice/overview`, which combines health/crawler state with `summarizeRiskRegister()` metadata to provide a one-stop control center.
 
-> **Implementation notes:** The UI falls back to seeded demo data when Supabase credentials are not present, simplifying local testing. When service keys are configured, ensure migrations through `0008_backoffice_risk_management.sql` have been applied before exercising these flows.
+> **Implementation notes:** The UI falls back to seeded demo data when Supabase credentials are not present, simplifying local testing. When service keys are configured, ensure migrations through `0013_backoffice_task_tracker.sql` have been applied before exercising these flows.
 
 ---
 

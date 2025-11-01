@@ -4,6 +4,9 @@ The risk management workspace now mirrors the actual operational state captured 
 showing placeholder rows, we derive appetites, controls, metrics, and register entries from live telemetry
 (crawler runs, keyword corpus health, and integration checks).
 
+> **Need structured delivery tracking?** See `docs/backoffice-task-tracker.md` for the complementary Jira-style
+> task workspace and schema introduced alongside this risk tooling.
+
 ## Synchronizing from Supabase
 
 Run the admin-only sync endpoint whenever you want to refresh the backoffice dataset from the current
