@@ -10,6 +10,26 @@ import {
 
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+const BASE_HTML_HEADERS = Object.freeze({
+  "User-Agent": USER_AGENT,
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  "Accept-Language": "en-US,en;q=0.9",
+  "Cache-Control": "no-cache",
+  Pragma: "no-cache",
+  "Sec-Fetch-Dest": "document",
+  "Sec-Fetch-Mode": "navigate",
+  "Sec-Fetch-Site": "none",
+  "Sec-Fetch-User": "?1",
+  "Upgrade-Insecure-Requests": "1",
+});
+const DEFAULT_REFERER = "https://www.etsy.com/";
+
+function buildNavigationHeaders(referer: string = DEFAULT_REFERER): Record<string, string> {
+  return {
+    ...BASE_HTML_HEADERS,
+    Referer: referer,
+  };
+}
 const MIN_INTERVAL_MS = 1_500;
 
 const BEST_SELLERS_DEFAULT_URL = "https://www.etsy.com/c/best-selling-items";
@@ -307,10 +327,16 @@ export class ScrapeEtsyProvider implements EtsyProvider {
 
     await RequestThrottle.schedule();
     const response = await fetch(targetUrl, {
-      headers: { "User-Agent": USER_AGENT, Accept: "text/html,application/xhtml+xml" },
+      headers: buildNavigationHeaders(DEFAULT_REFERER),
     });
 
     if (!response.ok) {
+      if (response.status === 403) {
+        throw new EtsyProviderError("Blocked while loading Etsy best sellers", "BLOCKED", {
+          status: response.status,
+          canRetry: false,
+        });
+      }
       throw new EtsyProviderError(`Failed to load best seller category (${response.status})`, "FETCH_FAILED", {
         status: response.status,
         canRetry: response.status >= 500 || response.status === 429,
@@ -346,7 +372,7 @@ export class ScrapeEtsyProvider implements EtsyProvider {
 
     try {
       const response = await fetch(normalizedUrl, {
-        headers: { "User-Agent": USER_AGENT, Accept: "text/html,application/xhtml+xml" },
+        headers: buildNavigationHeaders(DEFAULT_REFERER),
       });
 
       if (response.status === 404) {
@@ -354,6 +380,12 @@ export class ScrapeEtsyProvider implements EtsyProvider {
       }
 
       if (!response.ok) {
+        if (response.status === 403) {
+          throw new EtsyProviderError("Blocked while fetching Etsy listing", "BLOCKED", {
+            status: response.status,
+            canRetry: false,
+          });
+        }
         throw new EtsyProviderError(`Failed to fetch listing (${response.status})`, "FETCH_FAILED", {
           status: response.status,
           canRetry: response.status >= 500 || response.status === 429,

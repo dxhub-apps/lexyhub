@@ -158,3 +158,8 @@ The command prints the number of suggestions captured per query and the total ke
   caching.
 - The editing workspace now surfaces an **Analyze Etsy best seller** shortcut so editors can run the full keyword, difficulty,
   and AI suggestion pipelines using fresh category leaders with one click.
+
+## 12. Handling Etsy anti-bot responses
+
+- Both `ScrapeEtsyProvider.getListingByUrl` and `ScrapeEtsyProvider.gatherBestSellerListingUrls` now send a realistic browser header set (including `Accept-Language`, `Sec-Fetch-*`, and `Upgrade-Insecure-Requests`) plus a homepage `Referer` to reduce the chance of HTTP 403 responses from Etsy's edge network.
+- If Etsy still returns a 403, the provider emits a `BLOCKED` error type so ingestion monitors can short-circuit retries and alert the operations team instead of hammering the storefront with doomed requests.
