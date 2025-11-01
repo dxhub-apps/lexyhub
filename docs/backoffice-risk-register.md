@@ -83,13 +83,14 @@ guardrails already have the necessary wiring in place.【F:docs/background-jobs.
 
 ## Initial risk register snapshot
 
-The same migration seeds the seven managed risk entries so the backoffice dashboard opens with the
+The same migration seeds the eight managed risk entries so the backoffice dashboard opens with the
 authentic posture from Supabase, matching the logic used by the `syncRiskDataFromState` routine.【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L128-L335】【F:src/lib/risk/state-sync.ts†L993-L1214】
 
 | Risk | Status | Severity / Likelihood | Due / Resolved | Seeded summary |
 | --- | --- | --- | --- | --- |
 | Crawler telemetry gaps | `open` | `high` / `likely` | Due in 1 day | No crawler telemetry has been recorded; operations must bootstrap the scrapers.【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L149-L175】 |
 | Keyword corpus coverage | `open` | `high` / `likely` | Due in 1 day | Corpus still empty (0 keywords, 0 markets) so seed rotation has to run immediately.【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L176-L206】 |
+| Provider APIs missing blocks launch | `open` | `critical` / `likely` | Due in 14 days | Launch readiness is frozen until Google, Etsy, Pinterest, and Reddit keyword feeds stream data to Supabase.【F:supabase/migrations/0016_seed_provider_api_tasks_and_launch_risk.sql†L64-L109】 |
 | AI integration configuration | `open` | `medium` / `likely` | Due in 2 days | `OPENAI_API_KEY` absent keeps generative workflows offline until credentials are applied.【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L207-L225】【F:docs/status-page.md†L22-L38】 |
 | Marketplace sync degradation | `open` | `high` / `likely` | Due in 2 days | No seller accounts have linked to the single enabled provider; ingestion jobs have never run.【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L226-L257】【F:docs/etsy-integration.md†L1-L44】 |
 | Background job backlog | `open` | `high` / `likely` | Due in 1 day | Trend, intent, cluster, and embedding jobs have zero recorded runs and must be scheduled.【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L258-L282】【F:docs/background-jobs.md†L1-L44】 |
@@ -110,6 +111,9 @@ Every sync evaluates the current telemetry and updates the managed risks:
   `OPENAI_API_KEY` is set in the environment so AI workflows can execute.
 - **Marketplace sync degradation** (`73ddc3ab-725f-4a46-9b18-9a63a1bfb35c`) – Fires when marketplace accounts
   are disconnected, provider sync jobs fail or age past 12 hours, or when integrations are disabled.
+- **Provider APIs missing blocks launch** (`c0a4bf73-8f5d-4f44-8a8d-8f2d2f71808d`) – Tracks the critical path to
+  production by flagging the Google, Etsy, Pinterest, and Reddit connectors until keyword momentum data
+  reaches the dashboard.【F:supabase/migrations/0016_seed_provider_api_tasks_and_launch_risk.sql†L64-L109】
 - **Background job backlog** (`c7b9c9df-f8b4-4c3e-94cf-62e5d108f7b6`) – Tracks failing or overdue background
   jobs so automation SLOs stay intact.
 - **API error rate spike** (`65c0de81-388b-46d2-867b-9de91c796c8e`) – Watches the rolling six-hour API error
