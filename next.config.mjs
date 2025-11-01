@@ -21,6 +21,25 @@ const nextConfig = {
       },
     ],
   },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      const externalize = new Set(["playwright", "playwright-core", "chromium-bidi", "electron"]);
+      const existing = Array.isArray(config.externals)
+        ? [...config.externals]
+        : config.externals
+        ? [config.externals]
+        : [];
+      existing.push((context, callback) => {
+        const request = context?.request;
+        if (request && externalize.has(request)) {
+          return callback(null, `commonjs ${request}`);
+        }
+        callback();
+      });
+      config.externals = existing;
+    }
+    return config;
+  },
 };
 
 export default nextConfig;
