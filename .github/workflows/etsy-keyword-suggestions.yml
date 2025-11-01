@@ -1,0 +1,44 @@
+name: Etsy Keyword Suggestions
+
+on:
+  workflow_dispatch:
+    inputs:
+      queries:
+        description: Comma-separated list of seed queries
+        required: false
+        default: handmade gifts,personalized jewelry
+      limit:
+        description: Number of suggestions to collect per query (1-100)
+        required: false
+        default: '25'
+  schedule:
+    - cron: '30 8 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  scrape:
+    name: Capture Etsy keyword suggestions
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      ETSY_QUERIES: ${{ github.event.inputs.queries || 'handmade gifts,personalized jewelry' }}
+      ETSY_SUGGESTION_LIMIT: ${{ github.event.inputs.limit || '25' }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Etsy keyword scraper
+        run: npm run scrape:etsy-keywords

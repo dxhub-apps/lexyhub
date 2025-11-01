@@ -91,3 +91,52 @@ npm run scrape:etsy
 ```
 
 The script writes a JSON file containing the raw listing metadata plus a condensed summary for each item. Subsequent automation can ingest these files or push them into Supabase for deeper analysis.
+
+## 9. Keyword suggestion harvesting (no official API required)
+
+Many keyword discovery tasks only need Etsy's public autocomplete results. The repository now includes a dedicated Node script
+and GitHub Action that capture those suggestions, persist them inside Supabase, and feed them into the unified `keywords` table
+without relying on Etsy's official API.
+
+### Script overview
+
+- Entrypoint: `npm run scrape:etsy-keywords` (alias for `node scripts/etsy-keyword-scraper.mjs`).
+- Environment inputs:
+  - `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_SERVICE_KEY`) authenticate the inserts.
+  - `ETSY_QUERIES` accepts a comma-separated list of seed searches. CLI arguments behave the same if you prefer `node scripts/etsy-keyword-scraper.mjs "handmade toys"`.
+  - `ETSY_SUGGESTION_LIMIT` bounds the number of suggestions per query (1–100, defaults to 25).
+- Behaviour:
+  1. Calls the public `https://www.etsy.com/api/etsywill/autocomplete/suggestions` endpoint with realistic browser headers.
+  2. Falls back to parsing any embedded JSON from the HTML challenge page.
+  3. As a last resort, generates deterministic heuristics so scheduled runs never fail noisily.
+  4. Stores every run in the new `etsy_keyword_scrapes` table (see migration `0012_etsy_keyword_scrapes.sql`).
+  5. Upserts each suggestion into `keywords` with `source = 'etsy-suggest'` so downstream analytics can reuse the data.
+
+The script logs a JSON summary at the end of every execution, making it easy to plug into observability dashboards.
+
+### GitHub workflow
+
+The workflow `.github/workflows/etsy-keyword-suggestions.yml` automates the scraper on a daily 08:30 UTC cadence and exposes a
+manual **Run workflow** button. Provide a comma-separated `queries` list and optional `limit`; the Action takes care of Node.js
+setup, dependency installation, and executing the script.
+
+Required secrets:
+
+- `SUPABASE_URL` — Supabase project URL (the same value used by Next.js).
+- `SUPABASE_SERVICE_ROLE_KEY` — Service role key with insert access to `etsy_keyword_scrapes` and `keywords`.
+
+Optional overrides like `ETSY_QUERIES` or `ETSY_SUGGESTION_LIMIT` can be promoted to repository variables if you need different
+defaults between environments.
+
+### Manual local run
+
+```bash
+export SUPABASE_URL="https://your-project.supabase.co"
+export SUPABASE_SERVICE_ROLE_KEY="service-role-token"
+export ETSY_QUERIES="custom mugs,ceramic bowls"
+export ETSY_SUGGESTION_LIMIT=20
+npm run scrape:etsy-keywords
+```
+
+The command prints the number of suggestions captured per query and the total keyword upserts performed. Inspect the
+`etsy_keyword_scrapes` table to audit historical runs or replay downstream processing.
