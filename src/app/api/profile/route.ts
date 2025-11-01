@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getSupabaseServerClient } from "@/lib/supabase-server";
+import { requireUserId } from "./helpers";
 
 type ProfilePayload = {
   fullName: string;
@@ -9,15 +10,8 @@ type ProfilePayload = {
   bio: string;
   timezone: string;
   notifications: boolean;
+  avatarUrl: string;
 };
-
-function requireUserId(request: NextRequest): string {
-  const userId = request.nextUrl.searchParams.get("userId") ?? request.headers.get("x-lexy-user-id");
-  if (!userId) {
-    throw new Error("userId is required");
-  }
-  return userId;
-}
 
 function normalizeProfile(input: Partial<ProfilePayload> | null | undefined): ProfilePayload {
   return {
@@ -27,6 +21,7 @@ function normalizeProfile(input: Partial<ProfilePayload> | null | undefined): Pr
     bio: String(input?.bio ?? ""),
     timezone: String(input?.timezone ?? ""),
     notifications: Boolean(input?.notifications ?? false),
+    avatarUrl: String(input?.avatarUrl ?? ""),
   };
 }
 
