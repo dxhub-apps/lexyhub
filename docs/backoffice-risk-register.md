@@ -7,6 +7,20 @@ showing placeholder rows, we derive appetites, controls, metrics, and register e
 > **Need structured delivery tracking?** See `docs/backoffice-task-tracker.md` for the complementary Jira-style
 > task workspace and schema introduced alongside this risk tooling.
 
+## Workspace layout refresh
+
+The `/admin/backoffice/risk-management` experience now opens with three KPI cards that summarise appetite,
+control, and register coverage so operators can gauge posture at a glance before diving into the detail.
+Below the summary, the workspace is organised into paired panels: appetite and control forms sit beside the
+catalogues they update, while the risk register presents a split view that keeps the form and the live entry
+stack visible at the same time. Contextual editing badges, soft-pill status indicators, and richer metadata
+blocks make it easier to understand ownership, coverage, and mitigation plans without expanding rows.【F:src/app/(app)/admin/backoffice/risk-management/page.tsx†L136-L366】
+
+The new layout also adds datalist-powered suggestions for status, severity, and likelihood inputs so teams can
+reuse common terminology without losing the ability to record custom values. When you pick an existing record
+from any collection, the associated card is highlighted and the form switches to edit mode, keeping workflow
+state obvious for admins operating during incidents.【F:src/app/(app)/admin/backoffice/risk-management/page.tsx†L58-L366】
+
 ## Synchronizing from Supabase
 
 Run the admin-only sync endpoint whenever you want to refresh the backoffice dataset from the current
