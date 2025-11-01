@@ -161,10 +161,19 @@ The command prints the number of suggestions captured per query and the total ke
   ingestion can continue without manual intervention.
 - The editing workspace now surfaces an **Analyze Etsy best seller** shortcut so editors can run the full keyword, difficulty,
   and AI suggestion pipelines using fresh category leaders with one click.
+- A dedicated Playwright-driven script (`npm run scrape:etsy-best-sellers`) mirrors the best seller ingestion flow without
+  touching the Supabase pipeline. The accompanying workflow `.github/workflows/etsy-best-sellers.yml` installs Chromium,
+  executes the script on a 09:00 UTC cadence (or on demand via **Run workflow**), and publishes timestamped JSON captures under
+  `data/etsy/best-sellers/` as short-lived build artifacts.
 
 ## 12. Handling Etsy anti-bot responses
 
-- Both `ScrapeEtsyProvider.getListingByUrl` and `ScrapeEtsyProvider.gatherBestSellerListingUrls` now send a more complete browser header set (including `Accept-Encoding`, `Sec-CH-UA*`, `Accept-Language`, and `Sec-Fetch-*`) and rotate through realistic on-site referers (homepage, the base listing URL, a keyword search seeded from the slug, and the best seller hub) before giving up. This rotation reduces how often Etsy edge nodes label the scraper as automated traffic.
-- Every listing lookup performs a session warm-up request against the Etsy homepage before hitting the target URL so that bot mitigation cookies (for example `datadome` and `uaid`) are established under the scraper's jar. Carrying these session cookies into the subsequent listing fetch dramatically improves the odds of bypassing the initial 403 wall.
-- When Etsy still responds with a 403, the provider logs each blocked attempt with the referer that failed and returns a retryable `BLOCKED` error. This lets the ingestion pipeline fall back to the API provider or reschedule the scrape without immediately aborting the request.
-- Listing fetches now retain any `Set-Cookie` headers that Etsy issues (such as the `datadome` token) and replay them on subsequent requests. Persisting these anti-bot session cookies dramatically lowers the odds of a second consecutive 403 for the same listing or category scrape.
+- Both `ScrapeEtsyProvider.getListingByUrl` and `ScrapeEtsyProvider.gatherBestSellerListingUrls` now warm up the session with a
+  homepage visit, replay any `Set-Cookie` headers Etsy issues, and send a full browser header set (including `Accept-Encoding`,
+  `Sec-CH-UA*`, `Accept-Language`, and `Sec-Fetch-*`). The referer rotation still moves through the homepage, listing slug
+  search, and the best seller hub before escalating.
+- When Etsy responds with a 403 or serves a bot-check captcha, the provider automatically retries with a Playwright-powered
+  Chromium context that mimics a desktop visit. Successful fallbacks are logged so ingestion metrics show how often the
+  headless browser was required.
+- All anti-bot errors bubble up as retryable `BLOCKED` exceptions, giving the ingestion scheduler and editing UI a chance to
+  back off gracefully instead of surfacing a generic failure to the user.

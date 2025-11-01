@@ -7,11 +7,10 @@ import {
   type NormalizedEtsyShop,
   type SearchOptions,
 } from "../types";
+import { ETSY_DEFAULT_REFERER, ETSY_SCRAPER_USER_AGENT } from "./constants";
 
-const USER_AGENT =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 const BASE_HTML_HEADERS = Object.freeze({
-  "User-Agent": USER_AGENT,
+  "User-Agent": ETSY_SCRAPER_USER_AGENT,
   Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
   "Accept-Language": "en-US,en;q=0.9",
   "Accept-Encoding": "gzip, deflate, br",
@@ -19,20 +18,26 @@ const BASE_HTML_HEADERS = Object.freeze({
   Pragma: "no-cache",
   "Sec-Fetch-Dest": "document",
   "Sec-Fetch-Mode": "navigate",
-  "Sec-Fetch-Site": "same-origin",
   "Sec-Fetch-User": "?1",
   "Upgrade-Insecure-Requests": "1",
   "Sec-CH-UA": '"Chromium";v="124", "Not.A/Brand";v="8"',
   "Sec-CH-UA-Mobile": "?0",
   "Sec-CH-UA-Platform": '"Windows"',
 });
-const DEFAULT_REFERER = "https://www.etsy.com/";
+const DEFAULT_REFERER = ETSY_DEFAULT_REFERER;
 
-function buildNavigationHeaders(referer: string = DEFAULT_REFERER): Record<string, string> {
-  return {
+function buildNavigationHeaders(
+  referer: string | undefined = DEFAULT_REFERER,
+  site: "none" | "same-origin" | "cross-site" | "same-site" = referer ? "same-origin" : "none",
+): Record<string, string> {
+  const headers: Record<string, string> = {
     ...BASE_HTML_HEADERS,
-    Referer: referer,
+    "Sec-Fetch-Site": site,
   };
+  if (referer) {
+    headers.Referer = referer;
+  }
+  return headers;
 }
 const MIN_INTERVAL_MS = 1_500;
 
@@ -62,6 +67,10 @@ class RequestThrottle {
 
 class CookieJar {
   private readonly cookies = new Map<string, string>();
+
+  isEmpty(): boolean {
+    return this.cookies.size === 0;
+  }
 
   inject(initHeaders?: HeadersInit): Headers {
     const headers = new Headers(initHeaders);
@@ -380,55 +389,13 @@ function countExtractedFields(listing: NormalizedEtsyListing): number {
   return count;
 }
 
+function isCaptchaPage(html: string): boolean {
+  return /captcha/i.test(html) && /etsy/i.test(html);
+}
+
 export class ScrapeEtsyProvider implements EtsyProvider {
   private readonly cookieJar = new CookieJar();
-  private warmupCompleted = false;
   private warmupPromise: Promise<void> | null = null;
-
-  private async warmUpSession(): Promise<void> {
-    if (this.warmupCompleted) {
-      return;
-    }
-
-    if (this.warmupPromise) {
-      await this.warmupPromise;
-      return;
-    }
-
-    this.warmupPromise = (async () => {
-      await RequestThrottle.schedule();
-      try {
-        const response = await this.fetchWithCookies(DEFAULT_REFERER, {
-          headers: buildNavigationHeaders(DEFAULT_REFERER),
-        });
-
-        if (!response.ok) {
-          console.warn(
-            JSON.stringify({
-              method: "ScrapeEtsyProvider.warmUpSession",
-              status: "failed",
-              status_code: response.status,
-            }),
-          );
-          return;
-        }
-
-        this.warmupCompleted = true;
-      } catch (error) {
-        console.warn(
-          JSON.stringify({
-            method: "ScrapeEtsyProvider.warmUpSession",
-            status: "error",
-            error: error instanceof Error ? error.message : String(error),
-          }),
-        );
-      } finally {
-        this.warmupPromise = null;
-      }
-    })();
-
-    await this.warmupPromise;
-  }
 
   private async fetchWithCookies(url: string, init?: RequestInit): Promise<Response> {
     const headers = this.cookieJar.inject(init?.headers);
@@ -437,12 +404,71 @@ export class ScrapeEtsyProvider implements EtsyProvider {
     return response;
   }
 
-  private async fetchListingDocument(url: string): Promise<Response> {
+  private async warmupSession(): Promise<void> {
+    if (!this.cookieJar.isEmpty()) {
+      return;
+    }
+    if (!this.warmupPromise) {
+      this.warmupPromise = (async () => {
+        try {
+          await RequestThrottle.schedule();
+          const response = await this.fetchWithCookies(DEFAULT_REFERER, {
+            headers: buildNavigationHeaders(undefined, "none"),
+          });
+          if (response.ok) {
+            await response.text();
+          }
+        } catch (error) {
+          console.warn(
+            JSON.stringify({
+              method: "ScrapeEtsyProvider.warmupSession",
+              status: "error",
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          );
+        }
+      })();
+    }
+    try {
+      await this.warmupPromise;
+    } finally {
+      this.warmupPromise = null;
+    }
+  }
+
+  private async fetchWithPlaywright(url: string, referer?: string): Promise<Response | null> {
+    try {
+      const clientModule = await import("./playwright-client");
+      if (typeof clientModule.fetchHtmlWithPlaywright !== "function") {
+        return null;
+      }
+      const result = await clientModule.fetchHtmlWithPlaywright(url, { referer });
+      if (!result) {
+        return null;
+      }
+      const headers = new Headers({ "content-type": "text/html; charset=utf-8" });
+      headers.set("x-etsy-scrape-fallback", "playwright");
+      return new Response(result.html, { status: result.status ?? 200, headers });
+    } catch (error) {
+      console.warn(
+        JSON.stringify({
+          method: "ScrapeEtsyProvider.fetchWithPlaywright",
+          url,
+          referer: referer ?? null,
+          status: "error",
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
+      return null;
+    }
+  }
+
+  private async fetchListingDocument(url: string): Promise<{ response: Response; referers: string[] }> {
     const referers = buildListingReferers(url);
     let attempt = 0;
     let lastResponse: Response | null = null;
 
-    await this.warmUpSession();
+    await this.warmupSession();
 
     for (const referer of referers) {
       await RequestThrottle.schedule();
@@ -451,7 +477,7 @@ export class ScrapeEtsyProvider implements EtsyProvider {
       });
 
       if (response.status !== 403) {
-        return response;
+        return { response, referers };
       }
 
       lastResponse = response;
@@ -468,14 +494,27 @@ export class ScrapeEtsyProvider implements EtsyProvider {
       );
     }
 
+    const fallback = await this.fetchWithPlaywright(url, referers.at(-1));
+    if (fallback) {
+      console.info(
+        JSON.stringify({
+          method: "ScrapeEtsyProvider.fetchListingDocument",
+          url,
+          status: "playwright_fallback",
+        }),
+      );
+      return { response: fallback, referers };
+    }
+
     if (lastResponse) {
-      return lastResponse;
+      return { response: lastResponse, referers };
     }
 
     await RequestThrottle.schedule();
-    return this.fetchWithCookies(url, {
+    const response = await this.fetchWithCookies(url, {
       headers: buildNavigationHeaders(DEFAULT_REFERER),
     });
+    return { response, referers };
   }
 
   private buildBestSellerUrl(category?: string): string {
@@ -508,6 +547,8 @@ export class ScrapeEtsyProvider implements EtsyProvider {
 
     let lastNotFound: EtsyProviderError | null = null;
 
+    await this.warmupSession();
+
     for (const url of candidateUrls) {
       await RequestThrottle.schedule();
       const response = await this.fetchWithCookies(url, {
@@ -531,6 +572,27 @@ export class ScrapeEtsyProvider implements EtsyProvider {
           continue;
         }
         if (response.status === 403) {
+          const fallback = await this.fetchWithPlaywright(url, DEFAULT_REFERER);
+          if (fallback) {
+            const html = await fallback.text();
+            if (isCaptchaPage(html)) {
+              throw new EtsyProviderError("Encountered Etsy captcha", "BLOCKED", { status: 429, canRetry: true });
+            }
+            const urls = extractListingUrlsFromHtml(html, targetLimit);
+            if (!urls.length) {
+              throw new EtsyProviderError("Unable to locate best seller listings", "NOT_FOUND", { canRetry: true });
+            }
+            console.info(
+              JSON.stringify({
+                method: "ScrapeEtsyProvider.gatherBestSellerListingUrls",
+                url,
+                status: "success",
+                discovered: urls.length,
+                transport: "playwright",
+              }),
+            );
+            return urls;
+          }
           throw new EtsyProviderError("Blocked while loading Etsy best sellers", "BLOCKED", {
             status: response.status,
             canRetry: false,
@@ -543,7 +605,28 @@ export class ScrapeEtsyProvider implements EtsyProvider {
       }
 
       const html = await response.text();
-      if (/captcha/i.test(html) && /etsy/i.test(html)) {
+      if (isCaptchaPage(html)) {
+        const fallback = await this.fetchWithPlaywright(url, DEFAULT_REFERER);
+        if (fallback) {
+          const fallbackHtml = await fallback.text();
+          if (isCaptchaPage(fallbackHtml)) {
+            throw new EtsyProviderError("Encountered Etsy captcha", "BLOCKED", { status: 429, canRetry: true });
+          }
+          const urls = extractListingUrlsFromHtml(fallbackHtml, targetLimit);
+          if (!urls.length) {
+            throw new EtsyProviderError("Unable to locate best seller listings", "NOT_FOUND", { canRetry: true });
+          }
+          console.info(
+            JSON.stringify({
+              method: "ScrapeEtsyProvider.gatherBestSellerListingUrls",
+              url,
+              status: "success",
+              discovered: urls.length,
+              transport: "playwright",
+            }),
+          );
+          return urls;
+        }
         throw new EtsyProviderError("Encountered Etsy captcha", "BLOCKED", { status: 429, canRetry: true });
       }
 
@@ -571,7 +654,7 @@ export class ScrapeEtsyProvider implements EtsyProvider {
     const started = Date.now();
     const normalizedUrl = normalizeUrl(url);
     try {
-      const response = await this.fetchListingDocument(normalizedUrl);
+      const { response, referers } = await this.fetchListingDocument(normalizedUrl);
 
       if (response.status === 404) {
         throw new EtsyProviderError("Listing not found", "NOT_FOUND", { status: 404, canRetry: false });
@@ -590,9 +673,17 @@ export class ScrapeEtsyProvider implements EtsyProvider {
         });
       }
 
-      const html = await response.text();
-      if (/captcha/i.test(html) && /etsy/i.test(html)) {
-        throw new EtsyProviderError("Encountered Etsy captcha", "BLOCKED", { status: 429, canRetry: true });
+      let html = await response.text();
+      if (isCaptchaPage(html)) {
+        const fallback = await this.fetchWithPlaywright(normalizedUrl, referers.at(-1));
+        if (fallback) {
+          html = await fallback.text();
+          if (isCaptchaPage(html)) {
+            throw new EtsyProviderError("Encountered Etsy captcha", "BLOCKED", { status: 429, canRetry: true });
+          }
+        } else {
+          throw new EtsyProviderError("Encountered Etsy captcha", "BLOCKED", { status: 429, canRetry: true });
+        }
       }
 
       const jsonLd = extractJsonLd(html);
