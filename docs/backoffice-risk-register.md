@@ -24,6 +24,8 @@ keyword seeds, or missing AI credentials).
 
 ## Risk appetites
 
+The Supabase migration `0014_seed_risk_appetites.sql` seeds the canonical appetite statements so a fresh environment starts with the correct baseline.
+
 | ID | Label | Category | Owner | Notes |
 | --- | --- | --- | --- | --- |
 | `b9effbf9-9dc7-469c-bda2-da2ecebd2e4f` | Data pipeline reliability | Operations | Platform Operations | Tracks failing or stale crawler sources against the 6-hour telemetry SLO. |
