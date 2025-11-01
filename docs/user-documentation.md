@@ -95,6 +95,7 @@ Market Twin is LexyHub's simulation engine for scenario planning.
 Settings centralize workspace administration.
 
 - **Plan & billing:** Review current subscription tier, invoices, and billing contacts.
+- **Profile & billing center:** Refresh your avatar (stored in Vercel Blob), update your contact card, and review renewal status from a single responsive hub.
 - **Integrations:** Connect or troubleshoot data sources such as Etsy, Shopify, or internal APIs.
 - **Team management:** Invite teammates, assign roles, and deactivate access when needed.
 - **Preferences:** Update notification rules, language, and theme.
@@ -104,6 +105,12 @@ Settings centralize workspace administration.
 2. Select **Invite teammate**.
 3. Enter their name, email, and role.
 4. Send the invite and monitor acceptance from the activity log.
+
+**How to refresh your profile avatar:**
+1. Open **Settings → Profile & Billing**.
+2. Click **Change avatar** and pick a square PNG, JPG, or WebP file under 5 MB.
+3. Wait for the toast confirmation—your photo is stored instantly in Vercel Blob and synced to Supabase.
+4. Press **Save profile** if you also edited contact fields.
 
 ## Status Page
 The Status area communicates system uptime and scheduled maintenance.
@@ -144,4 +151,4 @@ LexyHub publishes sprint-level release notes in `/docs/changelog.md`. Review the
 - **Amazon keyword population guide:** `/docs/amazon-keyword-population-guide.md`
 - **Trend & intent intelligence:** `/docs/trend-intent-intelligence.md`
 
-_Last updated: 2025-06-23_
+_Last updated: 2025-07-09_

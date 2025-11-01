@@ -9,6 +9,7 @@ type ProfilePayload = {
   bio: string;
   timezone: string;
   notifications: boolean;
+  avatarUrl: string;
 };
 
 function requireUserId(request: NextRequest): string {
@@ -27,6 +28,7 @@ function normalizeProfile(input: Partial<ProfilePayload> | null | undefined): Pr
     bio: String(input?.bio ?? ""),
     timezone: String(input?.timezone ?? ""),
     notifications: Boolean(input?.notifications ?? false),
+    avatarUrl: String(input?.avatarUrl ?? ""),
   };
 }
 
@@ -77,9 +79,6 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: error instanceof Error ? error.message : "userId is required" }, { status: 400 });
   }
 
-  const payload = (await request.json().catch(() => ({}))) as Partial<ProfilePayload>;
-  const profile = normalizeProfile(payload);
-
   const { data: existing, error: fetchError } = await supabase
     .from("user_profiles")
     .select("plan, momentum, settings")
@@ -91,6 +90,11 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
   }
 
   const settings = { ...(existing?.settings ?? {}) } as Record<string, unknown>;
+  const payload = (await request.json().catch(() => ({}))) as Partial<ProfilePayload>;
+  const existingProfile = normalizeProfile(
+    (settings.profile as Partial<ProfilePayload> | undefined) ?? undefined,
+  );
+  const profile = normalizeProfile({ ...existingProfile, ...payload });
   settings.profile = profile;
 
   const { error: upsertError } = await supabase

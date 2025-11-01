@@ -1,6 +1,16 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ChangeEvent,
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
+import { upload } from "@vercel/blob/client";
 
 import { useToast } from "@/components/ui/ToastProvider";
 
@@ -33,6 +43,7 @@ type ProfileDetails = {
   bio: string;
   timezone: string;
   notifications: boolean;
+  avatarUrl: string;
 };
 
 type BillingPreferences = {
@@ -49,7 +60,10 @@ const EMPTY_PROFILE: ProfileDetails = {
   bio: "",
   timezone: "",
   notifications: false,
+  avatarUrl: "",
 };
+
+const AVATAR_FALLBACK = "https://avatar.vercel.sh/lexyhub.svg?size=120&background=111827";
 
 export default function ProfilePage(): JSX.Element {
   const { push } = useToast();
@@ -64,6 +78,8 @@ export default function ProfilePage(): JSX.Element {
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>("unknown");
   const [periodEnd, setPeriodEnd] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const activePlanSummary = useMemo(() => PLAN_SUMMARY[billing.plan], [billing.plan]);
 
   const loadData = useCallback(async () => {
@@ -75,7 +91,7 @@ export default function ProfilePage(): JSX.Element {
         throw new Error(payload.error ?? `Failed to load profile (${profileResponse.status})`);
       }
       const profileJson = (await profileResponse.json()) as {
-        profile?: ProfileDetails;
+        profile?: Partial<ProfileDetails>;
       };
       if (profileJson.profile) {
         setProfile({ ...EMPTY_PROFILE, ...profileJson.profile });
@@ -173,6 +189,83 @@ export default function ProfilePage(): JSX.Element {
     }
   };
 
+  const handleAvatarSelect = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const resetInput = () => {
+      if (avatarInputRef.current) {
+        avatarInputRef.current.value = "";
+      }
+    };
+
+    if (!file.type.startsWith("image/")) {
+      push({
+        title: "Unsupported file",
+        description: "Please choose a PNG, JPG, or WebP image.",
+        tone: "error",
+      });
+      resetInput();
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      push({
+        title: "Image too large",
+        description: "Avatars must be smaller than 5MB.",
+        tone: "error",
+      });
+      resetInput();
+      return;
+    }
+
+    setAvatarUploading(true);
+
+    try {
+      const sanitizedName = file.name
+        .toLowerCase()
+        .replace(/[^a-z0-9_.-]+/g, "-")
+        .replace(/-{2,}/g, "-")
+        .replace(/^-+|-+$/g, "");
+      const pathname = `users/${DEFAULT_USER_ID}/avatar-${Date.now()}-${sanitizedName || "upload"}`;
+
+      const uploaded = await upload(pathname, file, {
+        access: "public",
+        contentType: file.type,
+        handleUploadUrl: "/api/profile/avatar",
+        clientPayload: JSON.stringify({ userId: DEFAULT_USER_ID }),
+      });
+
+      const response = await fetch(`/api/profile?userId=${DEFAULT_USER_ID}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatarUrl: uploaded.url }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(json.error ?? "Failed to update avatar");
+      }
+
+      setProfile((state) => ({ ...state, avatarUrl: uploaded.url }));
+      push({
+        title: "Avatar updated",
+        description: "Your profile photo is refreshed.",
+        tone: "success",
+      });
+    } catch (error) {
+      push({
+        title: "Avatar upload failed",
+        description: error instanceof Error ? error.message : String(error),
+        tone: "error",
+      });
+    } finally {
+      setAvatarUploading(false);
+      resetInput();
+    }
+  };
+
   const handleBillingSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     try {
@@ -228,177 +321,260 @@ export default function ProfilePage(): JSX.Element {
 
   return (
     <div className="profile-page">
-      <header className="profile-header">
-        <div>
-          <h1>Profile &amp; Billing</h1>
-          <p>Control how LexyHub syncs your Etsy shop, AI Market Twin simulations, and billing cadence.</p>
+      <header className="profile-hero">
+        <div className="profile-hero-heading">
+          <div>
+            <h1>Profile &amp; Billing</h1>
+            <p>
+              Keep your workspace details and subscription preferences tidy. Upload a friendly avatar, confirm how we contact
+              you, and tune your billing cadence.
+            </p>
+          </div>
+          <span className="profile-plan-chip">Plan: {billing.plan.toUpperCase()}</span>
         </div>
-        <div className="profile-header-meta">
-          <span className="badge">Account Center</span>
-          <span>Plan: {billing.plan.toUpperCase()}</span>
-        </div>
+
+        <dl className="profile-hero-stats">
+          <div>
+            <dt>Status</dt>
+            <dd className={`status-${subscriptionStatus}`}>{subscriptionStatus}</dd>
+          </div>
+          <div>
+            <dt>Auto-renew</dt>
+            <dd>{billing.autoRenew ? "Enabled" : "Disabled"}</dd>
+          </div>
+          <div>
+            <dt>Period end</dt>
+            <dd>{periodEnd ? new Date(periodEnd).toLocaleString() : "—"}</dd>
+          </div>
+          <div>
+            <dt>Plan summary</dt>
+            <dd>{activePlanSummary}</dd>
+          </div>
+        </dl>
       </header>
 
-      <div className="profile-grid">
-        <form className="profile-card" onSubmit={handleProfileSubmit}>
-          <h2>Profile</h2>
-          <p className="profile-muted">Update the contact details stored alongside your Supabase user profile.</p>
-
-          <label>
-            <span>Full name</span>
-            <input
-              value={profile.fullName}
-              onChange={(event) => setProfile((state) => ({ ...state, fullName: event.target.value }))}
-              disabled={loading}
-            />
-          </label>
-
-          <label>
-            <span>Email</span>
-            <input
-              type="email"
-              value={profile.email}
-              onChange={(event) => setProfile((state) => ({ ...state, email: event.target.value }))}
-              disabled={loading}
-            />
-          </label>
-
-          <label>
-            <span>Company</span>
-            <input
-              value={profile.company}
-              onChange={(event) => setProfile((state) => ({ ...state, company: event.target.value }))}
-              disabled={loading}
-            />
-          </label>
-
-          <label>
-            <span>Bio</span>
-            <textarea
-              rows={3}
-              value={profile.bio}
-              onChange={(event) => setProfile((state) => ({ ...state, bio: event.target.value }))}
-              disabled={loading}
-            />
-          </label>
-
-          <label>
-            <span>Timezone</span>
-            <input
-              value={profile.timezone}
-              onChange={(event) => setProfile((state) => ({ ...state, timezone: event.target.value }))}
-              disabled={loading}
-            />
-          </label>
-
-          <label className="profile-checkbox">
-            <input
-              type="checkbox"
-              checked={profile.notifications}
-              onChange={(event) => setProfile((state) => ({ ...state, notifications: event.target.checked }))}
-              disabled={loading}
-            />
-            <span>Send product notifications</span>
-          </label>
-
-          <button type="submit" disabled={loading}>
-            Save profile
-          </button>
-        </form>
-
-        <form className="profile-card" onSubmit={handleBillingSubmit}>
-          <h2>Billing</h2>
-          <p className="profile-muted">Manage subscription status, billing email, and payment method labels.</p>
-
-          <label>
-            <span>Plan</span>
-            <select
-              value={billing.plan}
-              onChange={(event) =>
-                setBilling((state) => ({ ...state, plan: event.target.value as BillingPreferences["plan"] }))
-              }
-              disabled={loading}
-            >
-              <option value="spark">Spark</option>
-              <option value="scale">Scale</option>
-              <option value="apex">Apex</option>
-            </select>
-          </label>
-
-          <label>
-            <span>Billing email</span>
-            <input
-              type="email"
-              value={billing.billingEmail}
-              onChange={(event) => setBilling((state) => ({ ...state, billingEmail: event.target.value }))}
-              disabled={loading}
-            />
-          </label>
-
-          <label className="profile-checkbox">
-            <input
-              type="checkbox"
-              checked={billing.autoRenew}
-              onChange={(event) => setBilling((state) => ({ ...state, autoRenew: event.target.checked }))}
-              disabled={loading}
-            />
-            <span>Auto-renew plan</span>
-          </label>
-
-          <label>
-            <span>Payment method label</span>
-            <input
-              value={billing.paymentMethod}
-              onChange={(event) => setBilling((state) => ({ ...state, paymentMethod: event.target.value }))}
-              disabled={loading}
-            />
-          </label>
-
-          <button type="submit" disabled={loading}>
-            Save billing settings
-          </button>
-
-          <button type="button" className="profile-secondary" onClick={handleCancelPlan} disabled={loading}>
-            Cancel at period end
-          </button>
-        </form>
-
-        <aside className="profile-card">
-          <h2>Subscription</h2>
-          <p className="profile-muted">Status and history are sourced directly from Supabase billing tables.</p>
-
-          <dl className="profile-subscription">
-            <div>
-              <dt>Status</dt>
-              <dd className={`status-${subscriptionStatus}`}>{subscriptionStatus}</dd>
+      <div className="profile-layout">
+        <div className="profile-main">
+          <form className="profile-card profile-form" onSubmit={handleProfileSubmit}>
+            <div className="profile-card-header">
+              <div>
+                <h2>Profile</h2>
+                <p>Update the information that appears in your workspace and notifications.</p>
+              </div>
+              <span className="profile-card-badge">Account Center</span>
             </div>
-            <div>
-              <dt>Auto-renew</dt>
-              <dd>{billing.autoRenew ? "Enabled" : "Disabled"}</dd>
-            </div>
-            <div>
-              <dt>Current period end</dt>
-              <dd>{periodEnd ? new Date(periodEnd).toLocaleString() : "—"}</dd>
-            </div>
-            <div>
-              <dt>Plan summary</dt>
-              <dd>{activePlanSummary}</dd>
-            </div>
-          </dl>
 
-          <h3>Invoice history</h3>
-          <ul className="profile-invoices">
-            {invoiceHistory.length === 0 ? <li>No invoices yet.</li> : null}
-            {invoiceHistory.map((invoice) => (
-              <li key={invoice.id}>
-                <div>
-                  <strong>{invoice.period}</strong>
-                  <span>{invoice.status}</span>
-                </div>
-                <span>{invoice.total}</span>
-              </li>
-            ))}
-          </ul>
+            <div className="profile-avatar-row">
+              <div className="profile-avatar">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={profile.avatarUrl || AVATAR_FALLBACK}
+                  alt={profile.fullName ? `${profile.fullName}'s avatar` : "Profile avatar"}
+                />
+              </div>
+              <div className="profile-avatar-actions">
+                <input
+                  ref={avatarInputRef}
+                  id="profile-avatar-input"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="sr-only"
+                  onChange={handleAvatarSelect}
+                  disabled={avatarUploading || loading}
+                />
+                <button
+                  type="button"
+                  className="profile-button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={avatarUploading || loading}
+                >
+                  {avatarUploading ? "Uploading…" : "Change avatar"}
+                </button>
+                <p>Use a clear square image under 5MB (PNG, JPG, or WebP).</p>
+              </div>
+            </div>
+
+            <label className="profile-field">
+              <span>Full name</span>
+              <input
+                value={profile.fullName}
+                onChange={(event) => setProfile((state) => ({ ...state, fullName: event.target.value }))}
+                disabled={loading}
+                placeholder="Your name"
+                autoComplete="name"
+              />
+            </label>
+
+            <label className="profile-field">
+              <span>Email</span>
+              <input
+                type="email"
+                value={profile.email}
+                onChange={(event) => setProfile((state) => ({ ...state, email: event.target.value }))}
+                disabled={loading}
+                placeholder="you@company.com"
+                autoComplete="email"
+              />
+            </label>
+
+            <label className="profile-field">
+              <span>Company</span>
+              <input
+                value={profile.company}
+                onChange={(event) => setProfile((state) => ({ ...state, company: event.target.value }))}
+                disabled={loading}
+                placeholder="LexyHub"
+              />
+            </label>
+
+            <label className="profile-field">
+              <span>Bio</span>
+              <textarea
+                rows={3}
+                value={profile.bio}
+                onChange={(event) => setProfile((state) => ({ ...state, bio: event.target.value }))}
+                disabled={loading}
+                placeholder="Share a short intro for teammates."
+              />
+            </label>
+
+            <label className="profile-field">
+              <span>Timezone</span>
+              <input
+                value={profile.timezone}
+                onChange={(event) => setProfile((state) => ({ ...state, timezone: event.target.value }))}
+                disabled={loading}
+                placeholder="America/Chicago"
+                autoComplete="timezone"
+              />
+            </label>
+
+            <label className="profile-checkbox">
+              <input
+                type="checkbox"
+                checked={profile.notifications}
+                onChange={(event) => setProfile((state) => ({ ...state, notifications: event.target.checked }))}
+                disabled={loading}
+              />
+              <span>Send product notifications</span>
+            </label>
+
+            <div className="profile-form-actions">
+              <button type="submit" className="profile-button" disabled={loading}>
+                Save profile
+              </button>
+            </div>
+          </form>
+
+          <form className="profile-card profile-form" onSubmit={handleBillingSubmit}>
+            <div className="profile-card-header">
+              <div>
+                <h2>Billing</h2>
+                <p>Control your renewal cadence, billing contact, and saved payment label.</p>
+              </div>
+            </div>
+
+            <label className="profile-field">
+              <span>Plan</span>
+              <select
+                value={billing.plan}
+                onChange={(event) =>
+                  setBilling((state) => ({ ...state, plan: event.target.value as BillingPreferences["plan"] }))
+                }
+                disabled={loading}
+              >
+                <option value="spark">Spark</option>
+                <option value="scale">Scale</option>
+                <option value="apex">Apex</option>
+              </select>
+            </label>
+
+            <label className="profile-field">
+              <span>Billing email</span>
+              <input
+                type="email"
+                value={billing.billingEmail}
+                onChange={(event) => setBilling((state) => ({ ...state, billingEmail: event.target.value }))}
+                disabled={loading}
+                placeholder="billing@company.com"
+                autoComplete="email"
+              />
+            </label>
+
+            <label className="profile-checkbox">
+              <input
+                type="checkbox"
+                checked={billing.autoRenew}
+                onChange={(event) => setBilling((state) => ({ ...state, autoRenew: event.target.checked }))}
+                disabled={loading}
+              />
+              <span>Auto-renew plan</span>
+            </label>
+
+            <label className="profile-field">
+              <span>Payment method label</span>
+              <input
+                value={billing.paymentMethod}
+                onChange={(event) => setBilling((state) => ({ ...state, paymentMethod: event.target.value }))}
+                disabled={loading}
+                placeholder="Corporate Amex"
+              />
+            </label>
+
+            <div className="profile-form-actions">
+              <button type="submit" className="profile-button" disabled={loading}>
+                Save billing settings
+              </button>
+              <button
+                type="button"
+                className="profile-button profile-button--secondary"
+                onClick={handleCancelPlan}
+                disabled={loading}
+              >
+                Cancel at period end
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <aside className="profile-sidebar">
+          <section className="profile-card profile-summary">
+            <h2>Subscription</h2>
+            <p>Status and history sync directly from Supabase billing records.</p>
+
+            <dl className="profile-summary-grid">
+              <div>
+                <dt>Current plan</dt>
+                <dd>{billing.plan.toUpperCase()}</dd>
+              </div>
+              <div>
+                <dt>Status</dt>
+                <dd className={`status-${subscriptionStatus}`}>{subscriptionStatus}</dd>
+              </div>
+              <div>
+                <dt>Auto-renew</dt>
+                <dd>{billing.autoRenew ? "Enabled" : "Disabled"}</dd>
+              </div>
+              <div>
+                <dt>Current period end</dt>
+                <dd>{periodEnd ? new Date(periodEnd).toLocaleString() : "—"}</dd>
+              </div>
+            </dl>
+
+            <h3>Invoice history</h3>
+            <ul className="profile-invoices">
+              {invoiceHistory.length === 0 ? <li>No invoices yet.</li> : null}
+              {invoiceHistory.map((invoice) => (
+                <li key={invoice.id}>
+                  <div>
+                    <strong>{invoice.period}</strong>
+                    <span>{invoice.status}</span>
+                  </div>
+                  <span>{invoice.total}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
         </aside>
       </div>
     </div>
