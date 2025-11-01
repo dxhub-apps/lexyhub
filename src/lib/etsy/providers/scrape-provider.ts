@@ -14,13 +14,17 @@ const BASE_HTML_HEADERS = Object.freeze({
   "User-Agent": USER_AGENT,
   Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
   "Accept-Language": "en-US,en;q=0.9",
+  "Accept-Encoding": "gzip, deflate, br",
   "Cache-Control": "no-cache",
   Pragma: "no-cache",
   "Sec-Fetch-Dest": "document",
   "Sec-Fetch-Mode": "navigate",
-  "Sec-Fetch-Site": "none",
+  "Sec-Fetch-Site": "same-origin",
   "Sec-Fetch-User": "?1",
   "Upgrade-Insecure-Requests": "1",
+  "Sec-CH-UA": '"Chromium";v="124", "Not.A/Brand";v="8"',
+  "Sec-CH-UA-Mobile": "?0",
+  "Sec-CH-UA-Platform": '"Windows"',
 });
 const DEFAULT_REFERER = "https://www.etsy.com/";
 
@@ -115,6 +119,38 @@ function extractListingUrlsFromHtml(html: string, limit: number): string[] {
     }
   }
   return results;
+}
+
+function extractListingContext(url: string): { id: string | null; slug: string | null } {
+  try {
+    const parsed = new URL(url);
+    const segments = parsed.pathname.split("/").filter(Boolean);
+    const listingIndex = segments.findIndex((segment) => segment.toLowerCase() === "listing");
+    if (listingIndex === -1) {
+      return { id: null, slug: null };
+    }
+    const id = segments[listingIndex + 1] ?? null;
+    const slug = segments[listingIndex + 2] ?? null;
+    return { id, slug };
+  } catch {
+    return { id: null, slug: null };
+  }
+}
+
+function buildListingReferers(url: string): string[] {
+  const referers = new Set<string>([DEFAULT_REFERER]);
+  const context = extractListingContext(url);
+  if (context.id) {
+    referers.add(`https://www.etsy.com/listing/${context.id}`);
+  }
+  if (context.slug) {
+    const searchQuery = context.slug.replace(/[-_]+/g, " ").trim();
+    if (searchQuery) {
+      referers.add(`https://www.etsy.com/search?q=${encodeURIComponent(searchQuery)}`);
+    }
+  }
+  referers.add("https://www.etsy.com/c/best-selling-items");
+  return Array.from(referers);
 }
 
 function extractJsonLd(html: string): unknown[] {
@@ -299,6 +335,45 @@ function countExtractedFields(listing: NormalizedEtsyListing): number {
 }
 
 export class ScrapeEtsyProvider implements EtsyProvider {
+  private async fetchListingDocument(url: string): Promise<Response> {
+    const referers = buildListingReferers(url);
+    let attempt = 0;
+    let lastResponse: Response | null = null;
+
+    for (const referer of referers) {
+      await RequestThrottle.schedule();
+      const response = await fetch(url, {
+        headers: buildNavigationHeaders(referer),
+      });
+
+      if (response.status !== 403) {
+        return response;
+      }
+
+      lastResponse = response;
+      attempt += 1;
+      console.warn(
+        JSON.stringify({
+          method: "ScrapeEtsyProvider.getListingByUrl",
+          url,
+          status: "blocked",
+          referer,
+          attempt,
+          status_code: response.status,
+        }),
+      );
+    }
+
+    if (lastResponse) {
+      return lastResponse;
+    }
+
+    await RequestThrottle.schedule();
+    return fetch(url, {
+      headers: buildNavigationHeaders(DEFAULT_REFERER),
+    });
+  }
+
   private buildBestSellerUrl(category?: string): string {
     if (!category) {
       return BEST_SELLERS_DEFAULT_URL;
@@ -368,12 +443,8 @@ export class ScrapeEtsyProvider implements EtsyProvider {
   async getListingByUrl(url: string): Promise<NormalizedEtsyListing> {
     const started = Date.now();
     const normalizedUrl = normalizeUrl(url);
-    await RequestThrottle.schedule();
-
     try {
-      const response = await fetch(normalizedUrl, {
-        headers: buildNavigationHeaders(DEFAULT_REFERER),
-      });
+      const response = await this.fetchListingDocument(normalizedUrl);
 
       if (response.status === 404) {
         throw new EtsyProviderError("Listing not found", "NOT_FOUND", { status: 404, canRetry: false });
@@ -383,7 +454,7 @@ export class ScrapeEtsyProvider implements EtsyProvider {
         if (response.status === 403) {
           throw new EtsyProviderError("Blocked while fetching Etsy listing", "BLOCKED", {
             status: response.status,
-            canRetry: false,
+            canRetry: true,
           });
         }
         throw new EtsyProviderError(`Failed to fetch listing (${response.status})`, "FETCH_FAILED", {
@@ -480,3 +551,5 @@ export class ScrapeEtsyProvider implements EtsyProvider {
     return listings.slice(0, limit);
   }
 }
+
+export { buildListingReferers, extractListingContext };
