@@ -27,6 +27,16 @@ Mirror these secrets in both Vercel project settings and GitHub Actions secrets.
 responses—missing values surface as `503` errors rather than synthetic fallbacks. Optional trend provider keys remain
 best-effort; without them the radar returns empty datasets.
 
+### Authentication Flow
+- LexyHub now uses Supabase Auth for end-user login. Users authenticate through `/login`, which exchanges sessions via
+  `/api/auth/[...supabase]`.
+- Sessions persist via cookies managed by the Supabase helper middleware (`src/middleware.ts`); tokens refresh automatically.
+- The protected app group (`src/app/(app)`) checks for a valid session on every request and redirects unauthenticated visitors
+  back to the login screen.
+- After the first successful login, the backend ensures a corresponding `user_profiles` record exists with the `admin` plan and
+  an effectively unlimited AI usage quota so administrators avoid throttling. Update `src/lib/auth/ensure-profile.ts` if a
+  different onboarding plan is required.
+
 > **Keyword tier column compatibility**
 >
 > Some Supabase environments store `public.keywords.tier` as a `text` column while others migrated to `smallint`. The API now

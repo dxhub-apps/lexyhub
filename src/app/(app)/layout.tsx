@@ -1,9 +1,30 @@
-import { AppShell } from "@/components/layout/AppShell";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 
-export default function AppLayout({
+import { AppShell } from "@/components/layout/AppShell";
+import { SupabaseProvider } from "@/components/providers/SupabaseProvider";
+import { ensureAdminProfile } from "@/lib/auth/ensure-profile";
+
+export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <AppShell>{children}</AppShell>;
+  const supabase = createServerComponentClient({ cookies });
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  await ensureAdminProfile(session.user);
+
+  return (
+    <SupabaseProvider initialSession={session}>
+      <AppShell>{children}</AppShell>
+    </SupabaseProvider>
+  );
 }

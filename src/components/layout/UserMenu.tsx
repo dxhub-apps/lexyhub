@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useSession, useSupabaseClient } from "@supabase/auth-helpers-react";
 
 import { useTheme, type ThemeOption } from "@/components/theme/ThemeProvider";
 
@@ -102,6 +104,9 @@ function ThemeIcon() {
 }
 
 export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
+  const router = useRouter();
+  const session = useSession();
+  const supabase = useSupabaseClient();
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -120,9 +125,28 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, []);
 
-  const logout = () => {
-    console.info("Logout requested");
+  const user = session?.user ?? null;
+
+  const profileName = useMemo(() => {
+    if (!user) {
+      return "Signed out";
+    }
+    const fullName = (user.user_metadata?.full_name as string | undefined)?.trim();
+    if (fullName) {
+      return fullName;
+    }
+    const email = user?.email ?? "Account";
+    return email.split("@")[0];
+  }, [user]);
+
+  const profileEmail = user?.email ?? "";
+  const avatarUrl = (user?.user_metadata?.avatar_url as string | undefined) ?? AVATAR_URL;
+
+  const logout = async () => {
+    await supabase.auth.signOut();
     setOpen(false);
+    router.replace("/login");
+    router.refresh();
   };
 
   const menuItems: MenuItem[] = [
@@ -139,25 +163,29 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
         ],
       },
     },
-    {
-      label: "Profile",
-      description: "Manage account",
-      href: "/profile",
-      icon: <UserIcon />,
-    },
+    user
+      ? {
+          label: "Profile",
+          description: "Manage account",
+          href: "/profile",
+          icon: <UserIcon />,
+        }
+      : null,
     {
       label: "Help Center",
       description: "Guides & how-tos",
       href: "/docs",
       icon: <HelpIcon />,
     },
-    {
-      label: "Logout",
-      description: "End session",
-      action: logout,
-      icon: <LogoutIcon />,
-    },
-  ];
+    user
+      ? {
+          label: "Logout",
+          description: "End session",
+          action: logout,
+          icon: <LogoutIcon />,
+        }
+      : null,
+  ].filter(Boolean) as MenuItem[];
 
   const toggleLabel = open ? "Close user menu" : "Open user menu";
 
@@ -172,7 +200,7 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
         onClick={() => setOpen((value) => !value)}
       >
         <Image
-          src={AVATAR_URL}
+          src={avatarUrl}
           alt="User avatar"
           className="user-menu-avatar"
           width={36}
@@ -183,8 +211,8 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
       {open ? (
         <div className="user-menu-dropdown" role="menu">
           <div className="user-menu-header">
-            <strong>Aaliyah Growth</strong>
-            <span>aaliyah@lexyhub.ai</span>
+            <strong>{profileName}</strong>
+            {profileEmail ? <span>{profileEmail}</span> : null}
             <span>{environmentLabel}</span>
           </div>
           <div className="user-menu-section" aria-label="Theme controls">
