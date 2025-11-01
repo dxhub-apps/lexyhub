@@ -162,6 +162,9 @@ The command prints the number of suggestions captured per query and the total ke
 - Provide an authenticated browser cookie string through `ETSY_COOKIE` to prime the Playwright session when your environment
   is challenged by DataDome. Paste the contents of the browser's **Cookie** header (or one `Set-Cookie` line per row) and the
   script loads those cookies before navigation so existing sessions can be reused.
+- Browser header expectations change frequently. The shared set now lives in `shared/etsy-base-html-headers.json` so both the
+  Playwright script and the production provider stay aligned—update the JSON once and all entry points inherit the new
+  required headers.
 - The GitHub Action `.github/workflows/etsy-best-sellers.yml` requires the `ETSY_COOKIE` secret at the repository or
   organisation level so scheduled runs can hydrate the Playwright context with an authenticated Etsy session. Without it,
   DataDome challenges often block the workflow.
