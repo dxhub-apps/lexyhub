@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,6 +9,28 @@ import { useSession, useSupabaseClient } from "@supabase/auth-helpers-react";
 import { useTheme, type ThemeOption } from "@/components/theme/ThemeProvider";
 
 const AVATAR_URL = "https://avatar.vercel.sh/lexyhub.svg?size=72&background=111827";
+
+function normalizeAvatarUrl(value: string | null | undefined): string {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return AVATAR_URL;
+  }
+
+  if (trimmed.startsWith("data:")) {
+    return trimmed;
+  }
+
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol === "http:" || url.protocol === "https:") {
+      return url.toString();
+    }
+  } catch {
+    // Ignore invalid URLs and fall through to the default avatar.
+  }
+
+  return AVATAR_URL;
+}
 
 type UserMenuProps = {
   environmentLabel: string;
@@ -206,6 +228,17 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
     (profile?.avatarUrl?.trim() || (user?.user_metadata?.avatar_url as string | undefined)) ??
     AVATAR_URL;
 
+  const normalizedAvatar = useMemo(() => normalizeAvatarUrl(avatarUrl), [avatarUrl]);
+  const [avatarSrc, setAvatarSrc] = useState(() => normalizedAvatar);
+
+  useEffect(() => {
+    setAvatarSrc(normalizedAvatar);
+  }, [normalizedAvatar]);
+
+  const handleAvatarError = useCallback(() => {
+    setAvatarSrc((current) => (current === AVATAR_URL ? current : AVATAR_URL));
+  }, []);
+
   const logout = async () => {
     await supabase.auth.signOut();
     setOpen(false);
@@ -264,11 +297,13 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
         onClick={() => setOpen((value) => !value)}
       >
         <Image
-          src={avatarUrl}
+          src={avatarSrc}
           alt="User avatar"
           className="user-menu-avatar"
           width={36}
           height={36}
+          unoptimized={avatarSrc.startsWith("data:")}
+          onError={handleAvatarError}
         />
         <span className="sr-only">{toggleLabel}</span>
       </button>
