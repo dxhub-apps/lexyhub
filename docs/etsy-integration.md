@@ -156,6 +156,8 @@ The command prints the number of suggestions captured per query and the total ke
 - `ScrapeEtsyProvider.search` loads `https://www.etsy.com/c/best-selling-items` with a throttled HTML request, extracts the
   top listing URLs directly from the markup and embedded JSON, and normalizes every match into the unified schema before
   caching.
+- When a niche category returns `404`, the scraper automatically falls back to the global `best-selling-items` catalog so
+  ingestion can continue without manual intervention.
 - The editing workspace now surfaces an **Analyze Etsy best seller** shortcut so editors can run the full keyword, difficulty,
   and AI suggestion pipelines using fresh category leaders with one click.
 
@@ -163,3 +165,4 @@ The command prints the number of suggestions captured per query and the total ke
 
 - Both `ScrapeEtsyProvider.getListingByUrl` and `ScrapeEtsyProvider.gatherBestSellerListingUrls` now send a more complete browser header set (including `Accept-Encoding`, `Sec-CH-UA*`, `Accept-Language`, and `Sec-Fetch-*`) and rotate through realistic on-site referers (homepage, the base listing URL, a keyword search seeded from the slug, and the best seller hub) before giving up. This rotation reduces how often Etsy edge nodes label the scraper as automated traffic.
 - When Etsy still responds with a 403, the provider logs each blocked attempt with the referer that failed and returns a retryable `BLOCKED` error. This lets the ingestion pipeline fall back to the API provider or reschedule the scrape without immediately aborting the request.
+- Listing fetches now retain any `Set-Cookie` headers that Etsy issues (such as the `datadome` token) and replay them on subsequent requests. Persisting these anti-bot session cookies dramatically lowers the odds of a second consecutive 403 for the same listing or category scrape.
