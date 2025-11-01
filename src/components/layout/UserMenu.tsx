@@ -14,6 +14,12 @@ type UserMenuProps = {
   environmentLabel: string;
 };
 
+type ProfileData = {
+  fullName: string;
+  email: string;
+  avatarUrl: string;
+};
+
 type MenuItem = {
   label: string;
   description?: string;
@@ -109,6 +115,7 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
   const supabase = useSupabaseClient();
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -127,7 +134,56 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
 
   const user = session?.user ?? null;
 
+  useEffect(() => {
+    if (!user?.id) {
+      setProfile(null);
+      return;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+
+    const loadProfile = async () => {
+      try {
+        const response = await fetch(`/api/profile?userId=${user.id}`, {
+          signal: controller.signal,
+        });
+        const json = (await response.json().catch(() => ({}))) as {
+          profile?: ProfileData;
+          error?: string;
+        };
+
+        if (!response.ok) {
+          throw new Error(json.error ?? "Failed to load profile");
+        }
+
+        if (active) {
+          setProfile(json.profile ?? null);
+        }
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+        console.error("Failed to load user profile", error);
+        if (active) {
+          setProfile(null);
+        }
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [user?.id]);
+
   const profileName = useMemo(() => {
+    if (profile?.fullName?.trim()) {
+      return profile.fullName.trim();
+    }
+
     if (!user) {
       return "Signed out";
     }
@@ -137,10 +193,18 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
     }
     const email = user?.email ?? "Account";
     return email.split("@")[0];
-  }, [user]);
+  }, [profile?.fullName, user]);
 
-  const profileEmail = user?.email ?? "";
-  const avatarUrl = (user?.user_metadata?.avatar_url as string | undefined) ?? AVATAR_URL;
+  const profileEmail = useMemo(() => {
+    if (profile?.email?.trim()) {
+      return profile.email.trim();
+    }
+    return user?.email ?? "";
+  }, [profile?.email, user?.email]);
+
+  const avatarUrl =
+    (profile?.avatarUrl?.trim() || (user?.user_metadata?.avatar_url as string | undefined)) ??
+    AVATAR_URL;
 
   const logout = async () => {
     await supabase.auth.signOut();
