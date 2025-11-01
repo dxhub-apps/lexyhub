@@ -162,6 +162,13 @@ The command prints the number of suggestions captured per query and the total ke
 - Provide an authenticated browser cookie string through `ETSY_COOKIE` to prime the Playwright session when your environment
   is challenged by DataDome. Paste the contents of the browser's **Cookie** header (or one `Set-Cookie` line per row) and the
   script loads those cookies before navigation so existing sessions can be reused.
+- The GitHub Action `.github/workflows/etsy-best-sellers.yml` requires the `ETSY_COOKIE` secret at the repository or
+  organisation level so scheduled runs can hydrate the Playwright context with an authenticated Etsy session. Without it,
+  DataDome challenges often block the workflow.
+- Refresh the cookie by signing into Etsy in a regular browser profile, copying the most recent `Set-Cookie` values from the
+  developer tools **Network** tab, and updating the `ETSY_COOKIE` secret (one cookie per line). Avoid reusing private browsing
+  sessions or sharing the cookie outside trusted maintainers, and rotate it if Etsy prompts for re-authentication or the
+  workflow starts failing with 403/429 responses.
 - The editing workspace now surfaces an **Analyze Etsy best seller** shortcut so editors can run the full keyword, difficulty,
   and AI suggestion pipelines using fresh category leaders with one click.
 - A dedicated Playwright-driven script (`npm run scrape:etsy-best-sellers`) mirrors the best seller ingestion flow without
