@@ -100,7 +100,7 @@ export class ApiEtsyProvider implements EtsyProvider {
     }
 
     const limit = Math.max(1, Math.min(options?.limit ?? 1, 20));
-    const category = options?.category ?? "c/best-selling-items";
+    const category = options?.category ?? "market/top_sellers";
     const url = /^https?:/i.test(category)
       ? category
       : `https://www.etsy.com/${category.replace(/^\/+/, "")}`;
