@@ -6,7 +6,7 @@ import {
   listTaskStatuses,
   updateTaskStatus,
 } from "@/lib/backoffice/tasks";
-import { assertAdmin } from "@/lib/backoffice/auth";
+import { requireAdminUser } from "@/lib/backoffice/auth";
 
 function normalizeOrderIndex(value: unknown): number | undefined {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -21,9 +21,9 @@ function normalizeOrderIndex(value: unknown): number | undefined {
   return undefined;
 }
 
-export async function GET(request: Request): Promise<NextResponse> {
+export async function GET(): Promise<NextResponse> {
   try {
-    assertAdmin(request.headers);
+    await requireAdminUser();
   } catch (error) {
     return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }
@@ -39,7 +39,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
 export async function POST(request: Request): Promise<NextResponse> {
   try {
-    assertAdmin(request.headers);
+    await requireAdminUser();
   } catch (error) {
     return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }
@@ -69,7 +69,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
 export async function PUT(request: Request): Promise<NextResponse> {
   try {
-    assertAdmin(request.headers);
+    await requireAdminUser();
   } catch (error) {
     return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }
@@ -99,7 +99,7 @@ export async function PUT(request: Request): Promise<NextResponse> {
 
 export async function DELETE(request: Request): Promise<NextResponse> {
   try {
-    assertAdmin(request.headers);
+    await requireAdminUser();
   } catch (error) {
     return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }

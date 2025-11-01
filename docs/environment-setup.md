@@ -22,6 +22,7 @@ This guide captures the baseline environment configuration for the LexyHub produ
 | `PINTEREST_ACCESS_TOKEN` | Optional token unlocking Pinterest board metrics. |
 | `REDDIT_CLIENT_ID` / `REDDIT_CLIENT_SECRET` | OAuth credentials for Reddit trend ingest. |
 | `PARTNER_API_STATIC_KEYS` | Comma or newline separated `key:name:limit` entries for fixed partner keys. |
+| `LEXYHUB_ADMIN_EMAILS` | Optional comma/newline/space separated list of email addresses that should receive admin privileges, unlimited quotas, and access to `/admin/backoffice`. |
 
 Mirror these secrets in both Vercel project settings and GitHub Actions secrets. Supabase credentials are mandatory for API
 responses—missing values surface as `503` errors rather than synthetic fallbacks. Optional trend provider keys remain
@@ -33,9 +34,10 @@ best-effort; without them the radar returns empty datasets.
 - Sessions persist via cookies managed by the Supabase helper middleware (`src/middleware.ts`); tokens refresh automatically.
 - The protected app group (`src/app/(app)`) checks for a valid session on every request and redirects unauthenticated visitors
   back to the login screen.
-- After the first successful login, the backend ensures a corresponding `user_profiles` record exists with the `admin` plan and
-  an effectively unlimited AI usage quota so administrators avoid throttling. Update `src/lib/auth/ensure-profile.ts` if a
-  different onboarding plan is required.
+- Admin privileges are granted only to allowlisted email addresses or accounts marked with admin metadata in Supabase. During
+  the first authenticated request, the backend ensures a corresponding `user_profiles` record exists and upgrades plan/quota
+  metadata when the account qualifies for admin access. Review `src/lib/auth/admin.ts` and `src/lib/auth/ensure-profile.ts` when
+  adjusting onboarding rules.
 - To avoid trusting potentially tampered cookie data, server components and middleware call `supabase.auth.getUser()` to
   validate the authenticated user and then merge the returned payload into the session object passed to React context.
   This keeps initial session hydration working for the client while ensuring authorization decisions rely on data that is

@@ -5,6 +5,7 @@ import type { Session } from "@supabase/supabase-js";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { SupabaseProvider } from "@/components/providers/SupabaseProvider";
+import { isAdminUser } from "@/lib/auth/admin";
 import { ensureAdminProfile } from "@/lib/auth/ensure-profile";
 
 export default async function AppLayout({
@@ -32,11 +33,12 @@ export default async function AppLayout({
     redirect("/login");
   }
 
-  await ensureAdminProfile(user);
+  const { plan } = await ensureAdminProfile(user);
+  const isAdmin = isAdminUser(user, plan);
 
   return (
     <SupabaseProvider initialSession={validatedSession}>
-      <AppShell>{children}</AppShell>
+      <AppShell isAdmin={isAdmin}>{children}</AppShell>
     </SupabaseProvider>
   );
 }

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { runScrapePipeline, scrapeEtsy, scrapeSocial, type ScrapeSource } from "@/lib/scraping/service";
-import { assertAdmin } from "@/lib/backoffice/auth";
+import { requireAdminUser } from "@/lib/backoffice/auth";
 
 export async function POST(request: Request): Promise<NextResponse> {
   try {
-    assertAdmin(request.headers);
+    await requireAdminUser();
   } catch (error) {
     return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }

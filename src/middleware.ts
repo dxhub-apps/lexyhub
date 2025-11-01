@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
 
+import { fetchUserPlan, isAdminUser } from "@/lib/auth/admin";
+
 const PUBLIC_PATHS = new Set(["/login", "/api/auth"]);
 
 export async function middleware(request: NextRequest) {
@@ -34,6 +36,13 @@ export async function middleware(request: NextRequest) {
 
   if (user && pathname === "/login") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
+  if (user && pathname.startsWith("/admin/backoffice")) {
+    const { plan } = await fetchUserPlan(supabase, user.id);
+    if (!isAdminUser(user, plan)) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
   }
 
   return response;
