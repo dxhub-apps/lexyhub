@@ -11,11 +11,19 @@ type LoginPageProps = {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const supabase = createServerComponentClient({ cookies });
+  const [sessionResult, userResult] = await Promise.all([
+    supabase.auth.getSession(),
+    supabase.auth.getUser(),
+  ]);
+
   const {
     data: { session },
-  } = await supabase.auth.getSession();
+  } = sessionResult;
+  const {
+    data: { user },
+  } = userResult;
 
-  if (session) {
+  if (user) {
     redirect("/dashboard");
   }
 
