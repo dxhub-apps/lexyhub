@@ -232,9 +232,6 @@ export default function DashboardPage(): JSX.Element {
             Track volume acceleration and AI opportunity picks to prioritise daily outreach.
           </p>
         </article>
-      </section>
-
-      <div className="dashboard-operations-grid">
         <aside className="dashboard-card dashboard-sidecard">
           <h2>Next best actions</h2>
           <p>Keep the pipeline moving with the highest leverage tasks for today.</p>
@@ -250,7 +247,7 @@ export default function DashboardPage(): JSX.Element {
             </button>
           </div>
         </aside>
-      </div>
+      </section>
     </div>
   );
 }

@@ -32,5 +32,6 @@ The dashboard container now follows the PopTrade-inspired 12-column card grid. T
 ## Momentum & connectors
 
 - The **Keyword momentum** analytics card spans two-thirds of the grid and provides the staging area for a real chart feed. Until live telemetry lands, a placeholder communicates that the card will render once marketplace data syncs.
+- The **Next best actions** quick-actions card now sits in the right-hand column of the analytics grid, keeping the primary workflow prompts adjacent to keyword momentum trends.
 - Connection management has moved to the **Settings → Connect your data sources** panel so operators can manage credentials alongside environment configuration. The dashboard now focuses solely on usage signals and quick actions.
 - The **Operations status** table now lives on the settings page next to connection management, keeping health checks and connector readiness in the same workflow while the dashboard continues to surface "Next best actions".
