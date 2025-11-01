@@ -178,6 +178,9 @@ The command prints the number of suggestions captured per query and the total ke
   touching the Supabase pipeline. The accompanying workflow `.github/workflows/etsy-best-sellers.yml` installs Chromium,
   executes the script on a 09:00 UTC cadence (or on demand via **Run workflow**), and publishes timestamped JSON captures under
   `data/etsy/best-sellers/` as short-lived build artifacts.
+- The browser session now completes Etsy's DataDome JavaScript challenge instead of issuing raw fetches. Each navigation waits
+  for the in-page cookie write, reloads the original URL once the token changes, and only then extracts the DOM. This keeps the
+  scraper aligned with how a real browser solves the challenge and dramatically reduces fallback fixture usage.
 - In environments where Etsy's DataDome challenge blocks live scraping, the script now falls back to a deterministic fixture
   stored at `scripts/fixtures/etsy-best-sellers-fixture.json`. Set `ETSY_BEST_SELLERS_MODE=scrape` to disable the fallback or
   `ETSY_BEST_SELLERS_MODE=fixture` to skip launching Playwright entirely (handy for local dry runs and CI smoke tests).
