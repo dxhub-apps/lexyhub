@@ -29,10 +29,10 @@ const nextConfig = {
         : config.externals
         ? [config.externals]
         : [];
-      existing.push((context, callback) => {
-        const request = context?.request;
-        if (request && externalize.has(request)) {
-          return callback(null, `commonjs ${request}`);
+      existing.push((context, request, callback) => {
+        const identifier = request ?? context?.request;
+        if (identifier && externalize.has(identifier)) {
+          return callback(null, `commonjs ${identifier}`);
         }
         callback();
       });
