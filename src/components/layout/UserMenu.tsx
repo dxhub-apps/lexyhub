@@ -54,6 +54,10 @@ type MenuItem = {
   };
 };
 
+function formatThemeLabel(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 function SunIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" width={18} height={18} className="menu-icon">
@@ -131,12 +135,38 @@ function ThemeIcon() {
   );
 }
 
+function SettingsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" width={18} height={18} className="menu-icon">
+      <path
+        fill="currentColor"
+        d="M12 15.5a3.5 3.5 0 1 1 0-7a3.5 3.5 0 0 1 0 7m7.5-2v-3l-1.8-.4a6 6 0 0 0-.9-1.6l.4-1.8l-2.1-2.1l-1.8.4a6 6 0 0 0-1.6-.9L11.5 2h-3l-.4 1.8a6 6 0 0 0-1.6.9l-1.8-.4L2.6 6.4l.4 1.8a6 6 0 0 0-.9 1.6L0 10.5v3l1.8.4a6 6 0 0 0 .9 1.6l-.4 1.8l2.1 2.1l1.8-.4a6 6 0 0 0 1.6.9l.4 1.8h3l.4-1.8a6 6 0 0 0 1.6-.9l1.8.4l2.1-2.1l-.4-1.8a6 6 0 0 0 .9-1.6z"
+      />
+    </svg>
+  );
+}
+
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      width={18}
+      height={18}
+      className={`menu-icon user-menu-chevron${open ? " user-menu-chevron-open" : ""}`}
+    >
+      <path fill="currentColor" d="m8.5 10.5 3.5 3l3.5-3" />
+    </svg>
+  );
+}
+
 export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
   const router = useRouter();
   const session = useSession();
   const supabase = useSupabaseClient();
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
+  const [activeSubMenu, setActiveSubMenu] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -246,10 +276,39 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
     router.refresh();
   };
 
+  useEffect(() => {
+    if (!open) {
+      setActiveSubMenu(null);
+    }
+  }, [open]);
+
+  const themeDescription = useMemo(() => {
+    if (theme === "system") {
+      return `Following system preference (${formatThemeLabel(resolvedTheme)})`;
+    }
+    return `${formatThemeLabel(theme)} theme active`;
+  }, [resolvedTheme, theme]);
+
   const menuItems: MenuItem[] = [
+    user
+      ? {
+          label: "Profile",
+          description: "Manage account",
+          href: "/profile",
+          icon: <UserIcon />,
+        }
+      : null,
+    user
+      ? {
+          label: "Settings",
+          description: "Plan & team",
+          href: "/settings",
+          icon: <SettingsIcon />,
+        }
+      : null,
     {
       label: "Theme",
-      description: `Following ${theme === "system" ? "system" : theme} preference`,
+      description: themeDescription,
       icon: <ThemeIcon />,
       subMenu: {
         label: "Choose theme",
@@ -260,14 +319,6 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
         ],
       },
     },
-    user
-      ? {
-          label: "Profile",
-          description: "Manage account",
-          href: "/profile",
-          icon: <UserIcon />,
-        }
-      : null,
     {
       label: "Help Center",
       description: "Guides & how-tos",
@@ -314,32 +365,64 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
             {profileEmail ? <span>{profileEmail}</span> : null}
             <span>{environmentLabel}</span>
           </div>
-          <div className="user-menu-section" aria-label="Theme controls">
-            <span className="user-menu-section-label">Theme</span>
-            <div className="user-menu-theme-options">
-              {menuItems[0].subMenu?.options.map((option) => {
-                const isActive = theme === option.value || (theme === "system" && option.value === "system");
-                const highlight = option.value === "system" ? isActive : option.value === resolvedTheme;
+          <div className="user-menu-list" role="none">
+            {menuItems.map((item) => {
+              if (item.subMenu) {
+                const isSubMenuOpen = activeSubMenu === item.label;
                 return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={`theme-choice ${highlight ? "theme-choice-active" : ""}`}
-                    onClick={() => setTheme(option.value)}
-                  >
-                    {option.icon}
-                    <span>{option.label}</span>
-                  </button>
+                  <div key={item.label} className="user-menu-group" role="none">
+                    <button
+                      type="button"
+                      className={`user-menu-item${isSubMenuOpen ? " user-menu-item-active" : ""}`}
+                      role="menuitem"
+                      aria-haspopup="true"
+                      aria-expanded={isSubMenuOpen}
+                      onClick={() =>
+                        setActiveSubMenu((current) => (current === item.label ? null : item.label))
+                      }
+                    >
+                      <div className="user-menu-item-inner">
+                        {item.icon}
+                        <div className="user-menu-item-text">
+                          <span>{item.label}</span>
+                          {item.description ? <small>{item.description}</small> : null}
+                        </div>
+                        <ChevronIcon open={isSubMenuOpen} />
+                      </div>
+                    </button>
+                    {isSubMenuOpen ? (
+                      <div className="user-menu-submenu" role="group" aria-label={item.subMenu.label}>
+                        {item.subMenu.options.map((option) => {
+                          const isChecked =
+                            option.value === "system" ? theme === "system" : resolvedTheme === option.value;
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              className={`user-menu-submenu-item${
+                                isChecked ? " user-menu-submenu-item-active" : ""
+                              }`}
+                              role="menuitemradio"
+                              aria-checked={isChecked}
+                              onClick={() => {
+                                setTheme(option.value);
+                              }}
+                            >
+                              {option.icon}
+                              <span>{option.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
                 );
-              })}
-            </div>
-          </div>
-          <div className="user-menu-section" role="none">
-            {menuItems.slice(1).map((item) => {
+              }
+
               const content = (
                 <div className="user-menu-item-inner">
                   {item.icon}
-                  <div>
+                  <div className="user-menu-item-text">
                     <span>{item.label}</span>
                     {item.description ? <small>{item.description}</small> : null}
                   </div>
@@ -353,7 +436,10 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
                     href={item.href}
                     className="user-menu-item"
                     role="menuitem"
-                    onClick={() => setOpen(false)}
+                    onClick={() => {
+                      setActiveSubMenu(null);
+                      setOpen(false);
+                    }}
                   >
                     {content}
                   </Link>
@@ -367,6 +453,7 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
                   className="user-menu-item"
                   role="menuitem"
                   onClick={() => {
+                    setActiveSubMenu(null);
                     item.action?.();
                     setOpen(false);
                   }}

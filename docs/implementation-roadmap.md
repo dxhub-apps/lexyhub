@@ -134,7 +134,7 @@ Each sprint lists epics, cross-functional tasks, acceptance criteria, and instru
   - [x] Webhooks updating quotas and momentum multipliers.
   - [x] Profile & billing workspace UI for managing plan, payment method, and notifications (surfaced from the avatar menu in the global top bar).
 - **S4-UX Enhancements**
-  - [x] Global top bar user menu with avatar, help, logout, and theme selector.
+  - [x] Global top bar user menu with avatar, help, logout, and a theme submenu.
   - [x] Theme system supporting light, dark, and system preferences across the shell.
 - **Exit Criteria:** Etsy sellers can connect, run Market Twin simulations, and manage billing through LexyHub.
   - Refer to `docs/etsy-integration.md` for configuration, cron jobs, and Market Twin usage guidance.
