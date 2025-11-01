@@ -106,9 +106,14 @@ export default function BackofficeOverviewPage(): JSX.Element {
           <h1>Backoffice overview</h1>
           <p className="subtitle">Operational dashboard for administrators.</p>
         </div>
-        <Link className="primary-link" href="/admin/backoffice/risk-management">
-          Manage risk
-        </Link>
+        <div className="backoffice-header-actions">
+          <Link className="primary-link" href="/admin/backoffice/risk-management">
+            Manage risk
+          </Link>
+          <Link className="secondary-link" href="/admin/backoffice/tasks">
+            Plan tasks
+          </Link>
+        </div>
       </section>
       {error ? (
         <article className="surface-card backoffice-card">
