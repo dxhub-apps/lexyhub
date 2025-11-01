@@ -25,8 +25,8 @@ Keyword search now normalizes cached embedding payloads retrieved from Supabase 
 
 | UI element | How data is loaded | Supabase tables / stores |
 | --- | --- | --- |
-| Header metrics & card list | The page fetches `/api/watchlists`, normalizes the nested payload, and computes aggregate counts for the header badges and cards.【F:src/app/(app)/watchlists/page.tsx†L31-L138】 | `watchlists`, `watchlist_items`, `keywords`, `listings` (for joined metadata).【F:src/lib/watchlists/service.ts†L92-L149】 |
-| Watchlist item tables | Each card renders the `watchlist_items` array returned from the API, including links to listing URLs when present.【F:src/app/(app)/watchlists/page.tsx†L140-L199】 | Same as above (`watchlists`, `watchlist_items`, `keywords`, `listings`).【F:src/lib/watchlists/service.ts†L92-L149】 |
+| Welcome summary & card list | The page fetches `/api/watchlists`, normalizes the nested payload, and uses it to render the friendly hero summary plus each watchlist card.【F:src/app/(app)/watchlists/page.tsx†L31-L263】 | `watchlists`, `watchlist_items`, `keywords`, `listings` (for joined metadata).【F:src/lib/watchlists/service.ts†L92-L149】 |
+| Watchlist item tables | Each card renders the `watchlist_items` array returned from the API, including links to listing URLs when present and the humanized source label.【F:src/app/(app)/watchlists/page.tsx†L150-L220】 | Same as above (`watchlists`, `watchlist_items`, `keywords`, `listings`).【F:src/lib/watchlists/service.ts†L92-L149】 |
 | Remove item action | Triggering “Remove” sends `DELETE /api/watchlists/items/:id`, which validates ownership before deleting the row.【F:src/app/(app)/watchlists/page.tsx†L90-L114】【F:src/app/api/watchlists/items/[id]/route.ts†L9-L32】 | `watchlist_items` (with inner join to `watchlists` for user scoping).【F:src/lib/watchlists/service.ts†L151-L185】 |
 
 ## Insights (`/insights`)

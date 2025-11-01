@@ -87,6 +87,18 @@ export default function WatchlistsPage(): JSX.Element {
     return watchlists.reduce((sum, watchlist) => sum + watchlist.items.length, 0);
   }, [watchlists]);
 
+  const summaryMessage = useMemo(() => {
+    if (loading) {
+      return "We’re loading your saved watchlists.";
+    }
+    if (watchlists.length === 0) {
+      return "You haven't saved any watchlists yet. Use the keyword explorer to start tracking ideas.";
+    }
+    const listLabel = watchlists.length === 1 ? "watchlist" : "watchlists";
+    const itemLabel = totalItems === 1 ? "keyword" : "keywords";
+    return `You're tracking ${totalItems} ${itemLabel} across ${watchlists.length} ${listLabel}.`;
+  }, [loading, totalItems, watchlists.length]);
+
   const handleRemove = useCallback(
     async (item: WatchlistItem) => {
       try {
@@ -114,7 +126,6 @@ export default function WatchlistsPage(): JSX.Element {
   );
 
   const renderWatchlistCard = (watchlist: Watchlist) => {
-    const remaining = Math.max(watchlist.capacity - watchlist.items.length, 0);
     const lastUpdated = watchlist.items.reduce<string | null>((latest, item) => {
       if (!item.addedAt) {
         return latest;
@@ -125,8 +136,15 @@ export default function WatchlistsPage(): JSX.Element {
       return new Date(item.addedAt).getTime() > new Date(latest).getTime() ? item.addedAt : latest;
     }, null);
 
-    const formattedUpdated = lastUpdated ? new Date(lastUpdated).toLocaleString() : "Not yet populated";
+    const formattedUpdated = lastUpdated
+      ? new Date(lastUpdated).toLocaleDateString(undefined, {
+          dateStyle: "medium",
+          timeStyle: "short",
+        })
+      : "Not yet updated";
     const primaryActionLabel = watchlist.items.length ? "View in keywords" : "Add keywords";
+    const trackedCount = watchlist.items.length;
+    const trackedLabel = trackedCount === 1 ? "keyword" : "keywords";
 
     return (
       <article key={watchlist.id} className="watchlists-card">
@@ -136,9 +154,8 @@ export default function WatchlistsPage(): JSX.Element {
             <h2>{watchlist.name}</h2>
           </div>
           <div className="watchlists-card-meta">
-            <span>{watchlist.items.length} of {watchlist.capacity} keywords</span>
+            <span>Tracking {trackedCount} {trackedLabel}</span>
             <span>Updated {formattedUpdated}</span>
-            <span>{remaining} slots remaining</span>
           </div>
         </header>
         <p>{watchlist.description ?? "Auto-created starter watchlist."}</p>
@@ -155,8 +172,8 @@ export default function WatchlistsPage(): JSX.Element {
               <thead>
                 <tr>
                   <th scope="col">Item</th>
-                  <th scope="col">Context</th>
-                  <th scope="col">Added</th>
+                  <th scope="col">Source</th>
+                  <th scope="col">Added on</th>
                   <th scope="col" aria-label="actions" />
                 </tr>
               </thead>
@@ -165,7 +182,16 @@ export default function WatchlistsPage(): JSX.Element {
                   const addedAt = new Date(item.addedAt);
                   const formatted = Number.isNaN(addedAt.getTime())
                     ? "Unknown"
-                    : addedAt.toLocaleString();
+                    : addedAt.toLocaleDateString(undefined, { dateStyle: "medium", timeStyle: "short" });
+                  const sourceLabel = item.type === "keyword"
+                    ? (item.context
+                        ? item.context
+                            .toLowerCase()
+                            .split(/[_\s]+/)
+                            .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+                            .join(" ")
+                        : "Keyword")
+                    : "Product listing";
                   return (
                     <tr key={item.id}>
                       <td data-type={item.type}>
@@ -177,7 +203,7 @@ export default function WatchlistsPage(): JSX.Element {
                           item.label
                         )}
                       </td>
-                      <td>{item.context ?? ""}</td>
+                      <td>{sourceLabel}</td>
                       <td>{formatted}</td>
                       <td>
                         <button type="button" className="watchlists-remove" onClick={() => handleRemove(item)}>
@@ -203,20 +229,10 @@ export default function WatchlistsPage(): JSX.Element {
             <span className="watchlists-eyebrow">Monitoring</span>
             <h1>Watchlists</h1>
             <p>
-              Every new account receives an Operational Watchlist automatically. Populate it from the <Link href="/keywords">keyword explorer</Link>{" "}
-              or by calling the <code>/api/watchlists/add</code> endpoint.
+              Keep the ideas you care about in one place. Add them from the <Link href="/keywords">keyword explorer</Link> whenever inspiration strikes.
             </p>
+            <p className="watchlists-hero-summary">{summaryMessage}</p>
           </div>
-          <dl className="watchlists-meta">
-            <div>
-              <dt>Total watchlists</dt>
-              <dd>{watchlists.length}</dd>
-            </div>
-            <div>
-              <dt>Tracked items</dt>
-              <dd>{totalItems}</dd>
-            </div>
-          </dl>
         </div>
       </section>
 
@@ -231,9 +247,9 @@ export default function WatchlistsPage(): JSX.Element {
           </article>
         ) : watchlists.length === 0 ? (
           <article className="watchlists-card">
-            <h2>Provision watchlists</h2>
+            <h2>Start your first watchlist</h2>
             <p className="watchlists-empty">
-              No watchlists found. They will be provisioned automatically when a user profile is created.
+              You haven&apos;t saved any watchlists yet. Add keywords from the explorer to build your first collection.
             </p>
             <div className="watchlists-card-actions">
               <Link href="/keywords" className="primary-action">
