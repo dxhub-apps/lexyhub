@@ -37,6 +37,7 @@ jobs:
           ETSY_BEST_SELLERS_CATEGORY: ${{ github.event.inputs.category }}
           ETSY_BEST_SELLERS_LIMIT: ${{ github.event.inputs.limit }}
           ETSY_BEST_SELLERS_HEADLESS: ${{ github.event.inputs.headless || 'true' }}
+          ETSY_COOKIE: ${{ secrets.ETSY_COOKIE }}
         run: npm run scrape:etsy-best-sellers
 
       - name: Upload artifacts
