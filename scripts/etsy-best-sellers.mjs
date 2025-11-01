@@ -264,36 +264,167 @@ async function warmupEtsySession(page) {
   }
 }
 
+async function waitForDataDomeCookie(page, previousValue) {
+  try {
+    await page.waitForFunction(
+      ({ cookieName, previousValue: previous }) => {
+        const entries = document.cookie
+          .split(';')
+          .map((segment) => segment.trim())
+          .filter(Boolean);
+        const match = entries.find((segment) => segment.startsWith(`${cookieName}=`));
+        if (!match) return false;
+        const value = match.slice(cookieName.length + 1);
+        return !previous || value !== previous;
+      },
+      { cookieName: DATADOME_COOKIE_NAME, previousValue },
+      { timeout: 20000 }
+    );
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function resolveDataDomeChallenge(page, url, html) {
+  if (!html || !/datadome/i.test(html)) {
+    return { success: false, response: null, html };
+  }
+
+  const context = page.context();
+  const beforeCookies = await context.cookies();
+  const previousValue = beforeCookies.find((cookie) => cookie.name === DATADOME_COOKIE_NAME)?.value ?? null;
+
+  console.info(`Detected DataDome challenge while loading ${url}; waiting for browser challenge to complete`);
+
+  const cookieSetInPage = await waitForDataDomeCookie(page, previousValue);
+  if (!cookieSetInPage) {
+    const afterCookies = await context.cookies();
+    const updated = afterCookies.find((cookie) => cookie.name === DATADOME_COOKIE_NAME)?.value ?? null;
+    if (!updated || updated === previousValue) {
+      return { success: false, response: null, html };
+    }
+  }
+
+  try {
+    await page.waitForLoadState('networkidle', { timeout: 5000 });
+  } catch (error) {
+    // swallow timeouts — the challenge may reload immediately
+  }
+
+  await page.waitForTimeout(750);
+
+  const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await page.waitForTimeout(500);
+  await maybeApplyDataDomeCookie(page.context(), response);
+  const freshHtml = await page.content();
+
+  return { success: true, response, html: freshHtml };
+}
+
+async function loadEtsyPage(page, url, { maxAttempts = 4, allowNotFound = false } = {}) {
+  let attempt = 0;
+  while (attempt < maxAttempts) {
+    attempt += 1;
+    let response;
+    try {
+      response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    } catch (error) {
+      console.warn(
+        `Failed to navigate to ${url} (attempt ${attempt}): ${error instanceof Error ? error.message : error}`
+      );
+      if (attempt >= maxAttempts) {
+        throw error instanceof Error
+          ? error
+          : new Error(`Failed to navigate to ${url}: ${String(error)}`);
+      }
+      await page.waitForTimeout(1500);
+      continue;
+    }
+
+    await page.waitForTimeout(500);
+    let html = await page.content();
+
+    if (!response) {
+      console.warn(`No response received while loading ${url} (attempt ${attempt})`);
+      if (attempt >= maxAttempts) {
+        throw new Error(`No response while loading ${url}`);
+      }
+      await page.waitForTimeout(1500);
+      continue;
+    }
+
+    if (response.status() === 403) {
+      const applied = await maybeApplyDataDomeCookie(page.context(), response);
+      const challengeResult = await resolveDataDomeChallenge(page, url, html);
+      if (challengeResult.success) {
+        response = challengeResult.response ?? response;
+        html = challengeResult.html ?? html;
+      } else if (applied && attempt < maxAttempts) {
+        console.warn(`Received 403 for ${url}; retrying after applying DataDome cookie`);
+        await page.waitForTimeout(1500);
+        attempt = Math.max(0, attempt - 1);
+        continue;
+      }
+      if (response.status() === 403) {
+        console.warn(`Blocked while loading ${url}: status=403 (attempt ${attempt})`);
+        if (attempt >= maxAttempts) {
+          throw new Error(`Blocked while loading ${url}`);
+        }
+        await page.waitForTimeout(1500);
+        continue;
+      }
+    }
+
+    if (!response.ok()) {
+      if (allowNotFound && response.status() === 404) {
+        return { response, html };
+      }
+      console.warn(`Unexpected status while loading ${url}: status=${response.status()} (attempt ${attempt})`);
+      if (attempt >= maxAttempts) {
+        throw new Error(`Failed with status ${response.status()} while loading ${url}`);
+      }
+      await page.waitForTimeout(1500);
+      continue;
+    }
+
+    if (isCaptcha(html)) {
+      const applied = await maybeApplyDataDomeCookie(page.context(), response);
+      if (applied && attempt < maxAttempts) {
+        console.warn(`Encountered captcha while loading ${url}, retrying`);
+        await page.waitForTimeout(1500);
+        attempt = Math.max(0, attempt - 1);
+        continue;
+      }
+      throw new Error(`Encountered captcha while loading ${url}`);
+    }
+
+    return { response, html };
+  }
+
+  throw new Error(`Unable to load ${url}`);
+}
+
 async function gatherBestSellerListingUrls(page, categoryUrl) {
   const candidates = categoryUrl ? Array.from(new Set([categoryUrl, ...BEST_SELLER_CANDIDATES])) : [...BEST_SELLER_CANDIDATES];
   for (const url of candidates) {
     let attempt = 0;
     while (attempt < 3) {
       attempt += 1;
-      const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 25000 });
-      await page.waitForTimeout(500);
-      const html = await page.content();
-      if (!response || !response.ok()) {
-        const applied = await maybeApplyDataDomeCookie(page.context(), response);
-        console.warn(`Failed to load best sellers ${url}: status=${response?.status() ?? 'unknown'}`);
-        if (applied && attempt < 3) {
+      try {
+        const { html } = await loadEtsyPage(page, url, { maxAttempts: 3 });
+        const urls = extractListingUrlsFromHtml(html, limit);
+        if (urls.length) {
+          return urls;
+        }
+      } catch (error) {
+        console.warn(
+          `Failed to load best sellers ${url} (attempt ${attempt}): ${error instanceof Error ? error.message : error}`
+        );
+        if (attempt < 3) {
           await page.waitForTimeout(1500);
           continue;
         }
-        break;
-      }
-      if (isCaptcha(html)) {
-        const applied = await maybeApplyDataDomeCookie(page.context(), response);
-        if (applied && attempt < 3) {
-          console.warn(`Encountered captcha while loading ${url}, retrying`);
-          await page.waitForTimeout(1500);
-          continue;
-        }
-        throw new Error(`Encountered captcha while loading ${url}`);
-      }
-      const urls = extractListingUrlsFromHtml(html, limit);
-      if (urls.length) {
-        return urls;
       }
       break;
     }
@@ -432,83 +563,12 @@ async function loadFixtureBestSellers(desiredLimit) {
 async function scrapeListing(context, url) {
   const page = await context.newPage();
   try {
-    let attempt = 0;
-    const maxAttempts = 3;
-    let html;
-    while (attempt < maxAttempts) {
-      attempt += 1;
-      let response;
-      try {
-        response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-      } catch (error) {
-        console.warn(
-          `Failed to load listing ${url} (attempt ${attempt}): ${
-            error instanceof Error ? error.message : error
-          }`
-        );
-        if (attempt < maxAttempts) {
-          await page.waitForTimeout(1500);
-          continue;
-        }
-        throw error instanceof Error
-          ? error
-          : new Error(`Failed to load listing ${url}: ${String(error)}`);
-      }
+    const { response, html } = await loadEtsyPage(page, url, { maxAttempts: 4, allowNotFound: true });
 
-      await page.waitForTimeout(500);
-      const applied = await maybeApplyDataDomeCookie(context, response);
-      html = await page.content();
-
-      if (!response) {
-        console.warn(`No response received while fetching listing ${url} (attempt ${attempt})`);
-        if (applied && attempt < maxAttempts) {
-          await page.waitForTimeout(1500);
-          continue;
-        }
-        throw new Error(`No response while fetching listing ${url}`);
-      }
-
-      if (response.status() === 404) {
-        throw new Error(`Listing not found: ${url}`);
-      }
-
-      if (response.status() === 403) {
-        console.warn(
-          `Blocked while fetching listing ${url}: status=${response.status()} (attempt ${attempt})`
-        );
-        if (applied && attempt < maxAttempts) {
-          await page.waitForTimeout(1500);
-          continue;
-        }
-        throw new Error(`Blocked while fetching listing ${url}`);
-      }
-
-      if (!response.ok()) {
-        console.warn(
-          `Unexpected status while fetching listing ${url}: status=${response.status()} (attempt ${attempt})`
-        );
-        if (applied && attempt < maxAttempts) {
-          await page.waitForTimeout(1500);
-          continue;
-        }
-        throw new Error(`Failed with status ${response.status()} while fetching listing ${url}`);
-      }
-
-      if (isCaptcha(html)) {
-        if (applied && attempt < maxAttempts) {
-          console.warn(`Encountered captcha for listing ${url}, retrying (attempt ${attempt})`);
-          await page.waitForTimeout(1500);
-          continue;
-        }
-        throw new Error(`Encountered captcha for listing ${url}`);
-      }
-
-      break;
+    if (response.status() === 404) {
+      throw new Error(`Listing not found: ${url}`);
     }
 
-    if (!html) {
-      throw new Error(`Unable to load listing ${url}`);
-    }
     const jsonLd = parseJsonLd(html);
     const product = jsonLd.find((entry) =>
       entry && typeof entry === 'object' && /product/i.test(String(entry['@type'] ?? ''))
