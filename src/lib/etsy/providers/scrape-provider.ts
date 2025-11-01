@@ -56,6 +56,48 @@ class RequestThrottle {
   }
 }
 
+class CookieJar {
+  private readonly cookies = new Map<string, string>();
+
+  inject(initHeaders?: HeadersInit): Headers {
+    const headers = new Headers(initHeaders);
+    if (this.cookies.size > 0 && !headers.has("cookie")) {
+      headers.set("cookie", this.serialize());
+    }
+    return headers;
+  }
+
+  absorb(response: Response): void {
+    const setCookies = this.getSetCookies(response);
+    for (const raw of setCookies) {
+      if (!raw) continue;
+      const [pair] = raw.split(";");
+      if (!pair) continue;
+      const separatorIndex = pair.indexOf("=");
+      if (separatorIndex === -1) continue;
+      const name = pair.slice(0, separatorIndex).trim();
+      const value = pair.slice(separatorIndex + 1).trim();
+      if (!name || !value) continue;
+      this.cookies.set(name, value);
+    }
+  }
+
+  private serialize(): string {
+    return Array.from(this.cookies.entries())
+      .map(([name, value]) => `${name}=${value}`)
+      .join("; ");
+  }
+
+  private getSetCookies(response: Response): string[] {
+    const headers = response.headers as Headers & { getSetCookie?: () => string[] };
+    if (typeof headers.getSetCookie === "function") {
+      return headers.getSetCookie();
+    }
+    const combined = response.headers.get("set-cookie");
+    return combined ? [combined] : [];
+  }
+}
+
 function normalizeUrl(input: string): string {
   const url = new URL(input);
   url.hash = "";
@@ -335,6 +377,15 @@ function countExtractedFields(listing: NormalizedEtsyListing): number {
 }
 
 export class ScrapeEtsyProvider implements EtsyProvider {
+  private readonly cookieJar = new CookieJar();
+
+  private async fetchWithCookies(url: string, init?: RequestInit): Promise<Response> {
+    const headers = this.cookieJar.inject(init?.headers);
+    const response = await fetch(url, { ...init, headers });
+    this.cookieJar.absorb(response);
+    return response;
+  }
+
   private async fetchListingDocument(url: string): Promise<Response> {
     const referers = buildListingReferers(url);
     let attempt = 0;
@@ -342,7 +393,7 @@ export class ScrapeEtsyProvider implements EtsyProvider {
 
     for (const referer of referers) {
       await RequestThrottle.schedule();
-      const response = await fetch(url, {
+      const response = await this.fetchWithCookies(url, {
         headers: buildNavigationHeaders(referer),
       });
 
@@ -369,7 +420,7 @@ export class ScrapeEtsyProvider implements EtsyProvider {
     }
 
     await RequestThrottle.schedule();
-    return fetch(url, {
+    return this.fetchWithCookies(url, {
       headers: buildNavigationHeaders(DEFAULT_REFERER),
     });
   }
@@ -398,46 +449,69 @@ export class ScrapeEtsyProvider implements EtsyProvider {
 
   private async gatherBestSellerListingUrls(limit: number, category?: string): Promise<string[]> {
     const targetLimit = Math.max(1, Math.min(limit, 20));
-    const targetUrl = this.buildBestSellerUrl(category);
+    const candidateUrls = category
+      ? Array.from(new Set([this.buildBestSellerUrl(category), BEST_SELLERS_DEFAULT_URL]))
+      : [BEST_SELLERS_DEFAULT_URL];
 
-    await RequestThrottle.schedule();
-    const response = await fetch(targetUrl, {
-      headers: buildNavigationHeaders(DEFAULT_REFERER),
-    });
+    let lastNotFound: EtsyProviderError | null = null;
 
-    if (!response.ok) {
-      if (response.status === 403) {
-        throw new EtsyProviderError("Blocked while loading Etsy best sellers", "BLOCKED", {
+    for (const url of candidateUrls) {
+      await RequestThrottle.schedule();
+      const response = await this.fetchWithCookies(url, {
+        headers: buildNavigationHeaders(DEFAULT_REFERER),
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          lastNotFound = new EtsyProviderError("Best seller category not found", "NOT_FOUND", {
+            status: response.status,
+            canRetry: false,
+          });
+          console.warn(
+            JSON.stringify({
+              method: "ScrapeEtsyProvider.gatherBestSellerListingUrls",
+              url,
+              status: "not_found",
+              status_code: response.status,
+            }),
+          );
+          continue;
+        }
+        if (response.status === 403) {
+          throw new EtsyProviderError("Blocked while loading Etsy best sellers", "BLOCKED", {
+            status: response.status,
+            canRetry: false,
+          });
+        }
+        throw new EtsyProviderError(`Failed to load best seller category (${response.status})`, "FETCH_FAILED", {
           status: response.status,
-          canRetry: false,
+          canRetry: response.status >= 500 || response.status === 429,
         });
       }
-      throw new EtsyProviderError(`Failed to load best seller category (${response.status})`, "FETCH_FAILED", {
-        status: response.status,
-        canRetry: response.status >= 500 || response.status === 429,
-      });
+
+      const html = await response.text();
+      if (/captcha/i.test(html) && /etsy/i.test(html)) {
+        throw new EtsyProviderError("Encountered Etsy captcha", "BLOCKED", { status: 429, canRetry: true });
+      }
+
+      const urls = extractListingUrlsFromHtml(html, targetLimit);
+      if (!urls.length) {
+        throw new EtsyProviderError("Unable to locate best seller listings", "NOT_FOUND", { canRetry: true });
+      }
+
+      console.info(
+        JSON.stringify({
+          method: "ScrapeEtsyProvider.gatherBestSellerListingUrls",
+          url,
+          status: "success",
+          discovered: urls.length,
+        }),
+      );
+
+      return urls;
     }
 
-    const html = await response.text();
-    if (/captcha/i.test(html) && /etsy/i.test(html)) {
-      throw new EtsyProviderError("Encountered Etsy captcha", "BLOCKED", { status: 429, canRetry: true });
-    }
-
-    const urls = extractListingUrlsFromHtml(html, targetLimit);
-    if (!urls.length) {
-      throw new EtsyProviderError("Unable to locate best seller listings", "NOT_FOUND", { canRetry: true });
-    }
-
-    console.info(
-      JSON.stringify({
-        method: "ScrapeEtsyProvider.gatherBestSellerListingUrls",
-        url: targetUrl,
-        status: "success",
-        discovered: urls.length,
-      }),
-    );
-
-    return urls;
+    throw lastNotFound ?? new EtsyProviderError("Best seller listings unavailable", "FETCH_FAILED", { canRetry: true });
   }
 
   async getListingByUrl(url: string): Promise<NormalizedEtsyListing> {
