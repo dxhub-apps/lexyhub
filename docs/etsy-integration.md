@@ -153,10 +153,11 @@ The command prints the number of suggestions captured per query and the total ke
 ## 11. Automated best-seller ingestion
 
 - The listing intelligence API accepts `ingestionMode="best-sellers"` to pull the current best sellers category without a user-supplied URL.
-- `ScrapeEtsyProvider.search` loads `https://www.etsy.com/c/best-selling-items` with a throttled HTML request, extracts the
+- `ScrapeEtsyProvider.search` loads `https://www.etsy.com/market/top_sellers` with a throttled HTML request, extracts the
   top listing URLs directly from the markup and embedded JSON, and normalizes every match into the unified schema before
   caching.
-- When a niche category returns `404`, the scraper automatically falls back to the global `best-selling-items` catalog so
+- When a niche category returns `404`, the scraper automatically falls back to the global top seller hubs (including the
+  legacy `best-selling-items` catalog) so
   ingestion can continue without manual intervention.
 - The editing workspace now surfaces an **Analyze Etsy best seller** shortcut so editors can run the full keyword, difficulty,
   and AI suggestion pipelines using fresh category leaders with one click.

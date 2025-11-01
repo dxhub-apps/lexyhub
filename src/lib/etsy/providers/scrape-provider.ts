@@ -36,7 +36,11 @@ function buildNavigationHeaders(referer: string = DEFAULT_REFERER): Record<strin
 }
 const MIN_INTERVAL_MS = 1_500;
 
-const BEST_SELLERS_DEFAULT_URL = "https://www.etsy.com/c/best-selling-items";
+const BEST_SELLERS_URLS = Object.freeze([
+  "https://www.etsy.com/market/top_sellers",
+  "https://www.etsy.com/c/best-selling-items",
+]);
+const PRIMARY_BEST_SELLERS_URL = BEST_SELLERS_URLS[0];
 
 class RequestThrottle {
   private static lastInvocation = 0;
@@ -191,7 +195,7 @@ function buildListingReferers(url: string): string[] {
       referers.add(`https://www.etsy.com/search?q=${encodeURIComponent(searchQuery)}`);
     }
   }
-  referers.add("https://www.etsy.com/c/best-selling-items");
+  referers.add(PRIMARY_BEST_SELLERS_URL);
   return Array.from(referers);
 }
 
@@ -427,7 +431,7 @@ export class ScrapeEtsyProvider implements EtsyProvider {
 
   private buildBestSellerUrl(category?: string): string {
     if (!category) {
-      return BEST_SELLERS_DEFAULT_URL;
+      return PRIMARY_BEST_SELLERS_URL;
     }
 
     try {
@@ -450,8 +454,8 @@ export class ScrapeEtsyProvider implements EtsyProvider {
   private async gatherBestSellerListingUrls(limit: number, category?: string): Promise<string[]> {
     const targetLimit = Math.max(1, Math.min(limit, 20));
     const candidateUrls = category
-      ? Array.from(new Set([this.buildBestSellerUrl(category), BEST_SELLERS_DEFAULT_URL]))
-      : [BEST_SELLERS_DEFAULT_URL];
+      ? Array.from(new Set([this.buildBestSellerUrl(category), ...BEST_SELLERS_URLS]))
+      : [...BEST_SELLERS_URLS];
 
     let lastNotFound: EtsyProviderError | null = null;
 

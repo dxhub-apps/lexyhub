@@ -29,7 +29,7 @@ describe("buildListingReferers", () => {
     expect(referers).toContain(
       "https://www.etsy.com/search?q=personalized%20leather%20journal%20notebook",
     );
-    expect(referers).toContain("https://www.etsy.com/c/best-selling-items");
+    expect(referers).toContain("https://www.etsy.com/market/top_sellers");
   });
 
   it("deduplicates referers even if the slug is missing", () => {
