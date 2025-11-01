@@ -63,7 +63,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
               const { data: existing, error: fetchError } = await supabase
                 .from("user_profiles")
-                .select("plan, momentum, settings")
+                .select("plan, momentum, settings, avatar_url")
                 .eq("user_id", userId)
                 .maybeSingle();
 
@@ -87,6 +87,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                     plan: existing?.plan ?? "free",
                     momentum: existing?.momentum ?? "new",
                     settings,
+                    avatar_url: blob.url,
                     updated_at: new Date().toISOString(),
                   },
                   { onConflict: "user_id" },

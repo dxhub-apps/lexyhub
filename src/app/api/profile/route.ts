@@ -22,13 +22,13 @@ function requireUserId(request: NextRequest): string {
 
 function normalizeProfile(input: Partial<ProfilePayload> | null | undefined): ProfilePayload {
   return {
-    fullName: String(input?.fullName ?? ""),
-    email: String(input?.email ?? ""),
-    company: String(input?.company ?? ""),
-    bio: String(input?.bio ?? ""),
-    timezone: String(input?.timezone ?? ""),
+    fullName: String(input?.fullName ?? "").trim(),
+    email: String(input?.email ?? "").trim(),
+    company: String(input?.company ?? "").trim(),
+    bio: String(input?.bio ?? "").trim(),
+    timezone: String(input?.timezone ?? "").trim(),
     notifications: Boolean(input?.notifications ?? false),
-    avatarUrl: String(input?.avatarUrl ?? ""),
+    avatarUrl: String(input?.avatarUrl ?? "").trim(),
   };
 }
 
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const { data, error } = await supabase
     .from("user_profiles")
-    .select("plan, momentum, settings")
+    .select("plan, momentum, settings, avatar_url")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -56,7 +56,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   const settings = (data?.settings ?? {}) as Record<string, unknown>;
-  const profile = normalizeProfile((settings.profile as Partial<ProfilePayload> | undefined) ?? undefined);
+  const profileFromSettings = normalizeProfile(
+    (settings.profile as Partial<ProfilePayload> | undefined) ?? undefined,
+  );
+  const avatarUrlFromColumn = typeof data?.avatar_url === "string" ? data.avatar_url.trim() : "";
+  const profile: ProfilePayload = {
+    ...profileFromSettings,
+    avatarUrl: avatarUrlFromColumn || profileFromSettings.avatarUrl,
+  };
 
   return NextResponse.json({
     userId,
@@ -81,7 +88,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
 
   const { data: existing, error: fetchError } = await supabase
     .from("user_profiles")
-    .select("plan, momentum, settings")
+    .select("plan, momentum, settings, avatar_url")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -94,8 +101,14 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
   const existingProfile = normalizeProfile(
     (settings.profile as Partial<ProfilePayload> | undefined) ?? undefined,
   );
-  const profile = normalizeProfile({ ...existingProfile, ...payload });
+  const existingAvatarUrl = typeof existing?.avatar_url === "string" ? existing.avatar_url.trim() : "";
+  const profile = normalizeProfile({
+    ...existingProfile,
+    avatarUrl: existingAvatarUrl || existingProfile.avatarUrl,
+    ...payload,
+  });
   settings.profile = profile;
+  const avatarUrl = profile.avatarUrl.trim();
 
   const { error: upsertError } = await supabase
     .from("user_profiles")
@@ -105,6 +118,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
         plan: existing?.plan ?? "free",
         momentum: existing?.momentum ?? "new",
         settings,
+        avatar_url: avatarUrl || null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "user_id" },
