@@ -382,6 +382,53 @@ function countExtractedFields(listing: NormalizedEtsyListing): number {
 
 export class ScrapeEtsyProvider implements EtsyProvider {
   private readonly cookieJar = new CookieJar();
+  private warmupCompleted = false;
+  private warmupPromise: Promise<void> | null = null;
+
+  private async warmUpSession(): Promise<void> {
+    if (this.warmupCompleted) {
+      return;
+    }
+
+    if (this.warmupPromise) {
+      await this.warmupPromise;
+      return;
+    }
+
+    this.warmupPromise = (async () => {
+      await RequestThrottle.schedule();
+      try {
+        const response = await this.fetchWithCookies(DEFAULT_REFERER, {
+          headers: buildNavigationHeaders(DEFAULT_REFERER),
+        });
+
+        if (!response.ok) {
+          console.warn(
+            JSON.stringify({
+              method: "ScrapeEtsyProvider.warmUpSession",
+              status: "failed",
+              status_code: response.status,
+            }),
+          );
+          return;
+        }
+
+        this.warmupCompleted = true;
+      } catch (error) {
+        console.warn(
+          JSON.stringify({
+            method: "ScrapeEtsyProvider.warmUpSession",
+            status: "error",
+            error: error instanceof Error ? error.message : String(error),
+          }),
+        );
+      } finally {
+        this.warmupPromise = null;
+      }
+    })();
+
+    await this.warmupPromise;
+  }
 
   private async fetchWithCookies(url: string, init?: RequestInit): Promise<Response> {
     const headers = this.cookieJar.inject(init?.headers);
@@ -394,6 +441,8 @@ export class ScrapeEtsyProvider implements EtsyProvider {
     const referers = buildListingReferers(url);
     let attempt = 0;
     let lastResponse: Response | null = null;
+
+    await this.warmUpSession();
 
     for (const referer of referers) {
       await RequestThrottle.schedule();
