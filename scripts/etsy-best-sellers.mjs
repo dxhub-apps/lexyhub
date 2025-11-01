@@ -363,7 +363,6 @@ async function loadEtsyPage(page, url, { maxAttempts = 4, allowNotFound = false 
       } else if (applied && attempt < maxAttempts) {
         console.warn(`Received 403 for ${url}; retrying after applying DataDome cookie`);
         await page.waitForTimeout(1500);
-        attempt = Math.max(0, attempt - 1);
         continue;
       }
       if (response.status() === 403) {
@@ -393,7 +392,6 @@ async function loadEtsyPage(page, url, { maxAttempts = 4, allowNotFound = false 
       if (applied && attempt < maxAttempts) {
         console.warn(`Encountered captcha while loading ${url}, retrying`);
         await page.waitForTimeout(1500);
-        attempt = Math.max(0, attempt - 1);
         continue;
       }
       throw new Error(`Encountered captcha while loading ${url}`);
