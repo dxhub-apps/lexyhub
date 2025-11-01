@@ -137,7 +137,7 @@ export default function WatchlistsPage(): JSX.Element {
     }, null);
 
     const formattedUpdated = lastUpdated
-      ? new Date(lastUpdated).toLocaleDateString(undefined, {
+      ? new Date(lastUpdated).toLocaleString(undefined, {
           dateStyle: "medium",
           timeStyle: "short",
         })
@@ -182,7 +182,7 @@ export default function WatchlistsPage(): JSX.Element {
                   const addedAt = new Date(item.addedAt);
                   const formatted = Number.isNaN(addedAt.getTime())
                     ? "Unknown"
-                    : addedAt.toLocaleDateString(undefined, { dateStyle: "medium", timeStyle: "short" });
+                    : addedAt.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
                   const sourceLabel = item.type === "keyword"
                     ? (item.context
                         ? item.context
