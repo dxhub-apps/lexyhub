@@ -106,16 +106,17 @@ Settings centralize workspace administration.
 4. Send the invite and monitor acceptance from the activity log.
 
 ## Status Page
-The Status area communicates system uptime and scheduled maintenance.
+The Status area communicates current system health and highlights any degradations that may affect LexyHub.
 
-- **Current status banner:** Shows overall service health.
-- **Incident timeline:** Lists active and historical incidents with timestamps and mitigation notes.
-- **Subscribe controls:** Users can subscribe to status updates through email or RSS.
+- **Runtime snapshot:** Displays the latest heartbeat timestamp, environment, build identifier, and aggregated uptime so you can quickly confirm the platform is healthy.
+- **API, service, and worker lists:** Each operational component reports its status, response time, and any queued jobs so you can isolate where an issue originates.
+- **Incident monitoring:** Historical incidents are not listed on this page; instead, query `/api/status` or your organization's observability dashboards to review active or past incidents.
 
-**How to subscribe to status alerts:**
-1. Visit **Status**.
-2. Click **Subscribe** and choose your preferred channel.
-3. Confirm the subscription request from the follow-up email.
+**How to check service health:**
+1. Visit **Status** from the sidebar.
+2. Review the runtime snapshot to validate overall uptime and deployment context.
+3. Scan the API, service, and worker tables for components reporting warnings or errors.
+4. If you need deeper incident details, request the `/api/status` endpoint or consult your observability tooling.
 
 ## Notifications & Themes
 - **Notifications:** Toasts appear for successes, warnings, and errors across the application using consistent solid backgrounds that respect the current theme. Access past notifications from the bell icon history.
