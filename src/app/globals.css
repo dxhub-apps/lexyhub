@@ -2228,6 +2228,75 @@ main {
   padding-left: 1.2rem;
 }
 
+.risk-heatmap {
+  margin-top: var(--space-2);
+  overflow-x: auto;
+}
+
+.risk-heatmap table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 520px;
+}
+
+.risk-heatmap th,
+.risk-heatmap td {
+  border: 1px solid var(--color-border);
+  padding: 0.5rem;
+  text-align: center;
+}
+
+.risk-heatmap thead th {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-soft);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.risk-heatmap tbody th {
+  background: var(--color-surface-subtle);
+  color: var(--color-text);
+  font-weight: 600;
+  text-transform: none;
+}
+
+.heatmap-cell {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-soft);
+  font-weight: 500;
+}
+
+.heatmap-cell.has-risk {
+  color: var(--color-text);
+}
+
+.heatmap-cell.severity-critical.has-risk,
+.heatmap-cell.severity-high.has-risk {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.heatmap-cell.severity-medium.has-risk {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.heatmap-cell.severity-low.has-risk {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.heatmap-count {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
 .table-wrapper {
   overflow-x: auto;
 }
