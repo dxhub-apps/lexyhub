@@ -2,10 +2,12 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { chromium } from 'playwright';
+import sharedBaseHtmlHeaders from '../shared/etsy-base-html-headers.json' with { type: 'json' };
 
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 const DEFAULT_REFERER = 'https://www.etsy.com/';
+const BASE_HTML_HEADERS = Object.freeze(sharedBaseHtmlHeaders);
 const BEST_SELLER_CANDIDATES = [
   'https://www.etsy.com/market/top_sellers',
   'https://www.etsy.com/c/best-selling-items'
@@ -314,14 +316,9 @@ async function scrapeBestSellersWithPlaywright(categoryUrl) {
     viewport: { width: 1280, height: 720 },
     locale: 'en-US',
     extraHTTPHeaders: {
+      ...BASE_HTML_HEADERS,
       Referer: DEFAULT_REFERER,
-      'Accept-Language': 'en-US,en;q=0.9',
-      Accept:
-        'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-      'Sec-CH-UA': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-      'Sec-CH-UA-Mobile': '?0',
-      'Sec-CH-UA-Platform': '"Windows"',
-      'Upgrade-Insecure-Requests': '1'
+      'Sec-Fetch-Site': 'same-origin'
     },
     ignoreHTTPSErrors: true
   });

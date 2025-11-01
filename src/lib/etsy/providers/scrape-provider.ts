@@ -8,21 +8,11 @@ import {
   type SearchOptions,
 } from "../types";
 import { ETSY_DEFAULT_REFERER, ETSY_SCRAPER_USER_AGENT } from "./constants";
+import sharedBaseHtmlHeaders from "../../../../shared/etsy-base-html-headers.json";
 
 const BASE_HTML_HEADERS = Object.freeze({
   "User-Agent": ETSY_SCRAPER_USER_AGENT,
-  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-  "Accept-Language": "en-US,en;q=0.9",
-  "Accept-Encoding": "gzip, deflate, br",
-  "Cache-Control": "no-cache",
-  Pragma: "no-cache",
-  "Sec-Fetch-Dest": "document",
-  "Sec-Fetch-Mode": "navigate",
-  "Sec-Fetch-User": "?1",
-  "Upgrade-Insecure-Requests": "1",
-  "Sec-CH-UA": '"Chromium";v="124", "Not.A/Brand";v="8"',
-  "Sec-CH-UA-Mobile": "?0",
-  "Sec-CH-UA-Platform": '"Windows"',
+  ...(sharedBaseHtmlHeaders as Record<string, string>),
 });
 const DEFAULT_REFERER = ETSY_DEFAULT_REFERER;
 
