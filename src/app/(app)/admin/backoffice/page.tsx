@@ -5,6 +5,20 @@ import Link from "next/link";
 
 import type { CrawlerStatus, HealthMetric } from "@/lib/backoffice/status";
 
+type RiskHeatMapCell = {
+  severity: string;
+  likelihood: string;
+  count: number;
+  riskIds: string[];
+  titles: string[];
+};
+
+type RiskHeatMap = {
+  severityLevels: string[];
+  likelihoodLevels: string[];
+  cells: RiskHeatMapCell[];
+};
+
 function MetricCard({ metric }: { metric: HealthMetric }) {
   const statusColor =
     metric.status === "ok"
@@ -56,7 +70,63 @@ type RiskSummary = {
   open: number;
   mitigated: number;
   overdue: number;
+  heatMap: RiskHeatMap | null;
 };
+
+function formatLabel(value: string): string {
+  return value
+    .split("-")
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ");
+}
+
+function RiskHeatMapGrid({ heatMap }: { heatMap: RiskHeatMap }) {
+  const cellLookup = useMemo(() => {
+    const map = new Map<string, RiskHeatMapCell>();
+    for (const cell of heatMap.cells) {
+      map.set(`${cell.severity}::${cell.likelihood}`, cell);
+    }
+    return map;
+  }, [heatMap]);
+
+  return (
+    <div className="risk-heatmap">
+      <table>
+        <thead>
+          <tr>
+            <th>Severity \ Likelihood</th>
+            {heatMap.likelihoodLevels.map((likelihood) => (
+              <th key={likelihood}>{formatLabel(likelihood)}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {heatMap.severityLevels.map((severity) => (
+            <tr key={severity}>
+              <th>{formatLabel(severity)}</th>
+              {heatMap.likelihoodLevels.map((likelihood) => {
+                const key = `${severity}::${likelihood}`;
+                const cell = cellLookup.get(key);
+                const hasRisk = Boolean(cell && cell.count > 0);
+                const tooltip = cell && cell.titles.length > 0 ? cell.titles.join(", ") : "No open risks";
+                return (
+                  <td key={key}>
+                    <div
+                      className={`heatmap-cell severity-${severity}${hasRisk ? " has-risk" : ""}`}
+                      title={tooltip}
+                    >
+                      <span className="heatmap-count">{cell?.count ?? 0}</span>
+                    </div>
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 export default function BackofficeOverviewPage(): JSX.Element {
   const [metrics, setMetrics] = useState<HealthMetric[]>([]);
@@ -78,12 +148,13 @@ export default function BackofficeOverviewPage(): JSX.Element {
         const payload = (await response.json()) as {
           metrics: HealthMetric[];
           crawlers: CrawlerStatus[];
-          riskSummary: RiskSummary;
+          riskSummary?: (RiskSummary & { heatMap?: RiskHeatMap | null }) | null;
         };
         if (!active) return;
         setMetrics(payload.metrics ?? []);
         setCrawlers(payload.crawlers ?? []);
-        setRiskSummary(payload.riskSummary ?? null);
+        const summary = payload.riskSummary ?? null;
+        setRiskSummary(summary ? { ...summary, heatMap: summary.heatMap ?? null } : null);
       } catch (err) {
         console.error(err);
         if (active) {
@@ -129,20 +200,23 @@ export default function BackofficeOverviewPage(): JSX.Element {
       <section className="risk-summary">
         <h2>Risk posture</h2>
         {riskSummary ? (
-          <ul>
-            <li>
-              <strong>Total tracked:</strong> {riskSummary.total}
-            </li>
-            <li>
-              <strong>Open:</strong> {riskSummary.open}
-            </li>
-            <li>
-              <strong>Mitigated:</strong> {riskSummary.mitigated}
-            </li>
-            <li>
-              <strong>Overdue:</strong> {riskSummary.overdue}
-            </li>
-          </ul>
+          <>
+            <ul>
+              <li>
+                <strong>Total tracked:</strong> {riskSummary.total}
+              </li>
+              <li>
+                <strong>Open:</strong> {riskSummary.open}
+              </li>
+              <li>
+                <strong>Mitigated:</strong> {riskSummary.mitigated}
+              </li>
+              <li>
+                <strong>Overdue:</strong> {riskSummary.overdue}
+              </li>
+            </ul>
+            {riskSummary.heatMap ? <RiskHeatMapGrid heatMap={riskSummary.heatMap} /> : null}
+          </>
         ) : (
           <p>Loading risk summary…</p>
         )}

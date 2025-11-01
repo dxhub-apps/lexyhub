@@ -46,6 +46,20 @@ export type RiskRegisterEntry = {
   updated_at: string;
 };
 
+export type RiskHeatMapCell = {
+  severity: string;
+  likelihood: string;
+  count: number;
+  riskIds: string[];
+  titles: string[];
+};
+
+export type RiskHeatMap = {
+  severityLevels: string[];
+  likelihoodLevels: string[];
+  cells: RiskHeatMapCell[];
+};
+
 type SupabaseRow<T> = T & Record<string, unknown>;
 
 function resolveClient() {
@@ -319,6 +333,7 @@ export async function summarizeRiskRegister(): Promise<{
   open: number;
   mitigated: number;
   overdue: number;
+  heatMap: RiskHeatMap;
 }> {
   const entries = await listRiskRegister();
   const now = Date.now();
@@ -332,5 +347,37 @@ export async function summarizeRiskRegister(): Promise<{
     return new Date(entry.due_at).getTime() < now;
   }).length;
 
-  return { total, open, mitigated, overdue };
+  const severityLevels = ["critical", "high", "medium", "low"];
+  const likelihoodLevels = ["almost-certain", "likely", "possible", "unlikely", "rare"];
+  const openEntries = entries.filter((entry) => entry.status !== "closed");
+  const cellMap = new Map<string, { count: number; riskIds: string[]; titles: string[] }>();
+  for (const entry of openEntries) {
+    const severity = severityLevels.includes(entry.severity) ? entry.severity : "medium";
+    const likelihood = likelihoodLevels.includes(entry.likelihood) ? entry.likelihood : "possible";
+    const key = `${severity}::${likelihood}`;
+    if (!cellMap.has(key)) {
+      cellMap.set(key, { count: 0, riskIds: [], titles: [] });
+    }
+    const cell = cellMap.get(key)!;
+    cell.count += 1;
+    cell.riskIds.push(entry.id);
+    cell.titles.push(entry.title);
+  }
+
+  const cells: RiskHeatMapCell[] = [];
+  for (const severity of severityLevels) {
+    for (const likelihood of likelihoodLevels) {
+      const key = `${severity}::${likelihood}`;
+      const cell = cellMap.get(key);
+      cells.push({
+        severity,
+        likelihood,
+        count: cell?.count ?? 0,
+        riskIds: cell?.riskIds ?? [],
+        titles: cell?.titles ?? [],
+      });
+    }
+  }
+
+  return { total, open, mitigated, overdue, heatMap: { severityLevels, likelihoodLevels, cells } };
 }
