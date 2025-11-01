@@ -54,6 +54,8 @@ const EMPTY_PROFILE: ProfileDetails = {
   avatarUrl: "",
 };
 
+const AVATAR_FALLBACK = "https://avatar.vercel.sh/lexyhub.svg?size=120&background=111827";
+
 export default function ProfilePage(): JSX.Element {
   const { push } = useToast();
   const [profile, setProfile] = useState<ProfileDetails>(EMPTY_PROFILE);
@@ -104,7 +106,7 @@ export default function ProfilePage(): JSX.Element {
         throw new Error(payload.error ?? `Failed to load profile (${profileResponse.status})`);
       }
       const profileJson = (await profileResponse.json()) as {
-        profile?: ProfileDetails;
+        profile?: Partial<ProfileDetails>;
       };
       if (profileJson.profile) {
         setProfile({ ...EMPTY_PROFILE, ...profileJson.profile });
@@ -542,17 +544,176 @@ export default function ProfilePage(): JSX.Element {
                 </span>
               </dd>
             </div>
-            <div>
-              <dt>Auto-renew</dt>
-              <dd>{billing.autoRenew ? "Enabled" : "Disabled"}</dd>
+
+            <div className="profile-avatar-row">
+              <div className="profile-avatar">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={profile.avatarUrl || AVATAR_FALLBACK}
+                  alt={profile.fullName ? `${profile.fullName}'s avatar` : "Profile avatar"}
+                />
+              </div>
+              <div className="profile-avatar-actions">
+                <input
+                  ref={avatarInputRef}
+                  id="profile-avatar-input"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="sr-only"
+                  onChange={handleAvatarSelect}
+                  disabled={avatarUploading || loading}
+                />
+                <button
+                  type="button"
+                  className="profile-button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={avatarUploading || loading}
+                >
+                  {avatarUploading ? "Uploading…" : "Change avatar"}
+                </button>
+                <p>Use a clear square image under 5MB (PNG, JPG, or WebP).</p>
+              </div>
             </div>
-            <div>
-              <dt>Current period end</dt>
-              <dd>{periodEnd ? new Date(periodEnd).toLocaleString() : "—"}</dd>
+
+            <label className="profile-field">
+              <span>Full name</span>
+              <input
+                value={profile.fullName}
+                onChange={(event) => setProfile((state) => ({ ...state, fullName: event.target.value }))}
+                disabled={loading}
+                placeholder="Your name"
+                autoComplete="name"
+              />
+            </label>
+
+            <label className="profile-field">
+              <span>Email</span>
+              <input
+                type="email"
+                value={profile.email}
+                onChange={(event) => setProfile((state) => ({ ...state, email: event.target.value }))}
+                disabled={loading}
+                placeholder="you@company.com"
+                autoComplete="email"
+              />
+            </label>
+
+            <label className="profile-field">
+              <span>Company</span>
+              <input
+                value={profile.company}
+                onChange={(event) => setProfile((state) => ({ ...state, company: event.target.value }))}
+                disabled={loading}
+                placeholder="LexyHub"
+              />
+            </label>
+
+            <label className="profile-field">
+              <span>Bio</span>
+              <textarea
+                rows={3}
+                value={profile.bio}
+                onChange={(event) => setProfile((state) => ({ ...state, bio: event.target.value }))}
+                disabled={loading}
+                placeholder="Share a short intro for teammates."
+              />
+            </label>
+
+            <label className="profile-field">
+              <span>Timezone</span>
+              <input
+                value={profile.timezone}
+                onChange={(event) => setProfile((state) => ({ ...state, timezone: event.target.value }))}
+                disabled={loading}
+                placeholder="America/Chicago"
+                autoComplete="timezone"
+              />
+            </label>
+
+            <label className="profile-checkbox">
+              <input
+                type="checkbox"
+                checked={profile.notifications}
+                onChange={(event) => setProfile((state) => ({ ...state, notifications: event.target.checked }))}
+                disabled={loading}
+              />
+              <span>Send product notifications</span>
+            </label>
+
+            <div className="profile-form-actions">
+              <button type="submit" className="profile-button" disabled={loading}>
+                Save profile
+              </button>
             </div>
-            <div>
-              <dt>Plan summary</dt>
-              <dd>{activePlanSummary}</dd>
+          </form>
+
+          <form className="profile-card profile-form" onSubmit={handleBillingSubmit}>
+            <div className="profile-card-header">
+              <div>
+                <h2>Billing</h2>
+                <p>Control your renewal cadence, billing contact, and saved payment label.</p>
+              </div>
+            </div>
+
+            <label className="profile-field">
+              <span>Plan</span>
+              <select
+                value={billing.plan}
+                onChange={(event) =>
+                  setBilling((state) => ({ ...state, plan: event.target.value as BillingPreferences["plan"] }))
+                }
+                disabled={loading}
+              >
+                <option value="spark">Spark</option>
+                <option value="scale">Scale</option>
+                <option value="apex">Apex</option>
+              </select>
+            </label>
+
+            <label className="profile-field">
+              <span>Billing email</span>
+              <input
+                type="email"
+                value={billing.billingEmail}
+                onChange={(event) => setBilling((state) => ({ ...state, billingEmail: event.target.value }))}
+                disabled={loading}
+                placeholder="billing@company.com"
+                autoComplete="email"
+              />
+            </label>
+
+            <label className="profile-checkbox">
+              <input
+                type="checkbox"
+                checked={billing.autoRenew}
+                onChange={(event) => setBilling((state) => ({ ...state, autoRenew: event.target.checked }))}
+                disabled={loading}
+              />
+              <span>Auto-renew plan</span>
+            </label>
+
+            <label className="profile-field">
+              <span>Payment method label</span>
+              <input
+                value={billing.paymentMethod}
+                onChange={(event) => setBilling((state) => ({ ...state, paymentMethod: event.target.value }))}
+                disabled={loading}
+                placeholder="Corporate Amex"
+              />
+            </label>
+
+            <div className="profile-form-actions">
+              <button type="submit" className="profile-button" disabled={loading}>
+                Save billing settings
+              </button>
+              <button
+                type="button"
+                className="profile-button profile-button--secondary"
+                onClick={handleCancelPlan}
+                disabled={loading}
+              >
+                Cancel at period end
+              </button>
             </div>
           </dl>
 

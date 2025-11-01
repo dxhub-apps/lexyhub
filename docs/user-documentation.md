@@ -7,7 +7,7 @@ LexyHub is the central workspace for monitoring sales velocity, discovering high
 - **Prerequisites:** an active LexyHub account and access to the data sources configured by your organization.
 
 ## Getting Started
-1. **Sign in:** Visit the LexyHub URL (or `/login` directly), enter your Supabase credentials, and click **Sign in**. Sessions persist, so returning users skip the prompt until they explicitly log out. The avatar menu (top right) confirms the active admin plan and account details. The sign-in screen now establishes a Supabase session immediately, surfacing validation errors (such as incorrect passwords) without hanging so you always know whether authentication succeeded.
+1. **Sign in:** Visit the LexyHub URL (or `/login` directly), enter your Supabase credentials, and click **Sign in**. Sessions persist, so returning users skip the prompt until they explicitly log out. The avatar menu (top right) confirms the active admin plan and account details. The sign-in screen now establishes a Supabase session immediately, surfacing validation errors (such as incorrect passwords) without hanging so you always know whether authentication succeeded. Behind the scenes, LexyHub now double-checks the authenticated user directly with Supabase before unlocking the workspace, preventing tampered session data from granting access.
 2. **Select a workspace:** If your organization manages multiple storefronts, use the workspace switcher presented during sign in to pick the correct environment. All metrics and automations respect the chosen workspace.
 3. **Review onboarding alerts:** The notification indicator in the workspace header highlights setup tasks such as connecting an Etsy shop or approving data scopes.
 4. **Explore the app shell:** The refreshed left navigation sidebar provides access to product areas, while the workspace header surfaces platform status, environment labels, quick help, and the global user menu.
@@ -18,6 +18,7 @@ LexyHub uses a responsive two-pane layout composed of:
 - **Command sidebar:** Links to Dashboard, Watchlists, Keywords, Insights, Market Twin, Settings, and Status with clear descriptions so teammates understand what each section unlocks. The solid backgrounds and removal of hover-only feedback make link states legible in both light and dark themes. Collapse the sidebar using the toggle in the upper-left corner; the navigation automatically becomes a slide-over drawer on mobile breakpoints.
 - **Workspace header:** Displays the product name, contextual subtitle for the active area, environment (e.g., `development`, `preview`, `production`), a quick "Need help?" shortcut to this guide, and the user menu. The header controls now use consistent solid fills so actions remain obvious on touch devices. The mobile header exposes a menu button that opens the navigation drawer.
 - **User menu:** Provides profile management, theme switching, how-to documentation, and a logout control. Focus indicators replace hover effects so keyboard and touch users can clearly see the active option.
+- **Full-width workspace canvas:** Main content pages now expand to the available width with subtle side padding, allowing dashboards, tables, and cards to line up cleanly without feeling boxed-in on large displays. Grids stretch their cards to equal heights so scanning related metrics is faster.
 
 ## Dashboard
 The Dashboard offers a high-level snapshot of revenue pacing and target attainment.
@@ -96,6 +97,7 @@ Market Twin is LexyHub's simulation engine for scenario planning.
 Settings centralize workspace administration.
 
 - **Plan & billing:** Review current subscription tier, invoices, and billing contacts.
+- **Profile & billing center:** Refresh your avatar (stored in Vercel Blob), update your contact card, and review renewal status from a single responsive hub.
 - **Integrations:** Connect or troubleshoot data sources such as Etsy, Shopify, or internal APIs.
 - **Team management:** Invite teammates, assign roles, and deactivate access when needed.
 - **Preferences:** Update notification rules, language, and theme.
@@ -105,6 +107,12 @@ Settings centralize workspace administration.
 2. Select **Invite teammate**.
 3. Enter their name, email, and role.
 4. Send the invite and monitor acceptance from the activity log.
+
+**How to refresh your profile avatar:**
+1. Open **Settings → Profile & Billing**.
+2. Click **Change avatar** and pick a square PNG, JPG, or WebP file under 5 MB.
+3. Wait for the toast confirmation—your photo is stored instantly in Vercel Blob and synced to Supabase.
+4. Press **Save profile** if you also edited contact fields.
 
 ## Status Page
 The Status area communicates current system health and highlights any degradations that may affect LexyHub.
@@ -146,4 +154,4 @@ LexyHub publishes sprint-level release notes in `/docs/changelog.md`. Review the
 - **Amazon keyword population guide:** `/docs/amazon-keyword-population-guide.md`
 - **Trend & intent intelligence:** `/docs/trend-intent-intelligence.md`
 
-_Last updated: 2025-06-23_
+_Last updated: 2025-07-09_
