@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 
 import { getSupabaseServerClient } from "@/lib/supabase-server";
@@ -30,6 +32,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const supabase = getSupabaseServerClient();
+  const authClient = createRouteHandlerClient({ cookies });
+  const {
+    data: { session },
+    error: sessionError,
+  } = await authClient.auth.getSession();
+  const userId = session?.user?.id;
+
+  if (sessionError) {
+    console.error("Failed to retrieve session while uploading avatar", sessionError.message);
+  }
+
+  if (!userId) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
 
   try {
     const result = await handleUpload({
@@ -40,9 +56,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           throw new Error("Avatar uploads must be under 5MB");
         }
 
-        const { userId } = parsePayload(clientPayload);
-        if (!userId) {
-          throw new Error("userId missing from upload payload");
+        const payload = parsePayload(clientPayload);
+        if (payload.userId && payload.userId !== userId) {
+          throw new Error("Mismatched user context for avatar upload");
         }
 
         return {
@@ -56,15 +72,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         supabase == null
           ? undefined
           : async ({ blob, tokenPayload }) => {
-              const { userId } = parsePayload(tokenPayload);
-              if (!userId) {
+              const { userId: resolvedUserId } = parsePayload(tokenPayload);
+              if (!resolvedUserId) {
                 return;
               }
 
               const { data: existing, error: fetchError } = await supabase
                 .from("user_profiles")
                 .select("plan, momentum, settings")
-                .eq("user_id", userId)
+                .eq("user_id", resolvedUserId)
                 .maybeSingle();
 
               if (fetchError && fetchError.code !== "PGRST116") {
@@ -83,7 +99,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 .from("user_profiles")
                 .upsert(
                   {
-                    user_id: userId,
+                    user_id: resolvedUserId,
                     plan: existing?.plan ?? "free",
                     momentum: existing?.momentum ?? "new",
                     settings,
