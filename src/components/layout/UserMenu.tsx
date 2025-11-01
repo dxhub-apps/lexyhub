@@ -109,6 +109,7 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
   const supabase = useSupabaseClient();
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
+  const [avatarSrc, setAvatarSrc] = useState(AVATAR_URL);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -140,7 +141,15 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
   }, [user]);
 
   const profileEmail = user?.email ?? "";
-  const avatarUrl = (user?.user_metadata?.avatar_url as string | undefined) ?? AVATAR_URL;
+  const resolvedAvatarUrl = useMemo(() => {
+    const rawUrl = (user?.user_metadata?.avatar_url as string | undefined) ?? "";
+    const trimmedUrl = typeof rawUrl === "string" ? rawUrl.trim() : "";
+    return trimmedUrl || AVATAR_URL;
+  }, [user]);
+
+  useEffect(() => {
+    setAvatarSrc(resolvedAvatarUrl);
+  }, [resolvedAvatarUrl]);
 
   const logout = async () => {
     await supabase.auth.signOut();
@@ -200,11 +209,12 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
         onClick={() => setOpen((value) => !value)}
       >
         <Image
-          src={avatarUrl}
+          src={avatarSrc}
           alt="User avatar"
           className="user-menu-avatar"
           width={36}
           height={36}
+          onError={() => setAvatarSrc(AVATAR_URL)}
         />
         <span className="sr-only">{toggleLabel}</span>
       </button>
