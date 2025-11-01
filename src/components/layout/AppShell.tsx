@@ -60,13 +60,6 @@ const EditingIcon = () => (
   </svg>
 );
 
-const SettingsIcon = () => (
-  <svg viewBox="0 0 24 24" {...iconProps}>
-    <path d="M12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" />
-    <path d="M4.5 13.5v-3l2.1-.5a5.5 5.5 0 0 1 1.2-2.1l-.5-2.1 2.1-2.1 2.1.5a5.5 5.5 0 0 1 2.1-1.2l.5-2.1h3l.5 2.1a5.5 5.5 0 0 1 2.1 1.2l2.1-.5 2.1 2.1-.5 2.1a5.5 5.5 0 0 1 1.2 2.1l2.1.5v3l-2.1.5a5.5 5.5 0 0 1-1.2 2.1l.5 2.1-2.1 2.1-2.1-.5a5.5 5.5 0 0 1-2.1 1.2l-.5 2.1h-3l-.5-2.1a5.5 5.5 0 0 1-2.1-1.2l-2.1.5-2.1-2.1.5-2.1a5.5 5.5 0 0 1-1.2-2.1z" />
-  </svg>
-);
-
 const StatusIcon = () => (
   <svg viewBox="0 0 24 24" {...iconProps}>
     <path d="M4.5 13.5 9 9l4 5 3-3 3.5 3.5" />
@@ -103,7 +96,6 @@ const NAV_ITEMS: readonly SidebarNavItem[] = [
     description: "Etsy suite",
     icon: <EditingIcon />,
   },
-  { href: "/settings", label: "Settings", description: "Plan & team", icon: <SettingsIcon /> },
   { href: "/status", label: "Status", description: "Service status", icon: <StatusIcon /> },
   {
     href: "/admin/backoffice",

@@ -139,17 +139,17 @@ export default function DocumentationPage(): JSX.Element {
         <p>LexyHub uses a responsive two-pane layout composed of:</p>
         <ul>
           <li>
-            <strong>Sidebar navigation:</strong> Links to Dashboard, Keywords, Insights, Market Twin, Settings, and Status.
-            Collapse the sidebar by selecting the toggle in the top-left corner; the navigation automatically collapses on mobile
-            breakpoints.
+            <strong>Sidebar navigation:</strong> Links to Dashboard, Watchlists, Keywords, Insights, Market Twin, Editing, Status,
+            and Backoffice. Collapse the sidebar by selecting the toggle in the top-left corner; the navigation automatically
+            collapses on mobile breakpoints.
           </li>
           <li>
             <strong>Top bar:</strong> Displays the product name, contextual subtitle, environment (e.g., <code>development</code>,
             <code>preview</code>, <code>production</code>), a shortcut to the Status page, and the user menu.
           </li>
           <li>
-            <strong>User menu:</strong> Provides profile management, theme switching, how-to documentation, and a logout control.
-            The menu stays consistent across every screen.
+            <strong>User menu:</strong> Provides profile management, workspace settings, theme switching (via the Theme submenu),
+            how-to documentation, and a logout control. The menu stays consistent across every screen.
           </li>
         </ul>
       </section>
@@ -262,7 +262,7 @@ export default function DocumentationPage(): JSX.Element {
 
       <section id="settings" className="documentation-section">
         <h2>Settings</h2>
-        <p>Settings centralize workspace administration.</p>
+        <p>Settings centralize workspace administration and are available from the avatar menu under <strong>Settings</strong>.</p>
         <ul>
           <li>
             <strong>Plan &amp; billing:</strong> Review current subscription tier, invoices, and billing contacts.
@@ -320,7 +320,7 @@ export default function DocumentationPage(): JSX.Element {
             notifications from the bell icon history.
           </li>
           <li>
-            <strong>Themes:</strong> Switch between Light, Dark, and System modes using the theme picker in the user menu.
+            <strong>Themes:</strong> Switch between Light, Dark, and System modes from the Theme submenu inside the user menu.
             Preferences persist per device.
           </li>
         </ul>

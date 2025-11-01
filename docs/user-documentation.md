@@ -10,14 +10,14 @@ LexyHub is the central workspace for monitoring sales velocity, discovering high
 1. **Sign in:** Visit the LexyHub URL (or `/login` directly), enter your Supabase credentials, and click **Sign in**. Sessions persist, so returning users skip the prompt until they explicitly log out. The avatar menu (top right) confirms the active admin plan and account details. The sign-in screen now establishes a Supabase session immediately, surfacing validation errors (such as incorrect passwords) without hanging so you always know whether authentication succeeded. Behind the scenes, LexyHub now double-checks the authenticated user directly with Supabase before unlocking the workspace, preventing tampered session data from granting access.
 2. **Select a workspace:** If your organization manages multiple storefronts, use the workspace switcher presented during sign in to pick the correct environment. All metrics and automations respect the chosen workspace.
 3. **Review onboarding alerts:** The notification indicator in the workspace header highlights setup tasks such as connecting an Etsy shop or approving data scopes.
-4. **Explore the app shell:** The refreshed left navigation sidebar provides access to product areas, while the workspace header surfaces platform status, environment labels, quick help, and the global user menu.
+4. **Explore the app shell:** The refreshed left navigation sidebar provides access to product areas, while the workspace header surfaces platform status, environment labels, quick help, and the global user menu for settings and theme controls.
 
 ## Layout Reference
 LexyHub uses a responsive two-pane layout composed of:
 
-- **Command sidebar:** Links to Dashboard, Watchlists, Keywords, Insights, Market Twin, Settings, and Status with clear descriptions so teammates understand what each section unlocks. The solid backgrounds and removal of hover-only feedback make link states legible in both light and dark themes. Collapse the sidebar using the toggle in the upper-left corner; the navigation automatically becomes a slide-over drawer on mobile breakpoints.
+- **Command sidebar:** Links to Dashboard, Watchlists, Keywords, Insights, Market Twin, Editing, Status, and Backoffice with clear descriptions so teammates understand what each section unlocks. The solid backgrounds and removal of hover-only feedback make link states legible in both light and dark themes. Collapse the sidebar using the toggle in the upper-left corner; the navigation automatically becomes a slide-over drawer on mobile breakpoints.
 - **Workspace header:** Displays the product name, contextual subtitle for the active area, environment (e.g., `development`, `preview`, `production`), a quick "Need help?" shortcut to this guide, and the user menu. The header controls now use consistent solid fills so actions remain obvious on touch devices. The mobile header exposes a menu button that opens the navigation drawer.
-- **User menu:** Provides profile management, theme switching, how-to documentation, and a logout control. Focus indicators replace hover effects so keyboard and touch users can clearly see the active option. Avatars automatically fall back to the LexyHub default image if a custom photo fails to load, so the menu always shows a recognizable identity marker.
+- **User menu:** Provides profile management, workspace settings, theme switching (via the Theme submenu), how-to documentation, and a logout control. Focus indicators replace hover effects so keyboard and touch users can clearly see the active option. Avatars automatically fall back to the LexyHub default image if a custom photo fails to load, so the menu always shows a recognizable identity marker.
 - **Full-width workspace canvas:** Main content pages now expand to the available width with subtle side padding, allowing dashboards, tables, and cards to line up cleanly without feeling boxed-in on large displays. Grids stretch their cards to equal heights so scanning related metrics is faster.
 
 ## Dashboard
@@ -94,7 +94,7 @@ Market Twin is LexyHub's simulation engine for scenario planning.
 5. Save the scenario to share it with stakeholders or iterate later.
 
 ## Settings
-Settings centralize workspace administration.
+Settings centralize workspace administration and are accessed from the avatar menu under **Settings**.
 
 - **Plan & billing:** Review current subscription tier, invoices, and billing contacts.
 - **Profile & billing center:** Refresh your avatar (stored in Vercel Blob), update your contact card, and review renewal status from a single responsive hub.
@@ -103,13 +103,13 @@ Settings centralize workspace administration.
 - **Preferences:** Update notification rules, language, and theme.
 
 **How to invite a teammate:**
-1. Open **Settings → Team**.
+1. Open **Settings** from the avatar menu, then choose **Team**.
 2. Select **Invite teammate**.
 3. Enter their name, email, and role.
 4. Send the invite and monitor acceptance from the activity log.
 
 **How to refresh your profile avatar:**
-1. Open **Settings → Profile & Billing**.
+1. Open **Settings** from the avatar menu, then choose **Profile & Billing**.
 2. Click **Change avatar** and pick a square PNG, JPG, or WebP file under 5 MB.
 3. Wait for the toast confirmation—your photo is stored instantly in Vercel Blob and synced to Supabase.
 4. Press **Save profile** if you also edited contact fields.
@@ -129,7 +129,7 @@ The Status area communicates current system health and highlights any degradatio
 
 ## Notifications & Themes
 - **Notifications:** Toasts appear for successes, warnings, and errors across the application using consistent solid backgrounds that respect the current theme. Access past notifications from the bell icon history.
-- **Themes:** Switch between Light, Dark, and System modes using the theme picker in the user menu. All surfaces—including cards, tables, and navigation—now share the same palette so light and dark experiences remain visually balanced. Preferences persist per device.
+- **Themes:** Switch between Light, Dark, and System modes from the Theme submenu in the user menu. All surfaces—including cards, tables, and navigation—now share the same palette so light and dark experiences remain visually balanced. Preferences persist per device.
 
 ## Help & Support
 - **Help Center:** Access this documentation from the new "Need help?" shortcut in the workspace header or the help icon in the global user menu.

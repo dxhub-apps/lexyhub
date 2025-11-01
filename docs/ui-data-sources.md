@@ -90,6 +90,6 @@ Keyword search now normalizes cached embedding payloads retrieved from Supabase 
 
 | Page | Notes |
 | --- | --- |
-| Settings (`/settings`) | Contains documentation links and environment guidance only—no dynamic data access.【F:src/app/(app)/settings/page.tsx†L1-L23】 |
+| Settings (`/settings`) | Accessible from the avatar menu and contains documentation links plus environment guidance only—no dynamic data access.【F:src/app/(app)/settings/page.tsx†L1-L23】 |
 | Docs (`/docs`) | In-app help content is pre-authored Markdown rendered directly without database dependencies.【F:src/app/(app)/docs/page.tsx†L1-L200】 |
 
