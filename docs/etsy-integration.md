@@ -178,6 +178,9 @@ The command prints the number of suggestions captured per query and the total ke
 - In environments where Etsy's DataDome challenge blocks live scraping, the script now falls back to a deterministic fixture
   stored at `scripts/fixtures/etsy-best-sellers-fixture.json`. Set `ETSY_BEST_SELLERS_MODE=scrape` to disable the fallback or
   `ETSY_BEST_SELLERS_MODE=fixture` to skip launching Playwright entirely (handy for local dry runs and CI smoke tests).
+- Listing detail fetches reuse the same DataDome-aware retry loop as the category discovery step. Each Playwright navigation
+  attempts up to three loads, reapplies any `datadome` cookies Etsy returns (even on captcha pages), and logs every blocked
+  attempt so maintainers can track anti-bot pressure over time.
 
 ## 12. Handling Etsy anti-bot responses
 

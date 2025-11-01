@@ -435,17 +435,82 @@ async function loadFixtureBestSellers(desiredLimit) {
 async function scrapeListing(context, url) {
   const page = await context.newPage();
   try {
-    const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(500);
-    if (!response || response.status() === 403) {
-      throw new Error(`Blocked while fetching listing ${url}`);
+    let attempt = 0;
+    const maxAttempts = 3;
+    let html;
+    while (attempt < maxAttempts) {
+      attempt += 1;
+      let response;
+      try {
+        response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      } catch (error) {
+        console.warn(
+          `Failed to load listing ${url} (attempt ${attempt}): ${
+            error instanceof Error ? error.message : error
+          }`
+        );
+        if (attempt < maxAttempts) {
+          await page.waitForTimeout(1500);
+          continue;
+        }
+        throw error instanceof Error
+          ? error
+          : new Error(`Failed to load listing ${url}: ${String(error)}`);
+      }
+
+      await page.waitForTimeout(500);
+      const applied = await maybeApplyDataDomeCookie(context, response);
+      html = await page.content();
+
+      if (!response) {
+        console.warn(`No response received while fetching listing ${url} (attempt ${attempt})`);
+        if (applied && attempt < maxAttempts) {
+          await page.waitForTimeout(1500);
+          continue;
+        }
+        throw new Error(`No response while fetching listing ${url}`);
+      }
+
+      if (response.status() === 404) {
+        throw new Error(`Listing not found: ${url}`);
+      }
+
+      if (response.status() === 403) {
+        console.warn(
+          `Blocked while fetching listing ${url}: status=${response.status()} (attempt ${attempt})`
+        );
+        if (applied && attempt < maxAttempts) {
+          await page.waitForTimeout(1500);
+          continue;
+        }
+        throw new Error(`Blocked while fetching listing ${url}`);
+      }
+
+      if (!response.ok()) {
+        console.warn(
+          `Unexpected status while fetching listing ${url}: status=${response.status()} (attempt ${attempt})`
+        );
+        if (applied && attempt < maxAttempts) {
+          await page.waitForTimeout(1500);
+          continue;
+        }
+        throw new Error(`Failed with status ${response.status()} while fetching listing ${url}`);
+      }
+
+      if (isCaptcha(html)) {
+        if (applied && attempt < maxAttempts) {
+          console.warn(`Encountered captcha for listing ${url}, retrying (attempt ${attempt})`);
+          await page.waitForTimeout(1500);
+          continue;
+        }
+        throw new Error(`Encountered captcha for listing ${url}`);
+      }
+
+      break;
     }
-    const html = await page.content();
-    if (response.status() === 404) {
-      throw new Error(`Listing not found: ${url}`);
-    }
-    if (isCaptcha(html)) {
-      throw new Error(`Encountered captcha for listing ${url}`);
+
+    if (!html) {
+      throw new Error(`Unable to load listing ${url}`);
     }
     const jsonLd = parseJsonLd(html);
     const product = jsonLd.find((entry) =>
