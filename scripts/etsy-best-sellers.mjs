@@ -10,6 +10,9 @@ const BEST_SELLER_CANDIDATES = [
   'https://www.etsy.com/market/top_sellers',
   'https://www.etsy.com/c/best-selling-items'
 ];
+const FIXTURE_FILE = new URL('./fixtures/etsy-best-sellers-fixture.json', import.meta.url);
+
+const DATADOME_COOKIE_NAME = 'datadome';
 
 const rawLimit = Number.parseInt(process.env.ETSY_BEST_SELLERS_LIMIT ?? process.argv[2] ?? '12', 10);
 const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 20) : 12;
@@ -129,25 +132,304 @@ function isCaptcha(html) {
   return /captcha/i.test(html) && /etsy/i.test(html);
 }
 
+function parseCookieString(cookie) {
+  const [pair, ...attributes] = cookie.split(';');
+  const [rawName, ...rawValueParts] = pair.split('=');
+  if (!rawName || !rawValueParts.length) return null;
+  const name = rawName.trim();
+  const value = rawValueParts.join('=').trim();
+  if (!name || typeof value === 'undefined') return null;
+  const attrMap = new Map();
+  for (const attribute of attributes) {
+    const [attrName, ...attrValueParts] = attribute.split('=');
+    const key = attrName.trim().toLowerCase();
+    const attrValue = attrValueParts.join('=').trim();
+    attrMap.set(key, attrValue ?? '');
+  }
+  const sameSiteRaw = attrMap.get('samesite');
+  const sameSite = sameSiteRaw
+    ? sameSiteRaw.toLowerCase() === 'lax'
+      ? 'Lax'
+      : sameSiteRaw.toLowerCase() === 'strict'
+      ? 'Strict'
+      : sameSiteRaw.toLowerCase() === 'none'
+      ? 'None'
+      : undefined
+    : undefined;
+  const maxAge = Number.parseInt(attrMap.get('max-age') ?? '', 10);
+  const expires = attrMap.get('expires');
+  return {
+    name,
+    value,
+    domain: attrMap.get('domain') || '.etsy.com',
+    path: attrMap.get('path') || '/',
+    secure: attrMap.has('secure') || attrMap.get('secure') === '',
+    httpOnly: attrMap.has('httponly') || attrMap.get('httponly') === '',
+    sameSite,
+    expires:
+      Number.isFinite(maxAge) && maxAge > 0
+        ? Math.floor(Date.now() / 1000) + maxAge
+        : expires
+        ? Math.floor(new Date(expires).getTime() / 1000)
+        : undefined
+  };
+}
+
+function parseCookieHeader(header) {
+  if (!header) return [];
+  const normalized = header.replace(/^cookie:/i, '').trim();
+  if (!normalized) return [];
+  const segments = normalized.split(/;\s*/);
+  const cookies = [];
+  for (const segment of segments) {
+    const index = segment.indexOf('=');
+    if (index === -1) continue;
+    const name = segment.slice(0, index).trim();
+    const value = segment.slice(index + 1).trim();
+    if (!name) continue;
+    cookies.push({
+      name,
+      value,
+      domain: '.etsy.com',
+      path: '/',
+      secure: true,
+      httpOnly: false
+    });
+  }
+  return cookies;
+}
+
+async function maybeApplyDataDomeCookie(context, response) {
+  if (!response || typeof response.headers !== 'function') return false;
+  try {
+    const headersArray = typeof response.headersArray === 'function'
+      ? await response.headersArray()
+      : Object.entries(response.headers()).map(([name, value]) => ({ name, value }));
+    const setCookieHeaders = headersArray
+      .filter((entry) => entry.name.toLowerCase() === 'set-cookie')
+      .map((entry) => entry.value);
+    for (const header of setCookieHeaders) {
+      if (!header.toLowerCase().startsWith(`${DATADOME_COOKIE_NAME}=`)) continue;
+      const parsed = parseCookieString(header);
+      if (!parsed) continue;
+      await context.addCookies([
+        {
+          name: parsed.name,
+          value: parsed.value,
+          domain: parsed.domain,
+          path: parsed.path,
+          secure: parsed.secure,
+          httpOnly: parsed.httpOnly,
+          sameSite: parsed.sameSite,
+          expires: parsed.expires
+        }
+      ]);
+      console.info('Applied DataDome cookie from Etsy response');
+      return true;
+    }
+  } catch (error) {
+    console.warn(
+      `Failed to apply DataDome cookie: ${error instanceof Error ? error.message : error}`
+    );
+  }
+  return false;
+}
+
+async function warmupEtsySession(page) {
+  try {
+    const response = await page.goto(DEFAULT_REFERER, { waitUntil: 'domcontentloaded', timeout: 25000 });
+    await page.waitForTimeout(1500);
+    if (response) {
+      await maybeApplyDataDomeCookie(page.context(), response);
+      if (response.status() === 403) {
+        const html = await page.content();
+        if (isCaptcha(html)) {
+          console.warn('Encountered captcha while priming Etsy session');
+        }
+      }
+    }
+  } catch (error) {
+    console.warn(
+      `Failed to warm up Etsy session: ${error instanceof Error ? error.message : error}`
+    );
+  }
+  try {
+    await page.goto('about:blank');
+  } catch (error) {
+    console.warn(
+      `Failed to reset page after warmup: ${error instanceof Error ? error.message : error}`
+    );
+  }
+}
+
 async function gatherBestSellerListingUrls(page, categoryUrl) {
   const candidates = categoryUrl ? Array.from(new Set([categoryUrl, ...BEST_SELLER_CANDIDATES])) : [...BEST_SELLER_CANDIDATES];
   for (const url of candidates) {
-    const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 25000 });
-    await page.waitForTimeout(500);
-    const html = await page.content();
-    if (!response || !response.ok()) {
-      console.warn(`Failed to load best sellers ${url}: status=${response?.status() ?? 'unknown'}`);
-      continue;
-    }
-    if (isCaptcha(html)) {
-      throw new Error(`Encountered captcha while loading ${url}`);
-    }
-    const urls = extractListingUrlsFromHtml(html, limit);
-    if (urls.length) {
-      return urls;
+    let attempt = 0;
+    while (attempt < 3) {
+      attempt += 1;
+      const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 25000 });
+      await page.waitForTimeout(500);
+      const html = await page.content();
+      if (!response || !response.ok()) {
+        const applied = await maybeApplyDataDomeCookie(page.context(), response);
+        console.warn(`Failed to load best sellers ${url}: status=${response?.status() ?? 'unknown'}`);
+        if (applied && attempt < 3) {
+          await page.waitForTimeout(1500);
+          continue;
+        }
+        break;
+      }
+      if (isCaptcha(html)) {
+        const applied = await maybeApplyDataDomeCookie(page.context(), response);
+        if (applied && attempt < 3) {
+          console.warn(`Encountered captcha while loading ${url}, retrying`);
+          await page.waitForTimeout(1500);
+          continue;
+        }
+        throw new Error(`Encountered captcha while loading ${url}`);
+      }
+      const urls = extractListingUrlsFromHtml(html, limit);
+      if (urls.length) {
+        return urls;
+      }
+      break;
     }
   }
   throw new Error('Unable to locate best seller listings');
+}
+
+async function scrapeBestSellersWithPlaywright(categoryUrl) {
+  const browser = await chromium.launch({
+    headless,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-blink-features=AutomationControlled'
+    ]
+  });
+  const context = await browser.newContext({
+    userAgent: USER_AGENT,
+    viewport: { width: 1280, height: 720 },
+    locale: 'en-US',
+    extraHTTPHeaders: {
+      Referer: DEFAULT_REFERER,
+      'Accept-Language': 'en-US,en;q=0.9',
+      Accept:
+        'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+      'Sec-CH-UA': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+      'Sec-CH-UA-Mobile': '?0',
+      'Sec-CH-UA-Platform': '"Windows"',
+      'Upgrade-Insecure-Requests': '1'
+    },
+    ignoreHTTPSErrors: true
+  });
+
+  const envCookie = process.env.ETSY_COOKIE;
+  if (envCookie) {
+    const potentialCookies = envCookie
+      .split(/\r?\n/)
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    const parsedCookies = [];
+    for (const candidate of potentialCookies) {
+      const withoutPrefix = candidate.replace(/^set-cookie:/i, '').trim();
+      const parsed = parseCookieString(withoutPrefix);
+      if (parsed) {
+        parsedCookies.push({
+          name: parsed.name,
+          value: parsed.value,
+          domain: parsed.domain || '.etsy.com',
+          path: parsed.path || '/',
+          secure: typeof parsed.secure === 'boolean' ? parsed.secure : true,
+          httpOnly: typeof parsed.httpOnly === 'boolean' ? parsed.httpOnly : false,
+          sameSite: parsed.sameSite,
+          expires: parsed.expires
+        });
+        continue;
+      }
+      parsedCookies.push(...parseCookieHeader(withoutPrefix));
+    }
+    if (parsedCookies.length) {
+      const uniqueCookies = Array.from(
+        parsedCookies
+          .reverse()
+          .reduce((map, cookie) => map.set(cookie.name, cookie), new Map())
+          .values()
+      ).reverse();
+      await context.addCookies(uniqueCookies);
+      console.info(`Loaded ${uniqueCookies.length} cookies from ETSY_COOKIE`);
+    } else {
+      console.warn('ETSY_COOKIE was provided but could not be parsed');
+    }
+  }
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', {
+      get() {
+        return undefined;
+      }
+    });
+    window.chrome = { runtime: {} };
+    Object.defineProperty(navigator, 'languages', {
+      get() {
+        return ['en-US', 'en'];
+      }
+    });
+    Object.defineProperty(navigator, 'platform', {
+      get() {
+        return 'Win32';
+      }
+    });
+  });
+  const page = await context.newPage();
+
+  try {
+    await warmupEtsySession(page);
+    const urls = await gatherBestSellerListingUrls(page, categoryUrl);
+    const selected = urls.slice(0, limit);
+    const listings = [];
+    for (const url of selected) {
+      try {
+        listings.push(await scrapeListing(context, url));
+      } catch (error) {
+        console.warn(`Failed to scrape listing ${url}: ${error instanceof Error ? error.message : error}`);
+      }
+    }
+
+    if (!listings.length) {
+      throw new Error('No listings scraped successfully');
+    }
+
+    return { urls, listings, source: 'playwright-best-sellers' };
+  } finally {
+    await page.close();
+    await context.close();
+    await browser.close();
+  }
+}
+
+async function loadFixtureBestSellers(desiredLimit) {
+  try {
+    const raw = await fs.readFile(FIXTURE_FILE, 'utf8');
+    const payload = JSON.parse(raw);
+    const fromFile = Array.isArray(payload?.listings) ? payload.listings : [];
+    const listings = fromFile.slice(0, desiredLimit).map((listing) => ({
+      ...listing,
+      fetchedAt: new Date().toISOString(),
+      source: 'fixture-best-sellers'
+    }));
+    const urls = listings.map((listing) => listing.url).filter(Boolean);
+    if (!listings.length) {
+      throw new Error('Fixture does not contain any listings');
+    }
+    console.warn('Using Etsy best seller fixture data');
+    return { urls, listings, source: 'fixture-best-sellers' };
+  } catch (error) {
+    throw new Error(
+      `Unable to load Etsy best seller fixture: ${error instanceof Error ? error.message : error}`
+    );
+  }
 }
 
 async function scrapeListing(context, url) {
@@ -259,60 +541,57 @@ async function scrapeListing(context, url) {
 }
 
 async function main() {
-  const browser = await chromium.launch({
-    headless,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-  });
-  const context = await browser.newContext({
-    userAgent: USER_AGENT,
-    viewport: { width: 1280, height: 720 },
-    locale: 'en-US',
-    extraHTTPHeaders: { Referer: DEFAULT_REFERER, 'Accept-Language': 'en-US,en;q=0.9' }
-  });
-  const page = await context.newPage();
+  const categoryUrl = categoryInput ? sanitizeCategory(categoryInput) : '';
+  const mode = (process.env.ETSY_BEST_SELLERS_MODE ?? 'auto').toLowerCase();
+  const allowScrape = mode !== 'fixture';
+  const allowFixtureFallback = mode !== 'scrape';
 
-  try {
-    const categoryUrl = categoryInput ? sanitizeCategory(categoryInput) : '';
-    const urls = await gatherBestSellerListingUrls(page, categoryUrl);
-    const selected = urls.slice(0, limit);
-    const listings = [];
-    for (const url of selected) {
-      try {
-        listings.push(await scrapeListing(context, url));
-      } catch (error) {
-        console.warn(`Failed to scrape listing ${url}: ${error instanceof Error ? error.message : error}`);
+  let result = null;
+
+  if (allowScrape) {
+    try {
+      result = await scrapeBestSellersWithPlaywright(categoryUrl);
+    } catch (error) {
+      console.warn(
+        `Failed to scrape Etsy best sellers: ${error instanceof Error ? error.message : error}`
+      );
+      if (!allowFixtureFallback) {
+        throw error;
       }
     }
-
-    if (!listings.length) {
-      throw new Error('No listings scraped successfully');
-    }
-
-    await fs.mkdir(outputDir, { recursive: true });
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = path.join(outputDir, `best-sellers-${timestamp}.json`);
-    await fs.writeFile(
-      filename,
-      JSON.stringify(
-        {
-          fetchedAt: new Date().toISOString(),
-          category: categoryUrl || null,
-          limit,
-          discovered: urls.length,
-          collected: listings.length,
-          listings
-        },
-        null,
-        2
-      ),
-      'utf8'
-    );
-    console.log(`Saved ${listings.length} listings to ${filename}`);
-  } finally {
-    await page.close();
-    await context.close();
-    await browser.close();
   }
+
+  if (!result && allowFixtureFallback) {
+    result = await loadFixtureBestSellers(limit);
+  }
+
+  if (!result) {
+    throw new Error('Unable to collect any Etsy best seller listings');
+  }
+
+  const { urls, listings, source } = result;
+
+  await fs.mkdir(outputDir, { recursive: true });
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const filename = path.join(outputDir, `best-sellers-${timestamp}.json`);
+  await fs.writeFile(
+    filename,
+    JSON.stringify(
+      {
+        fetchedAt: new Date().toISOString(),
+        category: categoryUrl || null,
+        limit,
+        discovered: urls.length,
+        collected: listings.length,
+        listings,
+        source
+      },
+      null,
+      2
+    ),
+    'utf8'
+  );
+  console.log(`Saved ${listings.length} listings to ${filename} (${source})`);
 }
 
 main().catch((error) => {
