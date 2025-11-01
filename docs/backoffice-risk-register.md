@@ -37,6 +37,10 @@ The Supabase migration `0014_seed_risk_appetites.sql` seeds the canonical appeti
 
 ## Risk controls
 
+The Supabase migration `0015_seed_risk_controls_and_register.sql` seeds each control with the real
+operational posture captured at the close of Sprint 4 so the admin workspace has meaningful data
+before the first sync runs.【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L6-L126】
+
 | ID | Control | Owner | Status signal |
 | --- | --- | --- | --- |
 | `f122a20a-1a42-4c76-ba28-4a38344a9534` | Crawler telemetry observability | Data Platform | Marks the control as `blocked`, `degraded`, or `warning` when crawler rows are missing, failing, or stale. |
@@ -47,7 +51,38 @@ The Supabase migration `0014_seed_risk_appetites.sql` seeds the canonical appeti
 | `c64a9ba7-48f3-4708-b308-8b417be3f5ce` | API guardrails | Platform Operations | Monitors rolling API error rate and slow requests within the six-hour health window. |
 | `9b4c9153-7f73-4e7c-a98f-5348f859dd5f` | Billing incident response | Finance Operations | Escalates outstanding invoices, webhook backlogs, and payment webhook errors. |
 
-## Automated register entries
+### Seeded control baseline
+
+| Control | Owner | Status | Key seeded signals |
+| --- | --- | --- | --- |
+| Crawler telemetry observability | Data Platform | `blocked` | No crawler telemetry recorded yet (`telemetryMissing=true`, `staleThresholdHours=6`).【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L8-L23】 |
+| Seed rotation pipeline | Marketplace Operations | `blocked` | Zero pending or stale seeds while the corpus still needs to be imported (`pendingSeeds=0`).【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L24-L38】【F:docs/background-jobs.md†L5-L24】 |
+| AI integration readiness | AI Platform | `blocked` | `OPENAI_API_KEY` is not configured, so AI routes remain disabled until credentials land.【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L39-L48】【F:docs/status-page.md†L22-L38】 |
+| Marketplace sync monitoring | Partner Engineering | `blocked` | Etsy is the only enabled provider and no marketplace accounts have linked yet (`activeAccounts=0`).【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L49-L69】【F:docs/etsy-integration.md†L1-L44】 |
+| Background job runbook | Platform Operations | `blocked` | No automation runs are stored yet; all jobs require scheduling before telemetry flows.【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L70-L84】【F:docs/background-jobs.md†L1-L44】 |
+| API guardrails | Platform Operations | `active` | Baseline reports show zero requests and zero errors inside the six-hour window.【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L85-L100】 |
+| Billing incident response | Finance Operations | `active` | No invoices or webhook backlog exist yet (`outstandingInvoices=0`).【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L101-L116】 |
+
+These seed values mirror the current delivery reality: ingestion and automation paths still rely on
+manual execution while connectors and credentials are being finalized, whereas API and billing
+guardrails already have the necessary wiring in place.【F:docs/background-jobs.md†L1-L44】【F:docs/etsy-integration.md†L1-L60】
+
+## Initial risk register snapshot
+
+The same migration seeds the seven managed risk entries so the backoffice dashboard opens with the
+authentic posture from Supabase, matching the logic used by the `syncRiskDataFromState` routine.【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L128-L335】【F:src/lib/risk/state-sync.ts†L993-L1214】
+
+| Risk | Status | Severity / Likelihood | Due / Resolved | Seeded summary |
+| --- | --- | --- | --- | --- |
+| Crawler telemetry gaps | `open` | `high` / `likely` | Due in 1 day | No crawler telemetry has been recorded; operations must bootstrap the scrapers.【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L149-L175】 |
+| Keyword corpus coverage | `open` | `high` / `likely` | Due in 1 day | Corpus still empty (0 keywords, 0 markets) so seed rotation has to run immediately.【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L176-L206】 |
+| AI integration configuration | `open` | `medium` / `likely` | Due in 2 days | `OPENAI_API_KEY` absent keeps generative workflows offline until credentials are applied.【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L207-L225】【F:docs/status-page.md†L22-L38】 |
+| Marketplace sync degradation | `open` | `high` / `likely` | Due in 2 days | No seller accounts have linked to the single enabled provider; ingestion jobs have never run.【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L226-L257】【F:docs/etsy-integration.md†L1-L44】 |
+| Background job backlog | `open` | `high` / `likely` | Due in 1 day | Trend, intent, cluster, and embedding jobs have zero recorded runs and must be scheduled.【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L258-L282】【F:docs/background-jobs.md†L1-L44】 |
+| API error rate spike | `closed` | `low` / `unlikely` | Resolved now | Baseline error rate is 0% across 0 requests, so the incident stays closed unless telemetry changes.【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L283-L308】 |
+| Billing and webhook exceptions | `closed` | `low` / `unlikely` | Resolved now | No invoices or webhook backlog exist, keeping the finance posture green by default.【F:supabase/migrations/0015_seed_risk_controls_and_register.sql†L309-L335】 |
+
+### Automated register entries
 
 Every sync evaluates the current telemetry and updates the managed risks:
 
