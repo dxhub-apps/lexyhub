@@ -159,12 +159,18 @@ The command prints the number of suggestions captured per query and the total ke
 - When a niche category returns `404`, the scraper automatically falls back to the global top seller hubs (including the
   legacy `best-selling-items` catalog) so
   ingestion can continue without manual intervention.
+- Provide an authenticated browser cookie string through `ETSY_COOKIE` to prime the Playwright session when your environment
+  is challenged by DataDome. Paste the contents of the browser's **Cookie** header (or one `Set-Cookie` line per row) and the
+  script loads those cookies before navigation so existing sessions can be reused.
 - The editing workspace now surfaces an **Analyze Etsy best seller** shortcut so editors can run the full keyword, difficulty,
   and AI suggestion pipelines using fresh category leaders with one click.
 - A dedicated Playwright-driven script (`npm run scrape:etsy-best-sellers`) mirrors the best seller ingestion flow without
   touching the Supabase pipeline. The accompanying workflow `.github/workflows/etsy-best-sellers.yml` installs Chromium,
   executes the script on a 09:00 UTC cadence (or on demand via **Run workflow**), and publishes timestamped JSON captures under
   `data/etsy/best-sellers/` as short-lived build artifacts.
+- In environments where Etsy's DataDome challenge blocks live scraping, the script now falls back to a deterministic fixture
+  stored at `scripts/fixtures/etsy-best-sellers-fixture.json`. Set `ETSY_BEST_SELLERS_MODE=scrape` to disable the fallback or
+  `ETSY_BEST_SELLERS_MODE=fixture` to skip launching Playwright entirely (handy for local dry runs and CI smoke tests).
 
 ## 12. Handling Etsy anti-bot responses
 
