@@ -8,6 +8,8 @@ Sprint 5 introduces LexyHub's cross-network radar, intent graph, clustering auto
 - `/api/jobs/trend-aggregation` aggregates signals into `trend_series` and writes momentum back into `keywords.trend_momentum`.
 - `/api/insights/trends` powers the new radar UI (`TrendRadar` component) with velocity, expected growth, and provenance.
 - Header controls allow timeframe toggles to sit alongside freshness badges without duplicating titles inside `/insights`.
+- `src/lib/__tests__/trend-aggregator.test.ts` now mocks all upstream fetchers with overlapping data to ensure momentum and
+  contributor rollups stay deterministic during regression runs.
 
 ## Intent Graph
 - `/api/jobs/intent-classify` stores GPT-backed intent, persona, and funnel stage metadata in `keywords.extras.classification`.
