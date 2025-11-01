@@ -4,6 +4,12 @@ import { ChangeEvent, FormEvent, useMemo, useState } from "react";
 
 import { useToast } from "@/components/ui/ToastProvider";
 import type { ListingIntelligenceReport } from "@/lib/listings/intelligence";
+import type { NormalizedEtsyListing } from "@/lib/etsy/types";
+import type {
+  AiSuggestionResult,
+  DifficultyScoreResult,
+  KeywordExtractionResult,
+} from "@/lib/etsy/pipelines";
 
 type ListingFormState = {
   title: string;
@@ -19,7 +25,14 @@ type ListingFormState = {
 
 type ListingIntelligenceResponse = {
   listingId: string | null;
+  listing?: NormalizedEtsyListing | null;
   report: ListingIntelligenceReport;
+  pipelines?: {
+    keywords?: KeywordExtractionResult | null;
+    difficulty?: DifficultyScoreResult | null;
+    suggestions?: AiSuggestionResult | null;
+  };
+  fromCache?: boolean;
 };
 
 const INITIAL_FORM_STATE: ListingFormState = {
@@ -43,8 +56,11 @@ function parseList(value: string): string[] {
 
 export function ListingIntelligenceForm(): JSX.Element {
   const [form, setForm] = useState<ListingFormState>(INITIAL_FORM_STATE);
-  const [loading, setLoading] = useState(false);
+  const [listingUrl, setListingUrl] = useState("");
+  const [loadingMode, setLoadingMode] = useState<"form" | "best-sellers" | null>(null);
+  const loading = loadingMode !== null;
   const [result, setResult] = useState<ListingIntelligenceResponse | null>(null);
+  const [ingestedListing, setIngestedListing] = useState<NormalizedEtsyListing | null>(null);
   const { push } = useToast();
 
   const keywordLeaders = useMemo(() => {
@@ -60,11 +76,27 @@ export function ListingIntelligenceForm(): JSX.Element {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setLoading(true);
+    setLoadingMode("form");
     setResult(null);
+    setIngestedListing(null);
     try {
-      const payload = {
-        listing: {
+      const trimmedUrl = listingUrl.trim();
+      if (!trimmedUrl && !form.title.trim()) {
+        push({
+          title: "Listing title required",
+          description: "Provide a title or paste an Etsy URL to analyze.",
+          tone: "warning",
+        });
+        setLoadingMode(null);
+        return;
+      }
+
+      const payload: Record<string, unknown> = {};
+      if (trimmedUrl) {
+        payload.listingUrl = trimmedUrl;
+      }
+      if (!trimmedUrl) {
+        payload.listing = {
           title: form.title,
           description: form.description,
           tags: parseList(form.tags),
@@ -74,8 +106,8 @@ export function ListingIntelligenceForm(): JSX.Element {
           reviews: form.reviews ? Number(form.reviews) : null,
           rating: form.rating ? Number(form.rating) : null,
           salesVolume: form.salesVolume ? Number(form.salesVolume) : null,
-        },
-      };
+        };
+      }
       const response = await fetch("/api/listings/intelligence", {
         method: "POST",
         headers: {
@@ -89,6 +121,7 @@ export function ListingIntelligenceForm(): JSX.Element {
       }
       const json = (await response.json()) as ListingIntelligenceResponse;
       setResult(json);
+      setIngestedListing(json.listing ?? null);
       push({
         title: "Scorecard ready",
         description: "Listing quality analysis completed.",
@@ -102,25 +135,79 @@ export function ListingIntelligenceForm(): JSX.Element {
         tone: "error",
       });
     } finally {
-      setLoading(false);
+      setLoadingMode(null);
+    }
+  };
+
+  const analyzeBestSeller = async () => {
+    if (loading) {
+      return;
+    }
+    setLoadingMode("best-sellers");
+    setResult(null);
+    setIngestedListing(null);
+    try {
+      const response = await fetch("/api/listings/intelligence", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ ingestionMode: "best-sellers" }),
+      });
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => ({}));
+        throw new Error(errorPayload.error ?? `Best seller analysis failed (${response.status})`);
+      }
+      const json = (await response.json()) as ListingIntelligenceResponse;
+      setResult(json);
+      setIngestedListing(json.listing ?? null);
+      setListingUrl(json.listing?.url ?? "");
+      push({
+        title: "Best seller ready",
+        description: "Fetched Etsy best seller insights with no URL required.",
+        tone: "success",
+      });
+    } catch (error) {
+      console.error("Best seller ingestion failed", error);
+      push({
+        title: "Unable to fetch best seller",
+        description: error instanceof Error ? error.message : "Unknown error",
+        tone: "error",
+      });
+    } finally {
+      setLoadingMode(null);
     }
   };
 
   const resetForm = () => {
     setForm(INITIAL_FORM_STATE);
+    setListingUrl("");
     setResult(null);
+    setIngestedListing(null);
   };
 
   return (
     <section className="surface-card form-card">
       <header>
         <h2>Listing quality score</h2>
-        <p>Paste a listing draft or synced product to receive tone, sentiment, completeness, and quick fix recommendations.</p>
+        <p>
+          Paste a listing draft, provide an Etsy URL, or instantly fetch a top best seller to receive tone, sentiment,
+          completeness, and quick fix recommendations.
+        </p>
       </header>
       <form onSubmit={handleSubmit} className="form-grid" autoComplete="off">
         <label>
+          Etsy listing URL
+          <input
+            type="url"
+            value={listingUrl}
+            onChange={(event) => setListingUrl(event.target.value)}
+            placeholder="https://www.etsy.com/listing/123456789/example"
+          />
+        </label>
+        <label>
           Title
-          <input required value={form.title} onChange={handleChange("title")} placeholder="Custom birth flower necklace" />
+          <input value={form.title} onChange={handleChange("title")} placeholder="Custom birth flower necklace" />
         </label>
         <label>
           Tags
@@ -166,13 +253,48 @@ export function ListingIntelligenceForm(): JSX.Element {
         </label>
         <div className="form-actions">
           <button type="submit" disabled={loading}>
-            {loading ? "Scoring…" : "Run analysis"}
+            {loadingMode === "form" ? "Scoring…" : "Run analysis"}
+          </button>
+          <button type="button" onClick={analyzeBestSeller} disabled={loading}>
+            {loadingMode === "best-sellers" ? "Fetching best seller…" : "Analyze Etsy best seller"}
           </button>
           <button type="button" onClick={resetForm} disabled={loading}>
             Clear
           </button>
         </div>
       </form>
+      {ingestedListing ? (
+        <section className="analysis-context">
+          <h3>Ingested listing</h3>
+          <dl>
+            <div>
+              <dt>Title</dt>
+              <dd>{ingestedListing.title ?? "Untitled"}</dd>
+            </div>
+            <div>
+              <dt>Shop</dt>
+              <dd>{ingestedListing.shop.name ?? "Unknown"}</dd>
+            </div>
+            <div>
+              <dt>Price</dt>
+              <dd>
+                {ingestedListing.price.amount != null
+                  ? `${ingestedListing.price.currency ?? "USD"} ${ingestedListing.price.amount.toFixed(2)}`
+                  : "n/a"}
+              </dd>
+            </div>
+            <div>
+              <dt>Source</dt>
+              <dd>
+                {ingestedListing.source === "scrape"
+                  ? "Data collected from public page"
+                  : "Retrieved from Etsy API"}
+                {result?.fromCache ? " (cached)" : null}
+              </dd>
+            </div>
+          </dl>
+        </section>
+      ) : null}
       {result ? (
         <div className="analysis-result">
           <section className="analysis-scorecard">
@@ -246,6 +368,33 @@ export function ListingIntelligenceForm(): JSX.Element {
               <p>Your listing already checks every box.</p>
             )}
           </section>
+          {result.pipelines?.difficulty ? (
+            <section className="analysis-scorecard">
+              <h3>Difficulty score</h3>
+              <p className="analysis-highlight">{(result.pipelines.difficulty.score * 100).toFixed(0)}%</p>
+              <p>{result.pipelines.difficulty.rationale}</p>
+            </section>
+          ) : null}
+          {result.pipelines?.keywords?.keywords?.length ? (
+            <section className="analysis-keywords">
+              <h3>Extracted keywords</h3>
+              <ul>
+                {result.pipelines.keywords.keywords.map((keyword) => (
+                  <li key={keyword}>{keyword}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          {result.pipelines?.suggestions?.suggestions?.length ? (
+            <section className="analysis-attributes">
+              <h3>AI suggestions</h3>
+              <ul>
+                {result.pipelines.suggestions.suggestions.map((suggestion, index) => (
+                  <li key={`${suggestion}-${index}`}>{suggestion}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
         </div>
       ) : null}
     </section>

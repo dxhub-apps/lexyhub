@@ -14,6 +14,10 @@ const envSchema = z.object({
   ETSY_CLIENT_ID: z.string().optional(),
   ETSY_CLIENT_SECRET: z.string().optional(),
   ETSY_REDIRECT_URI: z.string().url().optional(),
+  ETSY_DATA_SOURCE: z.enum(["SCRAPE", "API"]).optional(),
+  ETSY_API_KEY: z.string().optional(),
+  ETSY_API_SECRET: z.string().optional(),
+  ETSY_BASE_URL: z.string().url().optional(),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
 });
@@ -35,6 +39,10 @@ function readEnv(): Env {
     ETSY_CLIENT_ID: process.env.ETSY_CLIENT_ID,
     ETSY_CLIENT_SECRET: process.env.ETSY_CLIENT_SECRET,
     ETSY_REDIRECT_URI: process.env.ETSY_REDIRECT_URI,
+    ETSY_DATA_SOURCE: process.env.ETSY_DATA_SOURCE as "SCRAPE" | "API" | undefined,
+    ETSY_API_KEY: process.env.ETSY_API_KEY,
+    ETSY_API_SECRET: process.env.ETSY_API_SECRET,
+    ETSY_BASE_URL: process.env.ETSY_BASE_URL,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
   });

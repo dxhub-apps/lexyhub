@@ -140,3 +140,21 @@ npm run scrape:etsy-keywords
 
 The command prints the number of suggestions captured per query and the total keyword upserts performed. Inspect the
 `etsy_keyword_scrapes` table to audit historical runs or replay downstream processing.
+
+## 10. Provider abstraction and ingestion toggle
+
+- To switch Etsy ingestion from HTML scraping to the official API, set `ETSY_DATA_SOURCE=API` and provide `ETSY_API_KEY`,
+  `ETSY_API_SECRET`, and `ETSY_BASE_URL`. No other code changes are needed.
+- Downstream services (keyword extraction, difficulty scoring, AI suggestions, and listing quality analysis) consume the
+  `NormalizedEtsyListing` schema and do not depend on the original data source.
+- If the API exposes richer fields—inventory, product variations, or shop-level metrics—map them into the `raw` payload on the
+  normalized listing and expand the schema additively so existing consumers remain backward compatible.
+
+## 11. Automated best-seller ingestion
+
+- The listing intelligence API accepts `ingestionMode="best-sellers"` to pull the current best sellers category without a user-supplied URL.
+- `ScrapeEtsyProvider.search` loads `https://www.etsy.com/c/best-selling-items` with a throttled HTML request, extracts the
+  top listing URLs directly from the markup and embedded JSON, and normalizes every match into the unified schema before
+  caching.
+- The editing workspace now surfaces an **Analyze Etsy best seller** shortcut so editors can run the full keyword, difficulty,
+  and AI suggestion pipelines using fresh category leaders with one click.

@@ -1,0 +1,450 @@
+import { setTimeout as delay } from "node:timers/promises";
+
+import type { EtsyProvider } from "./provider";
+import {
+  EtsyProviderError,
+  type NormalizedEtsyListing,
+  type NormalizedEtsyShop,
+  type SearchOptions,
+} from "../types";
+
+const USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+const MIN_INTERVAL_MS = 1_500;
+
+const BEST_SELLERS_DEFAULT_URL = "https://www.etsy.com/c/best-selling-items";
+
+class RequestThrottle {
+  private static lastInvocation = 0;
+
+  private static pending: Promise<void> = Promise.resolve();
+
+  static async schedule(): Promise<void> {
+    this.pending = this.pending.then(async () => {
+      const now = Date.now();
+      const wait = Math.max(0, this.lastInvocation + MIN_INTERVAL_MS - now);
+      if (wait > 0) {
+        await delay(wait);
+      }
+      this.lastInvocation = Date.now();
+    });
+    return this.pending;
+  }
+}
+
+function normalizeUrl(input: string): string {
+  const url = new URL(input);
+  url.hash = "";
+  url.search = "";
+  if (!/etsy\.com$/i.test(url.hostname) && !/etsy\.com$/i.test(url.hostname.replace(/^www\./, ""))) {
+    throw new EtsyProviderError(`Unsupported hostname: ${url.hostname}`, "INVALID_URL", { canRetry: false });
+  }
+  return url.toString();
+}
+
+function ensureAbsoluteEtsyUrl(input: string): string | null {
+  try {
+    const hasProtocol = /^https?:/i.test(input);
+    const normalized = hasProtocol ? input : `https://www.etsy.com${input.startsWith("/") ? "" : "/"}${input}`;
+    return normalizeUrl(normalized);
+  } catch {
+    return null;
+  }
+}
+
+function extractListingUrlsFromHtml(html: string, limit: number): string[] {
+  const matches = html.matchAll(/href=\"([^\"]*\/listing\/\d+[^\"]*)\"/gi);
+  const results: string[] = [];
+  const seen = new Set<string>();
+  for (const [, rawHref] of matches) {
+    if (!rawHref) {
+      continue;
+    }
+    const normalized = ensureAbsoluteEtsyUrl(rawHref);
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    results.push(normalized);
+    if (results.length >= limit) {
+      break;
+    }
+  }
+  if (results.length < limit) {
+    for (const match of html.matchAll(/data-listing-id="(\d+)"/gi)) {
+      const candidate = ensureAbsoluteEtsyUrl(`/listing/${match[1]}`);
+      if (candidate && !seen.has(candidate)) {
+        seen.add(candidate);
+        results.push(candidate);
+        if (results.length >= limit) {
+          break;
+        }
+      }
+    }
+  }
+  if (results.length < limit) {
+    for (const match of html.matchAll(/listing_id":\s*(\d+)/gi)) {
+      const candidate = ensureAbsoluteEtsyUrl(`/listing/${match[1]}`);
+      if (candidate && !seen.has(candidate)) {
+        seen.add(candidate);
+        results.push(candidate);
+        if (results.length >= limit) {
+          break;
+        }
+      }
+    }
+  }
+  return results;
+}
+
+function extractJsonLd(html: string): unknown[] {
+  const scripts = Array.from(html.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi));
+  const payloads: unknown[] = [];
+  for (const [, raw] of scripts) {
+    try {
+      if (!raw) {
+        continue;
+      }
+      const cleaned = raw.trim();
+      if (!cleaned) {
+        continue;
+      }
+      const parsed = JSON.parse(cleaned);
+      if (Array.isArray(parsed)) {
+        payloads.push(...parsed);
+      } else {
+        payloads.push(parsed);
+      }
+    } catch (error) {
+      console.warn("Failed to parse Etsy JSON-LD payload", error);
+    }
+  }
+  return payloads;
+}
+
+function extractMeta(html: string, property: string): string | null {
+  const regex = new RegExp(
+    `<meta[^>]+property=["']${property.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}["'][^>]+content=["']([^"']+)["'][^>]*>`,
+    "i",
+  );
+  const match = html.match(regex);
+  return match?.[1] ?? null;
+}
+
+function valueArray(value: unknown): string[] {
+  if (!value) {
+    return [];
+  }
+  if (Array.isArray(value)) {
+    const normalized = value
+      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+      .filter((entry) => entry.length > 0);
+    return Array.from(new Set(normalized));
+  }
+  if (typeof value === "string") {
+    const normalized = value
+      .split(/[;,]/)
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+    return Array.from(new Set(normalized));
+  }
+  return [];
+}
+
+function normalizeListing(url: string, html: string, jsonLd: unknown[]): NormalizedEtsyListing {
+  const product = jsonLd.find((entry) =>
+    typeof entry === "object" && entry !== null ? /product/i.test(String((entry as Record<string, unknown>)["@type"])) : false,
+  ) as Record<string, unknown> | undefined;
+  const offers = product?.offers;
+  const offersArray = Array.isArray(offers) ? offers : offers ? [offers] : [];
+  const firstOffer = offersArray.find((offer) => typeof offer === "object" && offer !== null) as
+    | Record<string, unknown>
+    | undefined;
+  const seller = (product?.seller ?? product?.brand) as Record<string, unknown> | undefined;
+  const sellerAddress =
+    typeof seller?.address === "object" && seller.address !== null
+      ? (seller.address as Record<string, unknown>)
+      : null;
+  const aggregateRating = product?.aggregateRating as Record<string, unknown> | undefined;
+
+  const idFromUrl = /listing\/(\d+)/.exec(url)?.[1] ?? null;
+  const idFromJson =
+    typeof product?.productID === "string"
+      ? product?.productID
+      : typeof product?.sku === "string"
+      ? product?.sku
+      : typeof product?.identifier === "string"
+      ? product?.identifier
+      : null;
+
+  const price = typeof firstOffer?.price === "number" ? firstOffer.price : Number(firstOffer?.price ?? Number.NaN);
+  const freeShipping = (() => {
+    if (typeof firstOffer?.shippingDetails === "object" && firstOffer.shippingDetails !== null) {
+      const details = firstOffer.shippingDetails as Record<string, unknown>;
+      if (typeof details.freeShipping === "boolean") {
+        return details.freeShipping;
+      }
+      const rate = details.shippingRate as Record<string, unknown> | undefined;
+      if (rate && typeof rate.price === "number") {
+        return rate.price === 0;
+      }
+      if (rate && typeof rate.price === "string") {
+        return Number(rate.price) === 0;
+      }
+    }
+    return null;
+  })();
+
+  const images = (() => {
+    const fromJson = valueArray(product?.image);
+    if (fromJson.length > 0) {
+      return fromJson;
+    }
+    const ogImage = extractMeta(html, "og:image");
+    return ogImage ? [ogImage] : [];
+  })();
+
+  const normalized: NormalizedEtsyListing = {
+    id: idFromJson ?? idFromUrl,
+    url,
+    title: typeof product?.name === "string" ? product.name : extractMeta(html, "og:title"),
+    description:
+      typeof product?.description === "string"
+        ? product.description
+        : extractMeta(html, "og:description") ?? null,
+    price: {
+      amount: Number.isFinite(price) ? Number(price) : null,
+      currency: typeof firstOffer?.priceCurrency === "string" ? firstOffer.priceCurrency : null,
+    },
+    images,
+    tags: valueArray(product?.keywords ?? (product?.additionalProperty as Record<string, unknown> | undefined)?.value),
+    materials: valueArray(product?.material),
+    categoryPath: valueArray(product?.category ?? product?.categoryPath),
+    shop: {
+      id:
+        typeof seller?.identifier === "string"
+          ? seller.identifier
+          : typeof seller?.["@id"] === "string"
+          ? (seller["@id"] as string)
+          : null,
+      name: typeof seller?.name === "string" ? seller.name : null,
+      url: typeof seller?.url === "string" ? seller.url : null,
+      location: typeof sellerAddress?.addressLocality === "string" ? (sellerAddress.addressLocality as string) : null,
+    },
+    reviews: {
+      count: Number(aggregateRating?.reviewCount ?? aggregateRating?.ratingCount ?? Number.NaN) || null,
+      rating: Number(aggregateRating?.ratingValue ?? Number.NaN) || null,
+    },
+    shipping: {
+      freeShipping,
+      shipsFrom:
+        typeof firstOffer?.availableAtOrFrom === "string"
+          ? firstOffer.availableAtOrFrom
+          : typeof firstOffer?.areaServed === "string"
+          ? firstOffer.areaServed
+          : null,
+      processingTime:
+        typeof firstOffer?.deliveryLeadTime === "string"
+          ? firstOffer.deliveryLeadTime
+          : typeof firstOffer?.shippingDetails === "object" && firstOffer?.shippingDetails !== null
+          ? (firstOffer.shippingDetails as Record<string, unknown>).handlingTime as string | null
+          : null,
+    },
+    raw: {
+      jsonLd: product ?? null,
+      offers: firstOffer ?? null,
+    },
+    fetchedAt: new Date().toISOString(),
+    source: "scrape" as const,
+  };
+
+  return normalized;
+}
+
+function countExtractedFields(listing: NormalizedEtsyListing): number {
+  let count = 0;
+  if (listing.id) count += 1;
+  if (listing.title) count += 1;
+  if (listing.description) count += 1;
+  if (listing.price.amount != null) count += 1;
+  if (listing.price.currency) count += 1;
+  if (listing.images.length) count += 1;
+  if (listing.tags.length) count += 1;
+  if (listing.materials.length) count += 1;
+  if (listing.categoryPath.length) count += 1;
+  if (listing.shop.name) count += 1;
+  if (listing.reviews.count != null || listing.reviews.rating != null) count += 1;
+  if (listing.shipping.freeShipping != null || listing.shipping.shipsFrom || listing.shipping.processingTime) count += 1;
+  return count;
+}
+
+export class ScrapeEtsyProvider implements EtsyProvider {
+  private buildBestSellerUrl(category?: string): string {
+    if (!category) {
+      return BEST_SELLERS_DEFAULT_URL;
+    }
+
+    try {
+      const maybeUrl = new URL(category);
+      if (/etsy\.com$/i.test(maybeUrl.hostname.replace(/^www\./, ""))) {
+        if (!maybeUrl.searchParams.has("ref")) {
+          maybeUrl.searchParams.set("ref", "best_sellers");
+        }
+        return maybeUrl.toString();
+      }
+    } catch {
+      // fall back to slug handling
+    }
+
+    const sanitized = category.replace(/^\/+/, "").replace(/\?.*$/, "");
+    const path = /^(c|featured)\//i.test(sanitized) ? sanitized : `c/${sanitized}`;
+    return `https://www.etsy.com/${path}?ref=best_sellers`;
+  }
+
+  private async gatherBestSellerListingUrls(limit: number, category?: string): Promise<string[]> {
+    const targetLimit = Math.max(1, Math.min(limit, 20));
+    const targetUrl = this.buildBestSellerUrl(category);
+
+    await RequestThrottle.schedule();
+    const response = await fetch(targetUrl, {
+      headers: { "User-Agent": USER_AGENT, Accept: "text/html,application/xhtml+xml" },
+    });
+
+    if (!response.ok) {
+      throw new EtsyProviderError(`Failed to load best seller category (${response.status})`, "FETCH_FAILED", {
+        status: response.status,
+        canRetry: response.status >= 500 || response.status === 429,
+      });
+    }
+
+    const html = await response.text();
+    if (/captcha/i.test(html) && /etsy/i.test(html)) {
+      throw new EtsyProviderError("Encountered Etsy captcha", "BLOCKED", { status: 429, canRetry: true });
+    }
+
+    const urls = extractListingUrlsFromHtml(html, targetLimit);
+    if (!urls.length) {
+      throw new EtsyProviderError("Unable to locate best seller listings", "NOT_FOUND", { canRetry: true });
+    }
+
+    console.info(
+      JSON.stringify({
+        method: "ScrapeEtsyProvider.gatherBestSellerListingUrls",
+        url: targetUrl,
+        status: "success",
+        discovered: urls.length,
+      }),
+    );
+
+    return urls;
+  }
+
+  async getListingByUrl(url: string): Promise<NormalizedEtsyListing> {
+    const started = Date.now();
+    const normalizedUrl = normalizeUrl(url);
+    await RequestThrottle.schedule();
+
+    try {
+      const response = await fetch(normalizedUrl, {
+        headers: { "User-Agent": USER_AGENT, Accept: "text/html,application/xhtml+xml" },
+      });
+
+      if (response.status === 404) {
+        throw new EtsyProviderError("Listing not found", "NOT_FOUND", { status: 404, canRetry: false });
+      }
+
+      if (!response.ok) {
+        throw new EtsyProviderError(`Failed to fetch listing (${response.status})`, "FETCH_FAILED", {
+          status: response.status,
+          canRetry: response.status >= 500 || response.status === 429,
+        });
+      }
+
+      const html = await response.text();
+      if (/captcha/i.test(html) && /etsy/i.test(html)) {
+        throw new EtsyProviderError("Encountered Etsy captcha", "BLOCKED", { status: 429, canRetry: true });
+      }
+
+      const jsonLd = extractJsonLd(html);
+      const listing = normalizeListing(normalizedUrl, html, jsonLd);
+
+      console.info(
+        JSON.stringify({
+          method: "ScrapeEtsyProvider.getListingByUrl",
+          url: normalizedUrl,
+          status: "success",
+          duration_ms: Date.now() - started,
+          provider: "scrape",
+          fields_extracted: countExtractedFields(listing),
+        }),
+      );
+
+      return listing;
+    } catch (error) {
+      console.error(
+        JSON.stringify({
+          method: "ScrapeEtsyProvider.getListingByUrl",
+          url: normalizedUrl,
+          status: "error",
+          duration_ms: Date.now() - started,
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
+      throw error;
+    }
+  }
+
+  async getShopByUrl(_url: string): Promise<NormalizedEtsyShop> {
+    throw new EtsyProviderError("Shop lookup not implemented", "UNKNOWN", { canRetry: false });
+  }
+
+  async search(query: string, options?: SearchOptions): Promise<NormalizedEtsyListing[]> {
+    const strategy = options?.strategy ?? "keyword";
+    if (strategy !== "best-sellers") {
+      throw new EtsyProviderError("Search strategy not implemented", "UNKNOWN", { canRetry: false });
+    }
+
+    const started = Date.now();
+    const limit = Math.max(1, Math.min(options?.limit ?? 1, 20));
+    const category = options?.category;
+
+    const urls = await this.gatherBestSellerListingUrls(limit, category);
+    const listings: NormalizedEtsyListing[] = [];
+    for (const url of urls) {
+      try {
+        listings.push(await this.getListingByUrl(url));
+      } catch (error) {
+        console.warn(
+          JSON.stringify({
+            method: "ScrapeEtsyProvider.search",
+            strategy: "best-sellers",
+            url,
+            status: "error",
+            error: error instanceof Error ? error.message : String(error),
+          }),
+        );
+      }
+      if (listings.length >= limit) {
+        break;
+      }
+    }
+
+    if (!listings.length) {
+      throw new EtsyProviderError("Best seller listings unavailable", "FETCH_FAILED", { canRetry: true });
+    }
+
+    console.info(
+      JSON.stringify({
+        method: "ScrapeEtsyProvider.search",
+        strategy: "best-sellers",
+        status: "success",
+        duration_ms: Date.now() - started,
+        provider: "scrape",
+        category: category ?? null,
+        count: listings.length,
+      }),
+    );
+
+    return listings.slice(0, limit);
+  }
+}
