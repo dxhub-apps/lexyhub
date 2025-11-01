@@ -50,6 +50,9 @@ Migration `0013_backoffice_task_tracker.sql` introduces three tables:
 - Dependencies are recalculated on every edit—submit the form even if you only remove blockers.
 - Statuses cannot be deleted while tasks reference them; change affected tasks first.
 - The kanban columns update instantly after each mutation thanks to the shared load routine.
+- Fresh environments now seed a provider-integration swim lane: Google Ads and Etsy connectors land in **In Progress** so the
+  integrations team can keep momentum, while Pinterest and Reddit discovery tasks populate **To Do** for rapid assignment once
+  upstream access is granted.
 
 ## Future enhancements
 
