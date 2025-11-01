@@ -1,25 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getSupabaseServerClient } from "@/lib/supabase-server";
-
-function requireUserId(request: NextRequest): string {
-  const userId = request.nextUrl.searchParams.get("userId") ?? request.headers.get("x-lexy-user-id");
-  if (!userId) {
-    throw new Error("userId is required");
-  }
-  return userId;
-}
+import { requireUserId } from "../../profile/helpers";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const supabase = getSupabaseServerClient();
-  const userId = request.nextUrl.searchParams.get("userId");
 
   if (!supabase) {
     return NextResponse.json({ error: "Supabase client unavailable" }, { status: 503 });
   }
 
-  if (!userId) {
-    return NextResponse.json({ error: "userId query parameter is required" }, { status: 400 });
+  let userId: string;
+  try {
+    userId = await requireUserId(request);
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Authentication required" },
+      { status: 401 },
+    );
   }
 
   const [{ data: subscription }, { data: invoices }, { data: profile }] = await Promise.all([
@@ -56,7 +54,16 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Supabase client unavailable" }, { status: 503 });
   }
 
-  const userId = requireUserId(request);
+  let userId: string;
+  try {
+    userId = await requireUserId(request);
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Authentication required" },
+      { status: 401 },
+    );
+  }
+
   const payload = await request.json();
 
   const plan = payload.plan as string | undefined;

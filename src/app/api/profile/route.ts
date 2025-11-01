@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getSupabaseServerClient } from "@/lib/supabase-server";
+import { requireAuthUser, requireUserId } from "./helpers";
 
 type ProfilePayload = {
   fullName: string;
@@ -9,15 +10,8 @@ type ProfilePayload = {
   bio: string;
   timezone: string;
   notifications: boolean;
+  avatarUrl: string;
 };
-
-function requireUserId(request: NextRequest): string {
-  const userId = request.nextUrl.searchParams.get("userId") ?? request.headers.get("x-lexy-user-id");
-  if (!userId) {
-    throw new Error("userId is required");
-  }
-  return userId;
-}
 
 function normalizeProfile(input: Partial<ProfilePayload> | null | undefined): ProfilePayload {
   return {
@@ -27,6 +21,7 @@ function normalizeProfile(input: Partial<ProfilePayload> | null | undefined): Pr
     bio: String(input?.bio ?? ""),
     timezone: String(input?.timezone ?? ""),
     notifications: Boolean(input?.notifications ?? false),
+    avatarUrl: String(input?.avatarUrl ?? ""),
   };
 }
 
@@ -37,10 +32,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   let userId: string;
+  let userEmail = "";
+  let userFullName = "";
   try {
-    userId = requireUserId(request);
+    const user = await requireAuthUser(request);
+    userId = user.id;
+    userEmail = user.email ?? "";
+    const metadataFullName = (user.user_metadata?.full_name as string | undefined) ?? null;
+    const metadataName = (user.user_metadata?.name as string | undefined) ?? null;
+    userFullName = metadataFullName || metadataName || "";
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "userId is required" }, { status: 400 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Authentication required" },
+      { status: 401 },
+    );
   }
 
   const { data, error } = await supabase
@@ -61,6 +66,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     plan: data?.plan ?? "free",
     momentum: data?.momentum ?? "new",
     profile,
+    user: {
+      email: userEmail,
+      fullName: userFullName,
+    },
   });
 }
 
@@ -72,9 +81,12 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
 
   let userId: string;
   try {
-    userId = requireUserId(request);
+    userId = await requireUserId(request);
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "userId is required" }, { status: 400 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Authentication required" },
+      { status: 401 },
+    );
   }
 
   const payload = (await request.json().catch(() => ({}))) as Partial<ProfilePayload>;

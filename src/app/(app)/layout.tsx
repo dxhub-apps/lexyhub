@@ -12,15 +12,27 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const supabase = createServerComponentClient({ cookies });
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const [
+    {
+      data: { session },
+    },
+    {
+      data: { user },
+      error: userError,
+    },
+  ] = await Promise.all([supabase.auth.getSession(), supabase.auth.getUser()]);
 
-  if (!session) {
+  if (userError) {
+    console.error("Failed to resolve authenticated user", userError);
+  }
+
+  if (!user) {
     redirect("/login");
   }
 
-  await ensureAdminProfile(session.user);
+  if (user) {
+    await ensureAdminProfile(user);
+  }
 
   return (
     <SupabaseProvider initialSession={session}>

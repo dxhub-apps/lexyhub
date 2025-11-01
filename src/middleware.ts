@@ -8,8 +8,8 @@ export async function middleware(request: NextRequest) {
   const response = NextResponse.next({ request: { headers: request.headers } });
   const supabase = createMiddlewareClient({ req: request, res: response });
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
 
@@ -17,14 +17,14 @@ export async function middleware(request: NextRequest) {
   const isStaticAsset = pathname.startsWith("/_next") || pathname.startsWith("/assets") || pathname.endsWith(".ico");
   const isApiRoute = pathname.startsWith("/api/") && !pathname.startsWith("/api/auth");
 
-  if (!session && !isPublicPath && !isStaticAsset && !isApiRoute) {
+  if (!user && !isPublicPath && !isStaticAsset && !isApiRoute) {
     const redirectUrl = new URL("/login", request.url);
     const destination = `${pathname}${request.nextUrl.search}`;
     redirectUrl.searchParams.set("redirect_to", destination);
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (session && pathname === "/login") {
+  if (user && pathname === "/login") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import { useToast } from "@/components/ui/ToastProvider";
 
@@ -9,8 +10,6 @@ const PLAN_SUMMARY: Record<string, string> = {
   scale: "Full Etsy sync, Market Twin history, and quota multipliers.",
   apex: "Unlimited sources, dedicated analyst hours, and real-time refreshes.",
 };
-
-const DEFAULT_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 type InvoiceHistoryRow = {
   id: string;
@@ -33,6 +32,7 @@ type ProfileDetails = {
   bio: string;
   timezone: string;
   notifications: boolean;
+  avatarUrl: string;
 };
 
 type BillingPreferences = {
@@ -49,38 +49,91 @@ const EMPTY_PROFILE: ProfileDetails = {
   bio: "",
   timezone: "",
   notifications: false,
+  avatarUrl: "",
+};
+
+const DEFAULT_BILLING: BillingPreferences = {
+  plan: "spark",
+  billingEmail: "",
+  autoRenew: true,
+  paymentMethod: "",
 };
 
 export default function ProfilePage(): JSX.Element {
   const { push } = useToast();
-  const [profile, setProfile] = useState<ProfileDetails>(EMPTY_PROFILE);
-  const [billing, setBilling] = useState<BillingPreferences>({
-    plan: "spark",
-    billingEmail: "",
-    autoRenew: true,
-    paymentMethod: "",
-  });
+  const [profile, setProfile] = useState<ProfileDetails>(() => ({ ...EMPTY_PROFILE }));
+  const [billing, setBilling] = useState<BillingPreferences>(() => ({ ...DEFAULT_BILLING }));
   const [invoiceHistory, setInvoiceHistory] = useState<InvoiceHistoryRow[]>([]);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>("unknown");
   const [periodEnd, setPeriodEnd] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const activePlanSummary = useMemo(() => PLAN_SUMMARY[billing.plan], [billing.plan]);
+  const formattedSubscriptionStatus = useMemo(
+    () => (subscriptionStatus || "unknown").replace(/_/g, " "),
+    [subscriptionStatus],
+  );
+  const subscriptionStatusClass = useMemo(
+    () => (subscriptionStatus || "unknown").replace(/[^a-z0-9-]/gi, "-"),
+    [subscriptionStatus],
+  );
+  const avatarFallback = useMemo(() => {
+    const source = profile.fullName || profile.email || "LexyHub";
+    const character = source.trim().charAt(0).toUpperCase();
+    return character || "L";
+  }, [profile.fullName, profile.email]);
+
+  const persistProfile = useCallback(async (nextProfile: ProfileDetails) => {
+    const response = await fetch(`/api/profile`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(nextProfile),
+    });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error(json.error ?? "Please sign in to update your profile");
+      }
+      throw new Error(json.error ?? "Failed to update profile");
+    }
+  }, []);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const profileResponse = await fetch(`/api/profile?userId=${DEFAULT_USER_ID}`);
+      const profileResponse = await fetch(`/api/profile`);
       if (!profileResponse.ok) {
         const payload = await profileResponse.json().catch(() => ({}));
+        if (profileResponse.status === 401) {
+          throw new Error("Please sign in to view your profile");
+        }
         throw new Error(payload.error ?? `Failed to load profile (${profileResponse.status})`);
       }
       const profileJson = (await profileResponse.json()) as {
         profile?: ProfileDetails;
+        user?: { email?: string; fullName?: string };
       };
       if (profileJson.profile) {
-        setProfile({ ...EMPTY_PROFILE, ...profileJson.profile });
+        setProfile(() => {
+          const next = { ...EMPTY_PROFILE, ...profileJson.profile };
+          if (!next.email && profileJson.user?.email) {
+            next.email = profileJson.user.email;
+          }
+          if (!next.fullName && profileJson.user?.fullName) {
+            next.fullName = profileJson.user.fullName;
+          }
+          return next;
+        });
+      }
+      if (!profileJson.profile && profileJson.user) {
+        setProfile({
+          ...EMPTY_PROFILE,
+          email: profileJson.user.email ?? "",
+          fullName: profileJson.user.fullName ?? "",
+        });
       }
     } catch (error) {
+      setProfile({ ...EMPTY_PROFILE });
       push({
         title: "Profile unavailable",
         description: error instanceof Error ? error.message : String(error),
@@ -89,9 +142,12 @@ export default function ProfilePage(): JSX.Element {
     }
 
     try {
-      const response = await fetch(`/api/billing/subscription?userId=${DEFAULT_USER_ID}`);
+      const response = await fetch(`/api/billing/subscription`);
       const json = await response.json();
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Please sign in to view billing preferences");
+        }
         throw new Error(json.error ?? `Failed to load billing data (${response.status})`);
       }
 
@@ -132,6 +188,10 @@ export default function ProfilePage(): JSX.Element {
       setSubscriptionStatus(json.subscription?.status ?? "unknown");
       setPeriodEnd(json.subscription?.current_period_end ?? null);
     } catch (error) {
+      setInvoiceHistory([]);
+      setSubscriptionStatus("unknown");
+      setPeriodEnd(null);
+      setBilling(() => ({ ...DEFAULT_BILLING }));
       push({
         title: "Billing unavailable",
         description: error instanceof Error ? error.message : String(error),
@@ -149,15 +209,7 @@ export default function ProfilePage(): JSX.Element {
   const handleProfileSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     try {
-      const response = await fetch(`/api/profile?userId=${DEFAULT_USER_ID}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profile),
-      });
-      const json = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(json.error ?? "Failed to update profile");
-      }
+      await persistProfile(profile);
       push({
         title: "Profile updated",
         description: "Your preferences are saved to Supabase.",
@@ -173,16 +225,100 @@ export default function ProfilePage(): JSX.Element {
     }
   };
 
+  const handleAvatarChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setAvatarUploading(true);
+    const previousProfile = { ...profile };
+
+    try {
+      const data = new FormData();
+      data.append("file", file);
+
+      const response = await fetch(`/api/profile/avatar`, {
+        method: "POST",
+        body: data,
+      });
+      const json = (await response.json().catch(() => ({}))) as { url?: string; error?: string };
+
+      if (!response.ok || !json.url) {
+        if (response.status === 401) {
+          throw new Error(json.error ?? "Please sign in to upload an avatar");
+        }
+        throw new Error(json.error ?? "Failed to upload avatar");
+      }
+
+      const nextProfile = { ...profile, avatarUrl: json.url };
+      setProfile(nextProfile);
+      try {
+        await persistProfile(nextProfile);
+      } catch (error) {
+        setProfile(previousProfile);
+        throw error;
+      }
+
+      push({
+        title: "Avatar updated",
+        description: "Your new photo is saved to Supabase.",
+        tone: "success",
+      });
+      await loadData();
+    } catch (error) {
+      push({
+        title: "Avatar upload failed",
+        description: error instanceof Error ? error.message : String(error),
+        tone: "error",
+      });
+    } finally {
+      setAvatarUploading(false);
+      event.target.value = "";
+    }
+  };
+
+  const handleAvatarRemove = async () => {
+    if (!profile.avatarUrl) {
+      return;
+    }
+
+    setAvatarUploading(true);
+    const nextProfile = { ...profile, avatarUrl: "" };
+
+    try {
+      await persistProfile(nextProfile);
+      setProfile(nextProfile);
+      push({
+        title: "Avatar removed",
+        description: "We cleared your profile photo from Supabase settings.",
+        tone: "success",
+      });
+      await loadData();
+    } catch (error) {
+      push({
+        title: "Avatar removal failed",
+        description: error instanceof Error ? error.message : String(error),
+        tone: "error",
+      });
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
   const handleBillingSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     try {
-      const response = await fetch(`/api/billing/subscription?userId=${DEFAULT_USER_ID}`, {
+      const response = await fetch(`/api/billing/subscription`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(billing),
       });
       const json = await response.json();
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error(json.error ?? "Please sign in to update billing");
+        }
         throw new Error(json.error ?? "Failed to update billing");
       }
       push({
@@ -202,13 +338,16 @@ export default function ProfilePage(): JSX.Element {
 
   const handleCancelPlan = async () => {
     try {
-      const response = await fetch(`/api/billing/subscription?userId=${DEFAULT_USER_ID}`, {
+      const response = await fetch(`/api/billing/subscription`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...billing, autoRenew: false }),
       });
       const json = await response.json();
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error(json.error ?? "Please sign in to manage your plan");
+        }
         throw new Error(json.error ?? "Failed to schedule cancellation");
       }
       push({
@@ -228,149 +367,220 @@ export default function ProfilePage(): JSX.Element {
 
   return (
     <div className="profile-page">
-      <header className="profile-header">
+      <section className="profile-hero">
         <div>
           <h1>Profile &amp; Billing</h1>
           <p>Control how LexyHub syncs your Etsy shop, AI Market Twin simulations, and billing cadence.</p>
         </div>
-        <div className="profile-header-meta">
-          <span className="badge">Account Center</span>
-          <span>Plan: {billing.plan.toUpperCase()}</span>
+        <div className="profile-hero__meta">
+          <span className="profile-hero__badge">Account Center</span>
+          <span className="profile-hero__plan">Plan: {billing.plan.toUpperCase()}</span>
         </div>
-      </header>
+      </section>
 
-      <div className="profile-grid">
-        <form className="profile-card" onSubmit={handleProfileSubmit}>
-          <h2>Profile</h2>
-          <p className="profile-muted">Update the contact details stored alongside your Supabase user profile.</p>
+      <div className="profile-layout">
+        <form className="form-card profile-section" onSubmit={handleProfileSubmit}>
+          <div className="profile-section__header">
+            <div>
+              <h2>Profile</h2>
+              <p className="profile-section__description">
+                Update the contact details stored alongside your Supabase user profile.
+              </p>
+            </div>
+          </div>
 
-          <label>
-            <span>Full name</span>
-            <input
-              value={profile.fullName}
-              onChange={(event) => setProfile((state) => ({ ...state, fullName: event.target.value }))}
-              disabled={loading}
-            />
-          </label>
+          <div className="profile-avatar-upload">
+            <div className="profile-avatar-preview">
+              {profile.avatarUrl ? (
+                <Image
+                  src={profile.avatarUrl}
+                  alt="User avatar"
+                  width={72}
+                  height={72}
+                  className="profile-avatar-image"
+                />
+              ) : (
+                <span className="profile-avatar-placeholder">{avatarFallback}</span>
+              )}
+            </div>
+            <div className="profile-avatar-actions">
+              <span className="profile-avatar-label">Profile photo</span>
+              <label className="button button-secondary profile-avatar-picker">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  disabled={loading || avatarUploading}
+                />
+                {avatarUploading ? "Uploading…" : "Upload new"}
+              </label>
+              {profile.avatarUrl ? (
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  onClick={handleAvatarRemove}
+                  disabled={loading || avatarUploading}
+                >
+                  Remove avatar
+                </button>
+              ) : null}
+              <p className="profile-avatar-hint">PNG, JPG, or GIF up to 5 MB.</p>
+            </div>
+          </div>
 
-          <label>
-            <span>Email</span>
-            <input
-              type="email"
-              value={profile.email}
-              onChange={(event) => setProfile((state) => ({ ...state, email: event.target.value }))}
-              disabled={loading}
-            />
-          </label>
+          <div className="form-grid form-grid--profile">
+            <label>
+              <span>Full name</span>
+              <input
+                value={profile.fullName}
+                onChange={(event) => setProfile((state) => ({ ...state, fullName: event.target.value }))}
+                disabled={loading || avatarUploading}
+              />
+            </label>
 
-          <label>
-            <span>Company</span>
-            <input
-              value={profile.company}
-              onChange={(event) => setProfile((state) => ({ ...state, company: event.target.value }))}
-              disabled={loading}
-            />
-          </label>
+            <label>
+              <span>Email</span>
+              <input
+                type="email"
+                value={profile.email}
+                onChange={(event) => setProfile((state) => ({ ...state, email: event.target.value }))}
+                disabled={loading || avatarUploading}
+              />
+            </label>
 
-          <label>
-            <span>Bio</span>
-            <textarea
-              rows={3}
-              value={profile.bio}
-              onChange={(event) => setProfile((state) => ({ ...state, bio: event.target.value }))}
-              disabled={loading}
-            />
-          </label>
+            <label>
+              <span>Company</span>
+              <input
+                value={profile.company}
+                onChange={(event) => setProfile((state) => ({ ...state, company: event.target.value }))}
+                disabled={loading || avatarUploading}
+              />
+            </label>
 
-          <label>
-            <span>Timezone</span>
-            <input
-              value={profile.timezone}
-              onChange={(event) => setProfile((state) => ({ ...state, timezone: event.target.value }))}
-              disabled={loading}
-            />
-          </label>
+            <label>
+              <span>Timezone</span>
+              <input
+                value={profile.timezone}
+                onChange={(event) => setProfile((state) => ({ ...state, timezone: event.target.value }))}
+                disabled={loading || avatarUploading}
+              />
+            </label>
 
-          <label className="profile-checkbox">
-            <input
-              type="checkbox"
-              checked={profile.notifications}
-              onChange={(event) => setProfile((state) => ({ ...state, notifications: event.target.checked }))}
-              disabled={loading}
-            />
-            <span>Send product notifications</span>
-          </label>
+            <label className="form-grid--full">
+              <span>Bio</span>
+              <textarea
+                rows={3}
+                value={profile.bio}
+                onChange={(event) => setProfile((state) => ({ ...state, bio: event.target.value }))}
+                disabled={loading || avatarUploading}
+              />
+            </label>
 
-          <button type="submit" disabled={loading}>
-            Save profile
-          </button>
+            <label className="form-checkbox form-grid--full">
+              <input
+                type="checkbox"
+                checked={profile.notifications}
+                onChange={(event) => setProfile((state) => ({ ...state, notifications: event.target.checked }))}
+                disabled={loading || avatarUploading}
+              />
+              <span>Send product notifications</span>
+            </label>
+          </div>
+
+          <div className="profile-actions">
+            <button className="button" type="submit" disabled={loading || avatarUploading}>
+              Save profile
+            </button>
+          </div>
         </form>
 
-        <form className="profile-card" onSubmit={handleBillingSubmit}>
-          <h2>Billing</h2>
-          <p className="profile-muted">Manage subscription status, billing email, and payment method labels.</p>
+        <form className="form-card profile-section" onSubmit={handleBillingSubmit}>
+          <div className="profile-section__header">
+            <div>
+              <h2>Billing</h2>
+              <p className="profile-section__description">
+                Manage subscription status, billing email, and payment method labels.
+              </p>
+            </div>
+          </div>
 
-          <label>
-            <span>Plan</span>
-            <select
-              value={billing.plan}
-              onChange={(event) =>
-                setBilling((state) => ({ ...state, plan: event.target.value as BillingPreferences["plan"] }))
-              }
+          <div className="form-grid">
+            <label>
+              <span>Plan</span>
+              <select
+                value={billing.plan}
+                onChange={(event) =>
+                  setBilling((state) => ({ ...state, plan: event.target.value as BillingPreferences["plan"] }))
+                }
+                disabled={loading}
+              >
+                <option value="spark">Spark</option>
+                <option value="scale">Scale</option>
+                <option value="apex">Apex</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Billing email</span>
+              <input
+                type="email"
+                value={billing.billingEmail}
+                onChange={(event) => setBilling((state) => ({ ...state, billingEmail: event.target.value }))}
+                disabled={loading}
+              />
+            </label>
+
+            <label className="form-checkbox form-grid--full">
+              <input
+                type="checkbox"
+                checked={billing.autoRenew}
+                onChange={(event) => setBilling((state) => ({ ...state, autoRenew: event.target.checked }))}
+                disabled={loading}
+              />
+              <span>Auto-renew plan</span>
+            </label>
+
+            <label className="form-grid--full">
+              <span>Payment method label</span>
+              <input
+                value={billing.paymentMethod}
+                onChange={(event) => setBilling((state) => ({ ...state, paymentMethod: event.target.value }))}
+                disabled={loading}
+              />
+            </label>
+          </div>
+
+          <div className="profile-actions">
+            <button className="button" type="submit" disabled={loading}>
+              Save billing settings
+            </button>
+            <button
+              type="button"
+              className="button button-ghost"
+              onClick={handleCancelPlan}
               disabled={loading}
             >
-              <option value="spark">Spark</option>
-              <option value="scale">Scale</option>
-              <option value="apex">Apex</option>
-            </select>
-          </label>
-
-          <label>
-            <span>Billing email</span>
-            <input
-              type="email"
-              value={billing.billingEmail}
-              onChange={(event) => setBilling((state) => ({ ...state, billingEmail: event.target.value }))}
-              disabled={loading}
-            />
-          </label>
-
-          <label className="profile-checkbox">
-            <input
-              type="checkbox"
-              checked={billing.autoRenew}
-              onChange={(event) => setBilling((state) => ({ ...state, autoRenew: event.target.checked }))}
-              disabled={loading}
-            />
-            <span>Auto-renew plan</span>
-          </label>
-
-          <label>
-            <span>Payment method label</span>
-            <input
-              value={billing.paymentMethod}
-              onChange={(event) => setBilling((state) => ({ ...state, paymentMethod: event.target.value }))}
-              disabled={loading}
-            />
-          </label>
-
-          <button type="submit" disabled={loading}>
-            Save billing settings
-          </button>
-
-          <button type="button" className="profile-secondary" onClick={handleCancelPlan} disabled={loading}>
-            Cancel at period end
-          </button>
+              Cancel at period end
+            </button>
+          </div>
         </form>
 
-        <aside className="profile-card">
-          <h2>Subscription</h2>
-          <p className="profile-muted">Status and history are sourced directly from Supabase billing tables.</p>
+        <aside className="form-card profile-subscription">
+          <div>
+            <h2>Subscription</h2>
+            <p className="profile-section__description">
+              Status and history are sourced directly from Supabase billing tables.
+            </p>
+          </div>
 
-          <dl className="profile-subscription">
+          <dl className="profile-subscription__grid">
             <div>
               <dt>Status</dt>
-              <dd className={`status-${subscriptionStatus}`}>{subscriptionStatus}</dd>
+              <dd>
+                <span className={`status-pill status-${subscriptionStatusClass}`}>
+                  {formattedSubscriptionStatus}
+                </span>
+              </dd>
             </div>
             <div>
               <dt>Auto-renew</dt>
@@ -386,19 +596,21 @@ export default function ProfilePage(): JSX.Element {
             </div>
           </dl>
 
-          <h3>Invoice history</h3>
-          <ul className="profile-invoices">
-            {invoiceHistory.length === 0 ? <li>No invoices yet.</li> : null}
-            {invoiceHistory.map((invoice) => (
-              <li key={invoice.id}>
-                <div>
-                  <strong>{invoice.period}</strong>
-                  <span>{invoice.status}</span>
-                </div>
-                <span>{invoice.total}</span>
-              </li>
-            ))}
-          </ul>
+          <div>
+            <h3>Invoice history</h3>
+            <ul className="profile-invoices">
+              {invoiceHistory.length === 0 ? <li>No invoices yet.</li> : null}
+              {invoiceHistory.map((invoice) => (
+                <li key={invoice.id}>
+                  <div>
+                    <strong>{invoice.period}</strong>
+                    <span className="muted">{invoice.status.replace(/_/g, " ")}</span>
+                  </div>
+                  <span>{invoice.total}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </aside>
       </div>
     </div>
