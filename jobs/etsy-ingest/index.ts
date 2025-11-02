@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { EtsyProviderFactory } from "@/lib/etsy/providers/factory";
 import type { NormalizedEtsyShop } from "@/lib/etsy/types";
+import { getFeatureFlags } from "@/lib/feature-flags";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 import { loadConfig } from "./config";
@@ -36,6 +37,13 @@ async function main(): Promise<void> {
   const keywords = await extractListingKeywords(normalizedListing, config.keywordsEnabled);
 
   const supabase = getSupabaseServerClient();
+  const flags = await getFeatureFlags({ supabase });
+
+  if (!flags.require_official_etsy_api) {
+    console.warn("Etsy ingest skipped because require_official_etsy_api is disabled.");
+    return;
+  }
+
   if (!supabase) {
     throw new Error("Supabase service client is not configured. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
   }

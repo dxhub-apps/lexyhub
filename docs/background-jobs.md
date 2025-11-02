@@ -11,6 +11,9 @@ LexyHub ships a collection of background automation endpoints that hydrate dashb
 | `POST /api/jobs/rebuild-clusters` | Recomputes semantic clusters so that related keywords stay grouped as new data arrives. | Daily |
 | `POST /api/jobs/embed-missing` | Generates 3,072-dimensional vector embeddings (using `text-embedding-3-large`) for keywords or listings that do not yet have embeddings stored. | Hourly |
 | `POST /api/jobs/keyword-telemetry` | Collapses recent `keyword_events` into daily `keyword_stats` rows when the `allow_user_telemetry` feature flag is enabled. | Daily (00:30 UTC after nightly ingestion) |
+| `POST /api/jobs/etsy-sync` | Synchronises Etsy marketplace accounts when `require_official_etsy_api` is enabled and service credentials are configured. | Ad hoc / automation once API contract is stable |
+
+> **Feature flag controls:** Visit **Admin → Feature flags** (`/admin/feature-flags`) to toggle `require_official_etsy_api`, `allow_search_sampling`, and `allow_user_telemetry`. The Etsy ingest CLI, keyword SERP sampler, telemetry ingestion API, and the keyword telemetry aggregation job will all short-circuit when their corresponding flag is disabled.
 
 The Etsy sync job is temporarily disabled in automation until the upstream API contract is finalized. You can still invoke it manually while testing the integration.
 
