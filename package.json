@@ -13,7 +13,8 @@
     "scrape:etsy": "node scripts/etsy-scraper.mjs",
     "scrape:etsy-keywords": "node scripts/etsy-keyword-scraper.mjs",
     "scrape:etsy-best-sellers": "node scripts/etsy-best-sellers.mjs",
-    "jobs:etsy-ingest": "tsx jobs/etsy-ingest/index.ts"
+    "jobs:etsy-ingest": "tsx jobs/etsy-ingest/index.ts",
+    "extension:build": "tsx apps/browser-extension/scripts/build-extension.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "0.0.47",
@@ -44,7 +45,8 @@
     "prettier": "3.3.3",
     "tsx": "^4.16.2",
     "typescript": "5.4.5",
-    "vitest": "^1.6.1"
+    "vitest": "^1.6.1",
+    "archiver": "6.0.1"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,md,css,json}": [

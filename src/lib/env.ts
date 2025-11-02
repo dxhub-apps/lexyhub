@@ -21,6 +21,10 @@ const envSchema = z.object({
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   LEXYHUB_ADMIN_EMAILS: z.string().optional(),
+  BROWSER_EXTENSION_API_BASE_URL: z.string().url().optional(),
+  BROWSER_EXTENSION_ALLOW_USER_TELEMETRY_DEFAULT: z
+    .union([z.string(), z.boolean()])
+    .optional(),
 });
 
 type Env = z.infer<typeof envSchema>;
@@ -47,6 +51,9 @@ function readEnv(): Env {
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     LEXYHUB_ADMIN_EMAILS: process.env.LEXYHUB_ADMIN_EMAILS,
+    BROWSER_EXTENSION_API_BASE_URL: process.env.BROWSER_EXTENSION_API_BASE_URL,
+    BROWSER_EXTENSION_ALLOW_USER_TELEMETRY_DEFAULT:
+      process.env.BROWSER_EXTENSION_ALLOW_USER_TELEMETRY_DEFAULT,
   });
 }
 

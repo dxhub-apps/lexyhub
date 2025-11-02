@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "LexyHub Insights Collector",
+  "description": "Captures Etsy keyword interactions and forwards telemetry to LexyHub.",
+  "version": "0.1.0",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://www.etsy.com/*",
+    "https://app.lexyhub.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.etsy.com/*",
+        "https://app.lexyhub.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["config.json"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
