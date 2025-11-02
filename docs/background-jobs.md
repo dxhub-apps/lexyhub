@@ -10,6 +10,7 @@ LexyHub ships a collection of background automation endpoints that hydrate dashb
 | `POST /api/jobs/intent-classify` | Classifies keywords and listings into purchase intent categories for targeting workflows. | Daily |
 | `POST /api/jobs/rebuild-clusters` | Recomputes semantic clusters so that related keywords stay grouped as new data arrives. | Daily |
 | `POST /api/jobs/embed-missing` | Generates 3,072-dimensional vector embeddings (using `text-embedding-3-large`) for keywords or listings that do not yet have embeddings stored. | Hourly |
+| `POST /api/jobs/keyword-telemetry` | Collapses recent `keyword_events` into daily `keyword_stats` rows when the `allow_user_telemetry` feature flag is enabled. | Daily (00:30 UTC after nightly ingestion) |
 
 The Etsy sync job is temporarily disabled in automation until the upstream API contract is finalized. You can still invoke it manually while testing the integration.
 
@@ -79,7 +80,7 @@ The workflow supports two triggers:
 
 ### What the workflow does
 
-1. Iterates through the list of job endpoints (`trend-aggregation`, `intent-classify`, `rebuild-clusters`, `embed-missing`).
+1. Iterates through the list of job endpoints (`trend-aggregation`, `intent-classify`, `rebuild-clusters`, `embed-missing`, and optionally `keyword-telemetry`).
 2. Posts to each `/api/jobs/{endpoint}` URL with the configured secrets.
 3. Captures the HTTP status code and response body for auditing and uploads them as an artifact named `background-job-logs`.
 4. Fails the workflow if any endpoint returns a non-2xx response so the team is alerted in GitHub.
@@ -87,6 +88,8 @@ The workflow supports two triggers:
 ### Customizing the job list
 
 Edit the `JOB_ENDPOINTS` environment variable inside `background-jobs.yml` if you want to add, remove, or reorder tasks. Each endpoint should be the path segment that follows `/api/jobs/`. Re-introduce `etsy-sync` here once the production API is ready to accept automated traffic again.
+
+To enable the keyword telemetry aggregation in automation, set the `ENABLE_KEYWORD_TELEMETRY_JOB` secret to `true`. The workflow only appends the endpoint when that flag is present so you can keep the API behind the `allow_user_telemetry` feature flag until production telemetry is available.
 
 ## Troubleshooting
 
