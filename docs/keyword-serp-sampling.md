@@ -22,3 +22,11 @@ LexyHub now captures Etsy search result snapshots with Playwright to enrich keyw
 Update `keywords.allow_search_sampling` to opt specific terms into the sampling pipeline. The sampler respects watchlist activity and recency through the `keyword_serp_sampling_candidates` function so that monitored keywords receive priority.
 
 For ad-hoc runs, invoke `npm run jobs:keyword-serp-sampler -- --keyword-id=<uuid>` after exporting the Supabase credentials and (optionally) `ETSY_COOKIE`.
+
+## Surfacing SERP samples in the product
+
+- The keyword search API (`/api/keywords/search`) now enriches every result with provenance labels, source display names, sample counts, and the most recent SERP capture timestamp. When available, the API sources data from the `public.keyword_insights` view before falling back to the legacy `public.keywords` table.
+- Keyword rows in the intelligence workspace surface provenance text, sample recency, and a new **View details** action. Source chips reflect the filters selected in the sidebar as well as any additional datasets returned by the API.
+- The keyword detail modal calls `/api/keywords/{keywordId}/serp` to retrieve the latest captured SERP listings, derived metrics, and Etsy listing links. The endpoint groups samples by capture timestamp, joins listing metadata, and exposes a concise JSON payload for UI rendering.
+
+The detail view provides additional compliance context while keeping the existing Tag Optimizer workflow intact. If a keyword lacks SERP samples the modal explains how to connect a source with lineage visibility.

@@ -23,6 +23,8 @@ type KeywordRow = {
   source: string;
   tier?: string | number;
   method?: string | null;
+  source_method?: string | null;
+  source_reason?: string | null;
   extras?: Record<string, unknown> | null;
   trend_momentum?: number | null;
   ai_opportunity_score?: number | null;
@@ -30,6 +32,13 @@ type KeywordRow = {
   competition_score?: number | null;
   engagement_score?: number | null;
   freshness_ts?: string | null;
+  provenance?: string | null;
+  provenance_label?: string | null;
+  source_label?: string | null;
+  dataset?: string | null;
+  sample_count?: number | null;
+  serp_total_results?: number | null;
+  serp_captured_at?: string | null;
 };
 
 type RankedKeyword = KeywordRow & {
@@ -50,6 +59,13 @@ const PLAN_RANK: Record<string, number> = {
   free: 0,
   growth: 1,
   scale: 2,
+};
+
+const SOURCE_LABELS: Record<string, string> = {
+  synthetic: "Synthetic AI",
+  amazon: "Amazon Marketplace",
+  etsy: "Etsy Marketplace",
+  etsy_serp: "Etsy SERP Samples",
 };
 
 function normalizePlanTier(plan?: string | null): PlanTier {
@@ -76,6 +92,117 @@ function normalizeMetric(value: number | null | undefined, fallback = 0.5): numb
   return Math.min(1, numeric);
 }
 
+function formatLabelPart(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  return value
+    .split(/[_\-\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function mapKeywordRow(row: Record<string, unknown>): KeywordRow {
+  const market = typeof row.market === "string" && row.market.trim() ? row.market : "us";
+  const source = typeof row.source === "string" && row.source.trim() ? row.source : "synthetic";
+  const method = typeof row.method === "string" ? row.method : null;
+  const sourceMethod =
+    typeof row.source_method === "string"
+      ? row.source_method
+      : typeof row.method === "string"
+        ? row.method
+        : null;
+  const mapped: KeywordRow = {
+    id:
+      typeof row.keyword_id === "string" && row.keyword_id
+        ? row.keyword_id
+        : typeof row.id === "string"
+          ? row.id
+          : undefined,
+    term:
+      typeof row.term === "string" && row.term.trim()
+        ? row.term
+        : typeof row.keyword_term === "string" && row.keyword_term.trim()
+          ? row.keyword_term
+          : "",
+    market,
+    source,
+    tier: (row.tier as string | number | undefined) ?? undefined,
+    method,
+    source_method: sourceMethod,
+    source_reason: typeof row.source_reason === "string" ? row.source_reason : null,
+    extras: (row.extras as Record<string, unknown> | null | undefined) ?? null,
+    trend_momentum: (row.trend_momentum as number | null | undefined) ?? null,
+    ai_opportunity_score: (row.ai_opportunity_score as number | null | undefined) ?? null,
+    demand_index: (row.demand_index as number | null | undefined) ?? null,
+    competition_score: (row.competition_score as number | null | undefined) ?? null,
+    engagement_score: (row.engagement_score as number | null | undefined) ?? null,
+    freshness_ts: (row.freshness_ts as string | null | undefined) ?? null,
+    provenance:
+      typeof row.provenance === "string"
+        ? row.provenance
+        : typeof row.provenance_id === "string"
+          ? row.provenance_id
+          : null,
+    provenance_label:
+      typeof row.provenance_label === "string"
+        ? row.provenance_label
+        : typeof row.provenance_display === "string"
+          ? row.provenance_display
+          : null,
+    source_label:
+      typeof row.source_label === "string"
+        ? row.source_label
+        : typeof row.source_display_name === "string"
+          ? row.source_display_name
+          : null,
+    dataset: typeof row.dataset === "string" ? row.dataset : null,
+    sample_count:
+      (row.sample_count as number | null | undefined) ??
+      (row.serp_sample_count as number | null | undefined) ??
+      (row.samples_count as number | null | undefined) ??
+      null,
+    serp_total_results:
+      (row.serp_total_results as number | null | undefined) ??
+      (row.total_results as number | null | undefined) ??
+      (row.serp_results as number | null | undefined) ??
+      null,
+    serp_captured_at:
+      (row.serp_captured_at as string | null | undefined) ??
+      (row.last_serp_capture as string | null | undefined) ??
+      (row.captured_at as string | null | undefined) ??
+      null,
+  };
+
+  if (!mapped.provenance && mapped.source) {
+    mapped.provenance = createProvenanceId(mapped.source, mapped.market, mapped.term);
+  }
+
+  if (!mapped.provenance_label) {
+    const labelParts: string[] = [];
+    const sourceLabel = SOURCE_LABELS[mapped.source] ?? formatLabelPart(mapped.source) ?? mapped.source;
+    if (sourceLabel) {
+      labelParts.push(sourceLabel);
+    }
+    const marketLabel = mapped.market ? mapped.market.toUpperCase() : null;
+    if (marketLabel) {
+      labelParts.push(marketLabel);
+    }
+    const methodLabel = formatLabelPart(mapped.source_method ?? mapped.method ?? null);
+    if (methodLabel) {
+      labelParts.push(methodLabel);
+    }
+    mapped.provenance_label = labelParts.join(" • ") || null;
+  }
+
+  if (!mapped.source_label) {
+    mapped.source_label = SOURCE_LABELS[mapped.source] ?? formatLabelPart(mapped.source) ?? mapped.source;
+  }
+
+  return mapped;
+}
+
 function computeCompositeScore(keyword: KeywordRow): number {
   const demand = normalizeMetric(keyword.demand_index, 0.55);
   const competition = normalizeMetric(keyword.competition_score, 0.45);
@@ -96,23 +223,52 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return dot / (normA * normB);
 }
 
-async function fetchKeywordsFromSupabase(
+async function queryKeywordInsights(
+  supabase: NonNullable<ReturnType<typeof getSupabaseServerClient>>,
   market: string,
   sources: string[],
   tiers: Array<string | number>,
   limit: number,
 ): Promise<KeywordRow[]> {
-  const supabase = getSupabaseServerClient();
+  try {
+    let queryBuilder = supabase.from("keyword_insights").select("*").eq("market", market);
 
-  if (!supabase) {
+    if (sources.length > 0) {
+      queryBuilder = queryBuilder.in("source", sources);
+    }
+
+    if (tiers.length > 0) {
+      queryBuilder = queryBuilder.in("tier", tiers);
+    }
+
+    const { data, error } = await queryBuilder.limit(Math.max(limit * 6, 150));
+
+    if (error) {
+      if (error.code !== "42P01") {
+        console.warn("Keyword insights view unavailable", error);
+      }
+      return [];
+    }
+
+    return (data ?? []).map((row) => mapKeywordRow(row as Record<string, unknown>));
+  } catch (error) {
+    console.warn("Failed to query keyword insights view", error);
     return [];
   }
+}
 
+async function queryKeywordsTable(
+  supabase: NonNullable<ReturnType<typeof getSupabaseServerClient>>,
+  market: string,
+  sources: string[],
+  tiers: Array<string | number>,
+  limit: number,
+): Promise<KeywordRow[]> {
   const createQuery = (tierFilters: Array<string | number>) => {
     let queryBuilder = supabase
       .from("keywords")
       .select(
-        "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score",
+        "id, term, market, source, tier, method, source_reason, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score, provenance_id",
       )
       .eq("market", market);
 
@@ -153,7 +309,26 @@ async function fetchKeywordsFromSupabase(
     return [];
   }
 
-  return data ?? [];
+  return (data ?? []).map((row) => mapKeywordRow(row as Record<string, unknown>));
+}
+
+async function fetchKeywordsFromSupabase(
+  supabase: ReturnType<typeof getSupabaseServerClient>,
+  market: string,
+  sources: string[],
+  tiers: Array<string | number>,
+  limit: number,
+): Promise<KeywordRow[]> {
+  if (!supabase) {
+    return [];
+  }
+
+  const fromInsights = await queryKeywordInsights(supabase, market, sources, tiers, limit);
+  if (fromInsights.length > 0) {
+    return fromInsights;
+  }
+
+  return queryKeywordsTable(supabase, market, sources, tiers, limit);
 }
 
 async function buildSummary(query: string, ranked: RankedKeyword[]): Promise<string> {
@@ -344,7 +519,7 @@ async function handleSearch(req: Request): Promise<NextResponse> {
   }
 
   const userId = resolveUserId(req);
-  const keywords = await fetchKeywordsFromSupabase(market, resolvedSources, allowedTiers, limit);
+  const keywords = await fetchKeywordsFromSupabase(supabase, market, resolvedSources, allowedTiers, limit);
   if (keywords.length === 0) {
     await recordKeywordSearchRequest({
       supabase,
