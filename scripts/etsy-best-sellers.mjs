@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { chromium } from 'playwright';
+import dns from 'node:dns';
+import { setTimeout as delay } from 'node:timers/promises';
+import { Agent, ProxyAgent } from 'undici';
 import sharedBaseHtmlHeaders from '../shared/etsy-base-html-headers.json' with { type: 'json' };
 
 const USER_AGENT =
@@ -16,11 +18,48 @@ const FIXTURE_FILE = new URL('./fixtures/etsy-best-sellers-fixture.json', import
 
 const DATADOME_COOKIE_NAME = 'datadome';
 
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
+const fetchAgent = new Agent({
+  connect: {
+    family: 4,
+    timeout: 30000,
+    lookup(hostname, options, callback) {
+      return dns.lookup(hostname, { ...options, family: 4, all: false }, callback);
+    }
+  }
+});
+
+const proxyUrl =
+  process.env.HTTPS_PROXY ??
+  process.env.https_proxy ??
+  process.env.HTTP_PROXY ??
+  process.env.http_proxy ??
+  null;
+
+const dispatcher = proxyUrl ? new ProxyAgent(proxyUrl) : fetchAgent;
+
+process.once('exit', () => {
+  try {
+    fetchAgent.close();
+  } catch (error) {
+    // ignore cleanup failures
+  }
+  if (proxyUrl && dispatcher && typeof dispatcher.close === 'function') {
+    try {
+      dispatcher.close();
+    } catch (error) {
+      // ignore cleanup failures
+    }
+  }
+});
+
 const rawLimit = Number.parseInt(process.env.ETSY_BEST_SELLERS_LIMIT ?? process.argv[2] ?? '12', 10);
 const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 20) : 12;
 const categoryInput = process.env.ETSY_BEST_SELLERS_CATEGORY ?? process.argv[3] ?? '';
 const outputDir = process.env.ETSY_BEST_SELLERS_OUTPUT_DIR ?? path.join('data', 'etsy', 'best-sellers');
-const headless = !/^(0|false|off)$/i.test(process.env.ETSY_BEST_SELLERS_HEADLESS ?? 'true');
 
 function sanitizeCategory(category) {
   if (!category) return '';
@@ -201,216 +240,246 @@ function parseCookieHeader(header) {
   return cookies;
 }
 
-async function maybeApplyDataDomeCookie(context, response) {
-  if (!response || typeof response.headers !== 'function') return false;
-  try {
-    const headersArray = typeof response.headersArray === 'function'
-      ? await response.headersArray()
-      : Object.entries(response.headers()).map(([name, value]) => ({ name, value }));
-    const setCookieHeaders = headersArray
-      .filter((entry) => entry.name.toLowerCase() === 'set-cookie')
-      .map((entry) => entry.value);
-    for (const header of setCookieHeaders) {
-      if (!header.toLowerCase().startsWith(`${DATADOME_COOKIE_NAME}=`)) continue;
-      const parsed = parseCookieString(header);
-      if (!parsed) continue;
-      await context.addCookies([
-        {
-          name: parsed.name,
-          value: parsed.value,
-          domain: parsed.domain,
-          path: parsed.path,
-          secure: parsed.secure,
-          httpOnly: parsed.httpOnly,
-          sameSite: parsed.sameSite,
-          expires: parsed.expires
-        }
-      ]);
-      console.info('Applied DataDome cookie from Etsy response');
-      return true;
-    }
-  } catch (error) {
-    console.warn(
-      `Failed to apply DataDome cookie: ${error instanceof Error ? error.message : error}`
-    );
+function secondsToEpochMillis(value) {
+  if (!Number.isFinite(value)) return undefined;
+  return value > 1e12 ? value : value * 1000;
+}
+
+function isCookieExpired(cookie) {
+  if (!cookie || typeof cookie !== 'object') return true;
+  if (typeof cookie.expires === 'undefined') return false;
+  const expiresMs = secondsToEpochMillis(Number(cookie.expires));
+  if (!Number.isFinite(expiresMs)) return false;
+  return Date.now() >= expiresMs;
+}
+
+function domainMatchesCookie(cookieDomain, hostname) {
+  if (!cookieDomain) return true;
+  const normalized = cookieDomain.replace(/^\./, '').toLowerCase();
+  const host = hostname.toLowerCase();
+  return host === normalized || host.endsWith(`.${normalized}`);
+}
+
+function pathMatchesCookie(cookiePath, requestPath) {
+  if (!cookiePath) return true;
+  if (requestPath.startsWith(cookiePath)) return true;
+  if (!cookiePath.endsWith('/')) {
+    return requestPath.startsWith(`${cookiePath}/`);
   }
   return false;
 }
 
-async function warmupEtsySession(page) {
+function buildCookieHeaderFromJar(cookieJar, url) {
+  if (!cookieJar?.size) return '';
+  let parsedUrl;
   try {
-    const response = await page.goto(DEFAULT_REFERER, { waitUntil: 'domcontentloaded', timeout: 25000 });
-    await page.waitForTimeout(1500);
-    if (response) {
-      await maybeApplyDataDomeCookie(page.context(), response);
-      if (response.status() === 403) {
-        const html = await page.content();
-        if (isCaptcha(html)) {
-          console.warn('Encountered captcha while priming Etsy session');
-        }
+    parsedUrl = new URL(url);
+  } catch (error) {
+    return '';
+  }
+  const { hostname, pathname, protocol } = parsedUrl;
+  const secure = protocol === 'https:';
+  const entries = [];
+  for (const cookie of cookieJar.values()) {
+    if (isCookieExpired(cookie)) {
+      cookieJar.delete(cookie.name);
+      continue;
+    }
+    if (cookie.secure && !secure) continue;
+    if (!domainMatchesCookie(cookie.domain, hostname)) continue;
+    if (!pathMatchesCookie(cookie.path, pathname)) continue;
+    entries.push(`${cookie.name}=${cookie.value}`);
+  }
+  return entries.join('; ');
+}
+
+function setCookieInJar(cookieJar, cookie) {
+  if (!cookie || !cookie.name) return;
+  const normalized = {
+    ...cookie,
+    name: cookie.name,
+    value: cookie.value ?? '',
+    domain: (cookie.domain || '.etsy.com').toLowerCase(),
+    path: cookie.path || '/',
+    secure: typeof cookie.secure === 'boolean' ? cookie.secure : true,
+    httpOnly: typeof cookie.httpOnly === 'boolean' ? cookie.httpOnly : false,
+    sameSite: cookie.sameSite,
+    expires: typeof cookie.expires === 'undefined' ? undefined : Number(cookie.expires)
+  };
+  cookieJar.set(normalized.name, normalized);
+}
+
+function applyCookiesFromHeader(cookieJar, header) {
+  if (!header) return;
+  const parsed = parseCookieString(header);
+  if (parsed) {
+    setCookieInJar(cookieJar, parsed);
+    return;
+  }
+  for (const cookie of parseCookieHeader(header)) {
+    setCookieInJar(cookieJar, cookie);
+  }
+}
+
+function getSetCookieHeaders(response) {
+  if (!response?.headers) return [];
+  if (typeof response.headers.getSetCookie === 'function') {
+    return response.headers.getSetCookie();
+  }
+  const raw = response.headers.get('set-cookie');
+  if (!raw) return [];
+  const parts = [];
+  let buffer = '';
+  let inQuotes = false;
+  for (let index = 0; index < raw.length; index += 1) {
+    const char = raw[index];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    }
+    if (!inQuotes && char === ',') {
+      const next = raw.slice(index + 1).trimStart();
+      if (/^[^=]+=/.test(next)) {
+        parts.push(buffer.trim());
+        buffer = '';
+        continue;
       }
     }
-  } catch (error) {
-    console.warn(
-      `Failed to warm up Etsy session: ${error instanceof Error ? error.message : error}`
-    );
+    buffer += char;
   }
-  try {
-    await page.goto('about:blank');
-  } catch (error) {
-    console.warn(
-      `Failed to reset page after warmup: ${error instanceof Error ? error.message : error}`
-    );
+  if (buffer.trim()) {
+    parts.push(buffer.trim());
+  }
+  return parts;
+}
+
+function updateCookieJarFromResponse(cookieJar, response) {
+  const headers = getSetCookieHeaders(response);
+  if (!headers.length) return;
+  for (const header of headers) {
+    applyCookiesFromHeader(cookieJar, header);
   }
 }
 
-async function waitForDataDomeCookie(page, previousValue) {
-  try {
-    await page.waitForFunction(
-      ({ cookieName, previousValue: previous }) => {
-        const entries = document.cookie
-          .split(';')
-          .map((segment) => segment.trim())
-          .filter(Boolean);
-        const match = entries.find((segment) => segment.startsWith(`${cookieName}=`));
-        if (!match) return false;
-        const value = match.slice(cookieName.length + 1);
-        return !previous || value !== previous;
-      },
-      { cookieName: DATADOME_COOKIE_NAME, previousValue },
-      { timeout: 20000 }
-    );
-    return true;
-  } catch (error) {
-    return false;
+function applyEnvCookies(cookieJar, envCookie) {
+  if (!envCookie) return;
+  const potentialCookies = envCookie
+    .split(/\r?\n/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  for (const candidate of potentialCookies) {
+    const withoutPrefix = candidate.replace(/^set-cookie:/i, '').trim();
+    applyCookiesFromHeader(cookieJar, withoutPrefix);
   }
 }
 
-async function resolveDataDomeChallenge(page, url, html) {
-  if (!html || !/datadome/i.test(html)) {
-    return { success: false, response: null, html };
+function getCookieValue(cookieJar, name) {
+  if (!cookieJar?.size || !name) return null;
+  const cookie = cookieJar.get(name);
+  if (!cookie || isCookieExpired(cookie)) {
+    cookieJar.delete(name);
+    return null;
   }
-
-  const context = page.context();
-  const beforeCookies = await context.cookies();
-  const previousValue = beforeCookies.find((cookie) => cookie.name === DATADOME_COOKIE_NAME)?.value ?? null;
-
-  console.info(`Detected DataDome challenge while loading ${url}; waiting for browser challenge to complete`);
-
-  const cookieSetInPage = await waitForDataDomeCookie(page, previousValue);
-  if (!cookieSetInPage) {
-    const afterCookies = await context.cookies();
-    const updated = afterCookies.find((cookie) => cookie.name === DATADOME_COOKIE_NAME)?.value ?? null;
-    if (!updated || updated === previousValue) {
-      return { success: false, response: null, html };
-    }
-  }
-
-  try {
-    await page.waitForLoadState('networkidle', { timeout: 5000 });
-  } catch (error) {
-    // swallow timeouts — the challenge may reload immediately
-  }
-
-  await page.waitForTimeout(750);
-
-  const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-  await page.waitForTimeout(500);
-  await maybeApplyDataDomeCookie(page.context(), response);
-  const freshHtml = await page.content();
-
-  return { success: true, response, html: freshHtml };
+  return cookie.value ?? null;
 }
 
-async function loadEtsyPage(page, url, { maxAttempts = 4, allowNotFound = false } = {}) {
+async function fetchEtsyHtml(cookieJar, url, { referer = DEFAULT_REFERER, maxAttempts = 4, allowNotFound = false } = {}) {
   let attempt = 0;
+  let lastError = null;
   while (attempt < maxAttempts) {
     attempt += 1;
+    const headers = {
+      ...BASE_HTML_HEADERS,
+      Referer: referer,
+      'User-Agent': USER_AGENT,
+      Connection: 'keep-alive',
+      'Sec-Fetch-Site': referer ? 'same-origin' : 'none'
+    };
+    const cookieHeader = buildCookieHeaderFromJar(cookieJar, url);
+    if (cookieHeader) {
+      headers.Cookie = cookieHeader;
+    }
+
+    const previousDataDome = getCookieValue(cookieJar, DATADOME_COOKIE_NAME);
     let response;
     try {
-      response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      response = await fetch(url, {
+        method: 'GET',
+        headers,
+        redirect: 'follow',
+        dispatcher
+      });
     } catch (error) {
-      console.warn(
-        `Failed to navigate to ${url} (attempt ${attempt}): ${error instanceof Error ? error.message : error}`
-      );
+      lastError = error;
       if (attempt >= maxAttempts) {
-        throw error instanceof Error
-          ? error
-          : new Error(`Failed to navigate to ${url}: ${String(error)}`);
+        throw error instanceof Error ? error : new Error(`Failed to fetch ${url}: ${String(error)}`);
       }
-      await page.waitForTimeout(1500);
+      await delay(1000);
       continue;
     }
 
-    await page.waitForTimeout(500);
-    let html = await page.content();
+    const html = await response.text();
+    updateCookieJarFromResponse(cookieJar, response);
+    const currentDataDome = getCookieValue(cookieJar, DATADOME_COOKIE_NAME);
+    const dataDomeUpdated = currentDataDome && currentDataDome !== previousDataDome;
+    if (dataDomeUpdated) {
+      console.info('Applied DataDome cookie from Etsy response');
+    }
 
-    if (!response) {
-      console.warn(`No response received while loading ${url} (attempt ${attempt})`);
-      if (attempt >= maxAttempts) {
-        throw new Error(`No response while loading ${url}`);
+    if (response.status === 404 && allowNotFound) {
+      return { status: response.status, html };
+    }
+
+    if (response.status === 403 || response.status === 429) {
+      if ((dataDomeUpdated || /datadome/i.test(html)) && attempt < maxAttempts) {
+        console.warn(`Received ${response.status} for ${url}; retrying after applying DataDome cookie`);
+        await delay(1000);
+        continue;
       }
-      await page.waitForTimeout(1500);
+      if (attempt >= maxAttempts) {
+        throw new Error(`Blocked while loading ${url}`);
+      }
+      await delay(1000);
       continue;
     }
 
-    if (response.status() === 403) {
-      const applied = await maybeApplyDataDomeCookie(page.context(), response);
-      const challengeResult = await resolveDataDomeChallenge(page, url, html);
-      if (challengeResult.success) {
-        response = challengeResult.response ?? response;
-        html = challengeResult.html ?? html;
-      } else if (applied && attempt < maxAttempts) {
-        console.warn(`Received 403 for ${url}; retrying after applying DataDome cookie`);
-        await page.waitForTimeout(1500);
-        continue;
-      }
-      if (response.status() === 403) {
-        console.warn(`Blocked while loading ${url}: status=403 (attempt ${attempt})`);
-        if (attempt >= maxAttempts) {
-          throw new Error(`Blocked while loading ${url}`);
-        }
-        await page.waitForTimeout(1500);
-        continue;
-      }
-    }
-
-    if (!response.ok()) {
-      if (allowNotFound && response.status() === 404) {
-        return { response, html };
-      }
-      console.warn(`Unexpected status while loading ${url}: status=${response.status()} (attempt ${attempt})`);
+    if (!response.ok) {
       if (attempt >= maxAttempts) {
-        throw new Error(`Failed with status ${response.status()} while loading ${url}`);
+        throw new Error(`Failed with status ${response.status} while loading ${url}`);
       }
-      await page.waitForTimeout(1500);
+      await delay(1000);
       continue;
     }
 
-    if (isCaptcha(html)) {
-      const applied = await maybeApplyDataDomeCookie(page.context(), response);
-      if (applied && attempt < maxAttempts) {
-        console.warn(`Encountered captcha while loading ${url}, retrying`);
-        await page.waitForTimeout(1500);
-        continue;
+    if (isCaptcha(html) || /datadome/i.test(html)) {
+      if (attempt >= maxAttempts) {
+        throw new Error(`Encountered captcha while loading ${url}`);
       }
-      throw new Error(`Encountered captcha while loading ${url}`);
+      await delay(1000);
+      continue;
     }
 
-    return { response, html };
+    return { status: response.status, html };
   }
 
+  if (lastError) {
+    throw lastError instanceof Error
+      ? lastError
+      : new Error(`Unable to load ${url}: ${String(lastError)}`);
+  }
   throw new Error(`Unable to load ${url}`);
 }
 
-async function gatherBestSellerListingUrls(page, categoryUrl) {
-  const candidates = categoryUrl ? Array.from(new Set([categoryUrl, ...BEST_SELLER_CANDIDATES])) : [...BEST_SELLER_CANDIDATES];
+
+async function gatherBestSellerListingUrls(cookieJar, categoryUrl) {
+  const candidates = categoryUrl
+    ? Array.from(new Set([categoryUrl, ...BEST_SELLER_CANDIDATES]))
+    : [...BEST_SELLER_CANDIDATES];
   for (const url of candidates) {
     let attempt = 0;
     while (attempt < 3) {
       attempt += 1;
       try {
-        const { html } = await loadEtsyPage(page, url, { maxAttempts: 3 });
+        const { html } = await fetchEtsyHtml(cookieJar, url, { maxAttempts: 3 });
         const urls = extractListingUrlsFromHtml(html, limit);
         if (urls.length) {
           return urls;
@@ -420,7 +489,7 @@ async function gatherBestSellerListingUrls(page, categoryUrl) {
           `Failed to load best sellers ${url} (attempt ${attempt}): ${error instanceof Error ? error.message : error}`
         );
         if (attempt < 3) {
-          await page.waitForTimeout(1500);
+          await delay(1500);
           continue;
         }
       }
@@ -430,109 +499,29 @@ async function gatherBestSellerListingUrls(page, categoryUrl) {
   throw new Error('Unable to locate best seller listings');
 }
 
-async function scrapeBestSellersWithPlaywright(categoryUrl) {
-  const browser = await chromium.launch({
-    headless,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-blink-features=AutomationControlled'
-    ]
-  });
-  const context = await browser.newContext({
-    userAgent: USER_AGENT,
-    viewport: { width: 1280, height: 720 },
-    locale: 'en-US',
-    extraHTTPHeaders: {
-      ...BASE_HTML_HEADERS,
-      Referer: DEFAULT_REFERER,
-      'Sec-Fetch-Site': 'same-origin'
-    },
-    ignoreHTTPSErrors: true
-  });
+async function scrapeBestSellersWithFetch(categoryUrl) {
+  const cookieJar = new Map();
+  applyEnvCookies(cookieJar, process.env.ETSY_COOKIE);
+  if (cookieJar.size) {
+    console.info(`Loaded ${cookieJar.size} cookies from ETSY_COOKIE`);
+  }
 
-  const envCookie = process.env.ETSY_COOKIE;
-  if (envCookie) {
-    const potentialCookies = envCookie
-      .split(/\r?\n/)
-      .map((entry) => entry.trim())
-      .filter(Boolean);
-    const parsedCookies = [];
-    for (const candidate of potentialCookies) {
-      const withoutPrefix = candidate.replace(/^set-cookie:/i, '').trim();
-      const parsed = parseCookieString(withoutPrefix);
-      if (parsed) {
-        parsedCookies.push({
-          name: parsed.name,
-          value: parsed.value,
-          domain: parsed.domain || '.etsy.com',
-          path: parsed.path || '/',
-          secure: typeof parsed.secure === 'boolean' ? parsed.secure : true,
-          httpOnly: typeof parsed.httpOnly === 'boolean' ? parsed.httpOnly : false,
-          sameSite: parsed.sameSite,
-          expires: parsed.expires
-        });
-        continue;
-      }
-      parsedCookies.push(...parseCookieHeader(withoutPrefix));
-    }
-    if (parsedCookies.length) {
-      const uniqueCookies = Array.from(
-        parsedCookies
-          .reverse()
-          .reduce((map, cookie) => map.set(cookie.name, cookie), new Map())
-          .values()
-      ).reverse();
-      await context.addCookies(uniqueCookies);
-      console.info(`Loaded ${uniqueCookies.length} cookies from ETSY_COOKIE`);
-    } else {
-      console.warn('ETSY_COOKIE was provided but could not be parsed');
+  const urls = await gatherBestSellerListingUrls(cookieJar, categoryUrl);
+  const selected = urls.slice(0, limit);
+  const listings = [];
+  for (const url of selected) {
+    try {
+      listings.push(await scrapeListing(cookieJar, url));
+    } catch (error) {
+      console.warn(`Failed to scrape listing ${url}: ${error instanceof Error ? error.message : error}`);
     }
   }
-  await context.addInitScript(() => {
-    Object.defineProperty(navigator, 'webdriver', {
-      get() {
-        return undefined;
-      }
-    });
-    window.chrome = { runtime: {} };
-    Object.defineProperty(navigator, 'languages', {
-      get() {
-        return ['en-US', 'en'];
-      }
-    });
-    Object.defineProperty(navigator, 'platform', {
-      get() {
-        return 'Win32';
-      }
-    });
-  });
-  const page = await context.newPage();
 
-  try {
-    await warmupEtsySession(page);
-    const urls = await gatherBestSellerListingUrls(page, categoryUrl);
-    const selected = urls.slice(0, limit);
-    const listings = [];
-    for (const url of selected) {
-      try {
-        listings.push(await scrapeListing(context, url));
-      } catch (error) {
-        console.warn(`Failed to scrape listing ${url}: ${error instanceof Error ? error.message : error}`);
-      }
-    }
-
-    if (!listings.length) {
-      throw new Error('No listings scraped successfully');
-    }
-
-    return { urls, listings, source: 'playwright-best-sellers' };
-  } finally {
-    await page.close();
-    await context.close();
-    await browser.close();
+  if (!listings.length) {
+    throw new Error('No listings scraped successfully');
   }
+
+  return { urls, listings, source: 'fetch-best-sellers' };
 }
 
 async function loadFixtureBestSellers(desiredLimit) {
@@ -558,16 +547,18 @@ async function loadFixtureBestSellers(desiredLimit) {
   }
 }
 
-async function scrapeListing(context, url) {
-  const page = await context.newPage();
-  try {
-    const { response, html } = await loadEtsyPage(page, url, { maxAttempts: 4, allowNotFound: true });
+async function scrapeListing(cookieJar, url) {
+  const { status, html } = await fetchEtsyHtml(cookieJar, url, {
+    maxAttempts: 4,
+    allowNotFound: true,
+    referer: DEFAULT_REFERER
+  });
 
-    if (response.status() === 404) {
-      throw new Error(`Listing not found: ${url}`);
-    }
+  if (status === 404) {
+    throw new Error(`Listing not found: ${url}`);
+  }
 
-    const jsonLd = parseJsonLd(html);
+  const jsonLd = parseJsonLd(html);
     const product = jsonLd.find((entry) =>
       entry && typeof entry === 'object' && /product/i.test(String(entry['@type'] ?? ''))
     ) ?? {};
@@ -653,11 +644,8 @@ async function scrapeListing(context, url) {
             : null
       },
       fetchedAt: new Date().toISOString(),
-      source: 'playwright-best-sellers'
+      source: 'fetch-best-sellers'
     };
-  } finally {
-    await page.close();
-  }
 }
 
 async function main() {
@@ -670,7 +658,7 @@ async function main() {
 
   if (allowScrape) {
     try {
-      result = await scrapeBestSellersWithPlaywright(categoryUrl);
+      result = await scrapeBestSellersWithFetch(categoryUrl);
     } catch (error) {
       console.warn(
         `Failed to scrape Etsy best sellers: ${error instanceof Error ? error.message : error}`
