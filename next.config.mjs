@@ -5,13 +5,18 @@ const nextConfig = {
     domains: [
       // avatar default
       "avatar.vercel.sh",
-      // supabase (se usar)
-      "your-project-ref.supabase.co",
-      // oauth comuns
+      // oauth commons
       "lh3.googleusercontent.com",
       "avatars.githubusercontent.com",
-      // seu Vercel Blob exato
+      // your specific Vercel Blob bucket
       "nkckrqwxwgv0epzk.public.blob.vercel-storage.com",
+    ],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.supabase.co",
+        pathname: "/storage/v1/object/public/**",
+      },
     ],
   },
   webpack: (config, { isServer }) => {
