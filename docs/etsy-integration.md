@@ -30,14 +30,49 @@ Stateful security:
   - Full reload with `?mode=full`
 - Sync results are written to `provider_sync_states` for observability.
 
-## 4. Market Twin Simulator
+## 4. Ingest Service
+
+- The ingest service lives in `apps/nextjs/app/api/jobs/etsy-ingest/route.ts` and is invoked both by the OAuth callback and cron endpoints.
+- Each run issues a `normalizeListingPayload` call that enriches the baseline listing with shop details, tag rollups, keyword extraction, and SERP placements.
+- Ingest batches are chunked by shop so the service can parallelize `getListingsByShop` requests without overwhelming Etsy's rate limits.
+- The service emits structured JSON logs with the `ingest` namespace, allowing Datadog and Supabase Logflare to surface error rates and duration percentiles for on-call engineers.
+
+## 5. Telemetry Extension
+
+- A dedicated telemetry extension captures user actions performed in the editing suite once an Etsy account is linked.
+- Events are captured through `supabaseClient.from('etsy_editor_events')` and tagged with the `allow_user_telemetry` feature flag so privacy-sensitive workspaces can opt out at runtime.
+- When telemetry is enabled, the extension augments each Market Twin simulation with `event_type = 'market-twin-run'`, which feeds the keyword telemetry job summarised in `/api/jobs/keyword-telemetry`.
+- Client-side batching replays events in 10-second windows to minimise network chatter without losing fidelity.
+
+## 6. SERP Sampling
+
+- The SERP sampler is exposed at `POST /api/jobs/etsy-serp-sample` and powers freshness metrics across dashboards and experiments.
+- Samples target both keyword SERPs and category browse pages; results are normalised into `etsy_serp_samples` with ranking, price, shipping, and badge context.
+- Sampling cadence defaults to every four hours via Vercel Cron, but can be tuned per environment through the `ETSY_SERP_SAMPLE_INTERVAL` secret.
+- Editors can replay the sampler manually from the **Etsy tools** panel in the editing workspace, which calls the same API with a scoped keyword list.
+
+## 7. Feature Flag Controls
+
+- Etsy-specific experiences are governed by flags stored in `feature_flags` with the `etsy.` prefix (`etsy.market-twin`, `etsy.telemetry`, `etsy.serp-sampling`).
+- Toggle flags from the Backoffice UI (`/admin/backoffice/feature-flags`) or via the Supabase dashboard to stage incremental rollouts.
+- API routes resolve flag state through the shared `getFeatureFlag` helper, ensuring SSR pages, server actions, and edge functions all read the same configuration.
+- Default states are documented in `config/feature-flags.ts` so new environments bootstrap with the expected Etsy coverage.
+
+## 8. Dashboard Provenance Labels
+
+- Every dashboard widget that consumes Etsy data now renders a provenance label (e.g., **Source: Etsy API** or **Source: LexyHub SERP Sampler**).
+- Labels live inside the shared `DashboardProvenanceTag` component and derive their copy from the new `etsyDataProvenance` map in `shared/provenance.ts`.
+- Hovering the label reveals the last sync timestamp and ingest service run ID, helping analysts trace anomalies back to specific syncs.
+- Provenance labels also display the effective feature flag state so teams can verify whether telemetry or SERP sampling influenced the metric.
+
+## 9. Market Twin Simulator
 - The Market Twin API (`POST /api/market-twin`) runs a scenario against a baseline Etsy listing.
 - Embeddings come from `getOrCreateEmbedding`, enabling cosine similarity scoring for semantic gap calculations.
 - Trend deltas leverage existing keyword momentum stored in Supabase `keywords`.
 - Simulation runs are persisted in `ai_predictions` with method `market-twin`.
 - The React wizard at `/market-twin` uses `/api/listings` to surface the newest Etsy metrics, now ensuring the freshest stats per listing.
 
-## 5. Editing Suite Intelligence
+## 10. Editing Suite Intelligence
 - The `/editing` workspace exposes three new tools fed by Etsy data:
   - **Listing intelligence** (`POST /api/listings/intelligence`) hydrates `listing_quality_audits` with quality, sentiment, keyword, and quick-fix insights for any synced or ad-hoc listing payload.
   - **Competitor analysis** (`POST /api/insights/competitors`) builds `competitor_snapshots` and `competitor_snapshot_listings` records so editors can benchmark pricing, tone, and saturation.
@@ -45,19 +80,19 @@ Stateful security:
 - Each endpoint surfaces analytics via Vercel (`listing.intelligence.run`, `competitor.analysis.run`, `tag.optimizer.run`) so adoption can be monitored without extra instrumentation.
 - The navigation entry is wired through `AppShell`, and all pages are guarded by the authenticated `(app)` layout.
 
-## 6. Billing Automation
+## 11. Billing Automation
 - Stripe webhooks (`/api/billing/webhook`) validate signatures before recording invoice and subscription updates.
 - Subscriptions sync plan and quota metadata into `billing_subscriptions`, `user_profiles`, and `plan_overrides`.
 - The profile workspace (`/profile`) fetches data from `/api/billing/subscription` to render plan controls and billing history.
 
-## 7. Local Development Tips
+## 12. Local Development Tips
 - Without live Etsy credentials the client helpers fall back to deterministic demo payloads so flows stay testable.
 - Use `npm run lint`, `npm run test`, and `npm run build` to validate the full Sprint 4 surface.
 - For repeated manual syncs, supply a specific `userId` to `/api/jobs/etsy-sync?userId=<uuid>` to scope the run during development.
 
 With these pieces configured, Etsy sellers can authenticate, keep their catalog up to date, simulate go-to-market adjustments, and optimise listing content entirely inside LexyHub.
 
-## 8. GitHub Scraper Workflow
+## 13. GitHub Scraper Workflow
 
 In addition to the in-app synchronisation flows, the repository now ships with a dedicated GitHub Actions workflow that can pull fresh listing intelligence on demand or on a daily cadence. This is helpful when you need a lightweight export without invoking the full Supabase ETL pipeline.
 
@@ -92,7 +127,7 @@ npm run scrape:etsy
 
 The script writes a JSON file containing the raw listing metadata plus a condensed summary for each item. Subsequent automation can ingest these files or push them into Supabase for deeper analysis.
 
-## 9. Keyword suggestion harvesting (no official API required)
+## 14. Keyword suggestion harvesting (no official API required)
 
 Many keyword discovery tasks only need Etsy's public autocomplete results. The repository now includes a dedicated Node script
 and GitHub Action that capture those suggestions, persist them inside Supabase, and feed them into the unified `keywords` table
@@ -141,7 +176,7 @@ npm run scrape:etsy-keywords
 The command prints the number of suggestions captured per query and the total keyword upserts performed. Inspect the
 `etsy_keyword_scrapes` table to audit historical runs or replay downstream processing.
 
-## 10. Provider abstraction and ingestion toggle
+## 15. Provider abstraction and ingestion toggle
 
 - To switch Etsy ingestion from HTML scraping to the official API, set `ETSY_DATA_SOURCE=API` and provide `ETSY_API_KEY`,
   `ETSY_API_SECRET`, and `ETSY_BASE_URL`. No other code changes are needed.
@@ -150,7 +185,7 @@ The command prints the number of suggestions captured per query and the total ke
 - If the API exposes richer fields—inventory, product variations, or shop-level metrics—map them into the `raw` payload on the
   normalized listing and expand the schema additively so existing consumers remain backward compatible.
 
-## 11. Automated best-seller ingestion
+## 16. Automated best-seller ingestion
 
 - The listing intelligence API accepts `ingestionMode="best-sellers"` to pull the current best sellers category without a user-supplied URL.
 - `ScrapeEtsyProvider.search` loads `https://www.etsy.com/market/top_sellers` with a throttled HTML request, extracts the
@@ -184,7 +219,7 @@ The command prints the number of suggestions captured per query and the total ke
 - Listing detail fetches reuse the same cookie jar and retry loop as the discovery step. Each request retries a few times when
   a new `datadome` token arrives, logs blocked attempts, and then defers to the fixture if Etsy continues serving captchas.
 
-## 12. Handling Etsy anti-bot responses
+## 17. Handling Etsy anti-bot responses
 
 - Both `ScrapeEtsyProvider.getListingByUrl` and `ScrapeEtsyProvider.gatherBestSellerListingUrls` now warm up the session with a
   homepage visit, replay any `Set-Cookie` headers Etsy issues, and send a full browser header set (including `Accept-Encoding`,
