@@ -1,0 +1,41 @@
+name: Keyword SERP Sampling
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 5 * * *"
+
+jobs:
+  sample-serps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      ETSY_COOKIE: ${{ secrets.ETSY_COOKIE }}
+      SERP_SAMPLE_LIMIT: ${{ vars.SERP_SAMPLE_LIMIT || '12' }}
+    steps:
+      - name: Validate configuration
+        run: |
+          set -euo pipefail
+          if [ -z "${NEXT_PUBLIC_SUPABASE_URL:-}" ]; then
+            echo "::error ::NEXT_PUBLIC_SUPABASE_URL is required" && exit 1
+          fi
+          if [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+            echo "::error ::SUPABASE_SERVICE_ROLE_KEY is required" && exit 1
+          fi
+          if [ -z "${ETSY_COOKIE:-}" ]; then
+            echo "::warning ::ETSY_COOKIE is empty; captcha challenges are likely."
+          fi
+          echo "Sampling up to ${SERP_SAMPLE_LIMIT:-12} keywords"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Run keyword SERP sampler
+        run: npm run jobs:keyword-serp-sampler
