@@ -44,6 +44,10 @@ best-effort; without them the radar returns empty datasets.
   validate the authenticated user and then merge the returned payload into the session object passed to React context.
   This keeps initial session hydration working for the client while ensuring authorization decisions rely on data that is
   revalidated against Supabase Auth.
+- Development previously relied on a sentinel user ID (`00000000-0000-0000-0000-000000000001`) to simulate sessions. This fallback
+  is removed—client components must forward the authenticated Supabase `user.id` via the `x-user-id` header (or an explicit
+  `userId` query parameter where the API supports it) when calling internal routes such as `/api/usage/summary`, `/api/watchlists`,
+  and AI helpers.
 
 > **Keyword tier column compatibility**
 >

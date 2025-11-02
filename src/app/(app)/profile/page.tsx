@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { upload } from "@vercel/blob/client";
+import { useSession } from "@supabase/auth-helpers-react";
 
 import { useToast } from "@/components/ui/ToastProvider";
 
@@ -19,8 +20,6 @@ const PLAN_SUMMARY: Record<string, string> = {
   scale: "Full Etsy sync, Market Twin history, and quota multipliers.",
   apex: "Unlimited sources, dedicated analyst hours, and real-time refreshes.",
 };
-
-const DEFAULT_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 type InvoiceHistoryRow = {
   id: string;
@@ -67,6 +66,8 @@ const AVATAR_FALLBACK = "https://avatar.vercel.sh/lexyhub.svg?size=120&backgroun
 
 export default function ProfilePage(): JSX.Element {
   const { push } = useToast();
+  const session = useSession();
+  const userId = session?.user?.id ?? null;
   const [profile, setProfile] = useState<ProfileDetails>(EMPTY_PROFILE);
   const [billing, setBilling] = useState<BillingPreferences>({
     plan: "spark",
@@ -83,9 +84,19 @@ export default function ProfilePage(): JSX.Element {
   const activePlanSummary = useMemo(() => PLAN_SUMMARY[billing.plan], [billing.plan]);
 
   const loadData = useCallback(async () => {
+    if (!userId) {
+      setProfile(EMPTY_PROFILE);
+      setBilling({ plan: "spark", billingEmail: "", autoRenew: true, paymentMethod: "" });
+      setInvoiceHistory([]);
+      setSubscriptionStatus("unknown");
+      setPeriodEnd(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      const profileResponse = await fetch(`/api/profile?userId=${DEFAULT_USER_ID}`);
+      const profileResponse = await fetch(`/api/profile?userId=${encodeURIComponent(userId)}`);
       if (!profileResponse.ok) {
         const payload = await profileResponse.json().catch(() => ({}));
         throw new Error(payload.error ?? `Failed to load profile (${profileResponse.status})`);
@@ -105,7 +116,7 @@ export default function ProfilePage(): JSX.Element {
     }
 
     try {
-      const response = await fetch(`/api/billing/subscription?userId=${DEFAULT_USER_ID}`);
+      const response = await fetch(`/api/billing/subscription?userId=${encodeURIComponent(userId)}`);
       const json = await response.json();
       if (!response.ok) {
         throw new Error(json.error ?? `Failed to load billing data (${response.status})`);
@@ -156,7 +167,7 @@ export default function ProfilePage(): JSX.Element {
     } finally {
       setLoading(false);
     }
-  }, [push]);
+  }, [push, userId]);
 
   useEffect(() => {
     void loadData();
@@ -164,8 +175,16 @@ export default function ProfilePage(): JSX.Element {
 
   const handleProfileSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!userId) {
+      push({
+        title: "Profile unavailable",
+        description: "You must be signed in to update your profile.",
+        tone: "error",
+      });
+      return;
+    }
     try {
-      const response = await fetch(`/api/profile?userId=${DEFAULT_USER_ID}`, {
+      const response = await fetch(`/api/profile?userId=${encodeURIComponent(userId)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(profile),
@@ -192,6 +211,15 @@ export default function ProfilePage(): JSX.Element {
   const handleAvatarSelect = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
+      return;
+    }
+
+    if (!userId) {
+      push({
+        title: "Avatar unavailable",
+        description: "You must be signed in to update your profile photo.",
+        tone: "error",
+      });
       return;
     }
 
@@ -229,16 +257,16 @@ export default function ProfilePage(): JSX.Element {
         .replace(/[^a-z0-9_.-]+/g, "-")
         .replace(/-{2,}/g, "-")
         .replace(/^-+|-+$/g, "");
-      const pathname = `users/${DEFAULT_USER_ID}/avatar-${Date.now()}-${sanitizedName || "upload"}`;
+      const pathname = `users/${userId}/avatar-${Date.now()}-${sanitizedName || "upload"}`;
 
       const uploaded = await upload(pathname, file, {
         access: "public",
         contentType: file.type,
         handleUploadUrl: "/api/profile/avatar",
-        clientPayload: JSON.stringify({ userId: DEFAULT_USER_ID }),
+        clientPayload: JSON.stringify({ userId }),
       });
 
-      const response = await fetch(`/api/profile?userId=${DEFAULT_USER_ID}`, {
+      const response = await fetch(`/api/profile?userId=${encodeURIComponent(userId)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ avatarUrl: uploaded.url }),
@@ -268,8 +296,16 @@ export default function ProfilePage(): JSX.Element {
 
   const handleBillingSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!userId) {
+      push({
+        title: "Subscription unavailable",
+        description: "You must be signed in to manage billing preferences.",
+        tone: "error",
+      });
+      return;
+    }
     try {
-      const response = await fetch(`/api/billing/subscription?userId=${DEFAULT_USER_ID}`, {
+      const response = await fetch(`/api/billing/subscription?userId=${encodeURIComponent(userId)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(billing),
@@ -294,8 +330,16 @@ export default function ProfilePage(): JSX.Element {
   };
 
   const handleCancelPlan = async () => {
+    if (!userId) {
+      push({
+        title: "Cancellation unavailable",
+        description: "You must be signed in to manage your plan.",
+        tone: "error",
+      });
+      return;
+    }
     try {
-      const response = await fetch(`/api/billing/subscription?userId=${DEFAULT_USER_ID}`, {
+      const response = await fetch(`/api/billing/subscription?userId=${encodeURIComponent(userId)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...billing, autoRenew: false }),
