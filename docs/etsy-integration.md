@@ -174,19 +174,15 @@ The command prints the number of suggestions captured per query and the total ke
   workflow starts failing with 403/429 responses.
 - The editing workspace now surfaces an **Analyze Etsy best seller** shortcut so editors can run the full keyword, difficulty,
   and AI suggestion pipelines using fresh category leaders with one click.
-- A dedicated Playwright-driven script (`npm run scrape:etsy-best-sellers`) mirrors the best seller ingestion flow without
-  touching the Supabase pipeline. The accompanying workflow `.github/workflows/etsy-best-sellers.yml` installs Chromium,
-  executes the script on a 09:00 UTC cadence (or on demand via **Run workflow**), and publishes timestamped JSON captures under
-  `data/etsy/best-sellers/` as short-lived build artifacts.
-- The browser session now completes Etsy's DataDome JavaScript challenge instead of issuing raw fetches. Each navigation waits
-  for the in-page cookie write, reloads the original URL once the token changes, and only then extracts the DOM. This keeps the
-  scraper aligned with how a real browser solves the challenge and dramatically reduces fallback fixture usage.
-- In environments where Etsy's DataDome challenge blocks live scraping, the script now falls back to a deterministic fixture
-  stored at `scripts/fixtures/etsy-best-sellers-fixture.json`. Set `ETSY_BEST_SELLERS_MODE=scrape` to disable the fallback or
-  `ETSY_BEST_SELLERS_MODE=fixture` to skip launching Playwright entirely (handy for local dry runs and CI smoke tests).
-- Listing detail fetches reuse the same DataDome-aware retry loop as the category discovery step. Each Playwright navigation
-  attempts up to three loads, reapplies any `datadome` cookies Etsy returns (even on captcha pages), and logs every blocked
-  attempt so maintainers can track anti-bot pressure over time.
+- The standalone best-seller script (`npm run scrape:etsy-best-sellers`) now mirrors the production provider with an
+  `undici`-backed HTTP client instead of Playwright. It reuses the shared header manifest, honors outbound proxies through the
+  standard `HTTP(S)_PROXY` variables, and records every DataDome cookie the moment Etsy issues it, so subsequent requests keep
+  the same session.
+- When DataDome challenges persist or a category URL returns `404`, the script automatically falls back to the deterministic
+  fixture stored at `scripts/fixtures/etsy-best-sellers-fixture.json`. Set `ETSY_BEST_SELLERS_MODE=scrape` to force live
+  requests or `ETSY_BEST_SELLERS_MODE=fixture` to skip the network entirely (handy for dry runs and CI smoke tests).
+- Listing detail fetches reuse the same cookie jar and retry loop as the discovery step. Each request retries a few times when
+  a new `datadome` token arrives, logs blocked attempts, and then defers to the fixture if Etsy continues serving captchas.
 
 ## 12. Handling Etsy anti-bot responses
 
