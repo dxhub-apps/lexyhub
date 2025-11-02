@@ -23,6 +23,8 @@ This guide captures the baseline environment configuration for the LexyHub produ
 | `REDDIT_CLIENT_ID` / `REDDIT_CLIENT_SECRET` | OAuth credentials for Reddit trend ingest. |
 | `PARTNER_API_STATIC_KEYS` | Comma or newline separated `key:name:limit` entries for fixed partner keys. |
 | `LEXYHUB_ADMIN_EMAILS` | Optional comma/newline/space separated list of email addresses that should receive admin privileges, unlimited quotas, and access to `/admin/backoffice`. |
+| `BROWSER_EXTENSION_API_BASE_URL` | Base URL that the browser extension uses for authenticated API calls (for example `https://app.lexyhub.com`). |
+| `BROWSER_EXTENSION_ALLOW_USER_TELEMETRY_DEFAULT` | Optional default (`true`/`false`) for the extension when a user has not yet opted in or out of telemetry. |
 
 Mirror these secrets in both Vercel project settings and GitHub Actions secrets. Supabase credentials are mandatory for API
 responses—missing values surface as `503` errors rather than synthetic fallbacks. Optional trend provider keys remain
