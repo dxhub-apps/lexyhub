@@ -136,6 +136,11 @@ Each sprint lists epics, cross-functional tasks, acceptance criteria, and instru
 - **S4-UX Enhancements**
   - [x] Global top bar user menu with avatar, help, logout, and a theme submenu.
   - [x] Theme system supporting light, dark, and system preferences across the shell.
+- **S4-E4 Ingestion Telemetry & Manual Imports**
+  - [x] Append ingest metadata columns on `keywords` so every pipeline run preserves lineage, batch identifiers, and the raw source pointer.
+  - [x] Expand `listings` with manual ingestion fields (source identifiers, first/last seen timestamps, popularity scoring) plus the `owner_user_id` bridge for non-auth records.
+  - [x] Create ingestion support tables: `raw_sources`, `listing_keywords`, `keyword_events`, `keyword_stats`, `keyword_serp_samples`, and `feature_flags`, complete with indexes for analytics workloads.
+  - [x] Seed a `manual` provider + sentinel marketplace account to keep `/api/listings` joins working when merchants upload listings without OAuth.
 - **Exit Criteria:** Etsy sellers can connect, run Market Twin simulations, and manage billing through LexyHub.
   - Refer to `docs/etsy-integration.md` for configuration, cron jobs, and Market Twin usage guidance.
 

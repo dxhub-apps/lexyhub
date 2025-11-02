@@ -38,12 +38,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   let query = supabase
     .from("listings")
     .select(
-      "id, title, status, price_cents, currency, external_listing_id, updated_at, marketplace_accounts!inner(id, provider_id, shop_name, user_id)"
+      "id, title, status, price_cents, currency, external_listing_id, updated_at, marketplace_accounts!left(id, provider_id, shop_name, user_id)"
     )
     .order("updated_at", { ascending: false })
     .limit(100);
 
-  query = query.eq("marketplace_accounts.user_id", userId);
+  query = query.eq("owner_user_id", userId);
 
   const { data, error } = await query;
 
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       currency: row.currency ?? null,
       externalId: row.external_listing_id,
       shopName: account?.shop_name ?? null,
-      providerId: account?.provider_id ?? "etsy",
+      providerId: account?.provider_id ?? "manual",
       updatedAt: row.updated_at ?? null,
       tags: tagsByListing.get(row.id) ?? [],
       stats: stat ? { views: stat.views, favorites: stat.favorites } : undefined,
