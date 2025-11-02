@@ -39,6 +39,7 @@
     "src/**/*.tsx",
     "app/**/*.ts",
     "app/**/*.tsx",
+    "jobs/**/*.ts",
     ".next/types/**/*.ts"
   ],
   "exclude": [
