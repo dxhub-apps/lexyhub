@@ -2,23 +2,16 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "avatar.vercel.sh",
-      },
-      {
-        protocol: "https",
-        hostname: "*.supabase.co",
-      },
-      {
-        protocol: "https",
-        hostname: "lh3.googleusercontent.com",
-      },
-      {
-        protocol: "https",
-        hostname: "avatars.githubusercontent.com",
-      },
+    domains: [
+      // avatar default
+      "avatar.vercel.sh",
+      // supabase (se usar)
+      "your-project-ref.supabase.co",
+      // oauth comuns
+      "lh3.googleusercontent.com",
+      "avatars.githubusercontent.com",
+      // seu Vercel Blob exato
+      "nkckrqwxwgv0epzk.public.blob.vercel-storage.com",
     ],
   },
   webpack: (config, { isServer }) => {
