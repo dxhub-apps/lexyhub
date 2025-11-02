@@ -14,6 +14,7 @@ jobs:
       SERVICE_TOKEN: ${{ secrets.LEXYHUB_SERVICE_TOKEN }}
       # Temporary: Etsy sync is disabled until the external API is ready again.
       JOB_ENDPOINTS: "trend-aggregation intent-classify rebuild-clusters embed-missing"
+      ENABLE_KEYWORD_TELEMETRY_JOB: ${{ secrets.ENABLE_KEYWORD_TELEMETRY_JOB }}
     steps:
       - name: Validate configuration
         shell: bash
@@ -38,7 +39,13 @@ jobs:
           base_url="${APP_BASE_URL%/}"
           success="true"
 
-          for endpoint in $JOB_ENDPOINTS; do
+          endpoints="$JOB_ENDPOINTS"
+
+          if [ "${ENABLE_KEYWORD_TELEMETRY_JOB}" = "true" ]; then
+            endpoints="$endpoints keyword-telemetry"
+          fi
+
+          for endpoint in $endpoints; do
             url="${base_url}/api/jobs/${endpoint}"
             response_file="logs/${endpoint}.json"
             status_file="logs/${endpoint}.status"
