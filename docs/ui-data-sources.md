@@ -6,7 +6,7 @@ This guide maps every interactive surface in the LexyHub web app to the Supabase
 
 | UI element | How data is loaded | Supabase tables / stores |
 | --- | --- | --- |
-| Topbar user menu | The menu bootstraps with the Supabase session but hydrates avatar, name, and email by fetching `/api/profile` for the authenticated user ID when the component mounts.【F:src/components/layout/UserMenu.tsx†L137-L207】 | `user_profiles` (profile settings JSON keyed by `user_id`).【F:src/app/api/profile/route.ts†L36-L82】 |
+| Topbar user menu | The menu bootstraps with the Supabase session but hydrates avatar, name, and email by fetching `/api/profile` for the authenticated user ID when the component mounts.【F:src/components/layout/UserMenu.tsx†L137-L207】 | `user_profiles` (`avatar_url` column for the Vercel Blob image plus profile settings JSON keyed by `user_id`).【F:src/app/api/profile/route.ts†L36-L138】 |
 
 ## Dashboard (`/dashboard`)
 
@@ -65,7 +65,7 @@ Keyword search now normalizes cached embedding payloads retrieved from Supabase 
 
 | UI element | How data is loaded | Supabase tables / stores |
 | --- | --- | --- |
-| Profile preferences form | The page loads `/api/profile` to populate form fields and uses the same endpoint via `PATCH` to persist updates to the Supabase profile settings JSON.【F:src/app/(app)/profile/page.tsx†L69-L200】 | `user_profiles` (plan, momentum, settings payload).【F:src/app/api/profile/route.ts†L20-L138】 |
+| Profile preferences form | The page loads `/api/profile` to populate form fields and uses the same endpoint via `PATCH` to persist updates to the Supabase profile settings JSON and `avatar_url` column.【F:src/app/(app)/profile/page.tsx†L69-L200】 | `user_profiles` (plan, momentum, `avatar_url`, and settings payload).【F:src/app/api/profile/route.ts†L20-L138】 |
 | Billing preferences form | `/api/billing/subscription` delivers subscription status, invoices, and stored payment label; submitting the form issues a `PATCH` that updates subscription flags and profile settings, then reloads the view.【F:src/app/(app)/profile/page.tsx†L91-L227】 | `billing_subscriptions`, `billing_invoice_events`, `user_profiles` (plan & stored payment label).【F:src/app/api/billing/subscription/route.ts†L13-L115】 |
 | Invoice history table | The response invoices are normalized into the UI table showing billing periods, totals, and statuses.【F:src/app/(app)/profile/page.tsx†L113-L137】 | `billing_invoice_events` (per-invoice data).【F:src/app/api/billing/subscription/route.ts†L33-L47】 |
 | Cancel plan button | Reuses the billing `PATCH` endpoint to flip `autoRenew` off and refresh state after confirmation.【F:src/app/(app)/profile/page.tsx†L203-L227】 | `billing_subscriptions` (cancellation flag).【F:src/app/api/billing/subscription/route.ts†L77-L97】 |
