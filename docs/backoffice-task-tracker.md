@@ -13,8 +13,8 @@ blocking dependencies without leaving the admin environment.
   each task. Tasks render in columnar swim lanes grouped by status to provide an instant kanban view.
 - **Dependency mapping:** Multi-select dependency management lets you flag upstream blockers. The UI calls
   out "Blocked by" tasks so sequencing issues are visible while planning.
-- **Admin scoped:** All API interactions require the `x-user-role: admin` header, mirroring other
-  backoffice tools.
+- **Admin scoped:** Access to the UI and APIs now requires an authenticated admin session. Eligibility is determined by Supabase
+  metadata or the `LEXYHUB_ADMIN_EMAILS` allowlist; the legacy `x-user-role` header is no longer trusted for authorization.
 
 ## API reference
 

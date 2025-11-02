@@ -20,6 +20,7 @@ const envSchema = z.object({
   ETSY_BASE_URL: z.string().url().optional(),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  LEXYHUB_ADMIN_EMAILS: z.string().optional(),
 });
 
 type Env = z.infer<typeof envSchema>;
@@ -45,6 +46,7 @@ function readEnv(): Env {
     ETSY_BASE_URL: process.env.ETSY_BASE_URL,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+    LEXYHUB_ADMIN_EMAILS: process.env.LEXYHUB_ADMIN_EMAILS,
   });
 }
 

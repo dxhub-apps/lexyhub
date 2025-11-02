@@ -6,11 +6,11 @@ import {
   listRiskAppetites,
   updateRiskAppetite,
 } from "@/lib/risk/service";
-import { assertAdmin } from "@/lib/backoffice/auth";
+import { requireAdminUser } from "@/lib/backoffice/auth";
 
-export async function GET(request: Request): Promise<NextResponse> {
+export async function GET(): Promise<NextResponse> {
   try {
-    assertAdmin(request.headers);
+    await requireAdminUser();
   } catch (error) {
     return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }
@@ -26,7 +26,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
 export async function POST(request: Request): Promise<NextResponse> {
   try {
-    assertAdmin(request.headers);
+    await requireAdminUser();
   } catch (error) {
     return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }
@@ -50,7 +50,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
 export async function PUT(request: Request): Promise<NextResponse> {
   try {
-    assertAdmin(request.headers);
+    await requireAdminUser();
   } catch (error) {
     return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }
@@ -70,7 +70,7 @@ export async function PUT(request: Request): Promise<NextResponse> {
 
 export async function DELETE(request: Request): Promise<NextResponse> {
   try {
-    assertAdmin(request.headers);
+    await requireAdminUser();
   } catch (error) {
     return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }

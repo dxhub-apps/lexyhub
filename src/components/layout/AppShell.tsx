@@ -105,9 +105,17 @@ const NAV_ITEMS: readonly SidebarNavItem[] = [
   },
 ] as const;
 
-export function AppShell({ children }: { children: ReactNode }) {
+type AppShellProps = {
+  children: ReactNode;
+  isAdmin: boolean;
+};
+
+export function AppShell({ children, isAdmin }: AppShellProps) {
   const pathname = usePathname();
-  const nav = useMemo(() => NAV_ITEMS, []);
+  const nav = useMemo(
+    () => NAV_ITEMS.filter((item) => isAdmin || item.href !== "/admin/backoffice"),
+    [isAdmin],
+  );
   const activeNavItem = useMemo(() => {
     const currentPath = pathname ?? "/";
     if (currentPath === "/") {

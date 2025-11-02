@@ -1,41 +1,46 @@
 import type { User } from "@supabase/supabase-js";
 
+import { fetchUserPlan, shouldElevateToAdmin } from "@/lib/auth/admin";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 const ADMIN_PLAN = "admin";
+const DEFAULT_PLAN = "free";
 const UNLIMITED_QUOTA = 2147483647;
 
-export async function ensureAdminProfile(user: User): Promise<void> {
+export async function ensureAdminProfile(user: User): Promise<{ plan: string | null }> {
   const supabase = getSupabaseServerClient();
   if (!supabase) {
     console.warn("Supabase service client unavailable; unable to ensure admin profile.");
-    return;
+    return { plan: null };
   }
 
-  const { data, error } = await supabase
-    .from("user_profiles")
-    .select("plan, ai_usage_quota")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const { plan: existingPlan, momentum, quota } = await fetchUserPlan(supabase, user.id);
 
-  if (error) {
-    console.error("Failed to fetch user profile", error);
+  const elevateToAdmin = shouldElevateToAdmin(user, existingPlan);
+  const nextPlan = elevateToAdmin ? ADMIN_PLAN : existingPlan ?? DEFAULT_PLAN;
+  const nextMomentum = momentum ?? "active";
+  const nextQuota = elevateToAdmin ? UNLIMITED_QUOTA : quota ?? 0;
+
+  const requiresUpdate =
+    existingPlan == null ||
+    existingPlan !== nextPlan ||
+    (elevateToAdmin && (quota ?? 0) < UNLIMITED_QUOTA);
+
+  if (requiresUpdate) {
+    const payload = {
+      user_id: user.id,
+      plan: nextPlan,
+      momentum: nextMomentum,
+      ai_usage_quota: nextQuota,
+      updated_at: new Date().toISOString(),
+    } as const;
+
+    const { error: upsertError } = await supabase.from("user_profiles").upsert(payload, { onConflict: "user_id" });
+
+    if (upsertError) {
+      console.error("Failed to upsert user profile", upsertError);
+    }
   }
 
-  if (data?.plan === ADMIN_PLAN && data.ai_usage_quota >= UNLIMITED_QUOTA) {
-    return;
-  }
-
-  const payload = {
-    user_id: user.id,
-    plan: ADMIN_PLAN,
-    momentum: "active",
-    ai_usage_quota: UNLIMITED_QUOTA,
-  } as const;
-
-  const { error: upsertError } = await supabase.from("user_profiles").upsert(payload, { onConflict: "user_id" });
-
-  if (upsertError) {
-    console.error("Failed to upsert admin profile", upsertError);
-  }
+  return { plan: nextPlan };
 }

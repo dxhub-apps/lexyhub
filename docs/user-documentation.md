@@ -12,6 +12,10 @@ LexyHub is the central workspace for monitoring sales velocity, discovering high
 3. **Review onboarding alerts:** The notification indicator in the workspace header highlights setup tasks such as connecting an Etsy shop or approving data scopes.
 4. **Explore the app shell:** The refreshed left navigation sidebar provides access to product areas, while the workspace header surfaces platform status, environment labels, quick help, and the global user menu for settings and theme controls.
 
+> **Admin-only surfaces**
+>
+> The Backoffice navigation group appears only for administrator accounts—either because the Supabase user metadata marks the user as an admin or because their email is listed in `LEXYHUB_ADMIN_EMAILS`. Standard users keep access to core analytics but are redirected away from `/admin/backoffice` URLs.
+
 ## Layout Reference
 LexyHub uses a responsive two-pane layout composed of:
 

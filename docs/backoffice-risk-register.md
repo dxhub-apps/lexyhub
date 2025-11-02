@@ -24,11 +24,12 @@ state obvious for admins operating during incidents.【F:src/app/(app)/admin/bac
 ## Synchronizing from Supabase
 
 Run the admin-only sync endpoint whenever you want to refresh the backoffice dataset from the current
-application state:
+application state. Authentication now relies on the active Supabase session—only administrator accounts (via metadata or
+`LEXYHUB_ADMIN_EMAILS`) can invoke it:
 
 ```bash
 curl -X POST \
-  -H "x-user-role: admin" \
+  --cookie "<auth cookies>" \
   https://<your-app-host>/api/admin/backoffice/risk-sync
 ```
 
