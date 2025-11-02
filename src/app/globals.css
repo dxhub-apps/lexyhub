@@ -2740,6 +2740,74 @@ main {
   color: var(--color-danger);
 }
 
+.feature-flags-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.feature-flags-card {
+  gap: var(--space-2);
+}
+
+.feature-flags-grid {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.feature-flag-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
+}
+
+.feature-flag-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.feature-flag-label {
+  font-weight: 600;
+}
+
+.feature-flag-description {
+  color: var(--color-text);
+}
+
+.feature-flag-helper {
+  color: var(--color-text-soft);
+  font-size: var(--font-size-sm);
+}
+
+.feature-flag-control {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.feature-flag-control input[type="checkbox"] {
+  width: 48px;
+  height: 24px;
+  accent-color: var(--color-primary);
+}
+
+.feature-flag-control input[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.feature-flag-status {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-soft);
+}
+
 .muted {
   color: var(--color-text-soft);
 }

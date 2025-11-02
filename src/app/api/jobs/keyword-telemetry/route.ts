@@ -7,6 +7,7 @@ import {
   type KeywordStatAggregate,
   type KeywordStatIdentity,
 } from "@/lib/keywords/telemetry";
+import { allowUserTelemetryEnabled } from "@/lib/feature-flags";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 function normalizeNumber(value: unknown): number | null {
@@ -56,8 +57,6 @@ async function finalizeJobRun(
   }
 }
 
-const FEATURE_FLAG_KEY = "allow_user_telemetry";
-
 export async function POST(): Promise<NextResponse> {
   const supabase = getSupabaseServerClient();
 
@@ -71,17 +70,9 @@ export async function POST(): Promise<NextResponse> {
   const jobRunId = await createJobRun(supabase, "keyword-telemetry");
 
   try {
-    const { data: flagRow, error: flagError } = await supabase
-      .from("feature_flags")
-      .select("is_enabled")
-      .eq("key", FEATURE_FLAG_KEY)
-      .maybeSingle();
+    const allowTelemetry = await allowUserTelemetryEnabled({ supabase });
 
-    if (flagError) {
-      throw new Error(flagError.message);
-    }
-
-    if (!flagRow?.is_enabled) {
+    if (!allowTelemetry) {
       await finalizeJobRun(supabase, jobRunId, "succeeded", {
         message: "Keyword telemetry job skipped; feature flag disabled.",
       });
