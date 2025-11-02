@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSession } from "@supabase/auth-helpers-react";
 import Link from "next/link";
 
 import { useToast } from "@/components/ui/ToastProvider";
@@ -27,12 +28,22 @@ export default function WatchlistsPage(): JSX.Element {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { push } = useToast();
+  const session = useSession();
+  const userId = session?.user?.id ?? null;
 
   const loadWatchlists = useCallback(async () => {
     setLoading(true);
     setError(null);
+    if (!userId) {
+      setLoading(false);
+      setWatchlists([]);
+      setError("You must be signed in to view watchlists.");
+      return;
+    }
     try {
-      const response = await fetch("/api/watchlists");
+      const response = await fetch("/api/watchlists", {
+        headers: { "x-user-id": userId },
+      });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
         throw new Error(payload.error ?? `Unable to load watchlists (${response.status})`);
@@ -77,7 +88,7 @@ export default function WatchlistsPage(): JSX.Element {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     void loadWatchlists();
@@ -101,8 +112,19 @@ export default function WatchlistsPage(): JSX.Element {
 
   const handleRemove = useCallback(
     async (item: WatchlistItem) => {
+      if (!userId) {
+        push({
+          title: "Session required",
+          description: "Sign in again to modify your watchlists.",
+          tone: "error",
+        });
+        return;
+      }
       try {
-        const response = await fetch(`/api/watchlists/items/${item.id}`, { method: "DELETE" });
+        const response = await fetch(`/api/watchlists/items/${item.id}`, {
+          method: "DELETE",
+          headers: { "x-user-id": userId },
+        });
         if (!response.ok) {
           const payload = await response.json().catch(() => ({}));
           throw new Error(payload.error ?? `Unable to remove item (${response.status})`);
@@ -122,7 +144,7 @@ export default function WatchlistsPage(): JSX.Element {
         });
       }
     },
-    [loadWatchlists, push],
+    [loadWatchlists, push, userId],
   );
 
   const renderWatchlistCard = (watchlist: Watchlist) => {

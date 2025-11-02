@@ -3,12 +3,23 @@ import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 import { resolvePlanContext } from "@/lib/usage/quotas";
 
-function resolveUserId(headers: Headers): string {
-  return headers.get("x-user-id") ?? "00000000-0000-0000-0000-000000000001";
+function resolveUserId(req: Request): string | null {
+  const headerUserId = req.headers.get("x-user-id");
+  if (headerUserId) {
+    return headerUserId;
+  }
+
+  const searchUserId = new URL(req.url).searchParams.get("userId");
+  return searchUserId;
 }
 
 export async function GET(req: Request): Promise<NextResponse> {
-  const userId = resolveUserId(req.headers);
+  const userId = resolveUserId(req);
+
+  if (!userId) {
+    return NextResponse.json({ error: "userId header or query parameter is required" }, { status: 400 });
+  }
+
   const supabase = getSupabaseServerClient();
 
   if (!supabase) {

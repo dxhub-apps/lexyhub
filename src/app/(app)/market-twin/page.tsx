@@ -1,10 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useSession } from "@supabase/auth-helpers-react";
 
 import { useToast } from "@/components/ui/ToastProvider";
-
-const DEFAULT_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 type ListingOption = {
   id: string;
@@ -66,6 +65,8 @@ function formatPercent(value: number | null | undefined): string {
 
 export default function MarketTwinPage(): JSX.Element {
   const { push } = useToast();
+  const session = useSession();
+  const userId = session?.user?.id ?? null;
   const [listings, setListings] = useState<ListingOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<SimulationHistoryItem[]>([]);
@@ -81,15 +82,23 @@ export default function MarketTwinPage(): JSX.Element {
     const controller = new AbortController();
 
     async function loadData() {
+      if (!userId) {
+        setListings([]);
+        setHistory([]);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
-        const listingResponse = await fetch(`/api/listings?userId=${DEFAULT_USER_ID}`, {
+        const encodedUserId = encodeURIComponent(userId);
+        const listingResponse = await fetch(`/api/listings?userId=${encodedUserId}`, {
           signal: controller.signal,
         });
         const listingJson = await listingResponse.json();
         setListings(listingJson.listings ?? []);
 
-        const historyResponse = await fetch(`/api/market-twin?userId=${DEFAULT_USER_ID}`, {
+        const historyResponse = await fetch(`/api/market-twin?userId=${encodedUserId}`, {
           signal: controller.signal,
         });
         const historyJson = await historyResponse.json();
@@ -106,7 +115,7 @@ export default function MarketTwinPage(): JSX.Element {
     loadData();
 
     return () => controller.abort();
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     if (!selectedListingId) {
@@ -140,6 +149,15 @@ export default function MarketTwinPage(): JSX.Element {
       return;
     }
 
+    if (!userId) {
+      push({
+        title: "Sign in required",
+        description: "You must be signed in to run Market Twin simulations.",
+        tone: "error",
+      });
+      return;
+    }
+
     const parsedPrice = typeof scenarioPrice === "string" ? Number.parseFloat(scenarioPrice) : scenarioPrice;
     const priceCents = Number.isFinite(parsedPrice) ? Math.round(parsedPrice * 100) : 0;
 
@@ -149,7 +167,7 @@ export default function MarketTwinPage(): JSX.Element {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: DEFAULT_USER_ID,
+          userId,
           listingId: selectedListingId,
           scenarioTitle,
           scenarioTags: scenarioTags

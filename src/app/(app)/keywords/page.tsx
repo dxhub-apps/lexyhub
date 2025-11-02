@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSession } from "@supabase/auth-helpers-react";
 
 import KeywordSparkline from "@/components/keywords/KeywordSparkline";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -554,6 +555,8 @@ export default function KeywordsPage(): JSX.Element {
   const [selectedKeyword, setSelectedKeyword] = useState<KeywordResult | null>(null);
 
   const { push } = useToast();
+  const session = useSession();
+  const userId = session?.user?.id ?? null;
 
   const availableSources = useMemo(() => Object.keys(SOURCE_DETAILS), []);
 
@@ -641,10 +644,18 @@ export default function KeywordsPage(): JSX.Element {
 
   const handleWatchlist = useCallback(
     async (keyword: KeywordResult) => {
+      if (!userId) {
+        push({
+          title: "Sign in required",
+          description: "You must be signed in to save watchlist items.",
+          tone: "error",
+        });
+        return;
+      }
       try {
         const response = await fetch("/api/watchlists/add", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-user-id": userId },
           body: JSON.stringify({ keywordId: keyword.id, watchlistName: "Lexy Tracking" }),
         });
         if (!response.ok) {
@@ -665,7 +676,7 @@ export default function KeywordsPage(): JSX.Element {
         });
       }
     },
-    [push],
+    [push, userId],
   );
 
   const handleOptimize = useCallback(
@@ -675,10 +686,15 @@ export default function KeywordsPage(): JSX.Element {
       setOptimizerLoading(true);
       setOptimizerResult(null);
       setOptimizerError(null);
+      if (!userId) {
+        setOptimizerLoading(false);
+        setOptimizerError("Sign in to request AI tag suggestions.");
+        return;
+      }
       try {
         const response = await fetch("/api/ai/tag-optimizer", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-user-id": userId },
           body: JSON.stringify({
             keywordId: keyword.id,
             listingTitle: keyword.term,
@@ -702,7 +718,7 @@ export default function KeywordsPage(): JSX.Element {
         setOptimizerLoading(false);
       }
     },
-    [],
+    [userId],
   );
 
   const complianceNotes = useMemo(() => {
