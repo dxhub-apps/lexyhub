@@ -9,8 +9,8 @@ LexyHub is the central workspace for monitoring sales velocity, discovering high
 ## Getting Started
 1. **Sign in:** Visit the LexyHub URL (or `/login` directly), enter your Supabase credentials, and click **Sign in**. Sessions persist, so returning users skip the prompt until they explicitly log out. The avatar menu (top right) confirms the active admin plan and account details. The sign-in screen now establishes a Supabase session immediately, surfacing validation errors (such as incorrect passwords) without hanging so you always know whether authentication succeeded. Behind the scenes, LexyHub now double-checks the authenticated user directly with Supabase before unlocking the workspace, preventing tampered session data from granting access.
 2. **Select a workspace:** If your organization manages multiple storefronts, use the workspace switcher presented during sign in to pick the correct environment. All metrics and automations respect the chosen workspace.
-3. **Review onboarding alerts:** The notification indicator in the workspace header highlights setup tasks such as connecting an Etsy shop or approving data scopes.
-4. **Explore the app shell:** The refreshed left navigation sidebar provides access to product areas, while the workspace header surfaces platform status, environment labels, quick help, and the global user menu for settings and theme controls.
+3. **Review onboarding alerts:** The notification bell in the workspace header highlights setup tasks such as connecting an Etsy shop or approving data scopes. Alerts will appear here once notifications launch.
+4. **Explore the app shell:** The refreshed left navigation sidebar provides access to product areas, while the workspace header surfaces platform status, environment labels, quick help, streamlined quick actions, and the global user menu for settings and theme controls.
 
 > **Admin-only surfaces**
 >
@@ -32,8 +32,8 @@ LexyHub is the central workspace for monitoring sales velocity, discovering high
 LexyHub uses a responsive two-pane layout composed of:
 
 - **Command sidebar:** Links to Dashboard, Watchlists, Keywords, Insights, Market Twin, Editing, Status, and Backoffice with clear descriptions so teammates understand what each section unlocks. The solid backgrounds and removal of hover-only feedback make link states legible in both light and dark themes. Collapse the sidebar using the toggle in the upper-left corner; the navigation automatically becomes a slide-over drawer on mobile breakpoints.
-- **Workspace header:** Displays the product name, contextual subtitle for the active area, environment (e.g., `development`, `preview`, `production`), a quick "Need help?" shortcut to this guide, and the user menu. The header controls now use consistent solid fills so actions remain obvious on touch devices. The mobile header exposes a menu button that opens the navigation drawer.
-- **User menu:** Provides profile management, workspace settings, theme switching (via the Theme submenu), how-to documentation, and a logout control. Focus indicators replace hover effects so keyboard and touch users can clearly see the active option. Avatars automatically fall back to the LexyHub default image if a custom photo fails to load, so the menu always shows a recognizable identity marker.
+- **Workspace header:** Displays the product name, contextual subtitle for the active area, environment (e.g., `development`, `preview`, `production`), a quick "Need help?" shortcut to this guide, a notifications bell for upcoming alerts, and the user menu. The global search field has been removed so the header stays compact, and the controls now use consistent solid fills so actions remain obvious on touch devices. The mobile header exposes a menu button that opens the navigation drawer.
+- **User menu:** Provides profile management, workspace settings, theme switching (via the Theme submenu), how-to documentation, and a logout control. Focus indicators replace hover effects so keyboard and touch users can clearly see the active option. Avatars render as crisp 36px circles and automatically fall back to the LexyHub default image if a custom photo fails to load, so the menu always shows a recognizable identity marker.
 - **Full-width workspace canvas:** Main content pages now expand to the available width with subtle side padding, allowing dashboards, tables, and cards to line up cleanly without feeling boxed-in on large displays. Grids stretch their cards to equal heights so scanning related metrics is faster.
 
 ## Dashboard
@@ -144,7 +144,7 @@ The Status area communicates current system health and highlights any degradatio
 4. If you need deeper incident details, request the `/api/status` endpoint or consult your observability tooling.
 
 ## Notifications & Themes
-- **Notifications:** Toasts appear for successes, warnings, and errors across the application using consistent solid backgrounds that respect the current theme. Access past notifications from the bell icon history.
+- **Notifications:** Toasts appear for successes, warnings, and errors across the application using consistent solid backgrounds that respect the current theme. The topbar bell prepares the surface for richer notification history that will land soon.
 - **Themes:** Switch between Light, Dark, and System modes from the Theme submenu in the user menu. All surfaces—including cards, tables, and navigation—now share the same palette so light and dark experiences remain visually balanced. Preferences persist per device.
 
 ## Help & Support
@@ -170,4 +170,4 @@ LexyHub publishes sprint-level release notes in `/docs/changelog.md`. Review the
 - **Amazon keyword population guide:** `/docs/amazon-keyword-population-guide.md`
 - **Trend & intent intelligence:** `/docs/trend-intent-intelligence.md`
 
-_Last updated: 2025-07-10_
+_Last updated: 2025-07-16_

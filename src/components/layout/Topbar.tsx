@@ -5,6 +5,23 @@ import { useMemo } from "react";
 import { UserMenu } from "./UserMenu";
 import type { SidebarNavItem } from "./Sidebar";
 
+function NotificationIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      width={20}
+      height={20}
+      className="app-header-action-icon"
+    >
+      <path
+        fill="currentColor"
+        d="M12 2a6 6 0 0 0-6 6v2.35c0 .51-.2 1-.55 1.36l-.93.93A1 1 0 0 0 5.17 14H19a1 1 0 0 0 .7-1.7l-.93-.93a1.94 1.94 0 0 1-.55-1.35V8a6 6 0 0 0-6-6m0 20a3 3 0 0 0 3-3h-6a3 3 0 0 0 3 3"
+      />
+    </svg>
+  );
+}
+
 type TopbarProps = {
   isMobile: boolean;
   navOpen: boolean;
@@ -57,20 +74,15 @@ export function Topbar({
               {activeNavItem.label} · {activeNavItem.description}
             </span>
           </div>
-          <div className="app-header-search">
-            <label htmlFor="global-search" className="sr-only">
-              Global search
-            </label>
-            <input
-              id="global-search"
-              type="search"
-              placeholder="Search keywords, watchlists, commands"
-              aria-label="Search LexyHub"
-            />
-          </div>
         </div>
         <div className="app-header-right">
-          <UserMenu environmentLabel={environmentLabel} />
+          <div className="app-header-actions">
+            <button type="button" className="app-header-action" aria-label="View notifications">
+              <NotificationIcon />
+              <span className="sr-only">Open notifications</span>
+            </button>
+            <UserMenu environmentLabel={environmentLabel} />
+          </div>
         </div>
       </div>
     </header>
