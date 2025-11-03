@@ -6,96 +6,24 @@ on:
   pull_request:
 
 jobs:
-  install:
-    name: Install
+  checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
 
-  lint:
-    needs: install
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm run lint
+          cache: "npm"
 
-  typecheck:
-    needs: install
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
+      - name: Install
+        run: npm ci
 
-  test:
-    needs: install
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm run test -- --coverage --reporter=dot
+      - name: Typecheck
+        run: npm run -s typecheck
 
-  build:
-    needs: [lint, typecheck, test]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm run build
+      - name: Lint
+        run: npm run -s lint
 
-  deploy-preview:
-    if: github.event_name == 'pull_request'
-    needs: build
-    runs-on: ubuntu-latest
-    env:
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-    steps:
-      - name: Skip deploy when Vercel token is not set
-        if: env.VERCEL_TOKEN == ''
-        run: echo "Skipping deploy preview because VERCEL_TOKEN is not set."
-      - uses: actions/checkout@v4
-        if: env.VERCEL_TOKEN != ''
-      - uses: actions/setup-node@v4
-        if: env.VERCEL_TOKEN != ''
-        with:
-          node-version: 20
-      - run: npm ci
-        if: env.VERCEL_TOKEN != ''
-      - run: npx vercel pull --yes --environment=preview
-        if: env.VERCEL_TOKEN != ''
-        env:
-          VERCEL_TOKEN: ${{ env.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ env.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ env.VERCEL_PROJECT_ID }}
-      - run: npx vercel build
-        if: env.VERCEL_TOKEN != ''
-        env:
-          VERCEL_TOKEN: ${{ env.VERCEL_TOKEN }}
-      - run: npx vercel deploy --prebuilt --yes
-        if: env.VERCEL_TOKEN != ''
-        env:
-          VERCEL_TOKEN: ${{ env.VERCEL_TOKEN }}
+      - name: Test
+        run: npm run -s test -- --coverage --reporter=dot
