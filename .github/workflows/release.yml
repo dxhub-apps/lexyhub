@@ -1,0 +1,198 @@
+name: Release Management
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".github/**"
+      - "!.github/workflows/release.yml"
+
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: "Release type"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  # Check if release should be created
+  check-release:
+    name: Check if Release Needed
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for releasable changes
+        id: check
+        run: |
+          # Check commit messages for conventional commits
+          if git log -1 --pretty=%B | grep -E "^(feat|fix|perf|refactor)(\(.+\))?!?:"; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Get current version from package.json
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+  # Generate changelog
+  changelog:
+    name: Generate Changelog
+    needs: check-release
+    if: needs.check-release.outputs.should_release == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      changelog: ${{ steps.generate.outputs.changelog }}
+      new_version: ${{ steps.version.outputs.new_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine new version
+        id: version
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          RELEASE_TYPE=${{ github.event.inputs.release_type || 'patch' }}
+
+          # Simple version bump logic
+          IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+          MAJOR=${VERSION_PARTS[0]}
+          MINOR=${VERSION_PARTS[1]}
+          PATCH=${VERSION_PARTS[2]}
+
+          if [ "$RELEASE_TYPE" == "major" ]; then
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+          elif [ "$RELEASE_TYPE" == "minor" ]; then
+            MINOR=$((MINOR + 1))
+            PATCH=0
+          else
+            PATCH=$((PATCH + 1))
+          fi
+
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version will be: $NEW_VERSION"
+
+      - name: Generate changelog
+        id: generate
+        run: |
+          echo "Generating changelog from commit history..."
+
+          # Get commits since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -z "$LAST_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+
+          # Create changelog file
+          cat > CHANGELOG_ENTRY.md << EOF
+          ## What's Changed
+
+          $COMMITS
+
+          **Full Changelog**: https://github.com/\${{ github.repository }}/compare/${LAST_TAG}...v\${{ steps.version.outputs.new_version }}
+          EOF
+
+          # Store changelog for later use
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          cat CHANGELOG_ENTRY.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Upload changelog
+        uses: actions/upload-artifact@v4
+        with:
+          name: changelog
+          path: CHANGELOG_ENTRY.md
+          retention-days: 1
+
+  # Create GitHub Release
+  create-release:
+    name: Create GitHub Release
+    needs: [check-release, changelog]
+    if: needs.check-release.outputs.should_release == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download changelog
+        uses: actions/download-artifact@v4
+        with:
+          name: changelog
+
+      - name: Update package.json version
+        run: |
+          NEW_VERSION="${{ needs.changelog.outputs.new_version }}"
+          npm version $NEW_VERSION --no-git-tag-version
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "chore: bump version to $NEW_VERSION"
+          git push
+
+      - name: Create Git tag
+        run: |
+          NEW_VERSION="${{ needs.changelog.outputs.new_version }}"
+          git tag -a "v$NEW_VERSION" -m "Release v$NEW_VERSION"
+          git push origin "v$NEW_VERSION"
+
+      - name: Create GitHub Release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const changelog = fs.readFileSync('CHANGELOG_ENTRY.md', 'utf8');
+
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: 'v${{ needs.changelog.outputs.new_version }}',
+              name: 'v${{ needs.changelog.outputs.new_version }}',
+              body: changelog,
+              draft: false,
+              prerelease: false
+            });
+
+  # Deploy to production (after release)
+  deploy-production:
+    name: Deploy to Production
+    needs: create-release
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://your-production-url.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy notification
+        run: |
+          echo "🚀 Deploying version ${{ needs.changelog.outputs.new_version }} to production"
+          echo "Vercel will automatically deploy from the main branch"
+
+      - name: Notify team
+        if: always()
+        run: |
+          echo "Release v${{ needs.changelog.outputs.new_version }} deployed to production"
+          # Add Slack/Discord notification here if needed

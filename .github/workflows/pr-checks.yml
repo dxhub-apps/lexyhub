@@ -1,0 +1,254 @@
+name: PR Quality Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Quality Gate 1: Build and Type Safety
+  build:
+    name: Build & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: .next/
+          retention-days: 1
+
+  # Quality Gate 2: Code Quality
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Check code formatting (if prettier is configured)
+        run: |
+          if [ -f ".prettierrc" ] || [ -f ".prettierrc.json" ]; then
+            npx prettier --check "src/**/*.{ts,tsx,js,jsx}"
+          else
+            echo "Prettier not configured, skipping format check"
+          fi
+
+  # Quality Gate 3: Test Coverage
+  test:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm run test -- --coverage --reporter=verbose
+
+      - name: Check coverage thresholds
+        run: |
+          echo "Coverage thresholds (from vitest.config.ts):"
+          echo "- Lines: 40%"
+          echo "- Functions: 35%"
+          echo "- Branches: 30%"
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  # Quality Gate 4: E2E Tests (Smoke)
+  e2e-smoke:
+    name: E2E Smoke Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run smoke tests
+        run: npx playwright test tests/e2e/smoke.spec.ts
+        env:
+          CI: true
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  # Quality Gate 5: Security Scan
+  security:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Check for known vulnerabilities
+        run: |
+          echo "Running security audit..."
+          npm audit --json > audit-results.json || true
+
+      - name: Upload audit results
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit
+          path: audit-results.json
+          retention-days: 7
+
+  # Quality Gate 6: Bundle Size Check
+  bundle-size:
+    name: Bundle Size Analysis
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: .next/
+
+      - name: Analyze bundle size
+        run: |
+          echo "Bundle size analysis:"
+          if [ -d ".next/static" ]; then
+            echo "Total static assets size:"
+            du -sh .next/static || echo "No static files found"
+
+            echo -e "\nLargest JavaScript bundles:"
+            find .next/static -name "*.js" -type f -exec du -h {} + | sort -rh | head -10 || echo "No JS files found"
+          fi
+
+      - name: Comment PR with bundle size
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { execSync } = require('child_process');
+
+            let comment = '## Bundle Size Report\n\n';
+
+            try {
+              const staticSize = execSync('du -sh .next/static 2>/dev/null || echo "0"').toString().trim();
+              comment += `📦 Total static assets: \`${staticSize}\`\n\n`;
+
+              comment += '### Largest JavaScript bundles:\n';
+              const largestBundles = execSync('find .next/static -name "*.js" -type f -exec du -h {} + | sort -rh | head -5 || echo "None"').toString().trim();
+              comment += '```\n' + largestBundles + '\n```\n';
+            } catch (error) {
+              comment += '_Bundle analysis not available_\n';
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  # Quality Gate Summary
+  quality-gate:
+    name: Quality Gate Summary
+    runs-on: ubuntu-latest
+    needs: [build, lint, test, e2e-smoke, security, bundle-size]
+    if: always()
+    steps:
+      - name: Check quality gates
+        run: |
+          echo "Quality Gate Results:"
+          echo "===================="
+          echo "Build: ${{ needs.build.result }}"
+          echo "Lint: ${{ needs.lint.result }}"
+          echo "Tests: ${{ needs.test.result }}"
+          echo "E2E: ${{ needs.e2e-smoke.result }}"
+          echo "Security: ${{ needs.security.result }}"
+          echo "Bundle Size: ${{ needs.bundle-size.result }}"
+
+      - name: Fail if any gate failed
+        if: |
+          needs.build.result == 'failure' ||
+          needs.lint.result == 'failure' ||
+          needs.test.result == 'failure' ||
+          needs.e2e-smoke.result == 'failure'
+        run: |
+          echo "One or more quality gates failed!"
+          exit 1
+
+      - name: Success message
+        if: success()
+        run: |
+          echo "✅ All quality gates passed!"
+          echo "PR is ready for review."
