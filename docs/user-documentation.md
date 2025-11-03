@@ -52,17 +52,16 @@ The Dashboard offers a high-level snapshot of revenue pacing and target attainme
 ## Keywords
 The Keywords workspace surfaces organic search opportunities discovered by LexyHub's AI.
 
-- **Filter summary:** A dedicated panel surfaces active filters as chips so you can clear individual constraints or reset everything with one click.
-- **Guided search controls:** The redesigned search form includes helpful copy, inline validation, and a dedicated refresh action that replays the most recent query without retyping it.
-- **Source selectors:** Toggle marketplace and synthetic signals with card-style checkboxes and contextual descriptions so teams can compare intent coverage confidently.
-- **Top opportunity callout:** The results area now spotlights the highest-ranking keyword with freshness notes so merchandisers know where to focus first.
-- **Tag-aware table:** Keywords display category context, associated tags, opportunity scores, and quick actions so you can add to watchlists or launch the tag optimizer without leaving the grid.
-- **Helpful Highlights panel:** Shows friendly tips about your keyword search, sparkline telemetry for ranking momentum, and reiterates your active tag focus to keep the team aligned.
+- **Command-center search card:** Enter your idea, pick a market, toggle signal sources, and add an optional tag focus from a single responsive panel. Active filters render as removable chips, and the Reset action clears everything in one click.
+- **Tab-based layout:** Switch between an **Overview** tab—with Helpful Highlights, sparkline telemetry, and lineage details—and an **Opportunities** tab dedicated to the sortable keyword table.
+- **Priority opportunity banner:** When data is available, the table leads with a prominent callout that names the highest-momentum keyword, its source, and freshness timestamp so teams can focus immediately.
+- **Rich opportunity table:** Every keyword row displays demand, competition, momentum, category context, and tags, alongside quick actions for adding items to watchlists or launching the AI tag optimizer.
+- **Momentum playbook:** The Overview tab reinforces suggested next steps, surfaces the active tag emphasis, and keeps compliance notes about signals and freshness front and center.
 - **Data seeding from real searches:** When a query returns no results, LexyHub captures the term and routes it to our enrichment queue so future searches populate faster.
 
 **How to build a keyword watchlist:**
 1. Open **Keywords** from the sidebar.
-2. Run a search and adjust the source cards so the dataset reflects your campaign goals.
+2. Run a search and adjust the Signals toggles so the dataset reflects your campaign goals.
 3. Select the desired rows and click **Add to watchlist** in the Actions column.
 4. Choose an existing watchlist or create a new one. Watchlists sync automatically with market updates.
 
