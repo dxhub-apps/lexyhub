@@ -11,6 +11,8 @@ LexyHub ships a collection of background automation endpoints that hydrate dashb
 | `POST /api/jobs/rebuild-clusters` | Recomputes semantic clusters so that related keywords stay grouped as new data arrives. | Daily |
 | `POST /api/jobs/embed-missing` | Generates 3,072-dimensional vector embeddings (using `text-embedding-3-large`) for keywords or listings that do not yet have embeddings stored. | Hourly |
 | `POST /api/jobs/keyword-telemetry` | Collapses recent `keyword_events` into daily `keyword_stats` rows when the `allow_user_telemetry` feature flag is enabled. | Daily (00:30 UTC after nightly ingestion) |
+| `POST /api/jobs/etsy-ingest` | Runs the Etsy ingest service for all linked accounts, refreshing listings, tags, and shop metadata. | Every 6 hours (stagger per region) |
+| `POST /api/jobs/etsy-serp-sample` | Captures Etsy SERP snapshots for the tracked keyword pool and stores rank movements in `etsy_serp_samples`. | Every 4 hours |
 
 The Etsy sync job is temporarily disabled in automation until the upstream API contract is finalized. You can still invoke it manually while testing the integration.
 
@@ -90,6 +92,14 @@ The workflow supports two triggers:
 Edit the `JOB_ENDPOINTS` environment variable inside `background-jobs.yml` if you want to add, remove, or reorder tasks. Each endpoint should be the path segment that follows `/api/jobs/`. Re-introduce `etsy-sync` here once the production API is ready to accept automated traffic again.
 
 To enable the keyword telemetry aggregation in automation, set the `ENABLE_KEYWORD_TELEMETRY_JOB` secret to `true`. The workflow only appends the endpoint when that flag is present so you can keep the API behind the `allow_user_telemetry` feature flag until production telemetry is available.
+
+## Scheduling guidance for new Etsy jobs
+
+- **Etsy ingest (`/api/jobs/etsy-ingest`):** Schedule at `0 */6 * * *` to align with the default incremental sync window. Stagger the run by workspace (e.g., offset by 30 minutes) when managing multiple regions so the ingest service does not saturate the Etsy API.
+- **SERP sampling (`/api/jobs/etsy-serp-sample`):** Schedule at `15 */4 * * *` so results land shortly after ingest completes. The sampler accepts a `keywords` array if you need to run scoped experiments outside the global cron.
+- **Keyword telemetry (`/api/jobs/keyword-telemetry`):** Keep the nightly `30 0 * * *` cadence but enable the job only when the `allow_user_telemetry` flag is active for the workspace.
+
+When deploying to Vercel, configure each cron in **Settings → Functions → Cron Jobs** and supply the same bearer token used by GitHub Actions. For self-hosted environments, mirror these cadences in your scheduler of choice (e.g., AWS EventBridge, Cloud Scheduler) and monitor run health via the structured logs emitted by each job.
 
 ## Troubleshooting
 
