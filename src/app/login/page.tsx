@@ -6,6 +6,8 @@ import type { Session } from "@supabase/supabase-js";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { SupabaseProvider } from "@/components/providers/SupabaseProvider";
 
+export const dynamic = 'force-dynamic';
+
 type LoginPageProps = {
   searchParams?: { redirect_to?: string };
 };

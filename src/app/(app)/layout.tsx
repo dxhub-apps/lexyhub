@@ -8,6 +8,8 @@ import { SupabaseProvider } from "@/components/providers/SupabaseProvider";
 import { isAdminUser } from "@/lib/auth/admin";
 import { ensureAdminProfile } from "@/lib/auth/ensure-profile";
 
+export const dynamic = 'force-dynamic';
+
 export default async function AppLayout({
   children,
 }: {

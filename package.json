@@ -21,7 +21,8 @@
     "jobs:keyword-serp-sampler": "tsx jobs/keyword-serp-sampler.ts",
     "extension:build": "tsx apps/browser-extension/scripts/build-extension.ts",
     "db:seed": "tsx scripts/seed-db.ts",
-    "db:reset": "tsx scripts/reset-db.ts"
+    "db:reset": "tsx scripts/reset-db.ts",
+    "analyze": "ANALYZE=true npm run build"
   },
   "dependencies": {
     "@ai-sdk/openai": "0.0.47",
@@ -29,6 +30,8 @@
     "@supabase/auth-helpers-react": "0.5.0",
     "@supabase/supabase-js": "2.43.0",
     "@tanstack/react-table": "8.21.3",
+    "@upstash/ratelimit": "^2.0.7",
+    "@upstash/redis": "^1.35.6",
     "@vercel/analytics": "1.2.2",
     "@vercel/blob": "^2.0.0",
     "ai": "3.2.35",
@@ -42,6 +45,7 @@
     "zod": "3.23.8"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^16.0.1",
     "@playwright/test": "^1.56.1",
     "@types/node": "20.14.2",
     "@types/react": "18.2.45",
