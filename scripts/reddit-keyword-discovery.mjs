@@ -1,20 +1,18 @@
-// Reddit keyword discovery: pulls tokens from Supabase accounts or uses a single anon token.
-// Inputs accepted as newline OR comma lists, or a YAML config file.
+// scripts/reddit-keyword-discovery.mjs
+// Minimal Reddit discovery using Node 20 global fetch. No extra deps.
 
 import fs from "node:fs";
 import process from "node:process";
-import fetch from "node-fetch";
 import { createClient } from "@supabase/supabase-js";
 
+// --- Config and inputs ---
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
   process.exit(2);
 }
-const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-
-const MODE = (process.env.INPUT_MODE || "accounts").toLowerCase();
+const MODE = (process.env.INPUT_MODE || "accounts").toLowerCase(); // "accounts" | "anon"
 const CONFIG_PATH = process.env.INPUT_CONFIG_PATH || "config/reddit.yml";
 
 function splitList(s = "") {
@@ -23,11 +21,9 @@ function splitList(s = "") {
     .map((x) => x.trim())
     .filter(Boolean);
 }
-
 function loadYaml(path) {
-  if (!fs.existsSync(path)) return null;
+  if (!fs.existsSync(path)) return { subreddits: [], queries: [] };
   const text = fs.readFileSync(path, "utf8");
-  // tiny YAML reader for our simple structure
   const lines = text.split(/\r?\n/);
   const out = { subreddits: [], queries: [] };
   let current = null;
@@ -42,18 +38,24 @@ function loadYaml(path) {
   return out;
 }
 
-const cfg = loadYaml(CONFIG_PATH) || { subreddits: [], queries: [] };
-const SUBREDDITS = new Set([
-  ...splitList(process.env.INPUT_SUBREDDITS),
-  ...cfg.subreddits,
-]);
-const QUERIES = new Set([
-  ...splitList(process.env.INPUT_QUERIES),
-  ...cfg.queries,
-]);
+const cfg = loadYaml(CONFIG_PATH);
+const SUBREDDITS = new Set([...splitList(process.env.INPUT_SUBREDDITS), ...cfg.subreddits]);
+const QUERIES = new Set([...splitList(process.env.INPUT_QUERIES), ...cfg.queries]);
 
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
+const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+
+async function redditGET(path, params, token) {
+  const qs = new URLSearchParams(params || {}).toString();
+  const url = `https://oauth.reddit.com${path}${qs ? "?" + qs : ""}`;
+  const r = await fetch(url, {
+    headers: { Authorization: `bearer ${token}`, "User-Agent": "lexyhub/1.0 by lexyhub" },
+  });
+  if (r.status === 429) {
+    const reset = Number(r.headers.get("x-ratelimit-reset") || "10");
+    throw new Error(`rate_limited:${reset}`);
+  }
+  if (!r.ok) throw new Error(`reddit_${r.status}:${await r.text()}`);
+  return r.json();
 }
 
 async function refreshToken(refreshToken, clientId, clientSecret) {
@@ -68,42 +70,26 @@ async function refreshToken(refreshToken, clientId, clientSecret) {
     body,
   });
   if (!r.ok) throw new Error(`refresh_failed:${r.status}:${await r.text()}`);
-  return r.json(); // { access_token, expires_in, scope, ... }
+  return r.json(); // { access_token, expires_in, ... }
 }
 
-async function redditGET(path, params, token) {
-  const qs = new URLSearchParams(params || {}).toString();
-  const url = `https://oauth.reddit.com${path}${qs ? "?" + qs : ""}`;
-  const r = await fetch(url, {
-    headers: { Authorization: `bearer ${token}`, "User-Agent": "lexyhub/1.0 by lexyhub" },
-  });
-  // Backoff on rate limit
-  if (r.status === 429) {
-    const reset = Number(r.headers.get("x-ratelimit-reset") || "10");
-    await sleep((reset + 1) * 1000);
-    throw new Error("rate_limited");
-  }
-  if (!r.ok) throw new Error(`reddit_${r.status}:${await r.text()}`);
-  return r.json();
-}
-
-async function saveRaw(post) {
-  const p = post.data;
-  const payload = post;
-  await db.from("raw_sources").insert({
+async function saveRawPost(post) {
+  const d = post.data;
+  const { error } = await db.from("raw_sources").insert({
     provider: "reddit",
     source_type: "post",
-    source_key: p.name, // t3_...
+    source_key: d.name, // t3_...
     status: "processed",
-    payload,
+    payload: post,
     metadata: {
-      subreddit: p.subreddit,
-      score: p.score,
-      created_utc: p.created_utc,
-      permalink: p.permalink,
-      title: p.title,
+      subreddit: d.subreddit,
+      score: d.score,
+      created_utc: d.created_utc,
+      permalink: d.permalink,
+      title: d.title,
     },
-  }).select().limit(1);
+  });
+  if (error) throw new Error(`db_raw_sources:${error.message}`);
 }
 
 function extractTerms(title, selftext = "") {
@@ -111,7 +97,7 @@ function extractTerms(title, selftext = "") {
   return Array.from(
     new Set(
       text
-        .replace(/[^a-z0-9\s\-]/g, " ")
+        .replace(/[^a-z0-9\s-]/g, " ")
         .split(/\s+/)
         .filter((w) => w.length >= 4 && w.length <= 32)
     )
@@ -119,7 +105,7 @@ function extractTerms(title, selftext = "") {
 }
 
 async function upsertKeyword(term) {
-  await db.from("keywords").upsert(
+  const { error } = await db.from("keywords").upsert(
     {
       term,
       source: "reddit",
@@ -130,38 +116,28 @@ async function upsertKeyword(term) {
       method: "search",
       allow_search_sampling: true,
     },
-    { onConflict: "term,source,market" } // require a unique index in DB if not present
+    { onConflict: "term,source,market" } // requires a unique index if you want strict dedupe
   );
+  if (error) throw new Error(`db_keywords:${error.message}`);
 }
 
 async function writeTrend(term, score, recordedOnISO) {
-  await db.from("trend_series").upsert(
-    {
-      term,
-      source: "reddit",
-      recorded_on: recordedOnISO.slice(0, 10),
-      trend_score: score,
-      extras: {},
-    },
+  const day = recordedOnISO.slice(0, 10);
+  const { error } = await db.from("trend_series").upsert(
+    { term, source: "reddit", recorded_on: day, trend_score: score, extras: {} },
     { onConflict: "term,source,recorded_on" }
   );
+  if (error) throw new Error(`db_trend_series:${error.message}`);
 }
 
-async function processListing(post) {
+async function processPost(post) {
   const d = post.data;
-  await saveRaw(post);
+  await saveRawPost(post);
   const terms = extractTerms(d.title, d.selftext || "");
-  const day = new Date(d.created_utc * 1000).toISOString();
+  const dayISO = new Date((d.created_utc || Math.floor(Date.now() / 1000)) * 1000).toISOString();
   for (const t of terms) {
     await upsertKeyword(t);
-    await writeTrend(t, d.score || 0, day);
-    await db.from("keyword_events").insert({
-      keyword_id: null, // optional linkage if you resolve IDs
-      listing_id: null,
-      raw_source_id: null,
-      event_type: "reddit_mention",
-      payload: { permalink: d.permalink, subreddit: d.subreddit, score: d.score, title: d.title },
-    });
+    await writeTrend(t, d.score || 0, dayISO);
   }
 }
 
@@ -169,29 +145,27 @@ async function runWithToken(token) {
   const subs = SUBREDDITS.size ? [...SUBREDDITS] : ["EtsySellers", "Etsy"];
   for (const sub of subs) {
     const data = await redditGET(`/r/${sub}/new`, { limit: 50 }, token);
-    for (const c of data.data.children) await processListing(c);
+    for (const c of data.data.children) await processPost(c);
   }
   const queries = [...QUERIES];
   for (const q of queries) {
     const data = await redditGET(`/search`, { q, sort: "new", limit: 50, type: "link" }, token);
-    for (const c of data.data.children) await processListing(c);
+    for (const c of data.data.children) await processPost(c);
   }
 }
 
 async function runAccounts() {
-  // pull all connected Reddit accounts
   const { data: accounts, error } = await db
     .from("marketplace_accounts")
-    .select("id,user_id,provider_id,access_token,refresh_token,token_expires_at,metadata")
+    .select("id,access_token,refresh_token,token_expires_at")
     .eq("provider_id", "reddit")
     .eq("status", "active");
-  if (error) throw error;
+  if (error) throw new Error(`db_accounts:${error.message}`);
 
   for (const acc of accounts || []) {
     let token = acc.access_token;
-    // refresh if expired (grace: 60s)
-    const expiresAt = acc.token_expires_at ? new Date(acc.token_expires_at).getTime() : 0;
-    if (acc.refresh_token && expiresAt && Date.now() > expiresAt - 60000) {
+    const exp = acc.token_expires_at ? new Date(acc.token_expires_at).getTime() : 0;
+    if (acc.refresh_token && exp && Date.now() > exp - 60000) {
       const cid = process.env.REDDIT_CLIENT_ID;
       const cs = process.env.REDDIT_CLIENT_SECRET;
       if (cid && cs) {
@@ -205,6 +179,7 @@ async function runAccounts() {
           }).eq("id", acc.id);
         } catch (e) {
           console.error("refresh_failed", e?.message || e);
+          continue;
         }
       }
     }
@@ -226,7 +201,7 @@ async function runAnon() {
   try {
     if (MODE === "accounts") await runAccounts();
     else await runAnon();
-    console.log("reddit_discovery:done");
+    console.log("reddit_discovery:ok");
   } catch (e) {
     console.error("reddit_discovery:error", e?.message || e);
     process.exit(1);
