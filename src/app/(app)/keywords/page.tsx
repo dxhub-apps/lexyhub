@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import KeywordSparkline from "@/components/keywords/KeywordSparkline";
 import { useToast } from "@/components/ui/ToastProvider";
+import type { KeywordDetailPayload } from "@/types/keyword-serp";
 
 type PlanTier = "free" | "growth" | "scale";
 
@@ -17,8 +18,17 @@ type KeywordResult = {
   trend_momentum?: number | null;
   freshness_ts?: string | null;
   method?: string | null;
+  source_method?: string | null;
+  source_reason?: string | null;
   extras?: Record<string, unknown> | null;
   compositeScore?: number;
+  source_label?: string | null;
+  provenance?: string | null;
+  provenance_label?: string | null;
+  dataset?: string | null;
+  sample_count?: number | null;
+  serp_total_results?: number | null;
+  serp_captured_at?: string | null;
 };
 
 type SearchResponse = {
@@ -51,7 +61,37 @@ const SOURCE_DETAILS: Record<string, { title: string; description: string }> = {
     title: "Amazon Marketplace",
     description: "Real buyer search data for commercial alignment.",
   },
+  etsy: {
+    title: "Etsy Marketplace",
+    description: "Seller-side inventory trends and performance telemetry.",
+  },
+  etsy_serp: {
+    title: "Etsy SERP Samples",
+    description: "Organic SERP captures with live listing examples and metrics.",
+  },
 };
+
+const INITIAL_SOURCE_KEYS = Object.keys(SOURCE_DETAILS);
+
+function formatSourceLabel(source: string): string {
+  const detail = SOURCE_DETAILS[source];
+  if (detail) {
+    return detail.title;
+  }
+  return source
+    .split(/[_\-\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function formatTimestamp(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toLocaleString();
+}
 
 const MARKET_OPTIONS = [
   { value: "us", label: "United States" },
@@ -66,8 +106,9 @@ export default function KeywordsPage(): JSX.Element {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastQuery, setLastQuery] = useState<string>("");
-  const [sourceFilters, setSourceFilters] = useState<string[]>(["synthetic", "amazon"]);
-  const [responseSources, setResponseSources] = useState<string[]>(["synthetic", "amazon"]);
+  const [availableSources, setAvailableSources] = useState<string[]>(INITIAL_SOURCE_KEYS);
+  const [sourceFilters, setSourceFilters] = useState<string[]>(INITIAL_SOURCE_KEYS);
+  const [responseSources, setResponseSources] = useState<string[]>(INITIAL_SOURCE_KEYS);
   const [marketFilter, setMarketFilter] = useState<string>("us");
   const [tierFilter, setTierFilter] = useState<PlanTier>("growth");
   const [tagFilter, setTagFilter] = useState<string>("");
@@ -76,11 +117,14 @@ export default function KeywordsPage(): JSX.Element {
   const [optimizerLoading, setOptimizerLoading] = useState(false);
   const [optimizerResult, setOptimizerResult] = useState<TagOptimizerResult | null>(null);
   const [optimizerError, setOptimizerError] = useState<string | null>(null);
-  const [selectedKeyword, setSelectedKeyword] = useState<KeywordResult | null>(null);
+  const [optimizerKeyword, setOptimizerKeyword] = useState<KeywordResult | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [detailKeyword, setDetailKeyword] = useState<KeywordResult | null>(null);
+  const [detailData, setDetailData] = useState<KeywordDetailPayload | null>(null);
 
   const { push } = useToast();
-
-  const availableSources = useMemo(() => Object.keys(SOURCE_DETAILS), []);
 
   const toggleSource = useCallback(
     (source: string) => {
@@ -115,6 +159,23 @@ export default function KeywordsPage(): JSX.Element {
     });
   }, [availableSources]);
 
+  useEffect(() => {
+    setAvailableSources((current) => {
+      const merged = new Set(current);
+      responseSources.forEach((source) => {
+        if (typeof source === "string" && source.trim()) {
+          merged.add(source.trim().toLowerCase());
+        }
+      });
+      results.forEach((keyword) => {
+        if (keyword.source) {
+          merged.add(keyword.source.toLowerCase());
+        }
+      });
+      return Array.from(merged);
+    });
+  }, [responseSources, results]);
+
   const performSearch = useCallback(
     async (term: string) => {
       const normalizedTerm = term.trim();
@@ -145,7 +206,32 @@ export default function KeywordsPage(): JSX.Element {
         setResults(payload.results ?? []);
         setInsights(payload.insights ?? null);
         setLastQuery(payload.query ?? normalizedTerm);
-        setResponseSources(payload.sources ?? sourceFilters);
+        const normalizedSources = Array.isArray(payload.sources)
+          ? Array.from(
+              new Set(
+                payload.sources
+                  .filter((value): value is string => typeof value === "string" && Boolean(value))
+                  .map((value) => value.trim().toLowerCase()),
+              ),
+            )
+          : sourceFilters;
+        setResponseSources(normalizedSources);
+        setAvailableSources((current) => {
+          const discovered = new Set(current);
+          const merge = (values: unknown) => {
+            if (!Array.isArray(values)) {
+              return;
+            }
+            for (const value of values) {
+              if (typeof value === "string" && value.trim()) {
+                discovered.add(value.trim().toLowerCase());
+              }
+            }
+          };
+          merge(payload.sources);
+          merge((payload.results ?? []).map((item) => item.source));
+          return Array.from(discovered);
+        });
       } catch (err) {
         console.error("Failed to execute keyword search", err);
         setError(err instanceof Error ? err.message : "Unexpected error occurred");
@@ -187,7 +273,7 @@ export default function KeywordsPage(): JSX.Element {
 
   const handleOptimize = useCallback(
     async (keyword: KeywordResult) => {
-      setSelectedKeyword(keyword);
+      setOptimizerKeyword(keyword);
       setOptimizerOpen(true);
       setOptimizerLoading(true);
       setOptimizerResult(null);
@@ -221,6 +307,49 @@ export default function KeywordsPage(): JSX.Element {
     },
     [],
   );
+
+  const handleViewDetails = useCallback(
+    async (keyword: KeywordResult) => {
+      if (!keyword.id) {
+        setDetailKeyword(keyword);
+        setDetailData(null);
+        setDetailError("Keyword identifier unavailable; connect a source with lineage to inspect SERPs.");
+        setDetailOpen(true);
+        setDetailLoading(false);
+        return;
+      }
+
+      setDetailKeyword(keyword);
+      setDetailOpen(true);
+      setDetailLoading(true);
+      setDetailError(null);
+      setDetailData(null);
+
+      try {
+        const response = await fetch(`/api/keywords/${encodeURIComponent(keyword.id)}/serp?limit=12`);
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload.error ?? `Unable to load SERP samples (${response.status})`);
+        }
+        const payload = (await response.json()) as KeywordDetailPayload;
+        setDetailData(payload);
+      } catch (err) {
+        console.error("Failed to load keyword SERP detail", err);
+        setDetailError(err instanceof Error ? err.message : "Unexpected error loading keyword detail");
+      } finally {
+        setDetailLoading(false);
+      }
+    },
+    [],
+  );
+
+  const closeDetailModal = useCallback(() => {
+    setDetailOpen(false);
+    setDetailLoading(false);
+    setDetailError(null);
+    setDetailKeyword(null);
+    setDetailData(null);
+  }, []);
 
   const complianceNotes = useMemo(() => {
     if (!results.length) {
@@ -310,14 +439,30 @@ export default function KeywordsPage(): JSX.Element {
   const canRefresh = Boolean(lastSuccessfulQuery);
 
   const sourceLineageLabel = useMemo(() => {
-    if (!responseSources.length) {
-      return "synthetic";
+    const lineageSources = responseSources.length
+      ? responseSources
+      : Array.from(new Set(results.map((item) => item.source)));
+    if (!lineageSources.length) {
+      return formatSourceLabel("synthetic");
     }
-    const mapped = responseSources
-      .map((source) => SOURCE_DETAILS[source]?.title ?? source)
+    const mapped = lineageSources
+      .map((source) => {
+        const normalized = typeof source === "string" ? source.toLowerCase() : "";
+        const match = results.find((item) => item.source === source || item.source === normalized);
+        return match?.source_label ?? formatSourceLabel(normalized);
+      })
+      .filter(Boolean)
       .join(", ");
-    return mapped || "synthetic";
-  }, [responseSources]);
+    return mapped || formatSourceLabel("synthetic");
+  }, [responseSources, results]);
+
+  const detailSourceLabel = detailKeyword
+    ? detailKeyword.source_label ?? formatSourceLabel(detailKeyword.source)
+    : null;
+  const detailProvenanceLabel = detailKeyword?.provenance_label ?? null;
+  const detailMarketLabel = detailKeyword ? detailKeyword.market.toUpperCase() : null;
+  const detailCaptureTimestamp = formatTimestamp(detailData?.capturedAt ?? detailKeyword?.serp_captured_at ?? null);
+  const detailTotalResults = detailData?.totalResults ?? detailKeyword?.serp_total_results ?? null;
 
   return (
     <div className="keywords-page">
@@ -493,6 +638,23 @@ export default function KeywordsPage(): JSX.Element {
                 <dd>{dataLineage.freshest}</dd>
               </div>
             </dl>
+            <div className="keywords-source-chips" aria-label="Active data sources">
+              {(responseSources.length
+                ? responseSources
+                : Array.from(new Set(results.map((item) => item.source))))
+                .filter((source): source is string => typeof source === "string" && Boolean(source))
+                .map((source) => {
+                  const normalized = source.toLowerCase();
+                  const label =
+                    results.find((item) => item.source === source || item.source === normalized)?.source_label ??
+                    formatSourceLabel(normalized);
+                  return (
+                    <span key={normalized} className="keyword-chip">
+                      {label}
+                    </span>
+                  );
+                })}
+            </div>
             <div className="keywords-table">
               <table>
                 <thead>
@@ -520,6 +682,10 @@ export default function KeywordsPage(): JSX.Element {
                       typeof keyword.compositeScore === "number"
                         ? `${(keyword.compositeScore * 100).toFixed(0)}%`
                         : "—";
+                    const sourceLabel = keyword.source_label ?? formatSourceLabel(keyword.source);
+                    const provenanceLabel = keyword.provenance_label;
+                    const serpRecency = formatTimestamp(keyword.serp_captured_at);
+                    const sampleCount = typeof keyword.sample_count === "number" ? keyword.sample_count : null;
                     return (
                       <tr key={`${keyword.term}-${keyword.market}`}>
                         <td>
@@ -527,7 +693,10 @@ export default function KeywordsPage(): JSX.Element {
                             <strong>{keyword.term}</strong>
                             <ul className="keyword-term__meta">
                               <li>{keyword.market.toUpperCase()}</li>
-                              <li>{SOURCE_DETAILS[keyword.source]?.title ?? keyword.source}</li>
+                              <li>{sourceLabel}</li>
+                              {provenanceLabel ? <li>Provenance: {provenanceLabel}</li> : null}
+                              {sampleCount ? <li>SERP samples: {sampleCount}</li> : null}
+                              {serpRecency ? <li>Last SERP capture: {serpRecency}</li> : null}
                               {category ? <li>Category: {String(category)}</li> : null}
                               {tagFilter ? <li>Tag focus: {tagFilter}</li> : null}
                             </ul>
@@ -553,10 +722,13 @@ export default function KeywordsPage(): JSX.Element {
                         </td>
                         <td>
                           <span className="keyword-freshness">
-                            {SOURCE_DETAILS[keyword.source]?.title ?? keyword.source}
+                            {sourceLabel}
                           </span>
                         </td>
                         <td className="keyword-actions">
+                          <button className="keyword-detail" onClick={() => void handleViewDetails(keyword)}>
+                            View details
+                          </button>
                           <button className="keyword-watch" onClick={() => handleWatchlist(keyword)}>
                             Add to watchlist
                           </button>
@@ -625,6 +797,118 @@ export default function KeywordsPage(): JSX.Element {
         </div>
       </div>
 
+      {detailOpen ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="modal keyword-detail-modal">
+            <header>
+              <h2>Keyword provenance</h2>
+              <button
+                type="button"
+                className="modal-close"
+                aria-label="Close keyword detail"
+                onClick={closeDetailModal}
+              >
+                ×
+              </button>
+            </header>
+            <div className="modal-body">
+              {detailKeyword ? (
+                <p className="modal-subtitle">
+                  <strong>{detailKeyword.term}</strong>
+                  {detailMarketLabel ? ` (${detailMarketLabel})` : ""}
+                  {detailSourceLabel ? ` · ${detailSourceLabel}` : ""}
+                  {detailProvenanceLabel ? ` • ${detailProvenanceLabel}` : ""}
+                </p>
+              ) : null}
+              {detailError ? <p className="modal-error">{detailError}</p> : null}
+              {detailLoading ? <p>Loading SERP samples…</p> : null}
+              {!detailLoading && !detailError && detailData ? (
+                <div className="keyword-detail-content">
+                  <div className="keyword-detail-summary">
+                    <p>
+                      Captured {detailData.samples.length} listing{detailData.samples.length === 1 ? "" : "s"}
+                      {detailCaptureTimestamp ? ` on ${detailCaptureTimestamp}` : ""}.
+                    </p>
+                    {detailTotalResults != null ? (
+                      <p>Total Etsy results at capture: {detailTotalResults.toLocaleString()}</p>
+                    ) : null}
+                  </div>
+                  {detailData.summary?.tags?.length ? (
+                    <div className="keyword-detail-tags">
+                      <h3>Observed tags</h3>
+                      <ul>
+                        {detailData.summary.tags.map((tag) => (
+                          <li key={tag}>{tag}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  <ul className="keyword-detail-samples">
+                    {detailData.samples.map((sample) => (
+                      <li key={sample.id}>
+                        <div className="keyword-detail-sample-header">
+                          <span className="keyword-detail-rank">#{sample.position ?? "—"}</span>
+                          <span className="keyword-detail-title">{sample.title ?? "Untitled listing"}</span>
+                        </div>
+                        <div className="keyword-detail-meta">
+                          {sample.url ? (
+                            <a href={sample.url} target="_blank" rel="noreferrer">
+                              View listing
+                            </a>
+                          ) : (
+                            <span>No direct listing link</span>
+                          )}
+                          {sample.tags.length ? (
+                            <ul className="keyword-detail-taglist">
+                              {sample.tags.map((tag) => (
+                                <li key={tag}>{tag}</li>
+                              ))}
+                            </ul>
+                          ) : null}
+                          {formatTimestamp(sample.capturedAt) ? (
+                            <span className="keyword-detail-captured">Captured {formatTimestamp(sample.capturedAt)}</span>
+                          ) : null}
+                          {sample.derivedMetrics && Object.keys(sample.derivedMetrics).length ? (
+                            <dl className="keyword-detail-metrics">
+                              {Object.entries(sample.derivedMetrics).map(([metric, value]) => {
+                                let renderedValue: string;
+                                if (typeof value === "number") {
+                                  renderedValue = value.toLocaleString(undefined, {
+                                    maximumFractionDigits: 2,
+                                  });
+                                } else if (typeof value === "string") {
+                                  renderedValue = value;
+                                } else if (value == null) {
+                                  renderedValue = "—";
+                                } else {
+                                  renderedValue = JSON.stringify(value);
+                                }
+                                return (
+                                  <div key={metric}>
+                                    <dt>{formatSourceLabel(metric)}</dt>
+                                    <dd>{renderedValue}</dd>
+                                  </div>
+                                );
+                              })}
+                            </dl>
+                          ) : null}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {!detailLoading && !detailError && !detailData ? <p>No SERP samples available yet.</p> : null}
+            </div>
+            <footer className="modal-footer">
+              <button type="button" className="keyword-watch" onClick={closeDetailModal}>
+                Close
+              </button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
+
       {optimizerOpen ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true">
           <div className="modal">
@@ -640,9 +924,9 @@ export default function KeywordsPage(): JSX.Element {
               </button>
             </header>
             <div className="modal-body">
-              {selectedKeyword ? (
+              {optimizerKeyword ? (
                 <p className="modal-subtitle">
-                  Keyword context: <strong>{selectedKeyword.term}</strong> ({selectedKeyword.market})
+                  Keyword context: <strong>{optimizerKeyword.term}</strong> ({optimizerKeyword.market})
                 </p>
               ) : null}
               {optimizerLoading ? <p>Generating AI suggestions…</p> : null}
