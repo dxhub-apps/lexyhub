@@ -1,0 +1,24 @@
+name: Reddit keyword discovery
+on:
+  schedule: [{ cron: "17 */3 * * *" }]
+  workflow_dispatch:
+    inputs:
+      subreddits: { description: "comma-separated", required: false }
+      queries: { description: "comma-separated", required: false }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm ci
+      - name: Run
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          REDDIT_ACCESS_TOKEN: ${{ secrets.REDDIT_ACCESS_TOKEN }}
+          SUBREDDITS: ${{ github.event.inputs.subreddits }}
+          QUERIES: ${{ github.event.inputs.queries }}
+        run: node scripts/reddit-keyword-discovery.mjs
