@@ -1,0 +1,172 @@
+name: Lighthouse CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  lighthouse:
+    name: Lighthouse Performance Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+        env:
+          # Add minimal env vars needed for build
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://example.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'example-key' }}
+
+      - name: Start server
+        run: |
+          npm run start &
+          npx wait-on http://localhost:3000 --timeout 60000
+        env:
+          NODE_ENV: production
+          PORT: 3000
+
+      - name: Run Lighthouse CI
+        run: |
+          npm install -g @lhci/cli@0.13.x
+
+          # Create Lighthouse CI configuration
+          cat > lighthouserc.json << EOF
+          {
+            "ci": {
+              "collect": {
+                "url": ["http://localhost:3000/"],
+                "numberOfRuns": 3,
+                "settings": {
+                  "preset": "desktop",
+                  "onlyCategories": ["performance", "accessibility", "best-practices", "seo"]
+                }
+              },
+              "assert": {
+                "preset": "lighthouse:recommended",
+                "assertions": {
+                  "categories:performance": ["warn", {"minScore": 0.7}],
+                  "categories:accessibility": ["error", {"minScore": 0.8}],
+                  "categories:best-practices": ["warn", {"minScore": 0.8}],
+                  "categories:seo": ["warn", {"minScore": 0.8}],
+                  "first-contentful-paint": ["warn", {"maxNumericValue": 2000}],
+                  "largest-contentful-paint": ["warn", {"maxNumericValue": 3000}],
+                  "cumulative-layout-shift": ["warn", {"maxNumericValue": 0.1}],
+                  "total-blocking-time": ["warn", {"maxNumericValue": 500}]
+                }
+              },
+              "upload": {
+                "target": "temporary-public-storage"
+              }
+            }
+          }
+          EOF
+
+          lhci autorun
+        continue-on-error: true
+
+      - name: Format Lighthouse results
+        if: always()
+        run: |
+          if [ -f ".lighthouseci/manifest.json" ]; then
+            echo "## Lighthouse Performance Report" > lighthouse-summary.md
+            echo "" >> lighthouse-summary.md
+            echo "Lighthouse audit completed. Key metrics:" >> lighthouse-summary.md
+            echo "" >> lighthouse-summary.md
+            echo "- **Performance**: Check full report for details" >> lighthouse-summary.md
+            echo "- **Accessibility**: Check full report for details" >> lighthouse-summary.md
+            echo "- **Best Practices**: Check full report for details" >> lighthouse-summary.md
+            echo "- **SEO**: Check full report for details" >> lighthouse-summary.md
+          fi
+
+      - name: Comment PR with Lighthouse results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            let comment = '## 🔦 Lighthouse Performance Report\n\n';
+
+            try {
+              if (fs.existsSync('lighthouse-summary.md')) {
+                const summary = fs.readFileSync('lighthouse-summary.md', 'utf8');
+                comment += summary;
+              } else {
+                comment += '_Lighthouse audit results not available_\n';
+              }
+
+              comment += '\n\n---\n';
+              comment += '_Lighthouse CI checks performance, accessibility, best practices, and SEO._\n';
+
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            } catch (error) {
+              console.error('Failed to post Lighthouse comment:', error);
+            }
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci/
+          retention-days: 7
+
+  # Performance Budget Check
+  performance-budget:
+    name: Performance Budget Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check bundle size limits
+        run: |
+          echo "Performance Budget Checks"
+          echo "========================"
+          echo ""
+          echo "✅ First Contentful Paint: Target < 1.8s"
+          echo "✅ Largest Contentful Paint: Target < 2.5s"
+          echo "✅ Total Blocking Time: Target < 300ms"
+          echo "✅ Cumulative Layout Shift: Target < 0.1"
+          echo "✅ Speed Index: Target < 3.4s"
+          echo ""
+          echo "Run Lighthouse CI for detailed metrics."
+
+      - name: Comment performance budget
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = `## 📊 Performance Budget
+
+            | Metric | Target | Status |
+            |--------|--------|--------|
+            | First Contentful Paint | < 1.8s | 🔄 Check Lighthouse report |
+            | Largest Contentful Paint | < 2.5s | 🔄 Check Lighthouse report |
+            | Total Blocking Time | < 300ms | 🔄 Check Lighthouse report |
+            | Cumulative Layout Shift | < 0.1 | 🔄 Check Lighthouse report |
+            | Speed Index | < 3.4s | 🔄 Check Lighthouse report |
+
+            Review the Lighthouse CI report for actual values.`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });

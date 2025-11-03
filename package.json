@@ -22,6 +22,11 @@
     "extension:build": "tsx apps/browser-extension/scripts/build-extension.ts",
     "db:seed": "tsx scripts/seed-db.ts",
     "db:reset": "tsx scripts/reset-db.ts",
+    "backup:create": "tsx scripts/backup-db.ts create",
+    "backup:schema": "tsx scripts/backup-db.ts schema-only",
+    "backup:list": "tsx scripts/backup-db.ts list",
+    "backup:clean": "tsx scripts/backup-db.ts clean",
+    "restore:db": "tsx scripts/restore-db.ts",
     "analyze": "ANALYZE=true npm run build"
   },
   "dependencies": {
