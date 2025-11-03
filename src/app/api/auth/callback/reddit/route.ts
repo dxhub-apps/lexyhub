@@ -1,5 +1,6 @@
 // src/app/api/auth/callback/reddit/route.ts
 export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
@@ -30,10 +31,14 @@ async function exchangeCodeForToken(code: string) {
     cache: "no-store",
   });
 
-  if (!r.ok) throw new Error(`token_exchange_failed:${r.status}`);
+  if (!r.ok) {
+    const text = await r.text().catch(() => "");
+    throw new Error(`token_exchange_failed:${r.status}:${text}`);
+  }
+
   return (await r.json()) as {
     access_token: string;
-    token_type: string;
+    token_type: "bearer";
     expires_in: number;
     scope: string;
     refresh_token?: string;
@@ -48,8 +53,15 @@ async function getIdentity(accessToken: string) {
     },
     cache: "no-store",
   });
-  if (!r.ok) throw new Error(`identity_failed:${r.status}`);
+  if (!r.ok) {
+    const text = await r.text().catch(() => "");
+    throw new Error(`identity_failed:${r.status}:${text}`);
+  }
   return (await r.json()) as { id: string; name: string };
+}
+
+function toAppUrl(pathAndQuery: string) {
+  return new URL(pathAndQuery, "https://app.lexyhub.com");
 }
 
 export async function GET(req: NextRequest) {
@@ -59,17 +71,18 @@ export async function GET(req: NextRequest) {
   const cookieState = req.cookies.get("reddit_oauth_state")?.value;
 
   if (!code || !state || !cookieState || state !== cookieState) {
-    return NextResponse.redirect(new URL("/auth/error?reason=state", req.url));
+    return NextResponse.redirect(toAppUrl("/integrations/reddit?error=state"));
   }
 
-  // Read authenticated Supabase user from cookies (App Router)
+  // Read authenticated Supabase user from App Router cookies
   const supabaseUserClient = createRouteHandlerClient({ cookies });
   const {
     data: { user },
     error: userErr,
   } = await supabaseUserClient.auth.getUser();
+
   if (userErr || !user?.id) {
-    return NextResponse.redirect(new URL("/auth/error?reason=unauthenticated", req.url));
+    return NextResponse.redirect(toAppUrl("/integrations/reddit?error=unauthenticated"));
   }
 
   try {
@@ -92,20 +105,21 @@ export async function GET(req: NextRequest) {
         access_token: token.access_token,
         refresh_token: token.refresh_token ?? null,
         token_expires_at: expiresAt,
-        scopes,
+        scopes, // column type must be text[]
         status: "active",
         metadata: {},
       },
       { onConflict: "user_id,provider_id,external_shop_id" }
     );
-    if (error) throw error;
 
-    const ok = new URL("/integrations/reddit?connected=1&name=" + encodeURIComponent(me.name), req.url);
-    ok.hostname = "app.lexyhub.com";
-    ok.protocol = "https:";
+    if (error) throw new Error(`db_upsert_failed:${error.message}`);
+
+    const ok = toAppUrl(
+      "/integrations/reddit?connected=1&name=" + encodeURIComponent(me.name)
+    );
     return NextResponse.redirect(ok);
   } catch (e) {
     console.error("reddit_oauth_error", e);
-    return NextResponse.redirect(new URL("/auth/error?reason=oauth", req.url));
+    return NextResponse.redirect(toAppUrl("/integrations/reddit?error=oauth"));
   }
 }
