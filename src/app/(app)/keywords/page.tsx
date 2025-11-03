@@ -46,7 +46,6 @@ type TagOptimizerResult = {
 type FiltersState = {
   sources: string[];
   market: string;
-  tier: PlanTier;
   tags: string;
 };
 
@@ -78,9 +77,10 @@ const DEFAULT_SOURCES = Object.keys(SOURCE_DETAILS);
 const INITIAL_FILTERS: FiltersState = {
   sources: DEFAULT_SOURCES,
   market: "us",
-  tier: "growth",
   tags: "",
 };
+
+const DEFAULT_PLAN: PlanTier = "growth";
 
 const deriveOpportunityScore = (keyword: KeywordResult): number => {
   if (typeof keyword.ai_opportunity_score === "number") {
@@ -134,116 +134,133 @@ function FilterChipList({ chips, disabled }: FilterChipListProps): JSX.Element |
   );
 }
 
-type KeywordFiltersProps = {
+type KeywordSearchPanelProps = {
+  query: string;
+  onQueryChange: (value: string) => void;
+  loading: boolean;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onRefresh: () => void;
+  canRefresh: boolean;
   filters: FiltersState;
-  chips: FilterChip[];
   availableSources: string[];
-  disabled: boolean;
-  onClearAll: () => void;
+  chips: FilterChip[];
   onToggleSource: (source: string) => void;
   onMarketChange: (value: string) => void;
-  onTierChange: (tier: PlanTier) => void;
   onTagChange: (value: string) => void;
+  onClearAll: () => void;
 };
 
-function KeywordFilters({
+function KeywordSearchPanel({
+  query,
+  onQueryChange,
+  loading,
+  onSubmit,
+  onRefresh,
+  canRefresh,
   filters,
-  chips,
   availableSources,
-  disabled,
-  onClearAll,
+  chips,
   onToggleSource,
   onMarketChange,
-  onTierChange,
   onTagChange,
-}: KeywordFiltersProps): JSX.Element {
+  onClearAll,
+}: KeywordSearchPanelProps): JSX.Element {
   return (
-    <aside className="keywords-filters">
-      <div className="filter-card" aria-labelledby="filter-summary">
-        <header>
-          <h2 id="filter-summary">Active filters</h2>
-          <button type="button" onClick={onClearAll} disabled={disabled || chips.length === 0}>
-            Reset
+    <section className="keywords-search-card surface-card" aria-label="Keyword search controls">
+      <header className="keywords-search-card__header">
+        <div>
+          <h2>Search intelligence</h2>
+          <p>Run a fresh analysis, fine-tune the data sources, and surface opportunities without leaving the workspace.</p>
+        </div>
+        <button type="button" onClick={onClearAll} disabled={loading || chips.length === 0}>
+          Reset filters
+        </button>
+      </header>
+      <form className="keywords-search-form" onSubmit={onSubmit}>
+        <div className="keywords-search-grid">
+          <div className="keywords-search-main">
+            <label htmlFor="keyword-query">Keyword or product idea</label>
+            <div className="keywords-search-input">
+              <input
+                id="keyword-query"
+                value={query}
+                onChange={(event) => onQueryChange(event.target.value)}
+                placeholder="Search for opportunities, e.g. boho nursery decor"
+                disabled={loading}
+                autoComplete="off"
+                aria-describedby="keyword-hint"
+              />
+            </div>
+            <p id="keyword-hint" className="keywords-search-form__hint">
+              Press Enter or tap Search to refresh demand signals.
+            </p>
+          </div>
+          <div className="keywords-search-controls">
+            <div className="keywords-search-control">
+              <span className="keywords-search-control__label">Market</span>
+              <select
+                value={filters.market}
+                onChange={(event) => onMarketChange(event.target.value)}
+                disabled={loading}
+              >
+                {MARKET_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="keywords-search-control">
+              <span className="keywords-search-control__label">Signals</span>
+              <div className="keywords-search-sources">
+                {availableSources.map((source) => {
+                  const active = filters.sources.includes(source);
+                  const detail = SOURCE_DETAILS[source];
+                  return (
+                    <button
+                      type="button"
+                      key={source}
+                      className={active ? "keywords-source is-active" : "keywords-source"}
+                      onClick={() => onToggleSource(source)}
+                      disabled={loading || (active && filters.sources.length === 1)}
+                    >
+                      <span className="keywords-source__title">{detail?.title ?? source}</span>
+                      <span className="keywords-source__description">{detail?.description ?? ""}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="keywords-search-control">
+              <span className="keywords-search-control__label">Tag focus</span>
+              <input
+                type="text"
+                value={filters.tags}
+                onChange={(event) => onTagChange(event.target.value)}
+                placeholder="e.g. boho, nursery, eco"
+                disabled={loading}
+              />
+              <p className="keywords-search-control__hint">Comma separate phrases to influence AI suggestions.</p>
+            </div>
+          </div>
+        </div>
+        <div className="keywords-search-form__actions">
+          <button type="submit" disabled={loading || !query.trim()}>
+            {loading ? "Searching…" : "Search"}
           </button>
-        </header>
+          <button type="button" onClick={onRefresh} disabled={loading || !canRefresh}>
+            Replay last search
+          </button>
+        </div>
+      </form>
+      <div className="keywords-active-filters" aria-live="polite">
         {chips.length ? (
-          <FilterChipList chips={chips} disabled={disabled} />
+          <FilterChipList chips={chips} disabled={loading} />
         ) : (
-          <p className="filter-summary__hint">Showing insights from every connected source.</p>
+          <p className="keywords-active-filters__hint">All approved sources and markets are currently in scope.</p>
         )}
       </div>
-
-      <div className="filter-card" aria-labelledby="filter-sources">
-        <header>
-          <h2 id="filter-sources">Sources</h2>
-        </header>
-        <p>Select the marketplaces and synthetic feeds that fuel opportunity scoring.</p>
-        <div className="keywords-sources__options">
-          {availableSources.map((source) => {
-            const active = filters.sources.includes(source);
-            const detail = SOURCE_DETAILS[source];
-            return (
-              <label key={source} className={active ? "source-option is-active" : "source-option"}>
-                <input
-                  type="checkbox"
-                  checked={active}
-                  onChange={() => onToggleSource(source)}
-                  disabled={disabled || (active && filters.sources.length === 1)}
-                />
-                <span className="source-option__content">
-                  <span className="source-option__title">{detail?.title ?? source}</span>
-                  <span className="source-option__description">{detail?.description ?? ""}</span>
-                </span>
-              </label>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="filter-card" aria-labelledby="filter-market">
-        <header>
-          <h2 id="filter-market">Market</h2>
-        </header>
-        <p>Align results with the regional storefront you operate.</p>
-        <select value={filters.market} onChange={(event) => onMarketChange(event.target.value)} disabled={disabled}>
-          {MARKET_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="filter-card" aria-labelledby="filter-tier">
-        <header>
-          <h2 id="filter-tier">Tier focus</h2>
-        </header>
-        <p>Preview how opportunities shift across monetisation tiers.</p>
-        <select
-          value={filters.tier}
-          onChange={(event) => onTierChange(event.target.value as PlanTier)}
-          disabled={disabled}
-        >
-          <option value="free">Starter</option>
-          <option value="growth">Growth</option>
-          <option value="scale">Scale</option>
-        </select>
-      </div>
-
-      <div className="filter-card" aria-labelledby="filter-tags">
-        <header>
-          <h2 id="filter-tags">Tag keywords</h2>
-        </header>
-        <p>Track the thematic focus you want surfaced in AI suggestions.</p>
-        <input
-          type="text"
-          value={filters.tags}
-          onChange={(event) => onTagChange(event.target.value)}
-          placeholder="e.g. boho, nursery, eco"
-          disabled={disabled}
-        />
-      </div>
-    </aside>
+    </section>
   );
 }
 
@@ -270,17 +287,18 @@ function KeywordResultsTable({
   onOptimize,
   topOpportunity,
 }: KeywordResultsTableProps): JSX.Element {
+  const opportunityTotal = loading ? "…" : results.length;
+
   return (
-    <section className="keywords-results-card surface-card" aria-live="polite">
-      <header className="keywords-results__header">
+    <section className="keywords-opportunities-card surface-card" aria-live="polite">
+      <header className="keywords-opportunities__header">
         <div>
           <h2>Keyword opportunities</h2>
-          <p className="keyword-meta">Query: {query || "—"}</p>
-          {filteredOutCount > 0 ? (
-            <p className="keyword-filtered-meta">{filteredOutCount} results hidden by filter preferences</p>
-          ) : null}
+          <p className="keywords-opportunities__subtitle">
+            {query ? `Insights for “${query}”` : "Run a search to populate opportunities."}
+          </p>
         </div>
-        <div className="keywords-bulk-actions">
+        <div className="keywords-opportunities__actions">
           <button type="button" disabled={!results.length || loading}>
             Export CSV
           </button>
@@ -290,33 +308,38 @@ function KeywordResultsTable({
         </div>
       </header>
 
+      <div className="keywords-opportunities__stats" role="list">
+        <div role="listitem">
+          <span className="keywords-opportunities__label">Visible keywords</span>
+          <span className="keywords-opportunities__value">{opportunityTotal}</span>
+        </div>
+        <div role="listitem">
+          <span className="keywords-opportunities__label">Signals</span>
+          <span className="keywords-opportunities__value">{sourceLineageLabel}</span>
+        </div>
+        <div role="listitem">
+          <span className="keywords-opportunities__label">Freshest sync</span>
+          <span className="keywords-opportunities__value">{dataLineage.freshest}</span>
+        </div>
+        {filteredOutCount > 0 ? (
+          <div role="listitem" className="keywords-opportunities__note">
+            {filteredOutCount} results hidden by tag or source filters
+          </div>
+        ) : null}
+      </div>
+
       {topOpportunity ? (
-        <div className="keywords-results__highlight" role="note">
-          <h3>Top opportunity to review</h3>
+        <aside className="keywords-opportunities__highlight" role="note">
+          <h3>Priority opportunity</h3>
           <p>
-            <strong>{topOpportunity.term}</strong> shows the strongest signal based on current filters.
+            <strong>{topOpportunity.term}</strong> is showing the strongest combined momentum across the active signals.
           </p>
-          <p className="keywords-results__highlight-meta">
-            Source: {SOURCE_DETAILS[topOpportunity.source]?.title ?? topOpportunity.source} · Freshness: {" "}
+          <p className="keywords-opportunities__highlight-meta">
+            {SOURCE_DETAILS[topOpportunity.source]?.title ?? topOpportunity.source} · {" "}
             {topOpportunity.freshness_ts ? new Date(topOpportunity.freshness_ts).toLocaleString() : "Not yet synced"}
           </p>
-        </div>
+        </aside>
       ) : null}
-
-      <dl className="keywords-results__stats">
-        <div>
-          <dt>Visible matches</dt>
-          <dd>{loading ? "…" : results.length}</dd>
-        </div>
-        <div>
-          <dt>Sources</dt>
-          <dd>{sourceLineageLabel}</dd>
-        </div>
-        <div>
-          <dt>Freshest sync</dt>
-          <dd>{dataLineage.freshest}</dd>
-        </div>
-      </dl>
 
       <div className="keywords-table">
         <table>
@@ -423,54 +446,63 @@ function KeywordInsightsPanel({
   tagTokens,
 }: KeywordInsightsPanelProps): JSX.Element {
   return (
-    <div className="keywords-panel">
-      <section>
-        <h3>Helpful highlights</h3>
-        <p className="keyword-summary">{insights?.summary ?? "Run a search to see helpful keyword tips."}</p>
-        <div className="keyword-insight-meta">
-          <span>Last updated: {insights?.generatedAt ? new Date(insights.generatedAt).toLocaleString() : "Not available yet"}</span>
+    <div className="keywords-overview">
+      <section className="keywords-highlight surface-card">
+        <header className="keywords-highlight__header">
+          <p className="keywords-highlight__eyebrow">Helpful highlights</p>
+          <h3>What the signals are saying</h3>
+        </header>
+        <p className="keywords-highlight__summary">
+          {insights?.summary ?? "Run a search to unlock AI-assisted guidance around the strongest keyword opportunities."}
+        </p>
+        <div className="keywords-highlight__meta">
+          <span>
+            Last updated: {insights?.generatedAt ? new Date(insights.generatedAt).toLocaleString() : "Not yet generated"}
+          </span>
           {insights?.model ? <span>Model: {insights.model}</span> : null}
         </div>
         <KeywordSparkline points={sparklinePoints} />
       </section>
 
-      <section>
-        <h3>Data lineage</h3>
-        <p>{complianceNotes}</p>
-        <dl className="keyword-data-info">
-          <div>
-            <dt>Sources</dt>
-            <dd>{dataLineage.sources.join(", ")}</dd>
-          </div>
-          <div>
-            <dt>Freshest sync</dt>
-            <dd>{dataLineage.freshest}</dd>
-          </div>
-          <div>
-            <dt>Records</dt>
-            <dd>{dataLineage.recordCount}</dd>
-          </div>
-        </dl>
-      </section>
+      <div className="keywords-overview-grid">
+        <section className="keywords-overview-card surface-card">
+          <h3>Signal lineage</h3>
+          <p className="keywords-overview-card__description">{complianceNotes}</p>
+          <dl className="keyword-data-info">
+            <div>
+              <dt>Sources</dt>
+              <dd>{dataLineage.sources.join(", ")}</dd>
+            </div>
+            <div>
+              <dt>Freshest sync</dt>
+              <dd>{dataLineage.freshest}</dd>
+            </div>
+            <div>
+              <dt>Records in view</dt>
+              <dd>{dataLineage.recordCount}</dd>
+            </div>
+          </dl>
+        </section>
 
-      <section>
-        <h3>Momentum playbook</h3>
-        <ul>
-          <li>Export top movers and sync them to the Market Twin for visibility simulations.</li>
-          <li>Use the Add to watchlist action to feed alerts without leaving the table.</li>
-          <li>Tag filters help you track thematic focus areas for merchandising.</li>
-        </ul>
-        {tagTokens.length ? (
-          <div className="keywords-results__highlight-tags" aria-label="Tag focus">
-            <span>Tag focus:</span>
-            <ul>
-              {tagTokens.map((tag) => (
-                <li key={tag}>{tag}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-      </section>
+        <section className="keywords-overview-card surface-card">
+          <h3>Momentum playbook</h3>
+          <ul className="keywords-playbook">
+            <li>Export top movers and sync them to the Market Twin for visibility simulations.</li>
+            <li>Use the watchlist action to trigger alerts without leaving this page.</li>
+            <li>Refine the Tag focus to shape AI suggestions for merchandising.</li>
+          </ul>
+          {tagTokens.length ? (
+            <div className="keywords-tag-focus" aria-label="Tag focus">
+              <span>Tag emphasis</span>
+              <ul>
+                {tagTokens.map((tag) => (
+                  <li key={tag}>{tag}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </section>
+      </div>
     </div>
   );
 }
@@ -537,7 +569,6 @@ export default function KeywordsPage(): JSX.Element {
   const [filters, setFilters] = useState<FiltersState>({
     sources: [...INITIAL_FILTERS.sources],
     market: INITIAL_FILTERS.market,
-    tier: INITIAL_FILTERS.tier,
     tags: INITIAL_FILTERS.tags,
   });
   const [query, setQuery] = useState("");
@@ -553,6 +584,7 @@ export default function KeywordsPage(): JSX.Element {
   const [optimizerResult, setOptimizerResult] = useState<TagOptimizerResult | null>(null);
   const [optimizerError, setOptimizerError] = useState<string | null>(null);
   const [selectedKeyword, setSelectedKeyword] = useState<KeywordResult | null>(null);
+  const [activeTab, setActiveTab] = useState<"overview" | "opportunities">("opportunities");
 
   const { push } = useToast();
   const session = useSession();
@@ -586,7 +618,6 @@ export default function KeywordsPage(): JSX.Element {
     setFilters({
       sources: [...availableSources],
       market: INITIAL_FILTERS.market,
-      tier: INITIAL_FILTERS.tier,
       tags: INITIAL_FILTERS.tags,
     });
   }, [availableSources]);
@@ -617,7 +648,7 @@ export default function KeywordsPage(): JSX.Element {
             query: normalizedTerm,
             market: filters.market,
             limit: 25,
-            plan: filters.tier,
+            plan: DEFAULT_PLAN,
             sources: filters.sources,
           }),
         });
@@ -639,7 +670,7 @@ export default function KeywordsPage(): JSX.Element {
         setLoading(false);
       }
     },
-    [filters.market, filters.sources, filters.tier],
+    [filters.market, filters.sources],
   );
 
   const handleWatchlist = useCallback(
@@ -731,8 +762,8 @@ export default function KeywordsPage(): JSX.Element {
     ).join(", ");
     const freshest = results[0]?.freshness_ts ? new Date(results[0]?.freshness_ts).toLocaleString() : "Not yet synced";
 
-    return `Sources: ${uniqueSources || "synthetic"}. Freshness: ${freshest}. Tier focus: ${filters.tier.toUpperCase()}.`;
-  }, [responseSources, results, filters.tier]);
+    return `Sources: ${uniqueSources || "synthetic"}. Freshness: ${freshest}.`;
+  }, [responseSources, results]);
 
   const dataLineage = useMemo(() => {
     const freshest = results.reduce<string | null>((latest, record) => {
@@ -814,16 +845,25 @@ export default function KeywordsPage(): JSX.Element {
       .slice(-24);
   }, [visibleResults]);
 
+  const lastSuccessfulQuery = lastQuery;
+  const canRefresh = Boolean(lastSuccessfulQuery);
+
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
+      setActiveTab("opportunities");
       void performSearch(query);
     },
-    [performSearch, query],
+    [performSearch, query, setActiveTab],
   );
 
-  const lastSuccessfulQuery = lastQuery;
-  const canRefresh = Boolean(lastSuccessfulQuery);
+  const handleRefresh = useCallback(() => {
+    if (!lastSuccessfulQuery) {
+      return;
+    }
+    setActiveTab("opportunities");
+    void performSearch(lastSuccessfulQuery);
+  }, [lastSuccessfulQuery, performSearch, setActiveTab]);
 
   const sourceLineageLabel = useMemo(() => {
     if (!responseSources.length) {
@@ -845,10 +885,6 @@ export default function KeywordsPage(): JSX.Element {
     setFilters((current) => ({ ...current, market: INITIAL_FILTERS.market }));
   }, []);
 
-  const resetTier = useCallback(() => {
-    setFilters((current) => ({ ...current, tier: INITIAL_FILTERS.tier }));
-  }, []);
-
   const resetSources = useCallback(() => {
     setFilters((current) => ({ ...current, sources: [...availableSources] }));
   }, [availableSources]);
@@ -868,11 +904,6 @@ export default function KeywordsPage(): JSX.Element {
       chips.push({ id: "market", label, onRemove: resetMarket });
     }
 
-    if (filters.tier !== INITIAL_FILTERS.tier) {
-      const label = `Tier: ${filters.tier}`;
-      chips.push({ id: "tier", label, onRemove: resetTier });
-    }
-
     if (filters.sources.length !== availableSources.length) {
       chips.push({
         id: "sources",
@@ -886,85 +917,106 @@ export default function KeywordsPage(): JSX.Element {
     });
 
     return chips;
-  }, [filters, availableSources, resetMarket, resetTier, resetSources, removeTag]);
+  }, [filters, availableSources, resetMarket, resetSources, removeTag]);
+
+  const overviewPanelId = "keywords-panel-overview";
+  const opportunitiesPanelId = "keywords-panel-opportunities";
+  const tabs: Array<{ id: "overview" | "opportunities"; label: string; description?: string }> = [
+    { id: "overview", label: "Overview", description: "Narrative & lineage" },
+    {
+      id: "opportunities",
+      label: "Opportunities",
+      description: loading ? "Updating…" : `${visibleResults.length} keywords`,
+    },
+  ];
 
   return (
     <div className="keywords-page">
-      <section className="keywords-hero-card" aria-labelledby="keywords-title">
-        <div>
-          <p className="keywords-hero__eyebrow">Search intelligence</p>
+      <section className="keywords-hero-card surface-card" aria-labelledby="keywords-title">
+        <div className="keywords-hero-card__intro">
+          <p className="keywords-hero__eyebrow">Keyword workspace</p>
           <h1 id="keywords-title">Keyword Intelligence</h1>
           <p>
-            Monitor live demand, uncover AI-suggested opportunities, and orchestrate watchlists from one analytics-first
-            workspace.
+            Monitor live demand, uncover AI-suggested opportunities, and orchestrate watchlists without leaving a single, analyst-ready canvas.
           </p>
         </div>
-        <dl className="keywords-hero__meta">
+        <div className="keywords-hero-card__stats">
           <div>
-            <dt>Plan tier</dt>
-            <dd>{filters.tier === "growth" ? "Growth Scale Plan" : filters.tier}</dd>
+            <span>Latest search</span>
+            <strong>{lastSuccessfulQuery ? `“${lastSuccessfulQuery}”` : "Awaiting search"}</strong>
           </div>
           <div>
-            <dt>Market focus</dt>
-            <dd>{MARKET_OPTIONS.find((option) => option.value === filters.market)?.label ?? "United States"}</dd>
+            <span>Signals in scope</span>
+            <strong>{sourceLineageLabel}</strong>
           </div>
           <div>
-            <dt>Active sources</dt>
-            <dd>{sourceLineageLabel}</dd>
+            <span>Records in view</span>
+            <strong>{loading ? "…" : visibleResults.length}</strong>
           </div>
-        </dl>
+        </div>
       </section>
 
-      <div className="keywords-layout">
-        <KeywordFilters
-          filters={filters}
-          chips={filterChips}
-          availableSources={availableSources}
-          disabled={loading}
-          onClearAll={clearAllFilters}
-          onToggleSource={toggleSource}
-          onMarketChange={(value) => setFilters((current) => ({ ...current, market: value }))}
-          onTierChange={(tier) => setFilters((current) => ({ ...current, tier }))}
-          onTagChange={(value) => setFilters((current) => ({ ...current, tags: value }))}
-        />
+      <KeywordSearchPanel
+        query={query}
+        onQueryChange={setQuery}
+        loading={loading}
+        onSubmit={handleSubmit}
+        onRefresh={handleRefresh}
+        canRefresh={canRefresh}
+        filters={filters}
+        availableSources={availableSources}
+        chips={filterChips}
+        onToggleSource={toggleSource}
+        onMarketChange={(value) => setFilters((current) => ({ ...current, market: value }))}
+        onTagChange={(value) => setFilters((current) => ({ ...current, tags: value }))}
+        onClearAll={clearAllFilters}
+      />
 
-        <div className="keywords-main">
-          <section className="keywords-search-card surface-card" aria-label="Keyword search controls">
-            <form className="keywords-search-form" onSubmit={handleSubmit}>
-              <div className="keywords-search-form__field">
-                <label htmlFor="keyword-query">Keyword or product idea</label>
-                <div className="keywords-search-form__input">
-                  <input
-                    id="keyword-query"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search for opportunities, e.g. boho nursery decor"
-                    disabled={loading}
-                    autoComplete="off"
-                    aria-describedby="keyword-hint"
-                  />
-                </div>
-                <p id="keyword-hint" className="keywords-search-form__hint">
-                  Press Enter or use the Search button to run analysis.
-                </p>
-              </div>
-              <div className="keywords-search-form__actions">
-                <button type="submit" disabled={loading || !query.trim()}>
-                  {loading ? "Searching…" : "Search"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void performSearch(query.trim() || lastSuccessfulQuery)}
-                  disabled={loading || (!query.trim() && !canRefresh)}
-                >
-                  Refresh last search
-                </button>
-              </div>
-            </form>
-          </section>
+      {error ? <div className="keyword-error" role="alert">{error}</div> : null}
 
-          {error ? <div className="keyword-error">{error}</div> : null}
+      <nav className="keywords-tabs" role="tablist" aria-label="Keyword insights">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          const controls = tab.id === "overview" ? overviewPanelId : opportunitiesPanelId;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              id={`keywords-tab-${tab.id}`}
+              aria-controls={controls}
+              aria-selected={isActive}
+              className={isActive ? "keywords-tab is-active" : "keywords-tab"}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              <span>{tab.label}</span>
+              {tab.description ? <span className="keywords-tab__description">{tab.description}</span> : null}
+            </button>
+          );
+        })}
+      </nav>
 
+      <div className="keywords-tabpanels">
+        <div
+          id={overviewPanelId}
+          role="tabpanel"
+          aria-labelledby="keywords-tab-overview"
+          hidden={activeTab !== "overview"}
+        >
+          <KeywordInsightsPanel
+            insights={insights}
+            complianceNotes={complianceNotes}
+            dataLineage={dataLineage}
+            sparklinePoints={sparklinePoints}
+            tagTokens={tagTokens}
+          />
+        </div>
+        <div
+          id={opportunitiesPanelId}
+          role="tabpanel"
+          aria-labelledby="keywords-tab-opportunities"
+          hidden={activeTab !== "opportunities"}
+        >
           <KeywordResultsTable
             results={visibleResults}
             loading={loading}
@@ -975,14 +1027,6 @@ export default function KeywordsPage(): JSX.Element {
             onWatchlist={handleWatchlist}
             onOptimize={handleOptimize}
             topOpportunity={topOpportunity}
-          />
-
-          <KeywordInsightsPanel
-            insights={insights}
-            complianceNotes={complianceNotes}
-            dataLineage={dataLineage}
-            sparklinePoints={sparklinePoints}
-            tagTokens={tagTokens}
           />
         </div>
       </div>
