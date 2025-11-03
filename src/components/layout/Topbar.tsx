@@ -1,26 +1,12 @@
 "use client";
 
 import { useMemo } from "react";
-
+import { Menu, Bell } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { UserMenu } from "./UserMenu";
 import type { SidebarNavItem } from "./Sidebar";
-
-function NotificationIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      width={20}
-      height={20}
-      className="app-header-action-icon"
-    >
-      <path
-        fill="currentColor"
-        d="M12 2a6 6 0 0 0-6 6v2.35c0 .51-.2 1-.55 1.36l-.93.93A1 1 0 0 0 5.17 14H19a1 1 0 0 0 .7-1.7l-.93-.93a1.94 1.94 0 0 1-.55-1.35V8a6 6 0 0 0-6-6m0 20a3 3 0 0 0 3-3h-6a3 3 0 0 0 3 3"
-      />
-    </svg>
-  );
-}
 
 type TopbarProps = {
   isMobile: boolean;
@@ -44,9 +30,6 @@ export function Topbar({
     [],
   );
 
-  const menuLabel = navOpen ? "Hide navigation" : "Show navigation";
-  const collapseLabel = sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar";
-
   const handleToggle = () => {
     if (isMobile) {
       onToggleNav();
@@ -56,33 +39,54 @@ export function Topbar({
   };
 
   return (
-    <header className="app-header">
-      <div className="app-header-inner">
-        <div className="app-header-left">
-          <button
-            type="button"
-            className="app-header-trigger"
+    <header
+      className={cn(
+        "fixed top-0 z-30 w-full bg-background border-b border-border transition-all duration-200",
+        sidebarCollapsed && !isMobile ? "left-16" : "left-64",
+        isMobile && "left-0"
+      )}
+    >
+      <div className="flex h-16 items-center justify-between px-4 sm:px-6">
+        {/* Left section */}
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handleToggle}
             aria-expanded={isMobile ? navOpen : !sidebarCollapsed}
-            aria-label={isMobile ? menuLabel : collapseLabel}
+            aria-label={isMobile ? (navOpen ? "Close menu" : "Open menu") : (sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar")}
+            className="md:hidden"
           >
-            {isMobile ? (navOpen ? "Close" : "Menu") : sidebarCollapsed ? "Expand" : "Collapse"}
-          </button>
-          <div className="app-header-brand">
-            <span className="app-header-brand-name">LexyHub</span>
-            <span className="app-header-active">
-              {activeNavItem.label} · {activeNavItem.description}
+            <Menu className="h-5 w-5" />
+          </Button>
+
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-semibold tracking-tight">
+              {activeNavItem.label}
+            </h1>
+            <Separator orientation="vertical" className="h-4" />
+            <span className="text-sm text-muted-foreground hidden sm:inline">
+              {activeNavItem.description}
             </span>
           </div>
         </div>
-        <div className="app-header-right">
-          <div className="app-header-actions">
-            <button type="button" className="app-header-action" aria-label="View notifications">
-              <NotificationIcon />
-              <span className="sr-only">Open notifications</span>
-            </button>
-            <UserMenu environmentLabel={environmentLabel} />
-          </div>
+
+        {/* Right section */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="View notifications"
+            className="relative"
+          >
+            <Bell className="h-5 w-5" />
+            {/* Notification badge - only show if there are notifications */}
+            {/* <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive" /> */}
+          </Button>
+
+          <Separator orientation="vertical" className="h-6" />
+
+          <UserMenu environmentLabel={environmentLabel} />
         </div>
       </div>
     </header>

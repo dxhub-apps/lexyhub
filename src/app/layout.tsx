@@ -2,10 +2,11 @@ import "./globals.css";
 
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/react";
+import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: "LexyHub",
-  description: "LexyHub platform shell",
+  title: "LexyHub — AI-first commerce intelligence",
+  description: "Cross-market commerce intelligence powered by AI. Synthetic data, Amazon, Etsy, Google, Pinterest, and Reddit insights.",
 };
 
 export default function RootLayout({
@@ -14,9 +15,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
         {children}
+        <Toaster />
         <Analytics />
       </body>
     </html>
