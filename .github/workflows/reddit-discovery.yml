@@ -1,3 +1,4 @@
+# .github/workflows/reddit-discovery.yml
 name: Reddit discovery
 
 on:
@@ -40,14 +41,24 @@ jobs:
         with: { node-version: 20 }
       - run: npm ci
 
-      - name: Run Reddit discovery
+      - name: Run Reddit discovery (with retry)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          # Only used in mode=anon
-          REDDIT_ACCESS_TOKEN: ${{ secrets.REDDIT_ACCESS_TOKEN }}
-          INPUT_MODE: ${{ github.event.inputs.mode }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          REDDIT_ACCESS_TOKEN: ${{ secrets.REDDIT_ACCESS_TOKEN }} # only for mode=anon or fallback
+          INPUT_MODE: ${{ github.event.inputs.mode || 'accounts' }}
           INPUT_SUBREDDITS: ${{ github.event.inputs.subreddits }}
           INPUT_QUERIES: ${{ github.event.inputs.queries }}
-          INPUT_CONFIG_PATH: ${{ github.event.inputs.config_path }}
-        run: node scripts/reddit-keyword-discovery.mjs
+          INPUT_CONFIG_PATH: ${{ github.event.inputs.config_path || 'config/reddit.yml' }}
+        run: |
+          n=0
+          until [ $n -ge 4 ]
+          do
+            echo "attempt=$((n+1))"
+            node scripts/reddit-keyword-discovery.mjs && break
+            n=$((n+1))
+            sleep $((5 * n))
+          done
+          [ $n -lt 4 ]
