@@ -509,33 +509,43 @@ main {
   color: var(--color-text-soft);
 }
 
-.app-header-search {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  max-width: 420px;
-}
-
-.app-header-search input {
-  width: 100%;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-subtle);
-  border-radius: 999px;
-  padding: 0.55rem 1rem;
-  font-size: var(--font-size-base);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.app-header-search input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-primary-soft);
-}
-
 .app-header-right {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.app-header-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-muted);
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.app-header-action:hover,
+.app-header-action:focus-visible {
+  outline: none;
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  transform: translateY(-1px);
+}
+
+.app-header-action-icon {
+  width: 1.25rem;
+  height: 1.25rem;
 }
 
 .environment-pill {
@@ -602,6 +612,9 @@ main {
 .user-menu-avatar {
   border-radius: 50%;
   display: block;
+  width: 2.25rem;
+  height: 2.25rem;
+  object-fit: cover;
   transition: box-shadow 0.2s ease;
 }
 
@@ -3427,21 +3440,7 @@ main {
 
 @media (max-width: 1023px) {
   .app-header-inner {
-    flex-wrap: wrap;
-    gap: var(--space-1);
-  }
-
-  .app-header-left {
-    width: 100%;
-  }
-
-  .app-header-search {
-    max-width: 100%;
-  }
-
-  .app-header-right {
-    width: 100%;
-    justify-content: flex-end;
+    padding-inline: var(--space-2);
   }
 
   .app-container {
@@ -3476,10 +3475,15 @@ main {
 }
 
 @media (max-width: 767px) {
-  .app-header-right {
+  .app-header-inner {
     flex-direction: column;
-    align-items: flex-end;
-    gap: 0.75rem;
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+
+  .app-header-right {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .environment-pill {
