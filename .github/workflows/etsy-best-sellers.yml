@@ -41,7 +41,7 @@ jobs:
         run: npm run scrape:etsy-best-sellers
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: etsy-best-sellers
           path: data/etsy/best-sellers/*.json
