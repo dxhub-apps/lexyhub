@@ -127,7 +127,7 @@ function getUserTier(request: NextRequest): "anonymous" | "authenticated" | "pre
 export async function rateLimit(request: NextRequest): Promise<RateLimitResult> {
   // If Redis is not configured, allow all requests (dev mode)
   if (!redis) {
-    logger.warn("Rate limiting disabled - Redis not configured");
+    logger.warn({}, "Rate limiting disabled - Redis not configured");
     return {
       success: true,
       limit: 999999,
@@ -149,7 +149,7 @@ export async function rateLimit(request: NextRequest): Promise<RateLimitResult> 
         : anonymousLimiter;
 
   if (!limiter) {
-    logger.error("Rate limiter not initialized", { tier });
+    logger.error({ tier }, "Rate limiter not initialized");
     return {
       success: true,
       limit: 0,
@@ -164,13 +164,16 @@ export async function rateLimit(request: NextRequest): Promise<RateLimitResult> 
 
   // Log if rate limit exceeded
   if (!result.success) {
-    logger.warn("Rate limit exceeded", {
-      identifier,
-      tier,
-      limit: result.limit,
-      remaining: result.remaining,
-      reset: new Date(result.reset),
-    });
+    logger.warn(
+      {
+        identifier,
+        tier,
+        limit: result.limit,
+        remaining: result.remaining,
+        reset: new Date(result.reset),
+      },
+      "Rate limit exceeded"
+    );
   }
 
   return {
@@ -242,12 +245,12 @@ export function addRateLimitHeaders(
  * Custom rate limit for specific endpoints
  *
  * @param requests - Number of requests allowed
- * @param window - Time window (e.g., "10 s", "1 m", "1 h")
+ * @param window - Time window in milliseconds
  * @param identifier - Custom identifier (e.g., "api-key:abc123")
  */
 export async function customRateLimit(
   requests: number,
-  window: string,
+  window: number,
   identifier: string
 ): Promise<RateLimitResult> {
   if (!redis) {
@@ -262,7 +265,7 @@ export async function customRateLimit(
 
   const limiter = new Ratelimit({
     redis,
-    limiter: Ratelimit.slidingWindow(requests, window),
+    limiter: Ratelimit.slidingWindow(requests, `${window} ms`),
     analytics: true,
     prefix: "@ratelimit/custom",
   });

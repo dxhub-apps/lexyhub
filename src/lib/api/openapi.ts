@@ -79,9 +79,10 @@ interface RequestBody {
 }
 
 interface Response {
-  description: string;
+  description?: string;
   content?: Record<string, { schema: Schema }>;
   headers?: Record<string, { schema: Schema }>;
+  $ref?: string;
 }
 
 interface Schema {
@@ -94,6 +95,9 @@ interface Schema {
   example?: any;
   description?: string;
   $ref?: string;
+  minimum?: number;
+  maximum?: number;
+  default?: any;
 }
 
 interface SecurityScheme {

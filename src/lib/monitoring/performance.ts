@@ -26,21 +26,27 @@ export async function measureTime<T>(
     const result = await fn();
     const duration = performance.now() - start;
 
-    logger.debug(`Performance: ${operationName}`, {
-      operation: operationName,
-      duration: Math.round(duration),
-      unit: "ms",
-    });
+    logger.debug(
+      {
+        operation: operationName,
+        duration: Math.round(duration),
+        unit: "ms",
+      },
+      `Performance: ${operationName}`
+    );
 
     return { result, duration };
   } catch (error) {
     const duration = performance.now() - start;
 
-    logger.error(`Performance: ${operationName} failed`, {
-      operation: operationName,
-      duration: Math.round(duration),
-      error,
-    });
+    logger.error(
+      {
+        operation: operationName,
+        duration: Math.round(duration),
+        error,
+      },
+      `Performance: ${operationName} failed`
+    );
 
     throw error;
   }
@@ -64,23 +70,29 @@ export async function measureDatabaseQuery<T>(
 
     // Warn on slow queries
     if (duration > 1000) {
-      logger.warn("Slow database query detected", {
-        operation,
-        table,
-        duration: Math.round(duration),
-      });
+      logger.warn(
+        {
+          operation,
+          table,
+          duration: Math.round(duration),
+        },
+        "Slow database query detected"
+      );
     }
 
     return result;
   } catch (error) {
     const duration = performance.now() - start;
 
-    logger.error("Database query error", {
-      operation,
-      table,
-      duration: Math.round(duration),
-      error,
-    });
+    logger.error(
+      {
+        operation,
+        table,
+        duration: Math.round(duration),
+        error,
+      },
+      "Database query error"
+    );
 
     throw error;
   }
@@ -104,11 +116,14 @@ export async function measureExternalApiCall<T>(
 
     // Warn on slow external calls
     if (duration > 5000) {
-      logger.warn("Slow external API call detected", {
-        service,
-        operation,
-        duration: Math.round(duration),
-      });
+      logger.warn(
+        {
+          service,
+          operation,
+          duration: Math.round(duration),
+        },
+        "Slow external API call detected"
+      );
     }
 
     return result;
@@ -201,11 +216,14 @@ export const performanceTracker = new PerformanceTracker();
 export function trackMetric(name: string, value: number, unit?: string): void {
   performanceTracker.record(name, value);
 
-  logger.debug(`Metric: ${name}`, {
-    metric: name,
-    value,
-    unit: unit || "units",
-  });
+  logger.debug(
+    {
+      metric: name,
+      value,
+      unit: unit || "units",
+    },
+    `Metric: ${name}`
+  );
 }
 
 /**

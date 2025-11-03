@@ -214,17 +214,20 @@ export function handleApiError(
 
   // Log error
   const logLevel = response.code >= 500 ? "error" : "warn";
-  logger[logLevel]("API error", {
-    error: {
-      name: err.name,
-      message: err.message,
-      stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
+  logger[logLevel](
+    {
+      error: {
+        name: err.name,
+        message: err.message,
+        stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
+      },
+      code: response.code,
+      path,
+      requestId,
+      details: response.details,
     },
-    code: response.code,
-    path,
-    requestId,
-    details: response.details,
-  });
+    "API error"
+  );
 
   // Return response
   return NextResponse.json(response, {

@@ -56,20 +56,20 @@ export const cache = {
    */
   async get<T = unknown>(key: string): Promise<T | null> {
     if (!redis) {
-      logger.debug("Cache miss: Redis not configured", { key });
+      logger.debug({ key }, "Cache miss: Redis not configured");
       return null;
     }
 
     try {
       const value = await redis.get<T>(key);
       if (value === null) {
-        logger.debug("Cache miss", { key });
+        logger.debug({ key }, "Cache miss");
       } else {
-        logger.debug("Cache hit", { key });
+        logger.debug({ key }, "Cache hit");
       }
       return value;
     } catch (error) {
-      logger.error("Cache get error", { key, error });
+      logger.error({ key, error }, "Cache get error");
       return null;
     }
   },
@@ -79,7 +79,7 @@ export const cache = {
    */
   async set<T = unknown>(key: string, value: T, ttl?: number): Promise<void> {
     if (!redis) {
-      logger.debug("Cache skip: Redis not configured", { key });
+      logger.debug({ key }, "Cache skip: Redis not configured");
       return;
     }
 
@@ -89,9 +89,9 @@ export const cache = {
       } else {
         await redis.set(key, value);
       }
-      logger.debug("Cache set", { key, ttl });
+      logger.debug({ key, ttl }, "Cache set");
     } catch (error) {
-      logger.error("Cache set error", { key, error });
+      logger.error({ key, error }, "Cache set error");
     }
   },
 
@@ -107,9 +107,9 @@ export const cache = {
       } else {
         await redis.del(key);
       }
-      logger.debug("Cache deleted", { key });
+      logger.debug({ key }, "Cache deleted");
     } catch (error) {
-      logger.error("Cache delete error", { key, error });
+      logger.error({ key, error }, "Cache delete error");
     }
   },
 
@@ -123,7 +123,7 @@ export const cache = {
       const result = await redis.exists(key);
       return result === 1;
     } catch (error) {
-      logger.error("Cache exists check error", { key, error });
+      logger.error({ key, error }, "Cache exists check error");
       return false;
     }
   },
@@ -136,9 +136,9 @@ export const cache = {
 
     try {
       await redis.expire(key, ttl);
-      logger.debug("Cache expiration set", { key, ttl });
+      logger.debug({ key, ttl }, "Cache expiration set");
     } catch (error) {
-      logger.error("Cache expire error", { key, error });
+      logger.error({ key, error }, "Cache expire error");
     }
   },
 
@@ -152,7 +152,7 @@ export const cache = {
       const values = await redis.mget<T[]>(...keys);
       return values;
     } catch (error) {
-      logger.error("Cache mget error", { keys, error });
+      logger.error({ keys, error }, "Cache mget error");
       return keys.map(() => null);
     }
   },
@@ -165,10 +165,11 @@ export const cache = {
 
     try {
       const pairs = Object.entries(entries).flat();
+      // @ts-ignore - Redis mset accepts variable args
       await redis.mset(...pairs);
-      logger.debug("Cache mset", { count: Object.keys(entries).length });
+      logger.debug({ count: Object.keys(entries).length }, "Cache mset");
     } catch (error) {
-      logger.error("Cache mset error", { error });
+      logger.error({ error }, "Cache mset error");
     }
   },
 
@@ -181,7 +182,7 @@ export const cache = {
     try {
       return await redis.incr(key);
     } catch (error) {
-      logger.error("Cache incr error", { key, error });
+      logger.error({ key, error }, "Cache incr error");
       return 0;
     }
   },
@@ -195,7 +196,7 @@ export const cache = {
     try {
       return await redis.decr(key);
     } catch (error) {
-      logger.error("Cache decr error", { key, error });
+      logger.error({ key, error }, "Cache decr error");
       return 0;
     }
   },
@@ -211,10 +212,10 @@ export const cache = {
       if (keys.length === 0) return 0;
 
       await redis.del(...keys);
-      logger.info("Cache pattern deleted", { pattern, count: keys.length });
+      logger.info({ pattern, count: keys.length }, "Cache pattern deleted");
       return keys.length;
     } catch (error) {
-      logger.error("Cache delete pattern error", { pattern, error });
+      logger.error({ pattern, error }, "Cache delete pattern error");
       return 0;
     }
   },
