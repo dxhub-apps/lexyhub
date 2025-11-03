@@ -16,6 +16,18 @@ LexyHub is the central workspace for monitoring sales velocity, discovering high
 >
 > The Backoffice navigation group appears only for administrator accounts—either because the Supabase user metadata marks the user as an admin or because their email is listed in `LEXYHUB_ADMIN_EMAILS`. Standard users keep access to core analytics but are redirected away from `/admin/backoffice` URLs.
 
+## Chrome extension setup
+
+1. **Install the extension:** Download the latest build from **Settings → Downloads → Chrome extension** or load the unpacked folder from `apps/chrome-extension/dist` via `chrome://extensions` with **Developer mode** enabled.
+2. **Approve permissions:** When prompted, review the scopes (`tabs`, `storage`, and `activeTab`) and click **Add extension**. These scopes allow LexyHub to read the active marketplace tab and cache session preferences locally.
+3. **Generate an access token:** In the LexyHub web app, navigate to **Settings → API access** and press **Create Chrome token**. Copy the generated personal access token; it expires 30 days after creation.
+4. **Store the token securely:** Open the extension popup, paste the token into the **LexyHub token** field, and click **Save**. Tokens are encrypted at rest in Chrome's storage but should still be rotated if you suspect compromise. Use the **Reset token** control in the extension to clear local storage when using a shared machine.
+5. **Verify connection:** With an Etsy or marketplace listing open in Chrome, click the extension icon. A green status badge confirms the token is valid and the extension can call LexyHub APIs. If the badge is red, reissue the token or confirm the workspace domain matches the one stored in **Settings → API access**.
+
+> **Token hygiene**
+>
+> Treat the Chrome token like a password. Do not paste it into shared chat tools. If a teammate needs access, generate a new token under their account so actions remain attributable. Tokens automatically scope to the workspaces you can access in LexyHub, preventing cross-account leakage.
+
 ## Layout Reference
 LexyHub uses a responsive two-pane layout composed of:
 
