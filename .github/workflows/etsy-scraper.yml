@@ -41,7 +41,7 @@ jobs:
       ETSY_INCLUDE_DESCRIPTION: ${{ github.event.inputs.include_description || 'false' }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Use Node.js 20
         uses: actions/setup-node@v4
