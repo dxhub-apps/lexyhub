@@ -1,5 +1,5 @@
 // scripts/reddit-keyword-discovery.mjs
-// Minimal Reddit discovery with robust retries. Node 20+ (global fetch). ESM.
+// Minimal Reddit discovery with robust retries and duplicate-safe upserts. Node 20+.
 
 import fs from "node:fs";
 import process from "node:process";
@@ -124,22 +124,31 @@ async function refreshToken(refreshToken, clientId, clientSecret) {
 // ---------- DB writers with retries ----------
 async function saveRawPost(post) {
   const d = post.data;
+  // Upsert on (provider, source_type, source_key). Requires the global unique index.
   await withRetry(
     async () => {
-      const { error } = await db.from("raw_sources").insert({
-        provider: "reddit",
-        source_type: "post",
-        source_key: d.name, // t3_*
-        status: "processed",
-        payload: post,
-        metadata: {
-          subreddit: d.subreddit,
-          score: d.score,
-          created_utc: d.created_utc,
-          permalink: d.permalink,
-          title: d.title,
-        },
-      });
+      const { error } = await db
+        .from("raw_sources")
+        .upsert(
+          {
+            provider: "reddit",
+            source_type: "post",
+            source_key: d.name ?? null, // t3_*
+            status: "processed",
+            payload: post,
+            metadata: {
+              subreddit: d.subreddit,
+              score: d.score,
+              created_utc: d.created_utc,
+              permalink: d.permalink,
+              title: d.title,
+            },
+          },
+          {
+            onConflict: "provider,source_type,source_key",
+            ignoreDuplicates: true, // supabase-js: skip update when exists
+          }
+        );
       if (error) throw error;
     },
     "db_raw_sources"
@@ -172,7 +181,7 @@ async function upsertKeyword(term) {
           method: "search",
           allow_search_sampling: true,
         },
-        { onConflict: "term,source,market" } // requires a unique index if enforced
+        { onConflict: "term,source,market" }
       );
       if (error) throw error;
     },
