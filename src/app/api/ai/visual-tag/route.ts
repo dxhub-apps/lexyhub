@@ -23,8 +23,12 @@ interface VisualTagResponse {
   trace: PromptTrace<VisualTagPromptInput>;
 }
 
-function resolveUserId(headers: Headers): string {
-  return headers.get("x-user-id") ?? "00000000-0000-0000-0000-000000000001";
+function requireUserId(headers: Headers): string {
+  const userId = headers.get("x-user-id");
+  if (!userId) {
+    throw new Error("Missing x-user-id header");
+  }
+  return userId;
 }
 
 function parseBase64Image(imageBase64: string): {
@@ -265,7 +269,12 @@ async function persistSuggestion(
 }
 
 export async function POST(req: Request): Promise<NextResponse> {
-  const userId = resolveUserId(req.headers);
+  let userId: string;
+  try {
+    userId = requireUserId(req.headers);
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "userId is required" }, { status: 400 });
+  }
   const payload = (await req.json().catch(() => ({}))) as VisualTagRequest;
 
   if (!payload.imageBase64) {

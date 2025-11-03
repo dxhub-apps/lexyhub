@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { syncAllEtsyAccounts } from "@/lib/etsy/sync";
+import { requireOfficialEtsyApiEnabled } from "@/lib/feature-flags";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const supabase = getSupabaseServerClient();
   const userId = request.nextUrl.searchParams.get("userId") ?? undefined;
   const incremental = request.nextUrl.searchParams.get("mode") !== "full";
+
+  const requireOfficialApi = await requireOfficialEtsyApiEnabled({ supabase });
+  if (!requireOfficialApi) {
+    return NextResponse.json(
+      { message: "Etsy sync job skipped; require_official_etsy_api is disabled." },
+      { status: 202 },
+    );
+  }
 
   const results = await syncAllEtsyAccounts(
     {

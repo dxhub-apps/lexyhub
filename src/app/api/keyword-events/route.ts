@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { getExtensionConfig } from "@/lib/extension-config";
+import { allowUserTelemetryEnabled } from "@/lib/feature-flags";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 import { verifyToken } from "@/lib/tokens";
 
@@ -196,6 +197,11 @@ export async function POST(req: NextRequest) {
   const supabase = getSupabaseServerClient();
   if (!supabase) {
     return NextResponse.json({ error: "Supabase client unavailable" }, { status: 503 });
+  }
+
+  const telemetryEnabled = await allowUserTelemetryEnabled({ supabase });
+  if (!telemetryEnabled) {
+    return NextResponse.json({ error: "Telemetry disabled" }, { status: 403 });
   }
 
   const { data: profile, error: profileError } = await supabase

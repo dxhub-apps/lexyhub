@@ -5,6 +5,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { chromium } from "playwright";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { allowSearchSamplingEnabled } from "@/lib/feature-flags";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 const USER_AGENT =
@@ -506,6 +507,12 @@ async function main(): Promise<void> {
     throw new Error(
       "Supabase client is not configured. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before running the sampler.",
     );
+  }
+
+  const allowSampling = await allowSearchSamplingEnabled({ supabase });
+  if (!allowSampling) {
+    console.warn("Keyword SERP sampler skipped because allow_search_sampling is disabled.");
+    return;
   }
   const options = parseCliOptions();
   const candidates = await fetchKeywordCandidates(supabase, options);

@@ -184,6 +184,9 @@ export default function BackofficeOverviewPage(): JSX.Element {
           <Link className="secondary-link" href="/admin/backoffice/tasks">
             Plan tasks
           </Link>
+          <Link className="secondary-link" href="/admin/feature-flags">
+            Feature flags
+          </Link>
         </div>
       </section>
       {error ? (

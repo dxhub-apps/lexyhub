@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSession } from "@supabase/auth-helpers-react";
 
 import { useToast } from "@/components/ui/ToastProvider";
 
@@ -33,6 +34,8 @@ type UsageKpi = {
 export default function DashboardPage(): JSX.Element {
   const { push } = useToast();
   const [usage, setUsage] = useState<UsageSummary | null>(null);
+  const session = useSession();
+  const userId = session?.user?.id ?? null;
 
   const formatNumber = useMemo(
     () =>
@@ -52,10 +55,17 @@ export default function DashboardPage(): JSX.Element {
   );
 
   useEffect(() => {
+    if (!userId) {
+      setUsage(null);
+      return undefined;
+    }
+
     let isMounted = true;
     const load = async () => {
       try {
-        const response = await fetch("/api/usage/summary");
+        const response = await fetch("/api/usage/summary", {
+          headers: { "x-user-id": userId },
+        });
         if (!response.ok) {
           const payload = await response.json().catch(() => ({}));
           throw new Error(payload.error ?? `Usage summary failed (${response.status})`);
@@ -78,7 +88,7 @@ export default function DashboardPage(): JSX.Element {
     return () => {
       isMounted = false;
     };
-  }, [push]);
+  }, [push, userId]);
 
   const usageCards = useMemo<UsageKpi[]>(() => {
     if (!usage) {

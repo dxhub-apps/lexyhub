@@ -35,3 +35,14 @@ The dashboard container now follows the PopTrade-inspired 12-column card grid. T
 - The **Next best actions** quick-actions card now sits in the right-hand column of the analytics grid, keeping the primary workflow prompts adjacent to keyword momentum trends.
 - Connection management has moved to the **Settings → Connect your data sources** panel so operators can manage credentials alongside environment configuration. The dashboard now focuses solely on usage signals and quick actions.
 - The **Operations status** table now lives on the settings page next to connection management, keeping health checks and connector readiness in the same workflow while the dashboard continues to surface "Next best actions".
+
+## Keyword insight data pipeline
+
+The dashboard taps the `public.keyword_insights` materialized view to hydrate discovery widgets with fresh marketplace signals. The view aggregates:
+
+- **Demand index** — weighted mix of 7-day search volume, impressions, and clicks scaled against the trailing 30-day search demand.
+- **Competition score** — normalized count of distinct listings appearing in recent SERP samples (higher = more competitive).
+- **Trend momentum delta** — 7-day average search volume minus the 30-day average to highlight accelerating or cooling terms.
+- **Freshness timestamp** — newest timestamp across keyword stats, SERP snapshots, linked listing updates, and the keyword record itself.
+
+Two pg_cron jobs keep the materialized view current: `keyword_insights_hot_refresh` every 15 minutes for fast movers, and `keyword_insights_cold_refresh` every six hours for the long tail. Both jobs call `public.refresh_keyword_insights_*` helpers, which skip refreshes if the view was updated more recently than the scope allows.

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSession } from "@supabase/auth-helpers-react";
 
 import KeywordSparkline from "@/components/keywords/KeywordSparkline";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -52,6 +53,19 @@ type TagOptimizerResult = {
   model: string;
 };
 
+type FiltersState = {
+  sources: string[];
+  market: string;
+  tier: PlanTier;
+  tags: string;
+};
+
+type FilterChip = {
+  id: string;
+  label: string;
+  onRemove?: () => void;
+};
+
 const SOURCE_DETAILS: Record<string, { title: string; description: string }> = {
   synthetic: {
     title: "Synthetic AI",
@@ -99,7 +113,473 @@ const MARKET_OPTIONS = [
   { value: "de", label: "Germany" },
 ];
 
+const DEFAULT_SOURCES = Object.keys(SOURCE_DETAILS);
+
+const INITIAL_FILTERS: FiltersState = {
+  sources: DEFAULT_SOURCES,
+  market: "us",
+  tier: "growth",
+  tags: "",
+};
+
+const deriveOpportunityScore = (keyword: KeywordResult): number => {
+  if (typeof keyword.ai_opportunity_score === "number") {
+    return keyword.ai_opportunity_score;
+  }
+  if (typeof keyword.trend_momentum === "number") {
+    return keyword.trend_momentum;
+  }
+  if (typeof keyword.similarity === "number") {
+    return keyword.similarity;
+  }
+  return 0;
+};
+
+const parseTagTokens = (tags: string): string[] =>
+  tags
+    .split(",")
+    .map((token) => token.trim().toLowerCase())
+    .filter(Boolean);
+
+type FilterChipListProps = {
+  chips: FilterChip[];
+  disabled?: boolean;
+};
+
+function FilterChipList({ chips, disabled }: FilterChipListProps): JSX.Element | null {
+  if (!chips.length) {
+    return null;
+  }
+
+  return (
+    <ul className="filter-chips" aria-label="Active filters">
+      {chips.map((chip) => (
+        <li key={chip.id}>
+          <span className="filter-chip">
+            {chip.label}
+            {chip.onRemove ? (
+              <button
+                type="button"
+                aria-label={`Remove filter ${chip.label}`}
+                onClick={chip.onRemove}
+                disabled={disabled}
+              >
+                ×
+              </button>
+            ) : null}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+type KeywordFiltersProps = {
+  filters: FiltersState;
+  chips: FilterChip[];
+  availableSources: string[];
+  disabled: boolean;
+  onClearAll: () => void;
+  onToggleSource: (source: string) => void;
+  onMarketChange: (value: string) => void;
+  onTierChange: (tier: PlanTier) => void;
+  onTagChange: (value: string) => void;
+};
+
+function KeywordFilters({
+  filters,
+  chips,
+  availableSources,
+  disabled,
+  onClearAll,
+  onToggleSource,
+  onMarketChange,
+  onTierChange,
+  onTagChange,
+}: KeywordFiltersProps): JSX.Element {
+  return (
+    <aside className="keywords-filters">
+      <div className="filter-card" aria-labelledby="filter-summary">
+        <header>
+          <h2 id="filter-summary">Active filters</h2>
+          <button type="button" onClick={onClearAll} disabled={disabled || chips.length === 0}>
+            Reset
+          </button>
+        </header>
+        {chips.length ? (
+          <FilterChipList chips={chips} disabled={disabled} />
+        ) : (
+          <p className="filter-summary__hint">Showing insights from every connected source.</p>
+        )}
+      </div>
+
+      <div className="filter-card" aria-labelledby="filter-sources">
+        <header>
+          <h2 id="filter-sources">Sources</h2>
+        </header>
+        <p>Select the marketplaces and synthetic feeds that fuel opportunity scoring.</p>
+        <div className="keywords-sources__options">
+          {availableSources.map((source) => {
+            const active = filters.sources.includes(source);
+            const detail = SOURCE_DETAILS[source];
+            return (
+              <label key={source} className={active ? "source-option is-active" : "source-option"}>
+                <input
+                  type="checkbox"
+                  checked={active}
+                  onChange={() => onToggleSource(source)}
+                  disabled={disabled || (active && filters.sources.length === 1)}
+                />
+                <span className="source-option__content">
+                  <span className="source-option__title">{detail?.title ?? source}</span>
+                  <span className="source-option__description">{detail?.description ?? ""}</span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="filter-card" aria-labelledby="filter-market">
+        <header>
+          <h2 id="filter-market">Market</h2>
+        </header>
+        <p>Align results with the regional storefront you operate.</p>
+        <select value={filters.market} onChange={(event) => onMarketChange(event.target.value)} disabled={disabled}>
+          {MARKET_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="filter-card" aria-labelledby="filter-tier">
+        <header>
+          <h2 id="filter-tier">Tier focus</h2>
+        </header>
+        <p>Preview how opportunities shift across monetisation tiers.</p>
+        <select
+          value={filters.tier}
+          onChange={(event) => onTierChange(event.target.value as PlanTier)}
+          disabled={disabled}
+        >
+          <option value="free">Starter</option>
+          <option value="growth">Growth</option>
+          <option value="scale">Scale</option>
+        </select>
+      </div>
+
+      <div className="filter-card" aria-labelledby="filter-tags">
+        <header>
+          <h2 id="filter-tags">Tag keywords</h2>
+        </header>
+        <p>Track the thematic focus you want surfaced in AI suggestions.</p>
+        <input
+          type="text"
+          value={filters.tags}
+          onChange={(event) => onTagChange(event.target.value)}
+          placeholder="e.g. boho, nursery, eco"
+          disabled={disabled}
+        />
+      </div>
+    </aside>
+  );
+}
+
+type KeywordResultsTableProps = {
+  results: KeywordResult[];
+  loading: boolean;
+  query: string;
+  filteredOutCount: number;
+  sourceLineageLabel: string;
+  dataLineage: { freshest: string };
+  onWatchlist: (keyword: KeywordResult) => void;
+  onOptimize: (keyword: KeywordResult) => void;
+  topOpportunity: KeywordResult | null;
+};
+
+function KeywordResultsTable({
+  results,
+  loading,
+  query,
+  filteredOutCount,
+  sourceLineageLabel,
+  dataLineage,
+  onWatchlist,
+  onOptimize,
+  topOpportunity,
+}: KeywordResultsTableProps): JSX.Element {
+  return (
+    <section className="keywords-results-card surface-card" aria-live="polite">
+      <header className="keywords-results__header">
+        <div>
+          <h2>Keyword opportunities</h2>
+          <p className="keyword-meta">Query: {query || "—"}</p>
+          {filteredOutCount > 0 ? (
+            <p className="keyword-filtered-meta">{filteredOutCount} results hidden by filter preferences</p>
+          ) : null}
+        </div>
+        <div className="keywords-bulk-actions">
+          <button type="button" disabled={!results.length || loading}>
+            Export CSV
+          </button>
+          <button type="button" disabled={!results.length || loading}>
+            Add to watchlist
+          </button>
+        </div>
+      </header>
+
+      {topOpportunity ? (
+        <div className="keywords-results__highlight" role="note">
+          <h3>Top opportunity to review</h3>
+          <p>
+            <strong>{topOpportunity.term}</strong> shows the strongest signal based on current filters.
+          </p>
+          <p className="keywords-results__highlight-meta">
+            Source: {SOURCE_DETAILS[topOpportunity.source]?.title ?? topOpportunity.source} · Freshness: {" "}
+            {topOpportunity.freshness_ts ? new Date(topOpportunity.freshness_ts).toLocaleString() : "Not yet synced"}
+          </p>
+        </div>
+      ) : null}
+
+      <dl className="keywords-results__stats">
+        <div>
+          <dt>Visible matches</dt>
+          <dd>{loading ? "…" : results.length}</dd>
+        </div>
+        <div>
+          <dt>Sources</dt>
+          <dd>{sourceLineageLabel}</dd>
+        </div>
+        <div>
+          <dt>Freshest sync</dt>
+          <dd>{dataLineage.freshest}</dd>
+        </div>
+      </dl>
+
+      <div className="keywords-table">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Keyword</th>
+              <th scope="col">Demand index</th>
+              <th scope="col">Competition</th>
+              <th scope="col">Trend momentum</th>
+              <th scope="col">Source</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={6} className="keywords-empty">
+                  Searching for opportunities…
+                </td>
+              </tr>
+            ) : null}
+            {!loading && results.length
+              ? results.map((keyword) => {
+                  const category = keyword.extras?.["category"];
+                  const opportunityScore =
+                    typeof keyword.ai_opportunity_score === "number"
+                      ? `${(keyword.ai_opportunity_score * 100).toFixed(0)}%`
+                      : "—";
+                  const trendMomentum =
+                    typeof keyword.trend_momentum === "number"
+                      ? `${(keyword.trend_momentum * 100).toFixed(0)}%`
+                      : "—";
+                  const competition =
+                    typeof keyword.compositeScore === "number"
+                      ? `${(keyword.compositeScore * 100).toFixed(0)}%`
+                      : "—";
+                  const keywordTags = (keyword.extras?.["tags"] as string[] | undefined) ?? [];
+
+                  return (
+                    <tr key={`${keyword.term}-${keyword.source}`}>
+                      <th scope="row">
+                        <div className="keyword-term">
+                          <span className="keyword-term__title">{keyword.term}</span>
+                          {category ? <span className="keyword-term__meta">{String(category)}</span> : null}
+                          {keywordTags.length ? (
+                            <ul className="keyword-term__tags" aria-label="Associated tags">
+                              {keywordTags.map((tag) => (
+                                <li key={tag}>
+                                  <span>{tag}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </div>
+                      </th>
+                      <td>{opportunityScore}</td>
+                      <td>{competition}</td>
+                      <td>{trendMomentum}</td>
+                      <td>
+                        <span className="keyword-source">
+                          {SOURCE_DETAILS[keyword.source]?.title ?? keyword.source}
+                        </span>
+                      </td>
+                      <td className="keyword-actions">
+                        <button className="keyword-watch" onClick={() => onWatchlist(keyword)}>
+                          Add to watchlist
+                        </button>
+                        <button className="keyword-optimize" onClick={() => onOptimize(keyword)}>
+                          Optimize tags
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              : null}
+            {!loading && !results.length ? (
+              <tr>
+                <td colSpan={6} className="keywords-empty">
+                  <h3>No keyword insights yet</h3>
+                  <p>Adjust your filters or run a new search to populate the opportunity table.</p>
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+type KeywordInsightsPanelProps = {
+  insights: SearchResponse["insights"] | null;
+  complianceNotes: string;
+  dataLineage: { sources: string[]; freshest: string; recordCount: number };
+  sparklinePoints: Array<{ value: number; label: string; timestamp: string | null }>;
+  tagTokens: string[];
+};
+
+function KeywordInsightsPanel({
+  insights,
+  complianceNotes,
+  dataLineage,
+  sparklinePoints,
+  tagTokens,
+}: KeywordInsightsPanelProps): JSX.Element {
+  return (
+    <div className="keywords-panel">
+      <section>
+        <h3>Helpful highlights</h3>
+        <p className="keyword-summary">{insights?.summary ?? "Run a search to see helpful keyword tips."}</p>
+        <div className="keyword-insight-meta">
+          <span>Last updated: {insights?.generatedAt ? new Date(insights.generatedAt).toLocaleString() : "Not available yet"}</span>
+          {insights?.model ? <span>Model: {insights.model}</span> : null}
+        </div>
+        <KeywordSparkline points={sparklinePoints} />
+      </section>
+
+      <section>
+        <h3>Data lineage</h3>
+        <p>{complianceNotes}</p>
+        <dl className="keyword-data-info">
+          <div>
+            <dt>Sources</dt>
+            <dd>{dataLineage.sources.join(", ")}</dd>
+          </div>
+          <div>
+            <dt>Freshest sync</dt>
+            <dd>{dataLineage.freshest}</dd>
+          </div>
+          <div>
+            <dt>Records</dt>
+            <dd>{dataLineage.recordCount}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section>
+        <h3>Momentum playbook</h3>
+        <ul>
+          <li>Export top movers and sync them to the Market Twin for visibility simulations.</li>
+          <li>Use the Add to watchlist action to feed alerts without leaving the table.</li>
+          <li>Tag filters help you track thematic focus areas for merchandising.</li>
+        </ul>
+        {tagTokens.length ? (
+          <div className="keywords-results__highlight-tags" aria-label="Tag focus">
+            <span>Tag focus:</span>
+            <ul>
+              {tagTokens.map((tag) => (
+                <li key={tag}>{tag}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
+type TagOptimizerModalProps = {
+  open: boolean;
+  keyword: KeywordResult | null;
+  loading: boolean;
+  error: string | null;
+  result: TagOptimizerResult | null;
+  onClose: () => void;
+};
+
+function TagOptimizerModal({ open, keyword, loading, error, result, onClose }: TagOptimizerModalProps): JSX.Element | null {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal">
+        <header>
+          <h2>Tag Optimizer</h2>
+          <button type="button" className="modal-close" aria-label="Close optimizer" onClick={onClose}>
+            ×
+          </button>
+        </header>
+        <div className="modal-body">
+          {keyword ? (
+            <p className="modal-subtitle">
+              Keyword context: <strong>{keyword.term}</strong> ({keyword.market})
+            </p>
+          ) : null}
+          {loading ? <p>Generating AI suggestions…</p> : null}
+          {error ? <p className="modal-error">{error}</p> : null}
+          {result ? (
+            <div className="optimizer-result">
+              <h3>
+                Suggested Tags <span>({result.model})</span>
+              </h3>
+              <ul>
+                {result.tags.map((tag) => (
+                  <li key={tag}>
+                    <code>{tag}</code>
+                  </li>
+                ))}
+              </ul>
+              <p className="optimizer-reasoning">{result.reasoning}</p>
+              <p className="optimizer-confidence">Confidence: {(result.confidence * 100).toFixed(0)}%</p>
+            </div>
+          ) : null}
+        </div>
+        <footer className="modal-footer">
+          <button type="button" className="keyword-watch" onClick={onClose}>
+            Close
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
 export default function KeywordsPage(): JSX.Element {
+  const [filters, setFilters] = useState<FiltersState>({
+    sources: [...INITIAL_FILTERS.sources],
+    market: INITIAL_FILTERS.market,
+    tier: INITIAL_FILTERS.tier,
+    tags: INITIAL_FILTERS.tags,
+  });
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<KeywordResult[]>([]);
   const [insights, setInsights] = useState<SearchResponse["insights"] | null>(null);
@@ -125,37 +605,47 @@ export default function KeywordsPage(): JSX.Element {
   const [detailData, setDetailData] = useState<KeywordDetailPayload | null>(null);
 
   const { push } = useToast();
+  const session = useSession();
+  const userId = session?.user?.id ?? null;
 
   const toggleSource = useCallback(
     (source: string) => {
-      setSourceFilters((current) => {
+      setFilters((current) => {
         const normalized = source.toLowerCase();
-        if (current.includes(normalized)) {
-          if (current.length === 1) {
+        if (current.sources.includes(normalized)) {
+          if (current.sources.length === 1) {
             return current;
           }
-          return current.filter((item) => item !== normalized);
+          return {
+            ...current,
+            sources: current.sources.filter((item) => item !== normalized),
+          };
         }
-        return Array.from(new Set([...current, normalized]));
+        return {
+          ...current,
+          sources: Array.from(new Set([...current.sources, normalized])),
+        };
       });
     },
     [],
   );
 
   const clearAllFilters = useCallback(() => {
-    setSourceFilters(availableSources);
-    setMarketFilter("us");
-    setTierFilter("growth");
-    setTagFilter("");
+    setFilters({
+      sources: [...availableSources],
+      market: INITIAL_FILTERS.market,
+      tier: INITIAL_FILTERS.tier,
+      tags: INITIAL_FILTERS.tags,
+    });
   }, [availableSources]);
 
   useEffect(() => {
-    setSourceFilters((current) => {
-      const normalized = current.filter((item) => availableSources.includes(item));
-      if (normalized.length === 0) {
-        return availableSources;
+    setFilters((current) => {
+      const normalized = current.sources.filter((item) => availableSources.includes(item));
+      if (normalized.length === current.sources.length && normalized.length > 0) {
+        return current;
       }
-      return normalized;
+      return { ...current, sources: normalized.length ? normalized : [...availableSources] };
     });
   }, [availableSources]);
 
@@ -190,10 +680,10 @@ export default function KeywordsPage(): JSX.Element {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             query: normalizedTerm,
-            market: marketFilter,
+            market: filters.market,
             limit: 25,
-            plan: "growth",
-            sources: sourceFilters,
+            plan: filters.tier,
+            sources: filters.sources,
           }),
         });
 
@@ -239,15 +729,23 @@ export default function KeywordsPage(): JSX.Element {
         setLoading(false);
       }
     },
-    [marketFilter, sourceFilters],
+    [filters.market, filters.sources, filters.tier],
   );
 
   const handleWatchlist = useCallback(
     async (keyword: KeywordResult) => {
+      if (!userId) {
+        push({
+          title: "Sign in required",
+          description: "You must be signed in to save watchlist items.",
+          tone: "error",
+        });
+        return;
+      }
       try {
         const response = await fetch("/api/watchlists/add", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-user-id": userId },
           body: JSON.stringify({ keywordId: keyword.id, watchlistName: "Lexy Tracking" }),
         });
         if (!response.ok) {
@@ -268,7 +766,7 @@ export default function KeywordsPage(): JSX.Element {
         });
       }
     },
-    [push],
+    [push, userId],
   );
 
   const handleOptimize = useCallback(
@@ -278,10 +776,15 @@ export default function KeywordsPage(): JSX.Element {
       setOptimizerLoading(true);
       setOptimizerResult(null);
       setOptimizerError(null);
+      if (!userId) {
+        setOptimizerLoading(false);
+        setOptimizerError("Sign in to request AI tag suggestions.");
+        return;
+      }
       try {
         const response = await fetch("/api/ai/tag-optimizer", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-user-id": userId },
           body: JSON.stringify({
             keywordId: keyword.id,
             listingTitle: keyword.term,
@@ -305,7 +808,7 @@ export default function KeywordsPage(): JSX.Element {
         setOptimizerLoading(false);
       }
     },
-    [],
+    [userId],
   );
 
   const handleViewDetails = useCallback(
@@ -356,13 +859,13 @@ export default function KeywordsPage(): JSX.Element {
       return "Connect an approved source and run a search to unlock lineage details.";
     }
 
-    const uniqueSources = (responseSources.length ? responseSources : Array.from(new Set(results.map((item) => item.source)))).join(", ");
-    const freshest = results[0]?.freshness_ts
-      ? new Date(results[0]?.freshness_ts).toLocaleString()
-      : "Not yet synced";
+    const uniqueSources = (
+      responseSources.length ? responseSources : Array.from(new Set(results.map((item) => item.source)))
+    ).join(", ");
+    const freshest = results[0]?.freshness_ts ? new Date(results[0]?.freshness_ts).toLocaleString() : "Not yet synced";
 
-    return `Sources: ${uniqueSources || "synthetic"}. Freshness: ${freshest}. Tier focus: ${tierFilter.toUpperCase()}.`;
-  }, [responseSources, results, tierFilter]);
+    return `Sources: ${uniqueSources || "synthetic"}. Freshness: ${freshest}. Tier focus: ${filters.tier.toUpperCase()}.`;
+  }, [responseSources, results, filters.tier]);
 
   const dataLineage = useMemo(() => {
     const freshest = results.reduce<string | null>((latest, record) => {
@@ -382,6 +885,23 @@ export default function KeywordsPage(): JSX.Element {
       recordCount: results.length,
     };
   }, [responseSources, results]);
+
+  const tagTokens = useMemo(() => parseTagTokens(filters.tags), [filters.tags]);
+
+  const visibleResults = useMemo(() => {
+    if (!tagTokens.length) {
+      return results;
+    }
+    return results.filter((keyword) => {
+      const keywordTags = ((keyword.extras?.["tags"] as string[] | undefined) ?? []).map((tag) => tag.toLowerCase());
+      const normalizedTerm = keyword.term.toLowerCase();
+      return tagTokens.some((token) =>
+        normalizedTerm.includes(token) || keywordTags.some((tag) => tag.includes(token)),
+      );
+    });
+  }, [results, tagTokens]);
+
+  const filteredOutCount = results.length - visibleResults.length;
 
   const sparklinePoints = useMemo(() => {
     const deriveValue = (keyword: KeywordResult): number | null => {
@@ -408,7 +928,7 @@ export default function KeywordsPage(): JSX.Element {
       return Number.isNaN(time) ? 0 : time;
     };
 
-    return results
+    return visibleResults
       .map((keyword) => {
         const value = deriveValue(keyword);
         if (value == null) {
@@ -425,7 +945,7 @@ export default function KeywordsPage(): JSX.Element {
       .sort((a, b) => a.order - b.order)
       .map(({ value, label, timestamp }) => ({ value, label, timestamp }))
       .slice(-24);
-  }, [results]);
+  }, [visibleResults]);
 
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -464,6 +984,61 @@ export default function KeywordsPage(): JSX.Element {
   const detailCaptureTimestamp = formatTimestamp(detailData?.capturedAt ?? detailKeyword?.serp_captured_at ?? null);
   const detailTotalResults = detailData?.totalResults ?? detailKeyword?.serp_total_results ?? null;
 
+  const topOpportunity = useMemo(() => {
+    if (!visibleResults.length) {
+      return null;
+    }
+    const ranked = [...visibleResults].sort((a, b) => deriveOpportunityScore(b) - deriveOpportunityScore(a));
+    return ranked[0];
+  }, [visibleResults]);
+
+  const resetMarket = useCallback(() => {
+    setFilters((current) => ({ ...current, market: INITIAL_FILTERS.market }));
+  }, []);
+
+  const resetTier = useCallback(() => {
+    setFilters((current) => ({ ...current, tier: INITIAL_FILTERS.tier }));
+  }, []);
+
+  const resetSources = useCallback(() => {
+    setFilters((current) => ({ ...current, sources: [...availableSources] }));
+  }, [availableSources]);
+
+  const removeTag = useCallback((tag: string) => {
+    setFilters((current) => {
+      const tokens = parseTagTokens(current.tags).filter((token) => token !== tag.toLowerCase());
+      return { ...current, tags: tokens.join(tokens.length ? ", " : "") };
+    });
+  }, []);
+
+  const filterChips = useMemo<FilterChip[]>(() => {
+    const chips: FilterChip[] = [];
+
+    if (filters.market !== INITIAL_FILTERS.market) {
+      const label = `Market: ${MARKET_OPTIONS.find((option) => option.value === filters.market)?.label ?? filters.market}`;
+      chips.push({ id: "market", label, onRemove: resetMarket });
+    }
+
+    if (filters.tier !== INITIAL_FILTERS.tier) {
+      const label = `Tier: ${filters.tier}`;
+      chips.push({ id: "tier", label, onRemove: resetTier });
+    }
+
+    if (filters.sources.length !== availableSources.length) {
+      chips.push({
+        id: "sources",
+        label: `Sources: ${filters.sources.map((source) => SOURCE_DETAILS[source]?.title ?? source).join(", ")}`,
+        onRemove: resetSources,
+      });
+    }
+
+    parseTagTokens(filters.tags).forEach((token) => {
+      chips.push({ id: `tag-${token}`, label: `Tag: ${token}`, onRemove: () => removeTag(token) });
+    });
+
+    return chips;
+  }, [filters, availableSources, resetMarket, resetTier, resetSources, removeTag]);
+
   return (
     <div className="keywords-page">
       <section className="keywords-hero-card" aria-labelledby="keywords-title">
@@ -478,11 +1053,11 @@ export default function KeywordsPage(): JSX.Element {
         <dl className="keywords-hero__meta">
           <div>
             <dt>Plan tier</dt>
-            <dd>{tierFilter === "growth" ? "Growth Scale Plan" : tierFilter}</dd>
+            <dd>{filters.tier === "growth" ? "Growth Scale Plan" : filters.tier}</dd>
           </div>
           <div>
             <dt>Market focus</dt>
-            <dd>{MARKET_OPTIONS.find((option) => option.value === marketFilter)?.label ?? "United States"}</dd>
+            <dd>{MARKET_OPTIONS.find((option) => option.value === filters.market)?.label ?? "United States"}</dd>
           </div>
           <div>
             <dt>Active sources</dt>
@@ -492,85 +1067,17 @@ export default function KeywordsPage(): JSX.Element {
       </section>
 
       <div className="keywords-layout">
-        <aside className="keywords-filters">
-          <div className="filter-card" aria-labelledby="filter-sources">
-            <header>
-              <h2 id="filter-sources">Sources</h2>
-              <button type="button" onClick={clearAllFilters} disabled={loading}>
-                Clear all
-              </button>
-            </header>
-            <p>Select the marketplaces and synthetic feeds that fuel opportunity scoring.</p>
-            <div className="keywords-sources__options">
-              {availableSources.map((source) => {
-                const active = sourceFilters.includes(source);
-                const detail = SOURCE_DETAILS[source];
-                return (
-                  <label key={source} className={active ? "source-option is-active" : "source-option"}>
-                    <input
-                      type="checkbox"
-                      checked={active}
-                      onChange={() => toggleSource(source)}
-                      disabled={loading || (active && sourceFilters.length === 1)}
-                    />
-                    <span className="source-option__content">
-                      <span className="source-option__title">{detail?.title ?? source}</span>
-                      <span className="source-option__description">{detail?.description ?? ""}</span>
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="filter-card" aria-labelledby="filter-market">
-            <header>
-              <h2 id="filter-market">Market</h2>
-            </header>
-            <p>Align results with the regional storefront you operate.</p>
-            <select
-              value={marketFilter}
-              onChange={(event) => setMarketFilter(event.target.value)}
-              disabled={loading}
-            >
-              {MARKET_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="filter-card" aria-labelledby="filter-tier">
-            <header>
-              <h2 id="filter-tier">Tier focus</h2>
-            </header>
-            <p>Preview how opportunities shift across monetisation tiers.</p>
-            <select
-              value={tierFilter}
-              onChange={(event) => setTierFilter(event.target.value as PlanTier)}
-              disabled={loading}
-            >
-              <option value="free">Starter</option>
-              <option value="growth">Growth</option>
-              <option value="scale">Scale</option>
-            </select>
-          </div>
-
-          <div className="filter-card" aria-labelledby="filter-tags">
-            <header>
-              <h2 id="filter-tags">Tag keywords</h2>
-            </header>
-            <p>Track the thematic focus you want surfaced in AI suggestions.</p>
-            <input
-              type="text"
-              value={tagFilter}
-              onChange={(event) => setTagFilter(event.target.value)}
-              placeholder="e.g. boho, nursery, eco"
-              disabled={loading}
-            />
-          </div>
-        </aside>
+        <KeywordFilters
+          filters={filters}
+          chips={filterChips}
+          availableSources={availableSources}
+          disabled={loading}
+          onClearAll={clearAllFilters}
+          onToggleSource={toggleSource}
+          onMarketChange={(value) => setFilters((current) => ({ ...current, market: value }))}
+          onTierChange={(tier) => setFilters((current) => ({ ...current, tier }))}
+          onTagChange={(value) => setFilters((current) => ({ ...current, tags: value }))}
+        />
 
         <div className="keywords-main">
           <section className="keywords-search-card surface-card" aria-label="Keyword search controls">
@@ -958,6 +1465,36 @@ export default function KeywordsPage(): JSX.Element {
           </div>
         </div>
       ) : null}
+          <KeywordResultsTable
+            results={visibleResults}
+            loading={loading}
+            query={lastSuccessfulQuery || query}
+            filteredOutCount={filteredOutCount}
+            sourceLineageLabel={sourceLineageLabel}
+            dataLineage={dataLineage}
+            onWatchlist={handleWatchlist}
+            onOptimize={handleOptimize}
+            topOpportunity={topOpportunity}
+          />
+
+          <KeywordInsightsPanel
+            insights={insights}
+            complianceNotes={complianceNotes}
+            dataLineage={dataLineage}
+            sparklinePoints={sparklinePoints}
+            tagTokens={tagTokens}
+          />
+        </div>
+      </div>
+
+      <TagOptimizerModal
+        open={optimizerOpen}
+        keyword={selectedKeyword}
+        loading={optimizerLoading}
+        error={optimizerError}
+        result={optimizerResult}
+        onClose={() => setOptimizerOpen(false)}
+      />
     </div>
   );
 }

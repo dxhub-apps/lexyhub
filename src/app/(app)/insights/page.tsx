@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useSession } from "@supabase/auth-helpers-react";
 
 import IntentGraph from "@/components/insights/IntentGraph";
 import TrendRadar from "@/components/insights/TrendRadar";
@@ -26,6 +27,8 @@ export default function InsightsPage() {
   const [trendTimeframe, setTrendTimeframe] = useState<string>("7d");
   const [intentTimeframe, setIntentTimeframe] = useState<string>("7d");
   const { push } = useToast();
+  const session = useSession();
+  const userId = session?.user?.id ?? null;
 
   const handleFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -53,10 +56,19 @@ export default function InsightsPage() {
 
       setUploading(true);
       setResult(null);
+      if (!userId) {
+        push({
+          title: "Sign in required",
+          description: "You must be signed in to generate visual tags.",
+          tone: "error",
+        });
+        setUploading(false);
+        return;
+      }
       try {
         const response = await fetch("/api/ai/visual-tag", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-user-id": userId },
           body: JSON.stringify({
             imageBase64: imagePreview,
             keywordHints: hints
@@ -89,7 +101,7 @@ export default function InsightsPage() {
         setUploading(false);
       }
     },
-    [hints, imagePreview, push],
+    [hints, imagePreview, push, userId],
   );
 
   return (

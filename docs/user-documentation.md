@@ -16,6 +16,18 @@ LexyHub is the central workspace for monitoring sales velocity, discovering high
 >
 > The Backoffice navigation group appears only for administrator accounts—either because the Supabase user metadata marks the user as an admin or because their email is listed in `LEXYHUB_ADMIN_EMAILS`. Standard users keep access to core analytics but are redirected away from `/admin/backoffice` URLs.
 
+## Chrome extension setup
+
+1. **Install the extension:** Download the latest build from **Settings → Downloads → Chrome extension** or load the unpacked folder from `apps/chrome-extension/dist` via `chrome://extensions` with **Developer mode** enabled.
+2. **Approve permissions:** When prompted, review the scopes (`tabs`, `storage`, and `activeTab`) and click **Add extension**. These scopes allow LexyHub to read the active marketplace tab and cache session preferences locally.
+3. **Generate an access token:** In the LexyHub web app, navigate to **Settings → API access** and press **Create Chrome token**. Copy the generated personal access token; it expires 30 days after creation.
+4. **Store the token securely:** Open the extension popup, paste the token into the **LexyHub token** field, and click **Save**. Tokens are encrypted at rest in Chrome's storage but should still be rotated if you suspect compromise. Use the **Reset token** control in the extension to clear local storage when using a shared machine.
+5. **Verify connection:** With an Etsy or marketplace listing open in Chrome, click the extension icon. A green status badge confirms the token is valid and the extension can call LexyHub APIs. If the badge is red, reissue the token or confirm the workspace domain matches the one stored in **Settings → API access**.
+
+> **Token hygiene**
+>
+> Treat the Chrome token like a password. Do not paste it into shared chat tools. If a teammate needs access, generate a new token under their account so actions remain attributable. Tokens automatically scope to the workspaces you can access in LexyHub, preventing cross-account leakage.
+
 ## Layout Reference
 LexyHub uses a responsive two-pane layout composed of:
 
@@ -40,12 +52,12 @@ The Dashboard offers a high-level snapshot of revenue pacing and target attainme
 ## Keywords
 The Keywords workspace surfaces organic search opportunities discovered by LexyHub's AI.
 
-- **Hero insights:** A summary banner highlights active data sources, total results in view, and the freshest sync timestamp so you understand the health of the dataset before diving in.
+- **Filter summary:** A dedicated panel surfaces active filters as chips so you can clear individual constraints or reset everything with one click.
 - **Guided search controls:** The redesigned search form includes helpful copy, inline validation, and a dedicated refresh action that replays the most recent query without retyping it.
-- **Source selectors:** Toggle marketplace and synthetic signals with card-style checkboxes—no chips required. Each option explains what the source contributes so teams can make confident comparisons.
-- **Opportunity matrix:** Results are grouped into contextual columns—term details, relevance scores, AI opportunity signals, freshness, and actions—making it easier to scan without scrolling horizontally.
-- **Inline actions:** Add promising ideas to a watchlist or open the tag optimizer directly from the table using elevated buttons with clear focus states.
-- **Helpful Highlights panel:** Shows friendly tips about your keyword search along with the last time guidance was updated, plus sparkline telemetry for recent ranking momentum.
+- **Source selectors:** Toggle marketplace and synthetic signals with card-style checkboxes and contextual descriptions so teams can compare intent coverage confidently.
+- **Top opportunity callout:** The results area now spotlights the highest-ranking keyword with freshness notes so merchandisers know where to focus first.
+- **Tag-aware table:** Keywords display category context, associated tags, opportunity scores, and quick actions so you can add to watchlists or launch the tag optimizer without leaving the grid.
+- **Helpful Highlights panel:** Shows friendly tips about your keyword search, sparkline telemetry for ranking momentum, and reiterates your active tag focus to keep the team aligned.
 - **Data seeding from real searches:** When a query returns no results, LexyHub captures the term and routes it to our enrichment queue so future searches populate faster.
 
 **How to build a keyword watchlist:**
