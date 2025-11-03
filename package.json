@@ -34,7 +34,7 @@
     "@upstash/redis": "^1.35.6",
     "@vercel/analytics": "1.2.2",
     "@vercel/blob": "^2.0.0",
-    "ai": "3.2.35",
+    "ai": "5.0.86",
     "next": "14.2.5",
     "pino": "^10.1.0",
     "pino-pretty": "^13.1.2",
