@@ -1,17 +1,22 @@
 // scripts/reddit-keyword-discovery.mjs
-// Minimal Reddit discovery with robust retries and duplicate-safe upserts. Node 20+.
+// Long-tail Reddit keyword discovery with n-grams, 30-day window, recency decay,
+// question/advice prioritization, optional top-comments mining, and safe Supabase upserts.
+// Node 20+
 
 import fs from "node:fs";
 import process from "node:process";
 import { createClient } from "@supabase/supabase-js";
 
-// ---------- Env ----------
+// ==========================
+// Env
+// ==========================
 const SUPABASE_URL =
   process.env.SUPABASE_URL ||
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
   "";
 const SUPABASE_SERVICE_ROLE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SERVICE_ROLE_KEY ||
   process.env.SUPABASE_SERVICE_KEY ||
   "";
 
@@ -25,10 +30,33 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   process.exit(2);
 }
 
-const MODE = (process.env.INPUT_MODE || "accounts").toLowerCase(); // "accounts" | "anon"
+// Modes: "accounts" uses tokens from DB. "anon" uses REDDIT_ACCESS_TOKEN.
+const MODE = (process.env.INPUT_MODE || "accounts").toLowerCase(); // accounts | anon
 const CONFIG_PATH = process.env.INPUT_CONFIG_PATH || "config/reddit.yml";
 
-// ---------- Inputs ----------
+// N-gram and scoring controls
+const NGRAM_MIN = Number(process.env.INPUT_NGRAM_MIN || 2);
+const NGRAM_MAX = Number(process.env.INPUT_NGRAM_MAX || 5);
+const MIN_COUNT = Number(process.env.INPUT_MIN_COUNT || 3); // keep phrases with >= MIN_COUNT samples in the 30-day window
+const MAX_PHRASES_PER_POST = Number(process.env.INPUT_MAX_PHRASES_PER_POST || 300);
+const COMMENT_WEIGHT = Number(process.env.INPUT_COMMENT_WEIGHT || 0.5); // comments weight in engagement
+const TITLE_BONUS = Number(process.env.INPUT_TITLE_BONUS || 1.25);      // boost if phrase in title
+const WINDOW_DAYS = Number(process.env.INPUT_WINDOW_DAYS || 30);        // sliding window
+const QUESTION_BONUS = Number(process.env.INPUT_QUESTION_BONUS || 1.2); // boost for question/advice threads
+const RECENCY_HALF_LIFE_DAYS = Number(process.env.INPUT_RECENCY_HALF_LIFE_DAYS || 30); // exponential decay
+const INCLUDE_COMMENTS = String(process.env.INPUT_INCLUDE_COMMENTS || "").toLowerCase() === "true";
+
+// Intent boosters (retain/boost long-tail commercial intent)
+const INTENT_BOOSTERS = new Set([
+  "best","cheap","cheapest","custom","personalized","for","gift","gifts","ideas","how to","guide","tutorial",
+  "template","printable","size","sizing","pricing","price","cost","compare","vs","versus","tools","software",
+  "ai","seo","keywords","listing","listings","mockup","mockups","etsy","amazon","shopify","trend","trending",
+  "2025","beginner","starter","pros","cons","materials","kit","bundle"
+]);
+
+// ==========================
+// Inputs
+// ==========================
 function splitList(s = "") {
   return String(s)
     .split(/\r?\n|,/)
@@ -65,12 +93,16 @@ const QUERIES = new Set([
 console.log("mode=%s", MODE);
 console.log("subreddits=%d queries=%d", SUBREDDITS.size, QUERIES.size);
 
-// ---------- Supabase ----------
+// ==========================
+// Supabase
+// ==========================
 const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
-// ---------- Retry helper ----------
+// ==========================
+// Retry helper
+// ==========================
 async function withRetry(fn, label, { tries = 5, baseMs = 800 } = {}) {
   let lastErr;
   for (let i = 1; i <= tries; i++) {
@@ -79,7 +111,7 @@ async function withRetry(fn, label, { tries = 5, baseMs = 800 } = {}) {
     } catch (e) {
       lastErr = e;
       const msg = (e?.message || String(e));
-      const retryable = /timeout|fetch|ECONN|ENOTFOUND|5\d\d|Bad gateway|<!DOCTYPE html>/i.test(msg);
+      const retryable = /timeout|fetch|ECONN|ENOTFOUND|5\d\d|Bad gateway|<!DOCTYPE html>|rate_limited/i.test(msg);
       if (!retryable || i === tries) {
         throw new Error(`${label}:${msg}`);
       }
@@ -91,7 +123,9 @@ async function withRetry(fn, label, { tries = 5, baseMs = 800 } = {}) {
   throw lastErr;
 }
 
-// ---------- Reddit helpers ----------
+// ==========================
+// Reddit helpers
+// ==========================
 async function redditGET(path, params, token) {
   const qs = new URLSearchParams(params || {}).toString();
   const url = `https://oauth.reddit.com${path}${qs ? "?" + qs : ""}`;
@@ -121,10 +155,11 @@ async function refreshToken(refreshToken, clientId, clientSecret) {
   return r.json(); // { access_token, expires_in, ... }
 }
 
-// ---------- DB writers with retries ----------
+// ==========================
+// DB writers with retries
+// ==========================
 async function saveRawPost(post) {
   const d = post.data;
-  // Upsert on (provider, source_type, source_key). Requires the global unique index.
   await withRetry(
     async () => {
       const { error } = await db
@@ -139,6 +174,7 @@ async function saveRawPost(post) {
             metadata: {
               subreddit: d.subreddit,
               score: d.score,
+              num_comments: d.num_comments,
               created_utc: d.created_utc,
               permalink: d.permalink,
               title: d.title,
@@ -146,7 +182,7 @@ async function saveRawPost(post) {
           },
           {
             onConflict: "provider,source_type,source_key",
-            ignoreDuplicates: true, // supabase-js: skip update when exists
+            ignoreDuplicates: true,
           }
         );
       if (error) throw error;
@@ -155,19 +191,109 @@ async function saveRawPost(post) {
   );
 }
 
-function extractTerms(title, selftext = "") {
-  const text = `${title} ${selftext}`.toLowerCase();
-  return Array.from(
-    new Set(
-      text
-        .replace(/[^a-z0-9\s-]/g, " ")
-        .split(/\s+/)
-        .filter((w) => w.length >= 4 && w.length <= 32)
-    )
-  ).slice(0, 50);
+// ==========================
+// Long-tail n-gram extraction
+// ==========================
+const STOP = new Set([
+  "the","a","an","and","or","but","to","for","of","in","on","at","with","by","from","as",
+  "is","are","be","was","were","am","i","you","we","they","he","she","it","this","that",
+  "how","what","when","where","why","which","who","whom","do","does","did","can","could",
+  "should","would","will","may","might","your","my","our","their","his","her"
+]);
+
+function tokenize(text) {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w && w.length <= 40);
+}
+function trimStopEdges(words) {
+  let i = 0, j = words.length - 1;
+  while (i <= j && STOP.has(words[i])) i++;
+  while (j >= i && STOP.has(words[j])) j--;
+  return words.slice(i, j + 1);
+}
+function extractPhrases(title, selftext = "", { minN = NGRAM_MIN, maxN = NGRAM_MAX, maxPhrases = MAX_PHRASES_PER_POST } = {}) {
+  const toksTitle = tokenize(title || "");
+  const toksBody = tokenize(selftext || "");
+  const toks = [...toksTitle, ...toksBody];
+
+  const out = new Map(); // phrase -> { inTitle: boolean }
+  for (let n = minN; n <= maxN; n++) {
+    for (let i = 0; i + n <= toksTitle.length; i++) {
+      const win = trimStopEdges(toksTitle.slice(i, i + n));
+      if (win.length < minN) continue;
+      const phrase = win.join(" ");
+      if (phrase.length < 8) continue;
+      out.set(phrase, { inTitle: true });
+      if (out.size >= maxPhrases) return out;
+    }
+    for (let i = 0; i + n <= toks.length; i++) {
+      const win = trimStopEdges(toks.slice(i, i + n));
+      if (win.length < minN) continue;
+      const phrase = win.join(" ");
+      if (phrase.length < 8) continue;
+      if (!out.has(phrase)) out.set(phrase, { inTitle: false });
+      if (out.size >= maxPhrases) return out;
+    }
+  }
+  return out;
 }
 
-async function upsertKeyword(term) {
+// ==========================
+// Phrase aggregation (30-day window)
+// key -> { count, scoreSum, lastISO, intentBoost, titleHitCount, samplePosts }
+// ==========================
+const PHRASE_AGG = new Map();
+
+function withinWindow(iso) {
+  const ageMs = Date.now() - new Date(iso).getTime();
+  return ageMs <= WINDOW_DAYS * 864e5;
+}
+function recencyWeight(iso) {
+  const ageDays = Math.max(0, (Date.now() - new Date(iso).getTime()) / 864e5);
+  const lambda = Math.log(2) / RECENCY_HALF_LIFE_DAYS; // half-life
+  return Math.exp(-lambda * ageDays);
+}
+
+function addPhraseSample(phrase, baseScore, recordedISO, inTitle, isQuestionLike, postRef) {
+  if (!withinWindow(recordedISO)) return;
+  const cur =
+    PHRASE_AGG.get(phrase) ||
+    {
+      count: 0,
+      scoreSum: 0,
+      lastISO: recordedISO,
+      intentBoost: 1,
+      titleHitCount: 0,
+      samplePosts: [], // keep up to 5 refs for traceability
+    };
+
+  cur.count += 1;
+
+  const qBoost = isQuestionLike ? QUESTION_BONUS : 1;
+  const rBoost = recencyWeight(recordedISO);
+  cur.scoreSum += Math.max(0, baseScore || 0) * (inTitle ? TITLE_BONUS : 1) * qBoost * rBoost;
+
+  if (!cur.lastISO || recordedISO > cur.lastISO) cur.lastISO = recordedISO;
+  if (inTitle) cur.titleHitCount += 1;
+
+  for (const token of INTENT_BOOSTERS) {
+    if (phrase.includes(token)) {
+      cur.intentBoost = Math.max(cur.intentBoost, 1.1);
+      break;
+    }
+  }
+
+  if (postRef && cur.samplePosts.length < 5) {
+    cur.samplePosts.push(postRef); // { key, subreddit, permalink, createdISO }
+  }
+
+  PHRASE_AGG.set(phrase, cur);
+}
+
+async function upsertKeyword(term, method = "ngram_extract", extras = {}) {
   await withRetry(
     async () => {
       const { error } = await db.from("keywords").upsert(
@@ -177,8 +303,8 @@ async function upsertKeyword(term) {
           market: "us",
           is_seed: false,
           ingest_source: "reddit",
-          ingest_metadata: {},
-          method: "search",
+          ingest_metadata: extras, // contains samplePosts and stats
+          method,
           allow_search_sampling: true,
         },
         { onConflict: "term,source,market" }
@@ -203,27 +329,95 @@ async function writeTrend(term, score, recordedOnISO) {
   );
 }
 
-// ---------- Processing ----------
-async function processPost(post) {
+// ==========================
+// Processing
+// ==========================
+async function processPost(post, token) {
   const d = post.data;
   await saveRawPost(post);
-  const terms = extractTerms(d.title, d.selftext || "");
-  const dayISO = new Date((d.created_utc || Math.floor(Date.now() / 1000)) * 1000).toISOString();
-  for (const t of terms) {
-    await upsertKeyword(t);
-    await writeTrend(t, d.score || 0, dayISO);
+
+  const createdISO = new Date((d.created_utc || Math.floor(Date.now() / 1000)) * 1000).toISOString();
+  const phrases = extractPhrases(d.title || "", d.selftext || "");
+  const engagement = (d.score || 0) + COMMENT_WEIGHT * (d.num_comments || 0);
+  const isQuestionLike =
+    /\?/.test(d.title || "") ||
+    /^(how|what|which|why|where|when|should|could|can|advice|help)\b/i.test(d.title || "");
+
+  const postRef = {
+    key: d.name || null, // t3_*
+    subreddit: d.subreddit || null,
+    permalink: d.permalink || null,
+    createdISO,
+  };
+
+  for (const [phrase, meta] of phrases.entries()) {
+    addPhraseSample(phrase, engagement, createdISO, meta.inTitle, isQuestionLike, postRef);
+  }
+
+  if (INCLUDE_COMMENTS) {
+    try {
+      // Fetch top-level comments for extra long-tail phrases
+      const json = await redditGET(`/comments/${d.id}`, { limit: 50, depth: 1, sort: "top" }, token);
+      const comments = Array.isArray(json) ? json.at(-1)?.data?.children || [] : [];
+      for (const c of comments) {
+        const body = c?.data?.body || "";
+        if (!body) continue;
+        const cISO = new Date(((c.data?.created_utc) || (d.created_utc)) * 1000).toISOString();
+        const cPhrases = extractPhrases("", body);
+        const cEng = (c.data?.score || 0); // only comment score
+        const qBody = /\?/.test(body) || /^(how|what|which|why|where|when|should|could|can|advice|help)\b/i.test(body);
+        for (const [phrase] of cPhrases.entries()) {
+          addPhraseSample(phrase, cEng, cISO, false, qBody, postRef);
+        }
+      }
+    } catch (e) {
+      console.warn("comments_fetch_warn:%s", e?.message || e);
+    }
   }
 }
 
+async function flushAggregates() {
+  let kept = 0;
+  for (const [phrase, agg] of PHRASE_AGG.entries()) {
+    if (agg.count < MIN_COUNT) continue;
+
+    // Composite score: log(freq) × log(engagement) × intent × small title factor
+    const score =
+      Math.log1p(agg.count) *
+      Math.log1p(agg.scoreSum + 1) *
+      (agg.intentBoost || 1) *
+      (1 + 0.05 * agg.titleHitCount);
+
+    const extras = {
+      run_count: agg.count,
+      engagement_sum: Number(agg.scoreSum.toFixed(3)),
+      title_hit_count: agg.titleHitCount,
+      intent_boost: agg.intentBoost,
+      last_seen_iso: agg.lastISO,
+      ngram: true,
+      sample_posts: agg.samplePosts, // up to 5 refs for traceability
+      window_days: WINDOW_DAYS,
+    };
+
+    await upsertKeyword(phrase, "ngram_extract", extras);
+    await writeTrend(phrase, Number(score.toFixed(6)), agg.lastISO);
+    kept++;
+  }
+  console.log("aggregates_kept=%d min_count=%d total_seen=%d", kept, MIN_COUNT, PHRASE_AGG.size);
+}
+
+// ==========================
+// Runners
+// ==========================
 async function runWithToken(token) {
-  let processed = 0;
+  let processedPosts = 0;
 
   const subs = SUBREDDITS.size ? [...SUBREDDITS] : ["EtsySellers", "Etsy"];
   for (const sub of subs) {
     const data = await redditGET(`/r/${sub}/new`, { limit: 50 }, token);
     for (const c of data.data.children) {
-      await processPost(c);
-      processed++;
+      await processPost(c, token);
+      processedPosts++;
     }
   }
 
@@ -231,12 +425,13 @@ async function runWithToken(token) {
   for (const q of queries) {
     const data = await redditGET(`/search`, { q, sort: "new", limit: 50, type: "link" }, token);
     for (const c of data.data.children) {
-      await processPost(c);
-      processed++;
+      await processPost(c, token);
+      processedPosts++;
     }
   }
 
-  console.log("processed_posts=%d", processed);
+  await flushAggregates();
+  console.log("processed_posts=%d", processedPosts);
 }
 
 async function runAccounts() {
@@ -291,7 +486,9 @@ async function runAnon() {
   await runWithToken(token);
 }
 
-// ---------- Main ----------
+// ==========================
+// Main
+// ==========================
 (async function main() {
   try {
     if (MODE === "accounts") await runAccounts();
