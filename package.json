@@ -47,7 +47,7 @@
     "@types/react": "18.2.45",
     "@types/react-dom": "18.2.18",
     "@vitest/coverage-v8": "^1.6.1",
-    "archiver": "6.0.1",
+    "archiver": "7.0.1",
     "eslint": "8.57.0",
     "eslint-config-next": "14.2.5",
     "husky": "9.1.2",
