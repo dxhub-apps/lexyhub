@@ -1,6 +1,6 @@
 // scripts/reddit-keyword-discovery.mjs
-// Long-tail Reddit keyword discovery with n-grams, 30-day window, recency decay,
-// question/advice prioritization, optional top-comments mining, and safe Supabase upserts.
+// Long-tail Reddit keyword discovery with strong sanitization to avoid URL/HTML artifacts.
+// N-grams, 30-day window, recency decay, question/advice prioritization, optional top-comments mining.
 // Node 20+
 
 import fs from "node:fs";
@@ -37,7 +37,7 @@ const CONFIG_PATH = process.env.INPUT_CONFIG_PATH || "config/reddit.yml";
 // N-gram and scoring controls
 const NGRAM_MIN = Number(process.env.INPUT_NGRAM_MIN || 2);
 const NGRAM_MAX = Number(process.env.INPUT_NGRAM_MAX || 5);
-const MIN_COUNT = Number(process.env.INPUT_MIN_COUNT || 3); // keep phrases with >= MIN_COUNT samples in the 30-day window
+const MIN_COUNT = Number(process.env.INPUT_MIN_COUNT || 3); // keep phrases with >= MIN_COUNT samples in the window
 const MAX_PHRASES_PER_POST = Number(process.env.INPUT_MAX_PHRASES_PER_POST || 300);
 const COMMENT_WEIGHT = Number(process.env.INPUT_COMMENT_WEIGHT || 0.5); // comments weight in engagement
 const TITLE_BONUS = Number(process.env.INPUT_TITLE_BONUS || 1.25);      // boost if phrase in title
@@ -52,6 +52,26 @@ const INTENT_BOOSTERS = new Set([
   "template","printable","size","sizing","pricing","price","cost","compare","vs","versus","tools","software",
   "ai","seo","keywords","listing","listings","mockup","mockups","etsy","amazon","shopify","trend","trending",
   "2025","beginner","starter","pros","cons","materials","kit","bundle"
+]);
+
+// Hard filters against tech/URL junk
+const BAD_TOKENS = new Set([
+  "http","https","www","com","net","org","html","htm","css","js","json","xml","cdn","reddit","redd","preview",
+  "jpg","jpeg","png","webp","gif","pjpg","svg","mp4","mov","pdf","amp","utm","ref","width","height","format",
+  "id","uid","cid","token","api","app","cache","blob","vercel","storage","aws","s3","cloudfront"
+]);
+const FILE_EXT_RE = /\.(jpg|jpeg|png|webp|gif|svg|bmp|tif|tiff|mp4|mov|pdf)(\?|$)/i;
+const URL_RE = /https?:\/\/\S+/gi;
+const HEX_RE = /^[0-9a-f]{6,}$/i;
+const TECHY_RE = /^(amp|webp|pjpg|png|jpg|jpeg|gif|pdf|api|cdn|cache|blob|token|width|height)$/i;
+
+// Domain terms that must appear at least once in a kept phrase
+const DOMAIN_TERMS = new Set([
+  "etsy","seller","sellers","listing","listings","seo","keyword","keywords","shipping","label","labels","dispatch",
+  "refund","returns","chargeback","mockup","mockups","digital","print","prints","svg","dxf","stl","template",
+  "templates","pricing","price","cost","fees","ad","ads","advertising","campaign","conversion","traffic","orders",
+  "sales","bundle","personalized","custom","engraving","niche","product","sku","inventory","fulfillment","pod",
+  "printify","printful","gelato","aov","coupon","promotion","shop","shopify","buyer","customer","order",
 ]);
 
 // ==========================
@@ -192,7 +212,7 @@ async function saveRawPost(post) {
 }
 
 // ==========================
-// Long-tail n-gram extraction
+// Text sanitization and n-grams
 // ==========================
 const STOP = new Set([
   "the","a","an","and","or","but","to","for","of","in","on","at","with","by","from","as",
@@ -201,18 +221,40 @@ const STOP = new Set([
   "should","would","will","may","might","your","my","our","their","his","her"
 ]);
 
+function sanitizeText(text) {
+  if (!text) return "";
+  let t = text.replace(URL_RE, " ");                 // drop URLs
+  t = t.replace(/&amp;/gi, " ");                     // common HTML entity noise
+  t = t.replace(/&[a-z]+;/gi, " ");                  // other entities
+  t = t.replace(/[`*_~>|#=\[\]\(\)\{\}\\]/g, " ");   // markdown-ish
+  t = t.replace(/[^\w\s-]/g, " ");                   // symbols
+  return t;
+}
 function tokenize(text) {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, " ")
+  const t = sanitizeText(text).toLowerCase();
+  return t
     .split(/\s+/)
-    .filter((w) => w && w.length <= 40);
+    .filter((w) => {
+      if (!w) return false;
+      if (w.length > 40) return false;
+      if (BAD_TOKENS.has(w)) return false;
+      if (TECHY_RE.test(w)) return false;
+      if (HEX_RE.test(w)) return false;
+      if (/^\d+$/.test(w)) return false;
+      if (/^[a-z][a-z-]*[0-9][a-z-]*$/.test(w)) return false; // alpha+digits junk
+      if (FILE_EXT_RE.test(w)) return false;
+      return /^[a-z][a-z-]*$/.test(w); // words only
+    });
 }
 function trimStopEdges(words) {
   let i = 0, j = words.length - 1;
   while (i <= j && STOP.has(words[i])) i++;
   while (j >= i && STOP.has(words[j])) j--;
   return words.slice(i, j + 1);
+}
+function containsDomainTerm(words) {
+  for (const w of words) if (DOMAIN_TERMS.has(w)) return true;
+  return false;
 }
 function extractPhrases(title, selftext = "", { minN = NGRAM_MIN, maxN = NGRAM_MAX, maxPhrases = MAX_PHRASES_PER_POST } = {}) {
   const toksTitle = tokenize(title || "");
@@ -222,16 +264,22 @@ function extractPhrases(title, selftext = "", { minN = NGRAM_MIN, maxN = NGRAM_M
   const out = new Map(); // phrase -> { inTitle: boolean }
   for (let n = minN; n <= maxN; n++) {
     for (let i = 0; i + n <= toksTitle.length; i++) {
-      const win = trimStopEdges(toksTitle.slice(i, i + n));
+      const win0 = toksTitle.slice(i, i + n);
+      const win = trimStopEdges(win0);
       if (win.length < minN) continue;
+      if (!containsDomainTerm(win)) continue;    // require domain term
+      if (win.some((w) => BAD_TOKENS.has(w))) continue;
       const phrase = win.join(" ");
       if (phrase.length < 8) continue;
       out.set(phrase, { inTitle: true });
       if (out.size >= maxPhrases) return out;
     }
     for (let i = 0; i + n <= toks.length; i++) {
-      const win = trimStopEdges(toks.slice(i, i + n));
+      const win0 = toks.slice(i, i + n);
+      const win = trimStopEdges(win0);
       if (win.length < minN) continue;
+      if (!containsDomainTerm(win)) continue;
+      if (win.some((w) => BAD_TOKENS.has(w))) continue;
       const phrase = win.join(" ");
       if (phrase.length < 8) continue;
       if (!out.has(phrase)) out.set(phrase, { inTitle: false });
@@ -389,14 +437,14 @@ async function flushAggregates() {
       (1 + 0.05 * agg.titleHitCount);
 
     const extras = {
+      ngram: true,
+      window_days: WINDOW_DAYS,
       run_count: agg.count,
       engagement_sum: Number(agg.scoreSum.toFixed(3)),
       title_hit_count: agg.titleHitCount,
       intent_boost: agg.intentBoost,
       last_seen_iso: agg.lastISO,
-      ngram: true,
       sample_posts: agg.samplePosts, // up to 5 refs for traceability
-      window_days: WINDOW_DAYS,
     };
 
     await upsertKeyword(phrase, "ngram_extract", extras);
