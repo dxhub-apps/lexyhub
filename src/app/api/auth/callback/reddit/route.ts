@@ -1,59 +1,39 @@
 // src/app/api/auth/callback/reddit/route.ts
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/auth-helpers-nextjs";
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const U = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const AK = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const SR = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const CID = process.env.REDDIT_CLIENT_ID!;
+const CS = process.env.REDDIT_CLIENT_SECRET!;
+const RURI = process.env.REDDIT_REDIRECT_URI!;
 
-const REDDIT_CLIENT_ID = process.env.REDDIT_CLIENT_ID!;
-const REDDIT_CLIENT_SECRET = process.env.REDDIT_CLIENT_SECRET!;
-const REDDIT_REDIRECT_URI = process.env.REDDIT_REDIRECT_URI!;
-
-async function exchangeCodeForToken(code: string) {
-  const body = new URLSearchParams({
-    grant_type: "authorization_code",
-    code,
-    redirect_uri: REDDIT_REDIRECT_URI,
-  }).toString();
-
-  const auth = Buffer.from(`${REDDIT_CLIENT_ID}:${REDDIT_CLIENT_SECRET}`).toString("base64");
-
+async function tokenExchange(code: string) {
+  const body = new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: RURI }).toString();
   const r = await fetch("https://www.reddit.com/api/v1/access_token", {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Basic ${auth}`,
+      Authorization: "Basic " + Buffer.from(`${CID}:${CS}`).toString("base64"),
       "User-Agent": "lexyhub/1.0 by lexyhub",
     },
     body,
     cache: "no-store",
   });
-
-  if (!r.ok) {
-    const text = await r.text().catch(() => "");
-    throw new Error(`token_exchange_failed:${r.status}:${text}`);
-  }
-  return (await r.json()) as {
-    access_token: string;
-    token_type: string;
-    expires_in: number;
-    scope: string;
-    refresh_token?: string;
-  };
+  if (!r.ok) throw new Error(`token_exchange:${r.status}:${await r.text()}`);
+  return r.json() as Promise<{ access_token: string; expires_in: number; scope: string; refresh_token?: string }>;
 }
 
-async function getIdentity(accessToken: string) {
+async function me(token: string) {
   const r = await fetch("https://oauth.reddit.com/api/v1/me", {
-    headers: {
-      Authorization: `bearer ${accessToken}`,
-      "User-Agent": "lexyhub/1.0 by lexyhub",
-    },
+    headers: { Authorization: `bearer ${token}`, "User-Agent": "lexyhub/1.0 by lexyhub" },
     cache: "no-store",
   });
-  if (!r.ok) throw new Error(`identity_failed:${r.status}`);
-  return (await r.json()) as { id: string; name: string };
+  if (!r.ok) throw new Error(`me:${r.status}:${await r.text()}`);
+  return r.json() as Promise<{ id: string; name: string }>;
 }
 
 export async function GET(req: NextRequest) {
@@ -62,65 +42,57 @@ export async function GET(req: NextRequest) {
   const state = url.searchParams.get("state");
   const cookieState = req.cookies.get("reddit_oauth_state")?.value;
 
-  // Prepare response so Supabase auth-helpers can write cookies if needed
-  const res = NextResponse.redirect(new URL("/integrations/reddit?connected=0", req.url));
-
-  // Supabase Auth: read current signed-in user from cookies
-  const supabaseUserClient = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    cookies: {
-      get: (name) => req.cookies.get(name)?.value,
-      set: (name, value, options) => res.cookies.set({ name, value, ...options }),
-      remove: (name, options) => res.cookies.set({ name, value: "", ...options, maxAge: 0 }),
-    },
-  });
-
-  const {
-    data: { user },
-  } = await supabaseUserClient.auth.getUser();
-
-  if (!code || !state || !cookieState || state !== cookieState) {
-    return NextResponse.redirect(new URL("/auth/error?reason=state", req.url));
-  }
-  if (!user?.id) {
-    return NextResponse.redirect(new URL("/auth/error?reason=unauthenticated", req.url));
-  }
+  const res = NextResponse.next();
 
   try {
-    const token = await exchangeCodeForToken(code);
-    const me = await getIdentity(token.access_token);
-    const expiresAt = new Date(Date.now() + token.expires_in * 1000).toISOString();
-    const scopes = token.scope ? token.scope.split(" ") : [];
+    if (!code) throw new Error("bad_request:missing_code");
+    if (!state || !cookieState || state !== cookieState) throw new Error("state_mismatch");
 
-    // Admin client for writing through RLS
-    const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+    const supabaseUser = createServerClient(U, AK, {
+      cookies: {
+        get: (n) => req.cookies.get(n)?.value,
+        set: (n, v, o) => res.cookies.set({ name: n, value: v, ...o }),
+        remove: (n, o) => res.cookies.set({ name: n, value: "", ...o, maxAge: 0 }),
+      },
+    });
+    const { data: { user }, error: userErr } = await supabaseUser.auth.getUser();
+    if (userErr) throw new Error("auth_get_user:" + userErr.message);
+    if (!user?.id) throw new Error("unauthenticated");
 
-    // Ensure unique triple on (user_id, provider_id, external_shop_id) exists in DB
-    const { error } = await admin
-      .from("marketplace_accounts")
-      .upsert(
-        {
-          user_id: user.id,
-          provider_id: "reddit",
-          external_shop_id: me.id,
-          shop_name: me.name,
-          access_token: token.access_token,
-          refresh_token: token.refresh_token ?? null,
-          token_expires_at: expiresAt,
-          scopes,
-          status: "active",
-          last_synced_at: null,
-          metadata: {},
-        },
-        { onConflict: "user_id,provider_id,external_shop_id" }
-      );
+    const tok = await tokenExchange(code);
+    const ident = await me(tok.access_token);
 
-    if (error) throw error;
+    const admin = createClient(U, SR, { auth: { persistSession: false } });
+    const expiresAt = new Date(Date.now() + tok.expires_in * 1000).toISOString();
+    const scopes = tok.scope ? tok.scope.split(" ") : [];
 
-    const ok = new URL("/integrations/reddit?connected=1&name=" + encodeURIComponent(me.name), req.url);
+    const { error: upsertErr } = await admin.from("marketplace_accounts").upsert(
+      {
+        user_id: user.id,
+        provider_id: "reddit",
+        external_shop_id: ident.id,
+        shop_name: ident.name,
+        access_token: tok.access_token,
+        refresh_token: tok.refresh_token ?? null,
+        token_expires_at: expiresAt,
+        scopes, // requires column type text[]
+        status: "active",
+        metadata: {},
+      },
+      { onConflict: "user_id,provider_id,external_shop_id" }
+    );
+    if (upsertErr) throw new Error("db_upsert:" + upsertErr.message);
+
+    const ok = new URL("/integrations/reddit?connected=1&name=" + encodeURIComponent(ident.name), req.url);
     ok.hostname = "app.lexyhub.com";
     ok.protocol = "https:";
     return NextResponse.redirect(ok);
-  } catch {
-    return NextResponse.redirect(new URL("/auth/error?reason=oauth", req.url));
+  } catch (e: any) {
+    console.error("reddit_oauth_error", e?.message || e);
+    const err = new URL("/auth/error", req.url);
+    err.searchParams.set("reason", e?.message || "unknown");
+    err.hostname = "app.lexyhub.com";
+    err.protocol = "https:";
+    return NextResponse.redirect(err);
   }
 }
