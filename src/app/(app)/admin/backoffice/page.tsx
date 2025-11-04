@@ -32,26 +32,34 @@ type RiskSummary = {
   heatMap: RiskHeatMap | null;
 };
 
+type MetricStatus = "ok" | "warning" | "error";
+
 function MetricCard({ metric }: { metric: HealthMetric }) {
-  const statusColors = {
+  const statusColors: Record<MetricStatus, string> = {
     ok: "text-green-600",
     warning: "text-yellow-600",
     error: "text-red-600",
   };
 
-  const statusIcons = {
+  const statusIcons: Record<MetricStatus, React.ReactNode> = {
     ok: <CheckCircle className="h-4 w-4" />,
     warning: <AlertTriangle className="h-4 w-4" />,
     error: <XCircle className="h-4 w-4" />,
   };
+
+  const normalizedStatus = (["ok", "warning", "error"].includes(metric.status)
+    ? metric.status
+    : "ok") as MetricStatus;
+  const statusColor = statusColors[normalizedStatus];
+  const statusIcon = statusIcons[normalizedStatus];
 
   return (
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <Badge variant="outline">{metric.category}</Badge>
-          <div className={`flex items-center gap-1 ${statusColors[metric.status]}`}>
-            {statusIcons[metric.status]}
+          <div className={`flex items-center gap-1 ${statusColor}`}>
+            {statusIcon}
             <span className="text-xs font-semibold uppercase">{metric.status}</span>
           </div>
         </div>
