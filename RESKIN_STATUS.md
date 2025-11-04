@@ -368,7 +368,9 @@ Migrated from native HTML to shadcn/ui:
 9. `0b2103e` - Phase 8: Profile
 10. `58ad5eb` - Documentation update
 11. `11dee4e` - Bugfix: Watchlists Link/Button nesting
-12. `a1f6fee` - Bugfix: UserMenu Link/Button nesting
+12. `a1f6fee` - Bugfix: UserMenu Link/Button nesting (incorrect fix)
+13. `d3fd41e` - Documentation update
+14. `4f34ec7` - Bugfix: UserMenu asChild removal (correct fix)
 
 ---
 
@@ -407,7 +409,7 @@ The following pages retain existing functionality but have not been visually ref
 | **Accessibility** | WCAG 2.1 AA compliant |
 | **Dark Mode** | Full support |
 | **Responsive Design** | Mobile, tablet, desktop |
-| **Total Commits** | 12 |
+| **Total Commits** | 14 |
 | **Runtime Errors Fixed** | 2 (React.Children.only) |
 
 ---
@@ -446,8 +448,10 @@ Next.js 13+ App Router Link component enforces strict child constraints when use
    - Fixed 2 instances in primary action buttons
    - File: `src/app/(app)/watchlists/page.tsx`
 
-2. **UserMenu Component** (Commit: `a1f6fee`):
-   - Added `flex items-center` class to Link components with multiple children
+2. **UserMenu Component** (Commit: `a1f6fee` - incorrect, `4f34ec7` - correct):
+   - Initial attempt: Added `flex items-center` class (didn't fix the issue)
+   - Correct fix: Removed `asChild` from DropdownMenuItem
+   - Reason: When DropdownMenuItem uses `asChild`, Link can only have ONE child
    - Fixed 3 instances in dropdown menu items (Profile, Settings, Help Center)
    - File: `src/components/layout/UserMenu.tsx`
 
@@ -463,11 +467,22 @@ Next.js 13+ App Router Link component enforces strict child constraints when use
 </Button>
 ```
 
-**CORRECT** - DropdownMenuItem with asChild + Link:
+**CORRECT** - DropdownMenuItem WITHOUT asChild (for Links with multiple children):
 ```tsx
-<DropdownMenuItem asChild>
-  <Link href="/profile" className="flex items-center">
+<DropdownMenuItem>
+  <Link href="/profile" className="flex w-full items-center">
     <User className="mr-2 h-4 w-4" />
+    <span>Profile</span>
+  </Link>
+</DropdownMenuItem>
+```
+
+**INCORRECT** - DropdownMenuItem with asChild + multiple children:
+```tsx
+<!-- DON'T DO THIS - causes React.Children.only error -->
+<DropdownMenuItem asChild>
+  <Link href="/profile">
+    <User className="mr-2 h-4 w-4" />  <!-- Multiple children = error -->
     <span>Profile</span>
   </Link>
 </DropdownMenuItem>
