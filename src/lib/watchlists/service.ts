@@ -15,6 +15,10 @@ export type WatchlistItemRecord = {
     id: string;
     term: string;
     market: string;
+    competition_score?: number | null;
+    demand_index?: number | null;
+    trend_momentum?: number | null;
+    engagement_score?: number | null;
   } | null;
   listing?: {
     id: string;
@@ -104,7 +108,15 @@ export async function listWatchlists(userId: string): Promise<WatchlistWithItems
          added_at,
          keyword_id,
          listing_id,
-         keywords:keyword_id ( id, term, market ),
+         keywords:keyword_id (
+           id,
+           term,
+           market,
+           competition_score,
+           demand_index,
+           trend_momentum,
+           engagement_score
+         ),
          listings:listing_id ( id, title, url )
        )`,
     )
@@ -125,6 +137,10 @@ export async function listWatchlists(userId: string): Promise<WatchlistWithItems
             id: String(item.keywords.id ?? ""),
             term: String(item.keywords.term ?? ""),
             market: String(item.keywords.market ?? ""),
+            competition_score: item.keywords.competition_score ?? null,
+            demand_index: item.keywords.demand_index ?? null,
+            trend_momentum: item.keywords.trend_momentum ?? null,
+            engagement_score: item.keywords.engagement_score ?? null,
           }
         : null,
       listing: item.listings
