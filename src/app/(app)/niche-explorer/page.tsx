@@ -88,6 +88,7 @@ export default function NicheExplorerPage(): JSX.Element {
       setNiche(initialNiche);
       void analyzeNiche(initialNiche);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   const analyzeNiche = async (nicheValue?: string) => {
@@ -250,7 +251,7 @@ export default function NicheExplorerPage(): JSX.Element {
                 <Globe className="h-5 w-5" />
                 Niche Overview
               </CardTitle>
-              <CardDescription>Auto-generated market summary for "{niche}"</CardDescription>
+              <CardDescription>Auto-generated market summary for &ldquo;{niche}&rdquo;</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -540,7 +541,7 @@ export default function NicheExplorerPage(): JSX.Element {
               <div>
                 <h4 className="text-sm font-semibold mb-3 text-blue-600">Synonym Gaps</h4>
                 <p className="text-sm text-muted-foreground mb-2">
-                  Related terms competitors use but you haven't tracked
+                  Related terms competitors use but you haven&apos;t tracked
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {analysis.recommendations.synonymGaps.map((kw, idx) => (
