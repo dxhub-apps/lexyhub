@@ -187,13 +187,13 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
         {user && (
           <>
             <DropdownMenuItem asChild>
-              <Link href="/profile" className="cursor-pointer">
+              <Link href="/profile" className="flex items-center cursor-pointer">
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="/settings" className="cursor-pointer">
+              <Link href="/settings" className="flex items-center cursor-pointer">
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Settings</span>
               </Link>
@@ -223,7 +223,7 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
           </DropdownMenuSubContent>
         </DropdownMenuSub>
         <DropdownMenuItem asChild>
-          <Link href="/docs" className="cursor-pointer">
+          <Link href="/docs" className="flex items-center cursor-pointer">
             <HelpCircle className="mr-2 h-4 w-4" />
             <span>Help Center</span>
           </Link>
