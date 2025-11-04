@@ -16,24 +16,22 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const supabase = createServerComponentClient({ cookies });
-  const [sessionResult, userResult] = await Promise.all([
-    supabase.auth.getSession(),
-    supabase.auth.getUser(),
-  ]);
-
-  const {
-    data: { session },
-  } = sessionResult;
+  // Use getUser() instead of getSession() for secure server-side authentication
   const {
     data: { user },
-  } = userResult;
-
-  const validatedSession: Session | null =
-    session && user ? { ...session, user } : session;
+  } = await supabase.auth.getUser();
 
   if (!user) {
     redirect("/login");
   }
+
+  // Get session only after user is validated
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const validatedSession: Session | null =
+    session && user ? { ...session, user } : null;
 
   const { plan } = await ensureAdminProfile(user);
   const isAdmin = isAdminUser(user, plan);

@@ -64,6 +64,10 @@ export async function getKeywordInsightFromCache(
       .maybeSingle();
 
     if (error) {
+      // PGRST205: Table not found - cache table doesn't exist yet, skip caching silently
+      if (error.code === "PGRST205") {
+        return null;
+      }
       console.warn("Failed to read keyword insights cache", error);
       return null;
     }
@@ -109,7 +113,10 @@ export async function upsertKeywordInsightCache(
     );
 
     if (error) {
-      console.warn("Failed to persist keyword insights cache", error);
+      // PGRST205: Table not found - cache table doesn't exist yet, skip caching silently
+      if (error.code !== "PGRST205") {
+        console.warn("Failed to persist keyword insights cache", error);
+      }
     }
   } catch (error) {
     console.warn("Error while persisting keyword insights cache", error);

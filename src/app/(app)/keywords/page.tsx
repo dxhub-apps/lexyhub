@@ -855,7 +855,12 @@ export default function KeywordsPage(): JSX.Element {
                         <tr key={`${k.term}-${k.source}`} className="border-b last:border-0 hover:bg-muted/50">
                           <th scope="row" className="px-4 py-3 text-left font-medium">
                             <div className="space-y-1">
-                              <div className="font-semibold">{k.term}</div>
+                              <Link
+                                href={`/keywords/${encodeURIComponent(k.term)}`}
+                                className="font-semibold text-primary hover:underline"
+                              >
+                                {k.term}
+                              </Link>
                               {cats && <div className="text-xs text-muted-foreground">{cats}</div>}
                               {tags.length > 0 && (
                                 <div className="flex flex-wrap gap-1" aria-label="Associated tags">
