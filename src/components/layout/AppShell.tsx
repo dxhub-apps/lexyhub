@@ -27,7 +27,7 @@ const NAV_ITEMS: readonly SidebarNavItem[] = [
   },
   {
     href: "/watchlists",
-    label: "Watchlists",
+    label: "Watchlist",
     description: "Monitored items",
     icon: <Star className="h-5 w-5" />,
   },
@@ -38,9 +38,9 @@ const NAV_ITEMS: readonly SidebarNavItem[] = [
     icon: <Search className="h-5 w-5" />,
   },
   {
-    href: "/insights",
-    label: "Insights",
-    description: "Visual AI",
+    href: "/niche-explorer",
+    label: "Niche Explorer",
+    description: "Market Intelligence",
     icon: <TrendingUp className="h-5 w-5" />,
   },
   {
