@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Flag } from "lucide-react";
 
 import { useToast } from "@/components/ui/use-toast";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 
 type FeatureFlagKey = "require_official_etsy_api" | "allow_search_sampling" | "allow_user_telemetry";
 
@@ -140,39 +145,57 @@ export default function FeatureFlagsPage(): JSX.Element {
   };
 
   return (
-    <div className="feature-flags-page">
-      <section className="surface-card form-card feature-flags-card">
-        <h1>Feature flags</h1>
-        <p className="insights-muted">
-          Toggle platform capabilities that rely on the official Etsy API, live search sampling, and telemetry ingestion.
-        </p>
-        <div className="feature-flags-grid">
-          {orderedFlags.map((flag) => {
-            const metadata = FLAG_METADATA[flag.key];
-            const isDisabled = loading || flag.saving;
-            return (
-              <label key={flag.key} className="feature-flag-toggle">
-                <div className="feature-flag-copy">
-                  <span className="feature-flag-label">{metadata.label}</span>
-                  <span className="feature-flag-description">{metadata.description}</span>
-                  {metadata.helper ? <span className="feature-flag-helper">{metadata.helper}</span> : null}
-                </div>
-                <div className="feature-flag-control">
-                  <input
-                    type="checkbox"
-                    role="switch"
-                    aria-label={metadata.label}
+    <div className="space-y-8">
+      <Card>
+        <CardHeader>
+          <div className="flex items-start gap-3">
+            <Flag className="h-6 w-6 text-muted-foreground" />
+            <div className="space-y-1">
+              <CardTitle className="text-3xl font-bold">Feature Flags</CardTitle>
+              <CardDescription className="text-base">
+                Toggle platform capabilities that rely on the official Etsy API, live search sampling, and telemetry ingestion.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
+      <div className="grid gap-6">
+        {orderedFlags.map((flag) => {
+          const metadata = FLAG_METADATA[flag.key];
+          const isDisabled = loading || flag.saving;
+          return (
+            <Card key={flag.key}>
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor={flag.key} className="text-base font-semibold cursor-pointer">
+                        {metadata.label}
+                      </Label>
+                      <Badge variant={flag.isEnabled ? "default" : "secondary"}>
+                        {flag.isEnabled ? "Enabled" : "Disabled"}
+                      </Badge>
+                      {flag.saving && <Badge variant="outline">Saving...</Badge>}
+                    </div>
+                    <p className="text-sm text-muted-foreground">{metadata.description}</p>
+                    {metadata.helper && (
+                      <p className="text-xs text-muted-foreground italic">{metadata.helper}</p>
+                    )}
+                  </div>
+                  <Switch
+                    id={flag.key}
                     checked={flag.isEnabled}
-                    onChange={(event) => toggleFlag(flag.key, event.target.checked)}
+                    onCheckedChange={(checked) => toggleFlag(flag.key, checked)}
                     disabled={isDisabled}
+                    aria-label={metadata.label}
                   />
-                  {flag.saving ? <span className="feature-flag-status">Saving…</span> : null}
                 </div>
-              </label>
-            );
-          })}
-        </div>
-      </section>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }

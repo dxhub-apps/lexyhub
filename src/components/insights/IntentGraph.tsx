@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import type { WheelEvent } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 
 type IntentGraphNode = {
   id: string;
@@ -52,8 +56,7 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 
 export function IntentGraph({
   title = "Intent Graph",
-  description =
-    "Classification pairs intents, personas, and funnel stages. Force layout reveals adjacency between similar behaviors across marketplaces.",
+  description = "Classification pairs intents, personas, and funnel stages. Force layout reveals adjacency between similar behaviors across marketplaces.",
   timeframe,
   timeframeOptions,
   onTimeframeChange,
@@ -197,93 +200,146 @@ export function IntentGraph({
   }, []);
 
   return (
-    <div className="intent-graph">
-      <header className="intent-graph__header">
-        <div className="intent-graph__intro">
-          <h2 id={titleId}>{title}</h2>
-          <p className="insights-muted">{description}</p>
+    <div className="space-y-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <h2 id={titleId} className="text-xl font-semibold">{title}</h2>
+          <p className="text-sm text-muted-foreground">{description}</p>
         </div>
-        <div className="intent-graph__meta">
-          {hasTimeframeControls ? (
-            <div className="timeframe-toggle" role="group" aria-label={`${title} timeframe`}>
+        <div className="flex flex-wrap items-center gap-2">
+          {hasTimeframeControls && (
+            <div className="flex gap-1 rounded-md border p-1">
               {timeframeOptions!.map((option) => {
                 const isActive = option.value === timeframe;
                 return (
-                  <button
+                  <Button
                     key={option.value}
                     type="button"
-                    className={isActive ? "active" : ""}
+                    variant={isActive ? "default" : "ghost"}
+                    size="sm"
                     onClick={() => onTimeframeChange!(option.value)}
-                    aria-pressed={isActive}
                   >
                     {option.label}
-                  </button>
+                  </Button>
                 );
               })}
             </div>
-          ) : null}
-          <span className="intent-graph__badge">{data?.source ?? "unknown"}</span>
-          {data?.generatedAt ? <span>{new Date(data.generatedAt).toLocaleTimeString()}</span> : null}
-          <div className="intent-graph__controls">
-            <label htmlFor={zoomControlId}>Zoom</label>
-            <input
-              id={zoomControlId}
-              type="range"
-              min={0.5}
-              max={2.5}
-              step={0.1}
-              value={zoom}
-              onChange={(event) => setZoom(Number(event.currentTarget.value))}
-            />
-            <span>{Math.round(zoom * 100)}%</span>
+          )}
+          <Badge variant="secondary">{data?.source ?? "unknown"}</Badge>
+          {data?.generatedAt && (
+            <span className="text-xs text-muted-foreground">
+              {new Date(data.generatedAt).toLocaleTimeString()}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {error && (
+        <div className="rounded-md border border-destructive bg-destructive/10 p-4">
+          <p className="text-sm text-destructive">{error}</p>
+        </div>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-4">
+        <div className="lg:col-span-3">
+          <div className="rounded-md border bg-card p-4">
+            <div className="mb-4 flex items-center gap-4">
+              <Label htmlFor={zoomControlId} className="text-sm">Zoom</Label>
+              <Slider
+                id={zoomControlId}
+                min={0.5}
+                max={2.5}
+                step={0.1}
+                value={[zoom]}
+                onValueChange={(value) => setZoom(value[0])}
+                className="flex-1 max-w-xs"
+              />
+              <span className="text-sm font-medium w-12 text-right">{Math.round(zoom * 100)}%</span>
+            </div>
+            <div
+              className="overflow-hidden rounded border"
+              onWheel={handleWheel}
+              role="presentation"
+              tabIndex={0}
+              style={{ height: '500px' }}
+            >
+              <svg
+                viewBox={viewBox}
+                role="img"
+                aria-label="Intent graph visualization"
+                preserveAspectRatio="xMidYMid meet"
+                className="w-full h-full"
+              >
+                <rect
+                  x={layout.centerX - layout.width / 2}
+                  y={layout.centerY - layout.height / 2}
+                  width={layout.width}
+                  height={layout.height}
+                  rx={18}
+                  fill="currentColor"
+                  className="text-muted/10"
+                />
+                {layout.edges.map((edge) => (
+                  <line
+                    key={`${edge.source}-${edge.target}`}
+                    x1={edge.x1}
+                    y1={edge.y1}
+                    x2={edge.x2}
+                    y2={edge.y2}
+                    stroke="currentColor"
+                    strokeWidth="1"
+                    className="text-muted-foreground/30"
+                  />
+                ))}
+                {layout.nodes.map((node) => (
+                  <g key={node.id} transform={`translate(${node.px}, ${node.py})`}>
+                    <circle
+                      r={12 + node.score * 6}
+                      fill={node.color}
+                      className="opacity-80"
+                    />
+                    <text
+                      className="fill-foreground text-xs font-medium"
+                      x={0}
+                      y={-16}
+                      textAnchor="middle"
+                    >
+                      {node.term}
+                    </text>
+                    <text
+                      className="fill-muted-foreground text-[10px]"
+                      x={0}
+                      y={6}
+                      textAnchor="middle"
+                    >
+                      {node.intent} · {node.purchaseStage}
+                    </text>
+                  </g>
+                ))}
+              </svg>
+            </div>
           </div>
         </div>
-      </header>
-      {error ? <div className="intent-graph__error">{error}</div> : null}
-      <div className="intent-graph__canvas">
-        <div className="intent-graph__viewer" onWheel={handleWheel} role="presentation" tabIndex={0}>
-          <svg
-            viewBox={viewBox}
-            role="img"
-            aria-label="Intent graph visualization"
-            className="intent-graph__svg"
-            preserveAspectRatio="xMidYMid meet"
-          >
-            <rect
-              x={layout.centerX - layout.width / 2}
-              y={layout.centerY - layout.height / 2}
-              width={layout.width}
-              height={layout.height}
-              rx={18}
-              className="intent-graph__surface"
-            />
-            {layout.edges.map((edge) => (
-              <line key={`${edge.source}-${edge.target}`} x1={edge.x1} y1={edge.y1} x2={edge.x2} y2={edge.y2} className="intent-graph__edge" />
-            ))}
-            {layout.nodes.map((node) => (
-              <g key={node.id} transform={`translate(${node.px}, ${node.py})`}>
-                <circle r={12 + node.score * 6} fill={node.color} className="intent-graph__node" />
-                <text className="intent-graph__node-label" x={0} y={-16} textAnchor="middle">
-                  {node.term}
-                </text>
-                <text className="intent-graph__node-sub" x={0} y={6} textAnchor="middle">
-                  {node.intent} · {node.purchaseStage}
-                </text>
-              </g>
-            ))}
-          </svg>
+
+        <div className="lg:col-span-1">
+          <div className="rounded-md border p-4 space-y-3">
+            <h3 className="font-semibold">Legend</h3>
+            <div className="space-y-2">
+              {legend.map((entry) => (
+                <div key={entry.intent} className="flex items-center gap-2">
+                  <div
+                    className="h-3 w-3 rounded-full"
+                    style={{ backgroundColor: entry.color }}
+                  />
+                  <span className="text-sm">{entry.intent}</span>
+                </div>
+              ))}
+            </div>
+            {legend.length === 0 && (
+              <p className="text-sm text-muted-foreground">No legend data available</p>
+            )}
+          </div>
         </div>
-        <aside className="intent-graph__legend">
-          <h3>Legend</h3>
-          <ul>
-            {legend.map((entry) => (
-              <li key={entry.intent}>
-                <span style={{ backgroundColor: entry.color }} />
-                <span>{entry.intent}</span>
-              </li>
-            ))}
-          </ul>
-        </aside>
       </div>
     </div>
   );

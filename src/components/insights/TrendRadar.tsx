@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 type TrendRadarEntry = {
   term: string;
@@ -61,8 +63,7 @@ function formatSources(sources: string[]): string {
 
 export function TrendRadar({
   title = "Trend Radar",
-  description =
-    "Visualize cross-network velocity. Momentum is normalized across Google, Pinterest, and Reddit signals with expected growth projections.",
+  description = "Visualize cross-network velocity. Momentum is normalized across Google, Pinterest, and Reddit signals with expected growth projections.",
   timeframe,
   timeframeOptions,
   onTimeframeChange,
@@ -153,81 +154,128 @@ export function TrendRadar({
     Array.isArray(timeframeOptions) && timeframeOptions.length > 0 && typeof onTimeframeChange === "function";
 
   return (
-    <div className="trend-radar">
-      <header className="trend-radar__header">
-        <div className="trend-radar__intro">
-          <h2 id={titleId}>{title}</h2>
-          <p className="insights-muted">{description}</p>
+    <div className="space-y-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <h2 id={titleId} className="text-xl font-semibold">{title}</h2>
+          <p className="text-sm text-muted-foreground">{description}</p>
         </div>
-        <div className="trend-radar__toolbar">
-          {hasTimeframeControls ? (
-            <div className="timeframe-toggle" role="group" aria-label={`${title} timeframe`}>
+        <div className="flex flex-wrap items-center gap-2">
+          {hasTimeframeControls && (
+            <div className="flex gap-1 rounded-md border p-1">
               {timeframeOptions!.map((option) => {
                 const isActive = option.value === timeframe;
                 return (
-                  <button
+                  <Button
                     key={option.value}
                     type="button"
-                    className={isActive ? "active" : ""}
+                    variant={isActive ? "default" : "ghost"}
+                    size="sm"
                     onClick={() => onTimeframeChange!(option.value)}
-                    aria-pressed={isActive}
                   >
                     {option.label}
-                  </button>
+                  </Button>
                 );
               })}
             </div>
-          ) : null}
-          <div className="trend-radar__meta">
-            <span className="trend-radar__badge">{loading ? "Refreshing" : data?.source ?? "unknown"}</span>
-            {data?.generatedAt ? <span>{new Date(data.generatedAt).toLocaleTimeString()}</span> : null}
-          </div>
+          )}
+          <Badge variant="secondary">{loading ? "Refreshing" : data?.source ?? "unknown"}</Badge>
+          {data?.generatedAt && (
+            <span className="text-xs text-muted-foreground">
+              {new Date(data.generatedAt).toLocaleTimeString()}
+            </span>
+          )}
         </div>
-      </header>
+      </div>
 
-      {error ? <div className="trend-radar__error">{error}</div> : null}
+      {error && (
+        <div className="rounded-md border border-destructive bg-destructive/10 p-4">
+          <p className="text-sm text-destructive">{error}</p>
+        </div>
+      )}
 
-      <div className="trend-radar__chart" ref={chartRef}>
-        <svg
-          viewBox={`-${viewBoxSize / 2} -${viewBoxSize / 2} ${viewBoxSize} ${viewBoxSize}`}
-          role="img"
-          aria-label="Trend radar visualization"
-          preserveAspectRatio="xMidYMid meet"
-        >
-          {RING_VALUES.map((step) => (
-            <circle key={step} cx={0} cy={0} r={(radius / MAX_MOMENTUM) * step} className="trend-radar__grid" />
-          ))}
-          {axes.map((axis) => (
-            <g key={axis.term}>
-              <line x1={0} y1={0} x2={axis.x} y2={axis.y} className="trend-radar__axis" />
-              <text x={axis.x * 1.08} y={axis.y * 1.08} className="trend-radar__label">
-                {axis.term}
-              </text>
-            </g>
-          ))}
-          {polygonPoints ? <polygon points={polygonPoints} className="trend-radar__polygon" /> : null}
-        </svg>
-        <aside className="trend-radar__details">
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div ref={chartRef} className="flex items-center justify-center rounded-md border bg-card p-6">
+          <svg
+            viewBox={`-${viewBoxSize / 2} -${viewBoxSize / 2} ${viewBoxSize} ${viewBoxSize}`}
+            role="img"
+            aria-label="Trend radar visualization"
+            preserveAspectRatio="xMidYMid meet"
+            className="w-full max-w-md"
+          >
+            {RING_VALUES.map((step) => (
+              <circle
+                key={step}
+                cx={0}
+                cy={0}
+                r={(radius / MAX_MOMENTUM) * step}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="0.5"
+                className="text-muted-foreground/30"
+              />
+            ))}
+            {axes.map((axis) => (
+              <g key={axis.term}>
+                <line
+                  x1={0}
+                  y1={0}
+                  x2={axis.x}
+                  y2={axis.y}
+                  stroke="currentColor"
+                  strokeWidth="0.5"
+                  className="text-muted-foreground/50"
+                />
+                <text
+                  x={axis.x * 1.15}
+                  y={axis.y * 1.15}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  className="fill-foreground text-xs font-medium"
+                >
+                  {axis.term}
+                </text>
+              </g>
+            ))}
+            {polygonPoints && (
+              <polygon
+                points={polygonPoints}
+                fill="currentColor"
+                fillOpacity="0.2"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="text-primary"
+              />
+            )}
+          </svg>
+        </div>
+
+        <div className="space-y-3">
           {entries.map((entry) => (
-            <article key={entry.term}>
-              <h3>{entry.term}</h3>
-              <dl>
+            <div key={entry.term} className="rounded-md border p-3 space-y-2">
+              <h3 className="font-semibold">{entry.term}</h3>
+              <div className="grid grid-cols-3 gap-2 text-sm">
                 <div>
-                  <dt>Momentum</dt>
-                  <dd>{entry.momentum.toFixed(2)}</dd>
+                  <div className="text-muted-foreground">Momentum</div>
+                  <div className="font-medium">{entry.momentum.toFixed(2)}</div>
                 </div>
                 <div>
-                  <dt>Expected 30d</dt>
-                  <dd>{entry.expectedGrowth30d.toFixed(2)}</dd>
+                  <div className="text-muted-foreground">Expected 30d</div>
+                  <div className="font-medium">{entry.expectedGrowth30d.toFixed(2)}</div>
                 </div>
                 <div>
-                  <dt>Sources</dt>
-                  <dd>{formatSources(entry.sources)}</dd>
+                  <div className="text-muted-foreground">Sources</div>
+                  <div className="font-medium text-xs">{formatSources(entry.sources)}</div>
                 </div>
-              </dl>
-            </article>
+              </div>
+            </div>
           ))}
-        </aside>
+          {!loading && entries.length === 0 && (
+            <div className="rounded-md border p-8 text-center">
+              <p className="text-sm text-muted-foreground">No trend data available</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -40,11 +40,11 @@ export function Topbar({
 
   return (
     <header
-      className={cn(
-        "fixed top-0 z-30 w-full bg-background border-b border-border transition-all duration-200",
-        sidebarCollapsed && !isMobile ? "left-16" : "left-64",
-        isMobile && "left-0"
-      )}
+      className="fixed top-0 right-0 z-30 bg-background border-b border-border transition-all duration-200"
+      style={{
+        left: isMobile ? 0 : sidebarCollapsed ? '4rem' : '16rem',
+        width: isMobile ? '100%' : sidebarCollapsed ? 'calc(100% - 4rem)' : 'calc(100% - 16rem)'
+      }}
     >
       <div className="flex h-16 items-center justify-between px-4 sm:px-6">
         {/* Left section */}

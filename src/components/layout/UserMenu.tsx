@@ -193,9 +193,9 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem>
-              <Link href="/settings" className="flex w-full items-center">
+              <Link href="/profile" className="flex w-full items-center">
                 <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
+                <span>Manage Plan</span>
               </Link>
             </DropdownMenuItem>
           </>

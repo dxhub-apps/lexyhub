@@ -158,7 +158,7 @@ export function Sidebar({
                 Extend quotas and unlock advanced features.
               </p>
               <Button variant="default" size="sm" className="w-full" asChild>
-                <Link href="/settings">Manage plan</Link>
+                <Link href="/profile">Manage plan</Link>
               </Button>
             </div>
           </div>

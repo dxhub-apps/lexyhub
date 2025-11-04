@@ -2,8 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { Settings, Shield, CheckSquare, Flag, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 
 import type { CrawlerStatus, HealthMetric } from "@/lib/backoffice/status";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 type RiskHeatMapCell = {
   severity: string;
@@ -19,52 +24,6 @@ type RiskHeatMap = {
   cells: RiskHeatMapCell[];
 };
 
-function MetricCard({ metric }: { metric: HealthMetric }) {
-  const statusColor =
-    metric.status === "ok"
-      ? "var(--color-kpi-positive)"
-      : metric.status === "warning"
-        ? "var(--color-kpi-caution)"
-        : "var(--color-kpi-critical)";
-  return (
-    <article className="metric-card">
-      <header>
-        <span className="metric-category">{metric.category}</span>
-        <span className="metric-status" style={{ color: statusColor }}>
-          {metric.status.toUpperCase()}
-        </span>
-      </header>
-      <h3>{metric.metric_label}</h3>
-      <p className="metric-value">
-        {metric.metric_value ?? "—"}
-        {metric.metric_unit === "percent" ? "%" : null}
-      </p>
-      {metric.delta !== null && metric.delta !== undefined ? (
-        <p className={`metric-delta ${metric.delta >= 0 ? "positive" : "negative"}`}>
-          {metric.delta >= 0 ? "▲" : "▼"} {Math.abs(metric.delta)}
-          {metric.metric_unit === "percent" ? "%" : ""}
-        </p>
-      ) : null}
-      <footer>
-        <small>Captured {new Date(metric.captured_at).toLocaleString()}</small>
-      </footer>
-    </article>
-  );
-}
-
-function CrawlerRow({ crawler }: { crawler: CrawlerStatus }) {
-  return (
-    <tr>
-      <td>{crawler.source}</td>
-      <td>{crawler.status}</td>
-      <td>{crawler.total_records ?? "—"}</td>
-      <td>{crawler.last_run_at ? new Date(crawler.last_run_at).toLocaleString() : "—"}</td>
-      <td>{crawler.next_run_at ? new Date(crawler.next_run_at).toLocaleString() : "—"}</td>
-      <td>{crawler.error_message ?? "—"}</td>
-    </tr>
-  );
-}
-
 type RiskSummary = {
   total: number;
   open: number;
@@ -72,6 +31,60 @@ type RiskSummary = {
   overdue: number;
   heatMap: RiskHeatMap | null;
 };
+
+type MetricStatus = "ok" | "warning" | "error";
+
+function MetricCard({ metric }: { metric: HealthMetric }) {
+  const statusColors: Record<MetricStatus, string> = {
+    ok: "text-green-600",
+    warning: "text-yellow-600",
+    error: "text-red-600",
+  };
+
+  const statusIcons: Record<MetricStatus, React.ReactNode> = {
+    ok: <CheckCircle className="h-4 w-4" />,
+    warning: <AlertTriangle className="h-4 w-4" />,
+    error: <XCircle className="h-4 w-4" />,
+  };
+
+  const normalizedStatus = (["ok", "warning", "error"].includes(metric.status)
+    ? metric.status
+    : "ok") as MetricStatus;
+  const statusColor = statusColors[normalizedStatus];
+  const statusIcon = statusIcons[normalizedStatus];
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <Badge variant="outline">{metric.category}</Badge>
+          <div className={`flex items-center gap-1 ${statusColor}`}>
+            {statusIcon}
+            <span className="text-xs font-semibold uppercase">{metric.status}</span>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <h3 className="font-semibold">{metric.metric_label}</h3>
+        <div className="flex items-baseline gap-2">
+          <span className="text-2xl font-bold">
+            {metric.metric_value ?? "—"}
+            {metric.metric_unit === "percent" ? "%" : ""}
+          </span>
+          {metric.delta !== null && metric.delta !== undefined && (
+            <Badge variant={metric.delta >= 0 ? "default" : "destructive"} className="text-xs">
+              {metric.delta >= 0 ? "▲" : "▼"} {Math.abs(metric.delta)}
+              {metric.metric_unit === "percent" ? "%" : ""}
+            </Badge>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Captured {new Date(metric.captured_at).toLocaleString()}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
 
 function formatLabel(value: string): string {
   return value
@@ -89,41 +102,50 @@ function RiskHeatMapGrid({ heatMap }: { heatMap: RiskHeatMap }) {
     return map;
   }, [heatMap]);
 
+  const severityColors: Record<string, string> = {
+    critical: "bg-red-600",
+    high: "bg-orange-500",
+    medium: "bg-yellow-500",
+    low: "bg-green-500",
+  };
+
   return (
-    <div className="risk-heatmap">
-      <table>
-        <thead>
-          <tr>
-            <th>Severity \ Likelihood</th>
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Severity \ Likelihood</TableHead>
             {heatMap.likelihoodLevels.map((likelihood) => (
-              <th key={likelihood}>{formatLabel(likelihood)}</th>
+              <TableHead key={likelihood}>{formatLabel(likelihood)}</TableHead>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {heatMap.severityLevels.map((severity) => (
-            <tr key={severity}>
-              <th>{formatLabel(severity)}</th>
+            <TableRow key={severity}>
+              <TableCell className="font-medium">{formatLabel(severity)}</TableCell>
               {heatMap.likelihoodLevels.map((likelihood) => {
                 const key = `${severity}::${likelihood}`;
                 const cell = cellLookup.get(key);
                 const hasRisk = Boolean(cell && cell.count > 0);
                 const tooltip = cell && cell.titles.length > 0 ? cell.titles.join(", ") : "No open risks";
                 return (
-                  <td key={key}>
+                  <TableCell key={key}>
                     <div
-                      className={`heatmap-cell severity-${severity}${hasRisk ? " has-risk" : ""}`}
+                      className={`flex items-center justify-center h-12 w-12 rounded-md ${
+                        hasRisk ? severityColors[severity] || "bg-gray-400" : "bg-gray-100"
+                      } ${hasRisk ? "text-white font-bold" : "text-gray-400"}`}
                       title={tooltip}
                     >
-                      <span className="heatmap-count">{cell?.count ?? 0}</span>
+                      {cell?.count ?? 0}
                     </div>
-                  </td>
+                  </TableCell>
                 );
               })}
-            </tr>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -171,85 +193,148 @@ export default function BackofficeOverviewPage(): JSX.Element {
   const cards = useMemo(() => metrics.slice(0, 6), [metrics]);
 
   return (
-    <div className="backoffice-overview">
-      <section className="surface-card backoffice-header">
-        <div>
-          <h1>Backoffice overview</h1>
-          <p className="subtitle">Operational dashboard for administrators.</p>
+    <div className="space-y-8">
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-3">
+              <Settings className="h-6 w-6 text-muted-foreground" />
+              <div className="space-y-1">
+                <CardTitle className="text-3xl font-bold">Backoffice Overview</CardTitle>
+                <CardDescription className="text-base">
+                  Operational dashboard for administrators
+                </CardDescription>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="default" asChild>
+                <Link href="/admin/backoffice/risk-management">
+                  <Shield className="mr-2 h-4 w-4" />
+                  Manage Risk
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/admin/backoffice/tasks">
+                  <CheckSquare className="mr-2 h-4 w-4" />
+                  Plan Tasks
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/admin/feature-flags">
+                  <Flag className="mr-2 h-4 w-4" />
+                  Feature Flags
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {error && (
+        <Card className="border-destructive">
+          <CardContent className="pt-6">
+            <p className="text-destructive">{error}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Health Metrics</h2>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {cards.map((metric) => (
+            <MetricCard key={metric.id} metric={metric} />
+          ))}
+          {cards.length === 0 && (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-muted-foreground">No metrics available.</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
-        <div className="backoffice-header-actions">
-          <Link className="primary-link" href="/admin/backoffice/risk-management">
-            Manage risk
-          </Link>
-          <Link className="secondary-link" href="/admin/backoffice/tasks">
-            Plan tasks
-          </Link>
-          <Link className="secondary-link" href="/admin/feature-flags">
-            Feature flags
-          </Link>
-        </div>
-      </section>
-      {error ? (
-        <article className="surface-card backoffice-card">
-          <p className="error">{error}</p>
-        </article>
-      ) : null}
-      <section className="metric-grid">
-        {cards.map((metric) => (
-          <MetricCard key={metric.id} metric={metric} />
-        ))}
-        {cards.length === 0 ? <p>No metrics available.</p> : null}
-      </section>
-      <section className="risk-summary">
-        <h2>Risk posture</h2>
-        {riskSummary ? (
-          <>
-            <ul>
-              <li>
-                <strong>Total tracked:</strong> {riskSummary.total}
-              </li>
-              <li>
-                <strong>Open:</strong> {riskSummary.open}
-              </li>
-              <li>
-                <strong>Mitigated:</strong> {riskSummary.mitigated}
-              </li>
-              <li>
-                <strong>Overdue:</strong> {riskSummary.overdue}
-              </li>
-            </ul>
-            {riskSummary.heatMap ? <RiskHeatMapGrid heatMap={riskSummary.heatMap} /> : null}
-          </>
-        ) : (
-          <p>Loading risk summary…</p>
-        )}
-      </section>
-      <section>
-        <h2>Crawler status</h2>
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Source</th>
-                <th>Status</th>
-                <th>Records</th>
-                <th>Last run</th>
-                <th>Next run</th>
-                <th>Error</th>
-              </tr>
-            </thead>
-            <tbody>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Risk Posture</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {riskSummary ? (
+            <div className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-4">
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Total Tracked</p>
+                  <p className="text-2xl font-bold">{riskSummary.total}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Open</p>
+                  <p className="text-2xl font-bold text-orange-600">{riskSummary.open}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Mitigated</p>
+                  <p className="text-2xl font-bold text-green-600">{riskSummary.mitigated}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Overdue</p>
+                  <p className="text-2xl font-bold text-red-600">{riskSummary.overdue}</p>
+                </div>
+              </div>
+              {riskSummary.heatMap && <RiskHeatMapGrid heatMap={riskSummary.heatMap} />}
+            </div>
+          ) : (
+            <p className="text-muted-foreground">Loading risk summary…</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Crawler Status</CardTitle>
+          <CardDescription>Data ingestion pipeline health</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Source</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Records</TableHead>
+                <TableHead>Last Run</TableHead>
+                <TableHead>Next Run</TableHead>
+                <TableHead>Error</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {crawlers.length === 0 ? (
-                <tr>
-                  <td colSpan={6}>No crawler records yet.</td>
-                </tr>
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    No crawler records yet.
+                  </TableCell>
+                </TableRow>
               ) : (
-                crawlers.map((crawler) => <CrawlerRow key={crawler.id} crawler={crawler} />)
+                crawlers.map((crawler) => (
+                  <TableRow key={crawler.id}>
+                    <TableCell className="font-medium">{crawler.source}</TableCell>
+                    <TableCell>
+                      <Badge variant={crawler.status === "active" ? "default" : "secondary"}>
+                        {crawler.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{crawler.total_records ?? "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {crawler.last_run_at ? new Date(crawler.last_run_at).toLocaleString() : "—"}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {crawler.next_run_at ? new Date(crawler.next_run_at).toLocaleString() : "—"}
+                    </TableCell>
+                    <TableCell className="text-sm text-red-600">{crawler.error_message ?? "—"}</TableCell>
+                  </TableRow>
+                ))
               )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }
