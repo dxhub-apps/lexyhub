@@ -13,6 +13,8 @@
 - AI-powered semantic keyword search across multiple data sources
 - 3,072-dimensional vector embeddings for similarity matching (pgvector)
 - Real-time demand, competition, and momentum scoring
+- **Seasonal-Aware Demand Index**: Automatic seasonal weighting for global retail periods
+- **Trend Momentum**: Week-over-week and deseasoned trend analysis
 - Automatic intent classification and opportunity analysis
 - Tag optimization with GPT-powered suggestions
 
@@ -155,6 +157,7 @@ npm run test:e2e:ui      # Run E2E tests with UI
 # Background Jobs
 npm run jobs:etsy-ingest          # Sync Etsy listings
 npm run jobs:keyword-serp-sampler # Sample SERP positions
+npm run jobs:ingest-metrics       # Daily demand index and trend scoring
 
 # Scraping
 npm run scrape:etsy               # Scrape Etsy marketplace
@@ -294,12 +297,100 @@ LEXYHUB_JWT_SECRET=your-secure-secret
 
 Report security vulnerabilities to: security@lexyhub.com
 
+## 📊 Seasonal Demand Index & Trend Momentum
+
+### Overview
+
+LexyHub computes seasonal-aware demand indices and trend momentum for all keywords, enabling data-driven decisions aligned with retail calendar peaks.
+
+### Key Concepts
+
+- **Base Demand Index (0-100)**: Normalized score combining search volume, traffic rank, and competition
+- **Adjusted Demand Index**: Base DI weighted by active seasonal periods (e.g., Black Friday 1.5x, Christmas 1.8x)
+- **Trend Momentum (%)**: Week-over-week or month-over-month percentage change
+- **Deseasoned Trend Momentum**: Trend relative to same-period baseline (last year)
+- **Opportunity Badges**: Hot, Rising, Stable, Cooling based on combined metrics
+
+### Running the Daily ETL Job
+
+Metrics are collected and scored daily via GitHub Actions at 05:55 UTC. To run manually:
+
+```bash
+npm run jobs:ingest-metrics
+```
+
+### Environment Variables
+
+```env
+SUPABASE_URL=your-supabase-url
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+OPENAI_API_KEY=your-openai-key
+COUNTRY=global
+LOOKBACK_DAYS=7
+```
+
+### Seasonal Periods
+
+Global and country-specific retail periods are seeded in `seasonal_periods`:
+- Black Friday, Cyber Monday, Christmas, New Year
+- Valentine's Day, Easter, Mother's Day, Father's Day
+- Halloween, Singles' Day (China), Golden Week (Japan/China)
+- Back to School, Summer Sales, Q4 Global Uplift
+- Independence Day (US), and more
+
+### Database Functions
+
+- `compute_base_demand_index(_kw, _as_of, _source)`: Compute base DI
+- `compute_adjusted_demand_index(_kw, _as_of, _source, _country)`: Apply seasonal weight
+- `compute_trend_momentum(_kw, _as_of, _source, _lookback)`: Calculate WoW/MoM trend
+- `compute_deseasoned_tm(_kw, _as_of, _source, _lookback)`: Relative to baseline
+- `apply_demand_trend_for_date(_as_of, _source, _country, _lookback)`: Bulk update all keywords
+
+### API Endpoints
+
+**GET /api/keywords/scored**
+
+Query parameters:
+- `q`: Search term filter
+- `market`: Market filter (us, uk, de)
+- `country`: Seasonal country (global, US, UK, CN, JP)
+- `minDI`: Minimum adjusted demand index
+- `minTM`: Minimum trend momentum
+- `sort`: Sort field (adjusted_demand_index.desc, trend_momentum.desc)
+- `limit`: Results per page
+- `offset`: Pagination offset
+
+### UI
+
+Navigate to `/keywords/scored` to view the scored keywords dashboard with:
+- Real-time demand indices and trend momentum
+- Color-coded opportunity badges
+- 14-day sparklines for adjusted DI
+- Global/country seasonal filters
+
+### Testing
+
+Run the test suite:
+
+```bash
+npm run test tests/compute_di_tm.test.ts
+```
+
+### Observability
+
+All runs are logged in `demand_trend_runs` with:
+- Run timestamp
+- Status (success/error)
+- Statistics (keywords processed, metrics collected, updates applied)
+- Error messages (if any)
+
 ## 📊 Monitoring & Observability
 
 - **Analytics**: Vercel Analytics
 - **Error Tracking**: (Setup in progress - see Sprint 1)
 - **Logs**: Structured logging with context
 - **Performance**: Web Vitals tracking
+- **Job Monitoring**: `demand_trend_runs` table tracks daily ETL execution
 
 ## 🤝 Contributing
 

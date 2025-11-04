@@ -1,0 +1,37 @@
+name: Daily Demand Trend Scoring
+
+on:
+  schedule:
+    - cron: "55 5 * * *"
+  workflow_dispatch:
+
+jobs:
+  ingest-and-score:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run metrics ingestion and scoring
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          COUNTRY: "global"
+          LOOKBACK_DAYS: "7"
+        run: npm run jobs:ingest-metrics
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "Demand trend job failed. Check logs for details."

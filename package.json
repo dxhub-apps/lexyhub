@@ -19,6 +19,7 @@
     "scrape:etsy-best-sellers": "node scripts/etsy-best-sellers.mjs",
     "jobs:etsy-ingest": "tsx jobs/etsy-ingest/index.ts",
     "jobs:keyword-serp-sampler": "tsx jobs/keyword-serp-sampler.ts",
+    "jobs:ingest-metrics": "tsx jobs/ingest_metrics_and_score.ts",
     "extension:build": "tsx apps/browser-extension/scripts/build-extension.ts",
     "db:seed": "tsx scripts/seed-db.ts",
     "db:reset": "tsx scripts/reset-db.ts",
