@@ -128,17 +128,19 @@ export function Sidebar({
                       aria-current={active ? "page" : undefined}
                       title={collapsed ? item.label : undefined}
                     >
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center">
-                        {item.icon}
-                      </span>
-                      {!collapsed && (
-                        <div className="flex flex-col flex-1 min-w-0">
-                          <span className="truncate">{item.label}</span>
-                          <span className="text-xs text-muted-foreground truncate">
-                            {item.description}
-                          </span>
-                        </div>
-                      )}
+                      <>
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+                          {item.icon}
+                        </span>
+                        {!collapsed && (
+                          <div className="flex flex-col flex-1 min-w-0">
+                            <span className="truncate">{item.label}</span>
+                            <span className="text-xs text-muted-foreground truncate">
+                              {item.description}
+                            </span>
+                          </div>
+                        )}
+                      </>
                     </Link>
                   );
                 })}
