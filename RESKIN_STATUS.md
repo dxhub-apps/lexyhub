@@ -373,6 +373,8 @@ Migrated from native HTML to shadcn/ui:
 14. `4f34ec7` - Bugfix: UserMenu asChild removal (correct fix)
 15. `c647c08` - Documentation update
 16. `1fb233f` - Bugfix: Watchlists Button asChild span wrapper (complete fix)
+17. `a13a1fc` - Documentation update
+18. `25f54c5` - **CRITICAL BUGFIX: Sidebar navigation fragment wrapper (ROOT CAUSE)**
 
 ---
 
@@ -411,8 +413,8 @@ The following pages retain existing functionality but have not been visually ref
 | **Accessibility** | WCAG 2.1 AA compliant |
 | **Dark Mode** | Full support |
 | **Responsive Design** | Mobile, tablet, desktop |
-| **Total Commits** | 16 |
-| **Runtime Errors Fixed** | 3 (React.Children.only in Watchlists + UserMenu) |
+| **Total Commits** | 18 |
+| **Runtime Errors Fixed** | 4 (React.Children.only in Watchlists + UserMenu + **Sidebar**) |
 
 ---
 
@@ -462,6 +464,14 @@ Next.js 13+ App Router Link component enforces strict child constraints when use
    - Fixed 3 instances in dropdown menu items (Profile, Settings, Help Center)
    - File: `src/components/layout/UserMenu.tsx`
 
+4. **Sidebar Navigation** (Commit: `25f54c5` - THE ROOT CAUSE):
+   - **CRITICAL**: Navigation links had TWO direct children when sidebar expanded
+   - Child 1: `<span>` with icon (always present)
+   - Child 2: `<div>` with label/description (when `!collapsed`)
+   - This affected ALL pages because Sidebar is in app layout
+   - Solution: Wrapped both children in React Fragment `<>...</>`
+   - File: `src/components/layout/Sidebar.tsx` (navigation items)
+
 **Pattern Reference:**
 
 **CORRECT** - Button with asChild + Link (single child - text only):
@@ -502,6 +512,23 @@ Next.js 13+ App Router Link component enforces strict child constraints when use
     <span>Profile</span>
   </Link>
 </DropdownMenuItem>
+```
+
+**CORRECT** - Link with multiple children wrapped in fragment:
+```tsx
+<Link href="/dashboard" className="flex items-center gap-3">
+  <>
+    <span className="flex h-5 w-5 items-center">
+      <Icon />
+    </span>
+    {!collapsed && (
+      <div>
+        <span>Dashboard</span>
+        <span>Overview</span>
+      </div>
+    )}
+  </>
+</Link>
 ```
 
 **INCORRECT** - DropdownMenuItem with asChild + multiple children:
