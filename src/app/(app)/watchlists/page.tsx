@@ -190,12 +190,12 @@ export default function WatchlistsPage(): JSX.Element {
           <CardDescription>{watchlist.description ?? "Auto-created starter watchlist."}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Link href="/keywords">
-            <Button className="w-full sm:w-auto">
+          <Button asChild className="w-full sm:w-auto">
+            <Link href="/keywords">
               <Plus className="mr-2 h-4 w-4" />
               {primaryActionLabel}
-            </Button>
-          </Link>
+            </Link>
+          </Button>
 
           {watchlist.items.length === 0 ? (
             <p className="text-sm text-muted-foreground">This watchlist is empty. Add items from the keyword explorer.</p>
@@ -303,12 +303,12 @@ export default function WatchlistsPage(): JSX.Element {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Link href="/keywords">
-                <Button>
+              <Button asChild>
+                <Link href="/keywords">
                   <Plus className="mr-2 h-4 w-4" />
                   Add your first keyword
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         ) : (
