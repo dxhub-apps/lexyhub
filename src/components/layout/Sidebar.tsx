@@ -128,7 +128,7 @@ export function Sidebar({
                       aria-current={active ? "page" : undefined}
                       title={collapsed ? item.label : undefined}
                     >
-                      <>
+                      <span className="flex items-center gap-3 w-full">
                         <span className="flex h-5 w-5 shrink-0 items-center justify-center">
                           {item.icon}
                         </span>
@@ -140,7 +140,7 @@ export function Sidebar({
                             </span>
                           </div>
                         )}
-                      </>
+                      </span>
                     </Link>
                   );
                 })}
