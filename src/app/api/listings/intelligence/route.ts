@@ -353,7 +353,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       readability_score: report.readability,
       keyword_density: report.keywordDensity,
       intent: report.intent,
-      tone: report.tone,
+      tone: report.variant,
       missing_attributes: report.missingAttributes,
       quick_fixes: report.quickFixes,
     });

@@ -10,7 +10,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { useToast } from "@/components/ui/ToastProvider";
+import { useToast } from "@/components/ui/use-toast";
 
 type Metric = {
   area: string;
@@ -29,7 +29,7 @@ function StatusBadge({ status }: StatusBadgeProps) {
 }
 
 export default function SettingsPage(): JSX.Element {
-  const { push } = useToast();
+  const { toast } = useToast();
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [metricsLoading, setMetricsLoading] = useState(false);
 
@@ -83,10 +83,10 @@ export default function SettingsPage(): JSX.Element {
       })
       .catch((error) => {
         console.error("Failed to load operations metrics", error);
-        push({
+        toast({
           title: "Metrics unavailable",
           description: error instanceof Error ? error.message : "Unknown error",
-          tone: "error",
+          variant: "destructive",
         });
       })
       .finally(() => {
@@ -97,7 +97,7 @@ export default function SettingsPage(): JSX.Element {
     return () => {
       active = false;
     };
-  }, [push]);
+  }, [toast]);
 
   const configuredCount = metrics.filter((metric) => metric.status === "configured").length;
   const pendingCount = metrics.filter((metric) => metric.status === "pending").length;

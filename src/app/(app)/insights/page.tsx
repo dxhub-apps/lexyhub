@@ -7,7 +7,7 @@ import { useSession } from "@supabase/auth-helpers-react";
 
 import IntentGraph from "@/components/insights/IntentGraph";
 import TrendRadar from "@/components/insights/TrendRadar";
-import { useToast } from "@/components/ui/ToastProvider";
+import { useToast } from "@/components/ui/use-toast";
 
 type VisualTagResponse = {
   caption: string;
@@ -28,7 +28,7 @@ export default function InsightsPage() {
   const [uploading, setUploading] = useState(false);
   const [trendTimeframe, setTrendTimeframe] = useState<string>("7d");
   const [intentTimeframe, setIntentTimeframe] = useState<string>("7d");
-  const { push } = useToast();
+  const { toast } = useToast();
   const session = useSession();
   const userId = session?.user?.id ?? null;
 
@@ -48,10 +48,10 @@ export default function InsightsPage() {
     async (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
       if (!imagePreview) {
-        push({
+        toast({
           title: "Upload required",
           description: "Select an asset before running Visual Tag AI.",
-          tone: "warning",
+          variant: "warning",
         });
         return;
       }
@@ -59,10 +59,10 @@ export default function InsightsPage() {
       setUploading(true);
       setResult(null);
       if (!userId) {
-        push({
+        toast({
           title: "Sign in required",
           description: "You must be signed in to generate visual tags.",
-          tone: "error",
+          variant: "destructive",
         });
         setUploading(false);
         return;
@@ -87,23 +87,23 @@ export default function InsightsPage() {
 
         const payload = (await response.json()) as VisualTagResponse;
         setResult(payload);
-        push({
+        toast({
           title: "Visual tags ready",
           description: "AI extracted marketplace-ready tags with caption context.",
-          tone: "success",
+          variant: "success",
         });
       } catch (error) {
         console.error("Visual tag AI failed", error);
-        push({
+        toast({
           title: "Visual tag AI error",
           description: error instanceof Error ? error.message : "Unexpected error",
-          tone: "error",
+          variant: "destructive",
         });
       } finally {
         setUploading(false);
       }
     },
-    [hints, imagePreview, push, userId],
+    [hints, imagePreview, toast, userId],
   );
 
   return (

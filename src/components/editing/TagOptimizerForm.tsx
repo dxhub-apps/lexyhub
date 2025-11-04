@@ -2,7 +2,7 @@
 
 import { ChangeEvent, FormEvent, useState } from "react";
 
-import { useToast } from "@/components/ui/ToastProvider";
+import { useToast } from "@/components/ui/use-toast";
 import type { TagOptimizerResult } from "@/lib/tags/optimizer";
 
 type TagOptimizerResponse = {
@@ -21,7 +21,7 @@ export function TagOptimizerForm(): JSX.Element {
   const [tags, setTags] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TagOptimizerResult | null>(null);
-  const { push } = useToast();
+  const { toast } = useToast();
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -45,17 +45,17 @@ export function TagOptimizerForm(): JSX.Element {
       }
       const json = (await response.json()) as TagOptimizerResponse;
       setResult(json.result);
-      push({
+      toast({
         title: "Tag health updated",
         description: "See which tags deserve upgrades and replacements.",
-        tone: "success",
+        variant: "success",
       });
     } catch (error) {
       console.error("Tag optimizer request failed", error);
-      push({
+      toast({
         title: "Unable to score tags",
         description: error instanceof Error ? error.message : "Unknown error",
-        tone: "error",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);

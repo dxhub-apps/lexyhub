@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useSession } from "@supabase/auth-helpers-react";
 
-import { useToast } from "@/components/ui/ToastProvider";
+import { useToast } from "@/components/ui/use-toast";
 
 type ListingOption = {
   id: string;
@@ -66,7 +66,7 @@ function formatPercent(value: number | null | undefined): string {
 }
 
 export default function MarketTwinPage(): JSX.Element {
-  const { push } = useToast();
+  const { toast } = useToast();
   const session = useSession();
   const userId = session?.user?.id ?? null;
   const [listings, setListings] = useState<ListingOption[]>([]);
@@ -143,19 +143,19 @@ export default function MarketTwinPage(): JSX.Element {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedListingId) {
-      push({ title: "Select a listing", description: "Choose an Etsy listing to simulate.", tone: "warning" });
+      toast({ title: "Select a listing", description: "Choose an Etsy listing to simulate.", variant: "warning" });
       return;
     }
     if (!scenarioTitle.trim()) {
-      push({ title: "Scenario title required", description: "Give your hypothetical listing a title.", tone: "warning" });
+      toast({ title: "Scenario title required", description: "Give your hypothetical listing a title.", variant: "warning" });
       return;
     }
 
     if (!userId) {
-      push({
+      toast({
         title: "Sign in required",
         description: "You must be signed in to run Market Twin simulations.",
-        tone: "error",
+        variant: "destructive",
       });
       return;
     }
@@ -190,18 +190,18 @@ export default function MarketTwinPage(): JSX.Element {
         throw new Error(json.error ?? "Failed to run simulation");
       }
 
-      push({
+      toast({
         title: "Simulation ready",
         description: "Market Twin computed new visibility and semantic fit.",
-        tone: "success",
+        variant: "success",
       });
 
       setHistory((records) => [json, ...records].slice(0, 25));
     } catch (error) {
-      push({
+      toast({
         title: "Simulation failed",
         description: error instanceof Error ? error.message : String(error),
-        tone: "error",
+        variant: "destructive",
       });
     } finally {
       setSubmitting(false);

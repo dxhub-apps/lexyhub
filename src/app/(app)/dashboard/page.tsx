@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "@supabase/auth-helpers-react";
 
-import { useToast } from "@/components/ui/ToastProvider";
+import { useToast } from "@/components/ui/use-toast";
 
 type UsageSummary = {
   plan: string;
@@ -34,7 +34,7 @@ type UsageKpi = {
 };
 
 export default function DashboardPage(): JSX.Element {
-  const { push } = useToast();
+  const { toast } = useToast();
   const [usage, setUsage] = useState<UsageSummary | null>(null);
   const session = useSession();
   const userId = session?.user?.id ?? null;
@@ -78,10 +78,10 @@ export default function DashboardPage(): JSX.Element {
         }
       } catch (error) {
         console.error("Failed to load usage summary", error);
-        push({
+        toast({
           title: "Usage summary unavailable",
           description: error instanceof Error ? error.message : "Unknown error",
-          tone: "warning",
+          variant: "warning",
         });
       }
     };
@@ -90,7 +90,7 @@ export default function DashboardPage(): JSX.Element {
     return () => {
       isMounted = false;
     };
-  }, [push, userId]);
+  }, [toast, userId]);
 
   const usageCards = useMemo<UsageKpi[]>(() => {
     if (!usage) {

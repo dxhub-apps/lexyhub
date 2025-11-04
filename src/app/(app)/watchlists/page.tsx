@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "@supabase/auth-helpers-react";
 import Link from "next/link";
 
-import { useToast } from "@/components/ui/ToastProvider";
+import { useToast } from "@/components/ui/use-toast";
 
 type WatchlistItem = {
   id: string;
@@ -29,7 +29,7 @@ export default function WatchlistsPage(): JSX.Element {
   const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { push } = useToast();
+  const { toast } = useToast();
   const session = useSession();
   const userId = session?.user?.id ?? null;
 
@@ -115,10 +115,10 @@ export default function WatchlistsPage(): JSX.Element {
   const handleRemove = useCallback(
     async (item: WatchlistItem) => {
       if (!userId) {
-        push({
+        toast({
           title: "Session required",
           description: "Sign in again to modify your watchlists.",
-          tone: "error",
+          variant: "destructive",
         });
         return;
       }
@@ -131,22 +131,22 @@ export default function WatchlistsPage(): JSX.Element {
           const payload = await response.json().catch(() => ({}));
           throw new Error(payload.error ?? `Unable to remove item (${response.status})`);
         }
-        push({
+        toast({
           title: "Removed from watchlist",
           description: `"${item.label}" will no longer be tracked.`,
-          tone: "success",
+          variant: "success",
         });
         await loadWatchlists();
       } catch (err) {
         console.error("Failed to remove watchlist item", err);
-        push({
+        toast({
           title: "Watchlist error",
           description: err instanceof Error ? err.message : "Unexpected error",
-          tone: "error",
+          variant: "destructive",
         });
       }
     },
-    [loadWatchlists, push, userId],
+    [loadWatchlists, toast, userId],
   );
 
   const renderWatchlistCard = (watchlist: Watchlist) => {

@@ -15,7 +15,7 @@ import {
 import { upload } from "@vercel/blob/client";
 import { useSession } from "@supabase/auth-helpers-react";
 
-import { useToast } from "@/components/ui/ToastProvider";
+import { useToast } from "@/components/ui/use-toast";
 
 const PLAN_SUMMARY: Record<string, string> = {
   spark: "Starter access with 100 keyword queries and Market Twin previews.",
@@ -67,7 +67,7 @@ const EMPTY_PROFILE: ProfileDetails = {
 const AVATAR_FALLBACK = "https://avatar.vercel.sh/lexyhub.svg?size=120&background=111827";
 
 export default function ProfilePage(): JSX.Element {
-  const { push } = useToast();
+  const { toast } = useToast();
   const session = useSession();
   const userId = session?.user?.id ?? null;
   const [profile, setProfile] = useState<ProfileDetails>(EMPTY_PROFILE);
@@ -110,10 +110,10 @@ export default function ProfilePage(): JSX.Element {
         setProfile({ ...EMPTY_PROFILE, ...profileJson.profile });
       }
     } catch (error) {
-      push({
+      toast({
         title: "Profile unavailable",
         description: error instanceof Error ? error.message : String(error),
-        tone: "error",
+        variant: "destructive",
       });
     }
 
@@ -161,15 +161,15 @@ export default function ProfilePage(): JSX.Element {
       setSubscriptionStatus(json.subscription?.status ?? "unknown");
       setPeriodEnd(json.subscription?.current_period_end ?? null);
     } catch (error) {
-      push({
+      toast({
         title: "Billing unavailable",
         description: error instanceof Error ? error.message : String(error),
-        tone: "error",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  }, [push, userId]);
+  }, [toast, userId]);
 
   useEffect(() => {
     void loadData();
@@ -178,10 +178,10 @@ export default function ProfilePage(): JSX.Element {
   const handleProfileSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!userId) {
-      push({
+      toast({
         title: "Profile unavailable",
         description: "You must be signed in to update your profile.",
-        tone: "error",
+        variant: "destructive",
       });
       return;
     }
@@ -195,17 +195,17 @@ export default function ProfilePage(): JSX.Element {
       if (!response.ok) {
         throw new Error(json.error ?? "Failed to update profile");
       }
-      push({
+      toast({
         title: "Profile updated",
         description: "Your preferences are saved to Supabase.",
-        tone: "success",
+        variant: "success",
       });
       await loadData();
     } catch (error) {
-      push({
+      toast({
         title: "Profile update failed",
         description: error instanceof Error ? error.message : String(error),
-        tone: "error",
+        variant: "destructive",
       });
     }
   };
@@ -217,10 +217,10 @@ export default function ProfilePage(): JSX.Element {
     }
 
     if (!userId) {
-      push({
+      toast({
         title: "Avatar unavailable",
         description: "You must be signed in to update your profile photo.",
-        tone: "error",
+        variant: "destructive",
       });
       return;
     }
@@ -232,20 +232,20 @@ export default function ProfilePage(): JSX.Element {
     };
 
     if (!file.type.startsWith("image/")) {
-      push({
+      toast({
         title: "Unsupported file",
         description: "Please choose a PNG, JPG, or WebP image.",
-        tone: "error",
+        variant: "destructive",
       });
       resetInput();
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      push({
+      toast({
         title: "Image too large",
         description: "Avatars must be smaller than 5MB.",
-        tone: "error",
+        variant: "destructive",
       });
       resetInput();
       return;
@@ -279,16 +279,16 @@ export default function ProfilePage(): JSX.Element {
       }
 
       setProfile((state) => ({ ...state, avatarUrl: uploaded.url }));
-      push({
+      toast({
         title: "Avatar updated",
         description: "Your profile photo is refreshed.",
-        tone: "success",
+        variant: "success",
       });
     } catch (error) {
-      push({
+      toast({
         title: "Avatar upload failed",
         description: error instanceof Error ? error.message : String(error),
-        tone: "error",
+        variant: "destructive",
       });
     } finally {
       setAvatarUploading(false);
@@ -299,10 +299,10 @@ export default function ProfilePage(): JSX.Element {
   const handleBillingSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!userId) {
-      push({
+      toast({
         title: "Subscription unavailable",
         description: "You must be signed in to manage billing preferences.",
-        tone: "error",
+        variant: "destructive",
       });
       return;
     }
@@ -316,27 +316,27 @@ export default function ProfilePage(): JSX.Element {
       if (!response.ok) {
         throw new Error(json.error ?? "Failed to update billing");
       }
-      push({
+      toast({
         title: "Subscription settings saved",
         description: "Billing preferences are now stored in Supabase.",
-        tone: "success",
+        variant: "success",
       });
       await loadData();
     } catch (error) {
-      push({
+      toast({
         title: "Update failed",
         description: error instanceof Error ? error.message : String(error),
-        tone: "error",
+        variant: "destructive",
       });
     }
   };
 
   const handleCancelPlan = async () => {
     if (!userId) {
-      push({
+      toast({
         title: "Cancellation unavailable",
         description: "You must be signed in to manage your plan.",
-        tone: "error",
+        variant: "destructive",
       });
       return;
     }
@@ -350,17 +350,17 @@ export default function ProfilePage(): JSX.Element {
       if (!response.ok) {
         throw new Error(json.error ?? "Failed to schedule cancellation");
       }
-      push({
+      toast({
         title: "Cancellation scheduled",
         description: "Your plan will remain active until the current cycle ends.",
-        tone: "warning",
+        variant: "warning",
       });
       await loadData();
     } catch (error) {
-      push({
+      toast({
         title: "Cancellation failed",
         description: error instanceof Error ? error.message : String(error),
-        tone: "error",
+        variant: "destructive",
       });
     }
   };

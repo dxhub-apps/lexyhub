@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { useToast } from "@/components/ui/ToastProvider";
+import { useToast } from "@/components/ui/use-toast";
 
 type FeatureFlagKey = "require_official_etsy_api" | "allow_search_sampling" | "allow_user_telemetry";
 
@@ -41,7 +41,7 @@ type FeatureFlagResponse = {
 };
 
 export default function FeatureFlagsPage(): JSX.Element {
-  const { push } = useToast();
+  const { toast } = useToast();
   const [flags, setFlags] = useState<FeatureFlagState[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -68,10 +68,10 @@ export default function FeatureFlagsPage(): JSX.Element {
       } catch (error) {
         console.error("Failed to load feature flags", error);
         if (active) {
-          push({
+          toast({
             title: "Unable to load feature flags",
             description: error instanceof Error ? error.message : "Unknown error",
-            tone: "error",
+            variant: "destructive",
           });
         }
       } finally {
@@ -85,7 +85,7 @@ export default function FeatureFlagsPage(): JSX.Element {
     return () => {
       active = false;
     };
-  }, [push]);
+  }, [toast]);
 
   const orderedFlags = useMemo(() => {
     return (Object.keys(FLAG_METADATA) as FeatureFlagKey[]).map((key) =>
@@ -121,20 +121,20 @@ export default function FeatureFlagsPage(): JSX.Element {
           saving: false,
         })),
       );
-      push({
+      toast({
         title: "Feature flag updated",
         description: `${FLAG_METADATA[key].label} is now ${nextValue ? "enabled" : "disabled"}.`,
-        tone: "success",
+        variant: "success",
       });
     } catch (error) {
       console.error("Failed to update feature flag", error);
       setFlags((prev) =>
         prev.map((flag) => (flag.key === key ? { ...flag, isEnabled: !nextValue, saving: false } : flag)),
       );
-      push({
+      toast({
         title: "Update failed",
         description: error instanceof Error ? error.message : "Unknown error",
-        tone: "error",
+        variant: "destructive",
       });
     }
   };

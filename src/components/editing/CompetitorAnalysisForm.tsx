@@ -2,7 +2,7 @@
 
 import { ChangeEvent, FormEvent, useState } from "react";
 
-import { useToast } from "@/components/ui/ToastProvider";
+import { useToast } from "@/components/ui/use-toast";
 import type { CompetitorInsight } from "@/lib/insights/competitors";
 
 type CompetitorEntry = {
@@ -41,7 +41,7 @@ export function CompetitorAnalysisForm(): JSX.Element {
   const [competitors, setCompetitors] = useState<CompetitorEntry[]>([{ ...EMPTY_ENTRY }]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CompetitorInsight | null>(null);
-  const { push } = useToast();
+  const { toast } = useToast();
 
   const handleChange = (index: number, field: keyof CompetitorEntry) => (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const value = event.target.value;
@@ -92,17 +92,17 @@ export function CompetitorAnalysisForm(): JSX.Element {
       }
       const json = (await response.json()) as CompetitorAnalysisResponse;
       setResult(json.insight);
-      push({
+      toast({
         title: "Competitor analysis ready",
         description: "Benchmarks generated for the selected niche.",
-        tone: "success",
+        variant: "success",
       });
     } catch (error) {
       console.error("Competitor analysis request failed", error);
-      push({
+      toast({
         title: "Unable to benchmark competitors",
         description: error instanceof Error ? error.message : "Unknown error",
-        tone: "error",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);

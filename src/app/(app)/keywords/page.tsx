@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { useSession } from "@supabase/auth-helpers-react";
 import KeywordSparkline from "@/components/keywords/KeywordSparkline";
-import { useToast } from "@/components/ui/ToastProvider";
+import { useToast } from "@/components/ui/use-toast";
 
 // UX refactor goals, no feature loss:
 // - Single reducer manages state
@@ -229,7 +229,7 @@ function reducer(state: State, a: Action): State {
 
 export default function KeywordsPage(): JSX.Element {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const { push } = useToast();
+  const { toast } = useToast();
   const session = useSession();
   const userId = session?.user?.id ?? null;
 
@@ -406,7 +406,7 @@ export default function KeywordsPage(): JSX.Element {
   const handleWatchlist = useCallback(
     async (keyword: KeywordResult) => {
       if (!userId) {
-        push({ title: "Sign in required", description: "You must be signed in to save watchlist items.", tone: "error" });
+        toast({ title: "Sign in required", description: "You must be signed in to save watchlist items.", variant: "destructive" });
         return;
       }
       try {
@@ -419,12 +419,12 @@ export default function KeywordsPage(): JSX.Element {
           const payload = await res.json().catch(() => ({}));
           throw new Error(payload.error ?? `Unable to add keyword (${res.status})`);
         }
-        push({ title: "Added to watchlist", description: `"${keyword.term}" is now monitored.`, tone: "success" });
+        toast({ title: "Added to watchlist", description: `"${keyword.term}" is now monitored.`, variant: "success" });
       } catch (err: any) {
-        push({ title: "Watchlist error", description: err?.message ?? "Unexpected error", tone: "error" });
+        toast({ title: "Watchlist error", description: err?.message ?? "Unexpected error", variant: "destructive" });
       }
     },
-    [push, userId]
+    [toast, userId]
   );
 
   const handleOptimize = useCallback(
