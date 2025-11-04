@@ -90,7 +90,7 @@ export default function InsightsPage() {
         <CardHeader>
           <CardTitle>How to Use Insights</CardTitle>
           <CardDescription>
-            Make the most of LexyHub's intelligence features
+            Make the most of LexyHub&apos;s intelligence features
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -120,7 +120,7 @@ export default function InsightsPage() {
         <CardHeader>
           <CardTitle>Advanced Analytics Coming Soon</CardTitle>
           <CardDescription>
-            We're building more powerful insights features
+            We&apos;re building more powerful insights features
           </CardDescription>
         </CardHeader>
         <CardContent>
