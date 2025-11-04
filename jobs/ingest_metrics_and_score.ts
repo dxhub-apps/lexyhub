@@ -237,7 +237,7 @@ Return JSON only: {"volume": number, "traffic_rank": number, "competition_score"
 }
 
 async function logRun(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   runId: string,
   status: string,
   successCount: number,

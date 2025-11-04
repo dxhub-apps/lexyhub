@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -52,11 +52,7 @@ export default function ScoredKeywordsPage() {
   const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null);
   const [sparklineData, setSparklineData] = useState<HistoricalData[]>([]);
 
-  useEffect(() => {
-    fetchKeywords();
-  }, []);
-
-  const fetchKeywords = async () => {
+  const fetchKeywords = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -78,7 +74,11 @@ export default function ScoredKeywordsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
+
+  useEffect(() => {
+    fetchKeywords();
+  }, [fetchKeywords]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
