@@ -9,8 +9,14 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { Settings2, ExternalLink, Database, CheckCircle2, Clock } from "lucide-react";
 
 import { useToast } from "@/components/ui/use-toast";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 
 type Metric = {
   area: string;
@@ -25,7 +31,13 @@ type StatusBadgeProps = {
 
 function StatusBadge({ status }: StatusBadgeProps) {
   const label = status === "configured" ? "Configured" : "Pending";
-  return <span className={`status-badge status-badge--${status}`}>{label}</span>;
+  const Icon = status === "configured" ? CheckCircle2 : Clock;
+  return (
+    <Badge variant={status === "configured" ? "default" : "secondary"} className="gap-1">
+      <Icon className="h-3 w-3" />
+      {label}
+    </Badge>
+  );
 }
 
 export default function SettingsPage(): JSX.Element {
@@ -103,108 +115,171 @@ export default function SettingsPage(): JSX.Element {
   const pendingCount = metrics.filter((metric) => metric.status === "pending").length;
 
   return (
-    <div className="settings-page">
-      <section className="surface-card form-card">
-        <h1>Environment settings</h1>
-        <p className="insights-muted">
-          Manage provider credentials, integration secrets, and readiness tasks for your production workspace.
-        </p>
-        <div className="form-grid">
-          <label>
-            Supabase URL
-            <input type="url" placeholder="https://project.supabase.co" autoComplete="off" />
-          </label>
-          <label>
-            Supabase service role key
-            <input type="password" placeholder="••••••••••" autoComplete="off" />
-          </label>
-          <label>
-            Analytics webhook URL
-            <input type="url" placeholder="https://hooks.lexyhub.ai/ingest" />
-          </label>
-          <label>
-            Alert email
-            <input type="email" placeholder="ops@lexyhub.ai" />
-          </label>
-        </div>
-        <div className="form-actions">
-          <button type="button">Save changes</button>
-          <button type="button">Reset credentials</button>
-        </div>
-      </section>
+    <div className="space-y-8">
+      <Card>
+        <CardHeader>
+          <div className="flex items-start gap-3">
+            <Settings2 className="h-6 w-6 text-muted-foreground" />
+            <div className="space-y-1">
+              <CardTitle className="text-3xl font-bold">Environment settings</CardTitle>
+              <CardDescription className="text-base">
+                Manage provider credentials, integration secrets, and readiness tasks for your production workspace.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="supabase-url">Supabase URL</Label>
+              <Input
+                id="supabase-url"
+                type="url"
+                placeholder="https://project.supabase.co"
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="supabase-key">Supabase service role key</Label>
+              <Input
+                id="supabase-key"
+                type="password"
+                placeholder="••••••••••"
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="webhook-url">Analytics webhook URL</Label>
+              <Input
+                id="webhook-url"
+                type="url"
+                placeholder="https://hooks.lexyhub.ai/ingest"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="alert-email">Alert email</Label>
+              <Input
+                id="alert-email"
+                type="email"
+                placeholder="ops@lexyhub.ai"
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button>Save changes</Button>
+            <Button variant="outline">Reset credentials</Button>
+          </div>
+        </CardContent>
+      </Card>
 
-      <section className="surface-card form-card">
-        <h2>Docs quick links</h2>
-        <ul>
-          <li>
-            <a
-              href="https://github.com/lexyhub/lexyhub/blob/main/docs/implementation-roadmap.md"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Implementation roadmap
-            </a>
-          </li>
-          <li>
-            <a href="https://supabase.com/docs" target="_blank" rel="noreferrer">
-              Supabase docs
-            </a>
-          </li>
-        </ul>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Docs quick links</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-2">
+            <li>
+              <a
+                href="https://github.com/lexyhub/lexyhub/blob/main/docs/implementation-roadmap.md"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 text-primary hover:underline"
+              >
+                Implementation roadmap
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            </li>
+            <li>
+              <a
+                href="https://supabase.com/docs"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 text-primary hover:underline"
+              >
+                Supabase docs
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
 
-      <section className="surface-card form-card settings-data-sources">
-        <div className="dashboard-section-header">
-          <h2>Connect your data sources</h2>
-          <span className="dashboard-kpi-helper">{configuredCount} configured · {pendingCount} pending</span>
-        </div>
-        <div className="dashboard-hero-meta">
-          <span>Marketplace ingestion · {configuredCount ? "Active" : "Connect"}</span>
-          <span>Commerce feeds · {pendingCount ? "Pending" : "Configured"}</span>
-          <span>Watchlist sync · Always-on</span>
-        </div>
-        <p className="dashboard-kpi-helper">
-          Connect marketplaces, catalog feeds, and partner APIs to unlock trend scoring and watchlist automation.
-        </p>
-      </section>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Database className="h-5 w-5 text-muted-foreground" />
+              <CardTitle>Connect your data sources</CardTitle>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {configuredCount} configured · {pendingCount} pending
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="flex flex-col gap-1">
+              <span className="text-sm text-muted-foreground">Marketplace ingestion</span>
+              <span className="text-sm font-medium">{configuredCount ? "Active" : "Connect"}</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-sm text-muted-foreground">Commerce feeds</span>
+              <span className="text-sm font-medium">{pendingCount ? "Pending" : "Configured"}</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-sm text-muted-foreground">Watchlist sync</span>
+              <span className="text-sm font-medium">Always-on</span>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Connect marketplaces, catalog feeds, and partner APIs to unlock trend scoring and watchlist automation.
+          </p>
+        </CardContent>
+      </Card>
 
-      <section className="surface-card dashboard-card dashboard-table settings-operations-status">
-        <div className="dashboard-section-header">
-          <h2>Operations status</h2>
-          <span>Status across watchlists, connectors, and alerts</span>
-        </div>
-        <table>
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </th>
+      <Card>
+        <CardHeader>
+          <CardTitle>Operations status</CardTitle>
+          <CardDescription>Status across watchlists, connectors, and alerts</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <table className="w-full">
+              <thead>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr key={headerGroup.id} className="border-b bg-muted/50">
+                    {headerGroup.headers.map((header) => (
+                      <th key={header.id} className="px-4 py-3 text-left text-sm font-medium">
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(header.column.columnDef.header, header.getContext())}
+                      </th>
+                    ))}
+                  </tr>
                 ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {table.getRowModel().rows.map((row) => (
-              <tr key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+              </thead>
+              <tbody>
+                {table.getRowModel().rows.map((row) => (
+                  <tr key={row.id} className="border-b last:border-0 hover:bg-muted/50">
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-4 py-3 text-sm">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
                 ))}
-              </tr>
-            ))}
-            {!metrics.length && !metricsLoading ? (
-              <tr>
-                <td colSpan={4} className="dashboard-table-empty">
-                  Connect your data sources to start seeing live metrics here.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </section>
+                {!metrics.length && !metricsLoading && (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                      Connect your data sources to start seeing live metrics here.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

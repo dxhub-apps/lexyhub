@@ -5,8 +5,12 @@ export const dynamic = 'force-dynamic';
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "@supabase/auth-helpers-react";
 import Link from "next/link";
+import { Star, Trash2, Plus, ExternalLink } from "lucide-react";
 
 import { useToast } from "@/components/ui/use-toast";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 type WatchlistItem = {
   id: string;
@@ -171,120 +175,146 @@ export default function WatchlistsPage(): JSX.Element {
     const trackedLabel = trackedCount === 1 ? "keyword" : "keywords";
 
     return (
-      <article key={watchlist.id} className="watchlists-card">
-        <header>
-          <div>
-            <span className="watchlists-eyebrow">Watchlist</span>
-            <h2>{watchlist.name}</h2>
+      <Card key={watchlist.id}>
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div className="space-y-2">
+              <Badge variant="outline" className="w-fit">Watchlist</Badge>
+              <CardTitle>{watchlist.name}</CardTitle>
+            </div>
+            <div className="flex flex-col items-end gap-1 text-sm text-muted-foreground">
+              <span>Tracking {trackedCount} {trackedLabel}</span>
+              <span>Updated {formattedUpdated}</span>
+            </div>
           </div>
-          <div className="watchlists-card-meta">
-            <span>Tracking {trackedCount} {trackedLabel}</span>
-            <span>Updated {formattedUpdated}</span>
-          </div>
-        </header>
-        <p>{watchlist.description ?? "Auto-created starter watchlist."}</p>
-        <div className="watchlists-card-actions">
-          <Link href="/keywords" className="primary-action">
-            {primaryActionLabel}
+          <CardDescription>{watchlist.description ?? "Auto-created starter watchlist."}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Link href="/keywords">
+            <Button className="w-full sm:w-auto">
+              <Plus className="mr-2 h-4 w-4" />
+              {primaryActionLabel}
+            </Button>
           </Link>
-        </div>
-        {watchlist.items.length === 0 ? (
-          <p className="watchlists-empty">This watchlist is empty. Add items from the keyword explorer.</p>
-        ) : (
-          <div className="table-wrapper">
-            <table className="watchlists-table">
-              <thead>
-                <tr>
-                  <th scope="col">Item</th>
-                  <th scope="col">Source</th>
-                  <th scope="col">Added on</th>
-                  <th scope="col" aria-label="actions" />
-                </tr>
-              </thead>
-              <tbody>
-                {watchlist.items.map((item) => {
-                  const addedAt = new Date(item.addedAt);
-                  const formatted = Number.isNaN(addedAt.getTime())
-                    ? "Unknown"
-                    : addedAt.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-                  const sourceLabel = item.type === "keyword"
-                    ? (item.context
-                        ? item.context
-                            .toLowerCase()
-                            .split(/[_\s]+/)
-                            .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-                            .join(" ")
-                        : "Keyword")
-                    : "Product listing";
-                  return (
-                    <tr key={item.id}>
-                      <td data-type={item.type}>
-                        {item.url ? (
-                          <a href={item.url} target="_blank" rel="noreferrer">
-                            {item.label}
-                          </a>
-                        ) : (
-                          item.label
-                        )}
-                      </td>
-                      <td>{sourceLabel}</td>
-                      <td>{formatted}</td>
-                      <td>
-                        <button type="button" className="watchlists-remove" onClick={() => handleRemove(item)}>
-                          Remove
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </article>
+
+          {watchlist.items.length === 0 ? (
+            <p className="text-sm text-muted-foreground">This watchlist is empty. Add items from the keyword explorer.</p>
+          ) : (
+            <div className="rounded-md border">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th scope="col" className="px-4 py-3 text-left text-sm font-medium">Item</th>
+                    <th scope="col" className="px-4 py-3 text-left text-sm font-medium">Source</th>
+                    <th scope="col" className="px-4 py-3 text-left text-sm font-medium">Added on</th>
+                    <th scope="col" className="px-4 py-3 text-left text-sm font-medium" aria-label="actions">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {watchlist.items.map((item) => {
+                    const addedAt = new Date(item.addedAt);
+                    const formatted = Number.isNaN(addedAt.getTime())
+                      ? "Unknown"
+                      : addedAt.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+                    const sourceLabel = item.type === "keyword"
+                      ? (item.context
+                          ? item.context
+                              .toLowerCase()
+                              .split(/[_\s]+/)
+                              .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+                              .join(" ")
+                          : "Keyword")
+                      : "Product listing";
+                    return (
+                      <tr key={item.id} className="border-b last:border-0 hover:bg-muted/50">
+                        <td className="px-4 py-3 text-sm font-medium">
+                          {item.url ? (
+                            <a href={item.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                              {item.label}
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ) : (
+                            item.label
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <Badge variant="secondary">{sourceLabel}</Badge>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">{formatted}</td>
+                        <td className="px-4 py-3 text-sm">
+                          <Button variant="ghost" size="sm" onClick={() => handleRemove(item)}>
+                            <Trash2 className="mr-1 h-3 w-3" />
+                            Remove
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     );
   };
 
   return (
-    <div className="watchlists-page">
-      <section className="surface-card watchlists-hero">
-        <div className="watchlists-header">
-          <div>
-            <span className="watchlists-eyebrow">Monitoring</span>
-            <h1>Watchlists</h1>
-            <p>
-              Keep the ideas you care about in one place. Add them from the <Link href="/keywords">keyword explorer</Link> whenever inspiration strikes.
-            </p>
-            <p className="watchlists-hero-summary">{summaryMessage}</p>
+    <div className="space-y-8">
+      <Card>
+        <CardHeader>
+          <Badge variant="outline" className="w-fit mb-2">Monitoring</Badge>
+          <CardTitle className="text-3xl font-bold">Watchlists</CardTitle>
+          <CardDescription className="mt-2 text-base">
+            Keep the ideas you care about in one place. Add them from the{" "}
+            <Link href="/keywords" className="text-primary hover:underline">
+              keyword explorer
+            </Link>{" "}
+            whenever inspiration strikes.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Star className="h-4 w-4" />
+            <span>{summaryMessage}</span>
           </div>
-        </div>
-      </section>
+        </CardContent>
+      </Card>
 
-      <section className="watchlists-content">
+      <div className="space-y-6">
         {loading ? (
-          <article className="watchlists-card">
-            <p className="watchlists-empty">Loading watchlists…</p>
-          </article>
+          <Card>
+            <CardContent className="flex items-center justify-center py-12">
+              <p className="text-sm text-muted-foreground">Loading watchlists…</p>
+            </CardContent>
+          </Card>
         ) : error ? (
-          <article className="watchlists-card">
-            <p className="watchlists-error">{error}</p>
-          </article>
+          <Card className="border-destructive bg-destructive/10">
+            <CardContent className="pt-6">
+              <p className="text-sm text-destructive">{error}</p>
+            </CardContent>
+          </Card>
         ) : watchlists.length === 0 ? (
-          <article className="watchlists-card">
-            <h2>Start your first watchlist</h2>
-            <p className="watchlists-empty">
-              You haven&apos;t saved any watchlists yet. Add keywords from the explorer to build your first collection.
-            </p>
-            <div className="watchlists-card-actions">
-              <Link href="/keywords" className="primary-action">
-                Add your first keyword
+          <Card>
+            <CardHeader>
+              <CardTitle>Start your first watchlist</CardTitle>
+              <CardDescription>
+                You haven&apos;t saved any watchlists yet. Add keywords from the explorer to build your first collection.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link href="/keywords">
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add your first keyword
+                </Button>
               </Link>
-            </div>
-          </article>
+            </CardContent>
+          </Card>
         ) : (
           watchlists.map(renderWatchlistCard)
         )}
-      </section>
+      </div>
     </div>
   );
 }
