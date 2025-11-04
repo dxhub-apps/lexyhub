@@ -4,8 +4,19 @@ export const dynamic = 'force-dynamic';
 
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { useSession } from "@supabase/auth-helpers-react";
+import { Search, TrendingUp, BarChart3, Star, X, RefreshCw, Download, Plus } from "lucide-react";
+
 import KeywordSparkline from "@/components/keywords/KeywordSparkline";
-import { useToast } from "@/components/ui/ToastProvider";
+import { useToast } from "@/components/ui/use-toast";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 // UX refactor goals, no feature loss:
 // - Single reducer manages state
@@ -229,7 +240,7 @@ function reducer(state: State, a: Action): State {
 
 export default function KeywordsPage(): JSX.Element {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const { push } = useToast();
+  const { toast } = useToast();
   const session = useSession();
   const userId = session?.user?.id ?? null;
 
@@ -406,7 +417,7 @@ export default function KeywordsPage(): JSX.Element {
   const handleWatchlist = useCallback(
     async (keyword: KeywordResult) => {
       if (!userId) {
-        push({ title: "Sign in required", description: "You must be signed in to save watchlist items.", tone: "error" });
+        toast({ title: "Sign in required", description: "You must be signed in to save watchlist items.", variant: "destructive" });
         return;
       }
       try {
@@ -419,12 +430,12 @@ export default function KeywordsPage(): JSX.Element {
           const payload = await res.json().catch(() => ({}));
           throw new Error(payload.error ?? `Unable to add keyword (${res.status})`);
         }
-        push({ title: "Added to watchlist", description: `"${keyword.term}" is now monitored.`, tone: "success" });
+        toast({ title: "Added to watchlist", description: `"${keyword.term}" is now monitored.`, variant: "success" });
       } catch (err: any) {
-        push({ title: "Watchlist error", description: err?.message ?? "Unexpected error", tone: "error" });
+        toast({ title: "Watchlist error", description: err?.message ?? "Unexpected error", variant: "destructive" });
       }
     },
-    [push, userId]
+    [toast, userId]
   );
 
   const handleOptimize = useCallback(
@@ -499,351 +510,496 @@ export default function KeywordsPage(): JSX.Element {
 
   // Render
   return (
-    <div className="keywords-page">
+    <div className="space-y-8">
       {/* Hero */}
-      <section className="keywords-hero-card surface-card" aria-labelledby="keywords-title">
-        <div className="keywords-hero-card__intro">
-          <p className="keywords-hero__eyebrow">Keyword workspace</p>
-          <h1 id="keywords-title">Keyword Intelligence</h1>
-          <p>Monitor live demand, uncover AI-suggested opportunities, and orchestrate watchlists in one canvas.</p>
-        </div>
-        <div className="keywords-hero-card__stats">
-          <div>
-            <span>Latest search</span>
-            <strong>{state.lastQuery ? `“${state.lastQuery}”` : "Awaiting search"}</strong>
+      <Card>
+        <CardHeader>
+          <div className="space-y-3">
+            <div>
+              <Badge variant="outline" className="mb-2">Keyword workspace</Badge>
+              <CardTitle className="text-3xl font-bold">Keyword Intelligence</CardTitle>
+              <CardDescription className="mt-2 text-base">
+                Monitor live demand, uncover AI-suggested opportunities, and orchestrate watchlists in one canvas.
+              </CardDescription>
+            </div>
           </div>
-          <div>
-            <span>Signals in scope</span>
-            <strong>{sourceLineageLabel}</strong>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="flex flex-col gap-1">
+              <span className="text-sm text-muted-foreground">Latest search</span>
+              <strong className="text-base font-semibold">{state.lastQuery ? `"${state.lastQuery}"` : "Awaiting search"}</strong>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-sm text-muted-foreground">Signals in scope</span>
+              <strong className="text-base font-semibold">{sourceLineageLabel}</strong>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-sm text-muted-foreground">Records in view</span>
+              <strong className="text-base font-semibold">{state.loading ? "…" : visibleResults.length}</strong>
+            </div>
           </div>
-          <div>
-            <span>Records in view</span>
-            <strong>{state.loading ? "…" : visibleResults.length}</strong>
-          </div>
-        </div>
-      </section>
+        </CardContent>
+      </Card>
 
       {/* Search controls */}
-      <section className="keywords-search-card surface-card" aria-label="Keyword search controls">
-        <header className="keywords-search-card__header">
-          <div>
-            <h2>Search intelligence</h2>
-            <p>Run a fresh analysis, tune sources, and surface opportunities.</p>
-          </div>
-          <button type="button" onClick={() => dispatch({ type: "SET_FILTERS", v: { sources: [...DEFAULT_SOURCES], market: "us", tags: "" } })} disabled={state.loading || chips.length === 0}>
-            Reset filters
-          </button>
-        </header>
-        <form className="keywords-search-form" onSubmit={(e) => { e.preventDefault(); dispatch({ type: "SET_TAB", v: "opportunities" }); void performSearch(state.query); }}>
-          <div className="keywords-search-grid">
-            <div className="keywords-search-main">
-              <label htmlFor="keyword-query">Keyword or product idea</label>
-              <div className="keywords-search-input">
-                <input
-                  id="keyword-query"
-                  value={state.query}
-                  onChange={(e) => { dispatch({ type: "SET_QUERY", v: e.target.value }); debouncedSubmit(e.target.value); }}
-                  placeholder="Search for opportunities, e.g. boho nursery decor"
-                  disabled={state.loading}
-                  autoComplete="off"
-                  aria-describedby="keyword-hint"
-                />
-              </div>
-              <p id="keyword-hint" className="keywords-search-form__hint">Press Enter to refresh demand signals.</p>
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <CardTitle>Search intelligence</CardTitle>
+              <CardDescription>Run a fresh analysis, tune sources, and surface opportunities.</CardDescription>
             </div>
-
-            <div className="keywords-search-controls">
-              <div className="keywords-search-control">
-                <span className="keywords-search-control__label">Market</span>
-                <select
-                  value={state.filters.market}
-                  onChange={(e) => dispatch({ type: "SET_FILTERS", v: { ...state.filters, market: e.target.value } })}
-                  disabled={state.loading}
-                >
-                  {MARKET_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => dispatch({ type: "SET_FILTERS", v: { sources: [...DEFAULT_SOURCES], market: "us", tags: "" } })}
+              disabled={state.loading || chips.length === 0}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Reset filters
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <form onSubmit={(e) => { e.preventDefault(); dispatch({ type: "SET_TAB", v: "opportunities" }); void performSearch(state.query); }} className="space-y-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="keyword-query">Keyword or product idea</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="keyword-query"
+                    value={state.query}
+                    onChange={(e) => { dispatch({ type: "SET_QUERY", v: e.target.value }); debouncedSubmit(e.target.value); }}
+                    placeholder="Search for opportunities, e.g. boho nursery decor"
+                    disabled={state.loading}
+                    autoComplete="off"
+                    aria-describedby="keyword-hint"
+                    className="pl-9"
+                  />
+                </div>
+                <p id="keyword-hint" className="text-xs text-muted-foreground">Press Enter to refresh demand signals.</p>
               </div>
 
-              <div className="keywords-search-control">
-                <span className="keywords-search-control__label">Signals</span>
-                <div className="keywords-search-sources">
-                  {DEFAULT_SOURCES.map((source) => {
-                    const active = state.filters.sources.includes(source);
-                    const detail = SOURCE_DETAILS[source];
-                    return (
-                      <button
-                        type="button"
-                        key={source}
-                        className={active ? "keywords-source is-active" : "keywords-source"}
-                        onClick={() => toggleSource(source)}
-                        disabled={state.loading || (active && state.filters.sources.length === 1)}
-                      >
-                        <span className="keywords-source__title">{detail?.title ?? source}</span>
-                        <span className="keywords-source__description">{detail?.description ?? ""}</span>
-                      </button>
-                    );
-                  })}
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="market-select">Market</Label>
+                  <Select
+                    value={state.filters.market}
+                    onValueChange={(value) => dispatch({ type: "SET_FILTERS", v: { ...state.filters, market: value } })}
+                    disabled={state.loading}
+                  >
+                    <SelectTrigger id="market-select">
+                      <SelectValue placeholder="Select market" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MARKET_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Signals</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {DEFAULT_SOURCES.map((source) => {
+                      const active = state.filters.sources.includes(source);
+                      const detail = SOURCE_DETAILS[source];
+                      return (
+                        <Button
+                          key={source}
+                          type="button"
+                          variant={active ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => toggleSource(source)}
+                          disabled={state.loading || (active && state.filters.sources.length === 1)}
+                          className="flex-col items-start gap-0 h-auto py-2"
+                        >
+                          <span className="font-medium">{detail?.title ?? source}</span>
+                          <span className="text-xs font-normal opacity-70">{detail?.description ?? ""}</span>
+                        </Button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
-              <div className="keywords-search-control">
-                <span className="keywords-search-control__label">Tag focus</span>
-                <input
+              <div className="space-y-2">
+                <Label htmlFor="tag-focus">Tag focus</Label>
+                <Input
+                  id="tag-focus"
                   type="text"
                   value={state.filters.tags}
                   onChange={(e) => dispatch({ type: "SET_FILTERS", v: { ...state.filters, tags: e.target.value } })}
                   placeholder="e.g. boho, nursery, eco"
                   disabled={state.loading}
                 />
-                <p className="keywords-search-control__hint">Comma separate phrases to influence AI suggestions.</p>
+                <p className="text-xs text-muted-foreground">Comma separate phrases to influence AI suggestions.</p>
               </div>
             </div>
-          </div>
 
-          <div className="keywords-search-form__actions">
-            <button type="submit" disabled={state.loading || !state.query.trim()}> {state.loading ? "Searching…" : "Search"} </button>
-            <button type="button" onClick={() => { if (!state.lastQuery) return; dispatch({ type: "SET_TAB", v: "opportunities" }); void performSearch(state.lastQuery); }} disabled={state.loading || !Boolean(state.lastQuery)}>Replay last search</button>
-          </div>
-        </form>
+            <div className="flex flex-wrap gap-2">
+              <Button type="submit" disabled={state.loading || !state.query.trim()}>
+                <Search className="mr-2 h-4 w-4" />
+                {state.loading ? "Searching…" : "Search"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => { if (!state.lastQuery) return; dispatch({ type: "SET_TAB", v: "opportunities" }); void performSearch(state.lastQuery); }}
+                disabled={state.loading || !Boolean(state.lastQuery)}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Replay last search
+              </Button>
+            </div>
+          </form>
 
-        <div className="keywords-active-filters" aria-live="polite">
-          {filterChips.length ? (
-            <ul className="filter-chips" aria-label="Active filters">
+          {/* Active filters */}
+          {filterChips.length > 0 && (
+            <div className="flex flex-wrap gap-2" aria-live="polite">
               {filterChips.map((chip) => (
-                <li key={chip.id}>
-                  <span className="filter-chip">
-                    {chip.label}
-                    {chip.onRemove ? (
-                      <button type="button" aria-label={`Remove filter ${chip.label}`} onClick={chip.onRemove} disabled={state.loading}>×</button>
-                    ) : null}
-                  </span>
-                </li>
+                <Badge key={chip.id} variant="secondary" className="gap-2">
+                  {chip.label}
+                  {chip.onRemove && (
+                    <button
+                      type="button"
+                      className="ml-1 hover:text-foreground"
+                      aria-label={`Remove filter ${chip.label}`}
+                      onClick={chip.onRemove}
+                      disabled={state.loading}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </Badge>
               ))}
-            </ul>
-          ) : (
-            <p className="keywords-active-filters__hint">All approved sources and markets are in scope.</p>
+            </div>
           )}
-        </div>
-      </section>
+          {filterChips.length === 0 && (
+            <p className="text-sm text-muted-foreground">All approved sources and markets are in scope.</p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Tabs */}
-      <nav className="keywords-tabs" role="tablist" aria-label="Keyword insights" onKeyDown={onTabsKeyDown}>
-        {tabs.map((t) => {
-          const isActive = state.activeTab === t.id;
-          const controls = t.id === "overview" ? "keywords-panel-overview" : "keywords-panel-opportunities";
-          return (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              id={`keywords-tab-${t.id}`}
-              aria-controls={controls}
-              aria-selected={isActive}
-              className={isActive ? "keywords-tab is-active" : "keywords-tab"}
-              onClick={() => dispatch({ type: "SET_TAB", v: t.id })}
-            >
+      <Tabs value={state.activeTab} onValueChange={(v) => dispatch({ type: "SET_TAB", v: v as State["activeTab"] })}>
+        <TabsList className="w-full justify-start">
+          {tabs.map((t) => (
+            <TabsTrigger key={t.id} value={t.id} className="flex-col items-start gap-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <span>{t.label}</span>
-              {t.description ? <span className="keywords-tab__description">{t.description}</span> : null}
-            </button>
-          );
-        })}
-      </nav>
+              {t.description && <span className="text-xs opacity-70">{t.description}</span>}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-      <div className="keywords-tabpanels">
-        {/* Overview */}
-        <div id="keywords-panel-overview" role="tabpanel" aria-labelledby="keywords-tab-overview" hidden={state.activeTab !== "overview"}>
-          <div className="keywords-overview">
-            <section className="keywords-highlight surface-card">
-              <header className="keywords-highlight__header">
-                <p className="keywords-highlight__eyebrow">Helpful highlights</p>
-                <h3>What the signals are saying</h3>
-              </header>
-              <p className="keywords-highlight__summary">{state.insights?.summary ?? "Run a search to unlock AI-assisted guidance."}</p>
-              <div className="keywords-highlight__meta">
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <Badge variant="outline" className="w-fit mb-2">Helpful highlights</Badge>
+              <CardTitle>What the signals are saying</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm leading-relaxed">{state.insights?.summary ?? "Run a search to unlock AI-assisted guidance."}</p>
+              <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
                 <span>Last updated: {state.insights?.generatedAt ? new Date(state.insights.generatedAt).toLocaleString() : "Not yet generated"}</span>
-                {state.insights?.model ? <span>Model: {state.insights.model}</span> : null}
+                {state.insights?.model && <span>Model: {state.insights.model}</span>}
               </div>
               <KeywordSparkline points={sparklinePoints} />
-            </section>
+            </CardContent>
+          </Card>
 
-            <div className="keywords-overview-grid">
-              <section className="keywords-overview-card surface-card">
-                <h3>Signal lineage</h3>
-                <p className="keywords-overview-card__description">Sources: {(state.responseSources.length ? state.responseSources : ["synthetic"]).join(", ")} · Freshness: {freshestTs}</p>
-                <dl className="keyword-data-info">
-                  <div><dt>Sources</dt><dd>{state.responseSources.join(", ")}</dd></div>
-                  <div><dt>Freshest sync</dt><dd>{freshestTs}</dd></div>
-                  <div><dt>Records in view</dt><dd>{visibleResults.length}</dd></div>
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Signal lineage</CardTitle>
+                <CardDescription>
+                  Sources: {(state.responseSources.length ? state.responseSources : ["synthetic"]).join(", ")} · Freshness: {freshestTs}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <dl className="space-y-2 text-sm">
+                  <div className="flex justify-between border-b border-border pb-2">
+                    <dt className="font-medium">Sources</dt>
+                    <dd className="text-muted-foreground">{state.responseSources.join(", ")}</dd>
+                  </div>
+                  <div className="flex justify-between border-b border-border pb-2">
+                    <dt className="font-medium">Freshest sync</dt>
+                    <dd className="text-muted-foreground">{freshestTs}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="font-medium">Records in view</dt>
+                    <dd className="text-muted-foreground">{visibleResults.length}</dd>
+                  </div>
                 </dl>
-              </section>
+              </CardContent>
+            </Card>
 
-              <section className="keywords-overview-card surface-card">
-                <h3>Momentum playbook</h3>
-                <ul className="keywords-playbook">
+            <Card>
+              <CardHeader>
+                <CardTitle>Momentum playbook</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <ul className="space-y-2 text-sm list-disc list-inside">
                   <li>Export top movers and sync them to the Market Twin for visibility simulations.</li>
                   <li>Use the watchlist action to trigger alerts without leaving this page.</li>
                   <li>Refine Tag focus to shape AI suggestions.</li>
                 </ul>
-                {tagTokens.length ? (
-                  <div className="keywords-tag-focus" aria-label="Tag focus">
-                    <span>Tag emphasis</span>
-                    <ul>{tagTokens.map((t) => (<li key={t}>{t}</li>))}</ul>
+                {tagTokens.length > 0 && (
+                  <div className="space-y-2">
+                    <span className="text-sm font-medium">Tag emphasis</span>
+                    <div className="flex flex-wrap gap-2">
+                      {tagTokens.map((t) => (
+                        <Badge key={t} variant="secondary">{t}</Badge>
+                      ))}
+                    </div>
                   </div>
-                ) : null}
-              </section>
-            </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
-        </div>
+        </TabsContent>
 
-        {/* Opportunities */}
-        <div id="keywords-panel-opportunities" role="tabpanel" aria-labelledby="keywords-tab-opportunities" hidden={state.activeTab !== "opportunities"}>
-          <section className="keywords-opportunities-card surface-card" aria-live="polite">
-            <header className="keywords-opportunities__header">
-              <div>
-                <h2>Keyword opportunities</h2>
-                <p className="keywords-opportunities__subtitle">{state.lastQuery ? `Insights for “${state.lastQuery}”` : "Run a search to populate opportunities."}</p>
+        {/* Opportunities Tab */}
+        <TabsContent value="opportunities" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle>Keyword opportunities</CardTitle>
+                  <CardDescription>{state.lastQuery ? `Insights for "${state.lastQuery}"` : "Run a search to populate opportunities."}</CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" disabled={!sorted.length || state.loading}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export CSV
+                  </Button>
+                  <Button size="sm" disabled={!sorted.length || state.loading}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add to watchlist
+                  </Button>
+                </div>
               </div>
-              <div className="keywords-opportunities__actions">
-                <button type="button" disabled={!sorted.length || state.loading}>Export CSV</button>
-                <button type="button" disabled={!sorted.length || state.loading}>Add to watchlist</button>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm text-muted-foreground">Visible keywords</span>
+                  <span className="text-lg font-semibold">{state.loading ? "…" : sorted.length}</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm text-muted-foreground">Signals</span>
+                  <span className="text-lg font-semibold">{sourceLineageLabel}</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm text-muted-foreground">Freshest sync</span>
+                  <span className="text-lg font-semibold">{freshestTs}</span>
+                </div>
               </div>
-            </header>
 
-            <div className="keywords-opportunities__stats" role="list">
-              <div role="listitem"><span className="keywords-opportunities__label">Visible keywords</span><span className="keywords-opportunities__value">{state.loading ? "…" : sorted.length}</span></div>
-              <div role="listitem"><span className="keywords-opportunities__label">Signals</span><span className="keywords-opportunities__value">{sourceLineageLabel}</span></div>
-              <div role="listitem"><span className="keywords-opportunities__label">Freshest sync</span><span className="keywords-opportunities__value">{freshestTs}</span></div>
-              {state.results.length - visibleResults.length > 0 ? (
-                <div role="listitem" className="keywords-opportunities__note">{state.results.length - visibleResults.length} results hidden by tag or source filters</div>
-              ) : null}
-            </div>
+              {state.results.length - visibleResults.length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  {state.results.length - visibleResults.length} results hidden by tag or source filters
+                </p>
+              )}
 
-            {topOpportunity ? (
-              <aside className="keywords-opportunities__highlight" role="note">
-                <h3>Priority opportunity</h3>
-                <p><strong>{topOpportunity.term}</strong> shows the strongest combined momentum across active signals.</p>
-                <p className="keywords-opportunities__highlight-meta">{SOURCE_DETAILS[topOpportunity.source]?.title ?? topOpportunity.source} · {topOpportunity.freshness_ts ? new Date(topOpportunity.freshness_ts).toLocaleString() : "Not yet synced"}</p>
-              </aside>
-            ) : null}
+              {topOpportunity && (
+                <Card className="border-primary/20 bg-primary/5">
+                  <CardHeader>
+                    <CardTitle className="text-base">Priority opportunity</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm"><strong>{topOpportunity.term}</strong> shows the strongest combined momentum across active signals.</p>
+                    <p className="mt-2 text-xs text-muted-foreground">{SOURCE_DETAILS[topOpportunity.source]?.title ?? topOpportunity.source} · {topOpportunity.freshness_ts ? new Date(topOpportunity.freshness_ts).toLocaleString() : "Not yet synced"}</p>
+                  </CardContent>
+                </Card>
+              )}
 
-            <div className="keywords-table">
-              <table>
-                <thead>
-                  <tr>
-                    {([
-                      { key: "term", label: "Keyword" },
-                      { key: "ai_opportunity_score", label: "Demand index" },
-                      { key: "compositeScore", label: "Competition" },
-                      { key: "trend_momentum", label: "Trend momentum" },
-                      { key: "source", label: "Source" },
-                      { key: "__actions", label: "Actions" },
-                    ] as const).map((col) => (
-                      <th key={col.key}
+              <div className="rounded-md border">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      {([
+                        { key: "term", label: "Keyword" },
+                        { key: "ai_opportunity_score", label: "Demand index" },
+                        { key: "compositeScore", label: "Competition" },
+                        { key: "trend_momentum", label: "Trend momentum" },
+                        { key: "source", label: "Source" },
+                        { key: "__actions", label: "Actions" },
+                      ] as const).map((col) => (
+                        <th
+                          key={col.key}
                           scope="col"
+                          className="px-4 py-3 text-left text-sm font-medium"
                           aria-sort={state.sortKey === col.key ? (state.sortDir === "asc" ? "ascending" : "descending") : "none"}
-                      >
-                        {col.key === "__actions" ? (
-                          <span>{col.label}</span>
-                        ) : (
-                          <button
-                            type="button"
-                            className="secondary-action"
-                            onClick={() => dispatch({ type: "SET_SORT", key: col.key as any, dir: state.sortKey === col.key && state.sortDir === "desc" ? "asc" : "desc" })}
-                            aria-label={`Sort by ${col.label}`}
-                          >
-                            {col.label}
-                          </button>
-                        )}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {state.loading ? (
-                    <tr><td colSpan={6} className="keywords-empty">Searching for opportunities…</td></tr>
-                  ) : null}
+                        >
+                          {col.key === "__actions" ? (
+                            <span>{col.label}</span>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="-ml-3 h-8"
+                              onClick={() => dispatch({ type: "SET_SORT", key: col.key as any, dir: state.sortKey === col.key && state.sortDir === "desc" ? "asc" : "desc" })}
+                              aria-label={`Sort by ${col.label}`}
+                            >
+                              {col.label}
+                              {state.sortKey === col.key && (
+                                <TrendingUp className={cn("ml-2 h-4 w-4", state.sortDir === "asc" && "rotate-180")} />
+                              )}
+                            </Button>
+                          )}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {state.loading && (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                          Searching for opportunities…
+                        </td>
+                      </tr>
+                    )}
 
-                  {!state.loading && pageSlice.length ? (
-                    pageSlice.map((k) => {
+                    {!state.loading && pageSlice.length > 0 && pageSlice.map((k) => {
                       const cats = k.extras?.["category"] as string | undefined;
                       const tags = (k.extras?.["tags"] as string[] | undefined) ?? [];
                       return (
-                        <tr key={`${k.term}-${k.source}`}>
-                          <th scope="row">
-                            <div className="keyword-term">
-                              <span className="keyword-term__title">{k.term}</span>
-                              {cats ? <span className="keyword-term__meta">{cats}</span> : null}
-                              {tags.length ? (
-                                <ul className="keyword-term__tags" aria-label="Associated tags">
-                                  {tags.map((t) => (<li key={t}><span>{t}</span></li>))}
-                                </ul>
-                              ) : null}
+                        <tr key={`${k.term}-${k.source}`} className="border-b last:border-0 hover:bg-muted/50">
+                          <th scope="row" className="px-4 py-3 text-left font-medium">
+                            <div className="space-y-1">
+                              <div className="font-semibold">{k.term}</div>
+                              {cats && <div className="text-xs text-muted-foreground">{cats}</div>}
+                              {tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1" aria-label="Associated tags">
+                                  {tags.map((t) => (
+                                    <Badge key={t} variant="outline" className="text-xs">
+                                      {t}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </th>
-                          <td>{percent(k.ai_opportunity_score ?? null)}</td>
-                          <td>{percent(k.compositeScore ?? null)}</td>
-                          <td>{percent(k.trend_momentum ?? null)}</td>
-                          <td><span className="keyword-source">{SOURCE_DETAILS[k.source]?.title ?? k.source}</span></td>
-                          <td className="keyword-actions">
-                            <button className="keyword-watch" onClick={() => handleWatchlist(k)}>Add to watchlist</button>
-                            <button className="keyword-optimize" onClick={() => handleOptimize(k)}>Optimize tags</button>
+                          <td className="px-4 py-3 text-sm">{percent(k.ai_opportunity_score ?? null)}</td>
+                          <td className="px-4 py-3 text-sm">{percent(k.compositeScore ?? null)}</td>
+                          <td className="px-4 py-3 text-sm">{percent(k.trend_momentum ?? null)}</td>
+                          <td className="px-4 py-3 text-sm">
+                            <Badge variant="secondary">{SOURCE_DETAILS[k.source]?.title ?? k.source}</Badge>
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <div className="flex gap-2">
+                              <Button variant="ghost" size="sm" onClick={() => handleWatchlist(k)}>
+                                <Star className="mr-1 h-3 w-3" />
+                                Watch
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => handleOptimize(k)}>
+                                Optimize
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       );
-                    })
-                  ) : null}
+                    })}
 
-                  {!state.loading && !pageSlice.length ? (
-                    <tr><td colSpan={6} className="keywords-empty"><h3>No keyword insights yet</h3><p>Adjust filters or run a new search.</p></td></tr>
-                  ) : null}
-                </tbody>
-              </table>
-            </div>
+                    {!state.loading && pageSlice.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center">
+                          <h3 className="font-semibold">No keyword insights yet</h3>
+                          <p className="text-sm text-muted-foreground">Adjust filters or run a new search.</p>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-            {/* Pagination */}
-            <div className="keywords-opportunities__actions" aria-label="Pagination">
-              <button type="button" onClick={() => dispatch({ type: "SET_PAGE", v: Math.max(1, pageSafe - 1) })} disabled={pageSafe <= 1}>Prev</button>
-              <span className="keywords-opportunities__value" style={{ alignSelf: "center" }}>Page {pageSafe} / {pageCount}</span>
-              <button type="button" onClick={() => dispatch({ type: "SET_PAGE", v: Math.min(pageCount, pageSafe + 1) })} disabled={pageSafe >= pageCount}>Next</button>
-            </div>
-          </section>
-        </div>
-      </div>
+              {/* Pagination */}
+              <div className="flex items-center justify-between">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => dispatch({ type: "SET_PAGE", v: Math.max(1, pageSafe - 1) })}
+                  disabled={pageSafe <= 1}
+                >
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Page {pageSafe} of {pageCount}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => dispatch({ type: "SET_PAGE", v: Math.min(pageCount, pageSafe + 1) })}
+                  disabled={pageSafe >= pageCount}
+                >
+                  Next
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Error */}
-      {state.error ? <div className="keyword-error" role="alert">{state.error}</div> : null}
+      {state.error && (
+        <Card className="border-destructive bg-destructive/10">
+          <CardContent className="pt-6">
+            <p className="text-sm text-destructive" role="alert">{state.error}</p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Optimizer modal */}
-      {state.optOpen ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true">
-          <div className="modal">
-            <header>
-              <h2>Tag Optimizer</h2>
-              <button type="button" className="modal-close" aria-label="Close optimizer" onClick={() => dispatch({ type: "OPT_CLOSE" })}>×</button>
-            </header>
-            <div className="modal-body">
-              {state.optKeyword ? (
-                <p className="modal-subtitle">Keyword context: <strong>{state.optKeyword.term}</strong> ({state.optKeyword.market})</p>
-              ) : null}
-              {state.optLoading ? <p>Generating AI suggestions…</p> : null}
-              {state.optError ? <p className="modal-error">{state.optError}</p> : null}
-              {state.optResult ? (
-                <div className="optimizer-result">
-                  <h3>Suggested Tags <span>({state.optResult.model})</span></h3>
-                  <ul>{state.optResult.tags.map((t) => (<li key={t}><code>{t}</code></li>))}</ul>
-                  <p className="optimizer-reasoning">{state.optResult.reasoning}</p>
-                  <p className="optimizer-confidence">Confidence: {Math.round(state.optResult.confidence * 100)}%</p>
+      <Dialog open={state.optOpen} onOpenChange={(open) => !open && dispatch({ type: "OPT_CLOSE" })}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Tag Optimizer</DialogTitle>
+            <DialogDescription>
+              {state.optKeyword && (
+                <>
+                  Keyword context: <strong>{state.optKeyword.term}</strong> ({state.optKeyword.market})
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {state.optLoading && <p className="text-sm text-muted-foreground">Generating AI suggestions…</p>}
+            {state.optError && <p className="text-sm text-destructive">{state.optError}</p>}
+            {state.optResult && (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold mb-2">
+                    Suggested Tags <span className="text-xs text-muted-foreground">({state.optResult.model})</span>
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {state.optResult.tags.map((t) => (
+                      <Badge key={t} variant="default">
+                        {t}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
-              ) : null}
-            </div>
-            <footer className="modal-footer">
-              <button type="button" className="keyword-watch" onClick={() => dispatch({ type: "OPT_CLOSE" })}>Close</button>
-            </footer>
+                <div>
+                  <p className="text-sm text-muted-foreground">{state.optResult.reasoning}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">
+                    Confidence: {Math.round(state.optResult.confidence * 100)}%
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      ) : null}
+          <DialogFooter>
+            <Button onClick={() => dispatch({ type: "OPT_CLOSE" })}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

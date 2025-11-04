@@ -14,8 +14,17 @@ import {
 
 import { upload } from "@vercel/blob/client";
 import { useSession } from "@supabase/auth-helpers-react";
+import { User, CreditCard, Upload, CheckCircle2, XCircle, Clock } from "lucide-react";
 
-import { useToast } from "@/components/ui/ToastProvider";
+import { useToast } from "@/components/ui/use-toast";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 const PLAN_SUMMARY: Record<string, string> = {
   spark: "Starter access with 100 keyword queries and Market Twin previews.",
@@ -67,7 +76,7 @@ const EMPTY_PROFILE: ProfileDetails = {
 const AVATAR_FALLBACK = "https://avatar.vercel.sh/lexyhub.svg?size=120&background=111827";
 
 export default function ProfilePage(): JSX.Element {
-  const { push } = useToast();
+  const { toast } = useToast();
   const session = useSession();
   const userId = session?.user?.id ?? null;
   const [profile, setProfile] = useState<ProfileDetails>(EMPTY_PROFILE);
@@ -110,10 +119,10 @@ export default function ProfilePage(): JSX.Element {
         setProfile({ ...EMPTY_PROFILE, ...profileJson.profile });
       }
     } catch (error) {
-      push({
+      toast({
         title: "Profile unavailable",
         description: error instanceof Error ? error.message : String(error),
-        tone: "error",
+        variant: "destructive",
       });
     }
 
@@ -161,15 +170,15 @@ export default function ProfilePage(): JSX.Element {
       setSubscriptionStatus(json.subscription?.status ?? "unknown");
       setPeriodEnd(json.subscription?.current_period_end ?? null);
     } catch (error) {
-      push({
+      toast({
         title: "Billing unavailable",
         description: error instanceof Error ? error.message : String(error),
-        tone: "error",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  }, [push, userId]);
+  }, [toast, userId]);
 
   useEffect(() => {
     void loadData();
@@ -178,10 +187,10 @@ export default function ProfilePage(): JSX.Element {
   const handleProfileSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!userId) {
-      push({
+      toast({
         title: "Profile unavailable",
         description: "You must be signed in to update your profile.",
-        tone: "error",
+        variant: "destructive",
       });
       return;
     }
@@ -195,17 +204,17 @@ export default function ProfilePage(): JSX.Element {
       if (!response.ok) {
         throw new Error(json.error ?? "Failed to update profile");
       }
-      push({
+      toast({
         title: "Profile updated",
         description: "Your preferences are saved to Supabase.",
-        tone: "success",
+        variant: "success",
       });
       await loadData();
     } catch (error) {
-      push({
+      toast({
         title: "Profile update failed",
         description: error instanceof Error ? error.message : String(error),
-        tone: "error",
+        variant: "destructive",
       });
     }
   };
@@ -217,10 +226,10 @@ export default function ProfilePage(): JSX.Element {
     }
 
     if (!userId) {
-      push({
+      toast({
         title: "Avatar unavailable",
         description: "You must be signed in to update your profile photo.",
-        tone: "error",
+        variant: "destructive",
       });
       return;
     }
@@ -232,20 +241,20 @@ export default function ProfilePage(): JSX.Element {
     };
 
     if (!file.type.startsWith("image/")) {
-      push({
+      toast({
         title: "Unsupported file",
         description: "Please choose a PNG, JPG, or WebP image.",
-        tone: "error",
+        variant: "destructive",
       });
       resetInput();
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      push({
+      toast({
         title: "Image too large",
         description: "Avatars must be smaller than 5MB.",
-        tone: "error",
+        variant: "destructive",
       });
       resetInput();
       return;
@@ -279,16 +288,16 @@ export default function ProfilePage(): JSX.Element {
       }
 
       setProfile((state) => ({ ...state, avatarUrl: uploaded.url }));
-      push({
+      toast({
         title: "Avatar updated",
         description: "Your profile photo is refreshed.",
-        tone: "success",
+        variant: "success",
       });
     } catch (error) {
-      push({
+      toast({
         title: "Avatar upload failed",
         description: error instanceof Error ? error.message : String(error),
-        tone: "error",
+        variant: "destructive",
       });
     } finally {
       setAvatarUploading(false);
@@ -299,10 +308,10 @@ export default function ProfilePage(): JSX.Element {
   const handleBillingSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!userId) {
-      push({
+      toast({
         title: "Subscription unavailable",
         description: "You must be signed in to manage billing preferences.",
-        tone: "error",
+        variant: "destructive",
       });
       return;
     }
@@ -316,27 +325,27 @@ export default function ProfilePage(): JSX.Element {
       if (!response.ok) {
         throw new Error(json.error ?? "Failed to update billing");
       }
-      push({
+      toast({
         title: "Subscription settings saved",
         description: "Billing preferences are now stored in Supabase.",
-        tone: "success",
+        variant: "success",
       });
       await loadData();
     } catch (error) {
-      push({
+      toast({
         title: "Update failed",
         description: error instanceof Error ? error.message : String(error),
-        tone: "error",
+        variant: "destructive",
       });
     }
   };
 
   const handleCancelPlan = async () => {
     if (!userId) {
-      push({
+      toast({
         title: "Cancellation unavailable",
         description: "You must be signed in to manage your plan.",
-        tone: "error",
+        variant: "destructive",
       });
       return;
     }
@@ -350,278 +359,327 @@ export default function ProfilePage(): JSX.Element {
       if (!response.ok) {
         throw new Error(json.error ?? "Failed to schedule cancellation");
       }
-      push({
+      toast({
         title: "Cancellation scheduled",
         description: "Your plan will remain active until the current cycle ends.",
-        tone: "warning",
+        variant: "warning",
       });
       await loadData();
     } catch (error) {
-      push({
+      toast({
         title: "Cancellation failed",
         description: error instanceof Error ? error.message : String(error),
-        tone: "error",
+        variant: "destructive",
       });
     }
   };
 
+  const statusIcon = subscriptionStatus === "active" ? CheckCircle2 : subscriptionStatus === "canceled" ? XCircle : Clock;
+  const StatusIcon = statusIcon;
+
   return (
-    <div className="profile-page">
-      <header className="profile-hero">
-        <div className="profile-hero-heading">
-          <div>
-            <h1>Profile &amp; Billing</h1>
-            <p>
-              Keep your workspace details and subscription preferences tidy. Upload a friendly avatar, confirm how we contact
-              you, and tune your billing cadence.
-            </p>
+    <div className="space-y-8">
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-3">
+              <User className="h-6 w-6 text-muted-foreground" />
+              <div className="space-y-1">
+                <CardTitle className="text-3xl font-bold">Profile &amp; Billing</CardTitle>
+                <CardDescription className="text-base">
+                  Keep your workspace details and subscription preferences tidy. Upload a friendly avatar, confirm how we contact you, and tune your billing cadence.
+                </CardDescription>
+              </div>
+            </div>
+            <Badge variant="outline" className="text-sm">Plan: {billing.plan.toUpperCase()}</Badge>
           </div>
-          <span className="profile-plan-chip">Plan: {billing.plan.toUpperCase()}</span>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="flex flex-col gap-1">
+              <span className="text-sm text-muted-foreground">Status</span>
+              <div className="flex items-center gap-2">
+                <StatusIcon className="h-4 w-4" />
+                <span className="text-sm font-medium">{subscriptionStatus}</span>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-sm text-muted-foreground">Auto-renew</span>
+              <span className="text-sm font-medium">{billing.autoRenew ? "Enabled" : "Disabled"}</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-sm text-muted-foreground">Period end</span>
+              <span className="text-sm font-medium">{periodEnd ? new Date(periodEnd).toLocaleString() : "—"}</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-sm text-muted-foreground">Plan summary</span>
+              <span className="text-sm font-medium">{activePlanSummary}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle>Profile</CardTitle>
+                  <CardDescription>Update the information that appears in your workspace and notifications.</CardDescription>
+                </div>
+                <Badge variant="outline">Account Center</Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleProfileSubmit} className="space-y-6">
+                <div className="flex items-start gap-6">
+                  <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full border">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={profile.avatarUrl || AVATAR_FALLBACK}
+                      alt={profile.fullName ? `${profile.fullName}'s avatar` : "Profile avatar"}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div className="flex flex-1 flex-col gap-2">
+                    <input
+                      ref={avatarInputRef}
+                      id="profile-avatar-input"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="sr-only"
+                      onChange={handleAvatarSelect}
+                      disabled={avatarUploading || loading}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => avatarInputRef.current?.click()}
+                      disabled={avatarUploading || loading}
+                    >
+                      <Upload className="mr-2 h-4 w-4" />
+                      {avatarUploading ? "Uploading…" : "Change avatar"}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">Use a clear square image under 5MB (PNG, JPG, or WebP).</p>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="full-name">Full name</Label>
+                    <Input
+                      id="full-name"
+                      value={profile.fullName}
+                      onChange={(event) => setProfile((state) => ({ ...state, fullName: event.target.value }))}
+                      disabled={loading}
+                      placeholder="Your name"
+                      autoComplete="name"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={profile.email}
+                      onChange={(event) => setProfile((state) => ({ ...state, email: event.target.value }))}
+                      disabled={loading}
+                      placeholder="you@company.com"
+                      autoComplete="email"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="company">Company</Label>
+                    <Input
+                      id="company"
+                      value={profile.company}
+                      onChange={(event) => setProfile((state) => ({ ...state, company: event.target.value }))}
+                      disabled={loading}
+                      placeholder="LexyHub"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="timezone">Timezone</Label>
+                    <Input
+                      id="timezone"
+                      value={profile.timezone}
+                      onChange={(event) => setProfile((state) => ({ ...state, timezone: event.target.value }))}
+                      disabled={loading}
+                      placeholder="America/Chicago"
+                      autoComplete="timezone"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="bio">Bio</Label>
+                  <Textarea
+                    id="bio"
+                    rows={3}
+                    value={profile.bio}
+                    onChange={(event) => setProfile((state) => ({ ...state, bio: event.target.value }))}
+                    disabled={loading}
+                    placeholder="Share a short intro for teammates."
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    id="notifications"
+                    type="checkbox"
+                    checked={profile.notifications}
+                    onChange={(event) => setProfile((state) => ({ ...state, notifications: event.target.checked }))}
+                    disabled={loading}
+                    className="h-4 w-4 rounded border-input"
+                  />
+                  <Label htmlFor="notifications" className="cursor-pointer font-normal">Send product notifications</Label>
+                </div>
+
+                <Button type="submit" disabled={loading}>Save profile</Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-muted-foreground" />
+                <CardTitle>Billing</CardTitle>
+              </div>
+              <CardDescription>Control your renewal cadence, billing contact, and saved payment label.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleBillingSubmit} className="space-y-6">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="plan">Plan</Label>
+                    <Select
+                      value={billing.plan}
+                      onValueChange={(value) =>
+                        setBilling((state) => ({ ...state, plan: value as BillingPreferences["plan"] }))
+                      }
+                      disabled={loading}
+                    >
+                      <SelectTrigger id="plan">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="spark">Spark</SelectItem>
+                        <SelectItem value="scale">Scale</SelectItem>
+                        <SelectItem value="apex">Apex</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="billing-email">Billing email</Label>
+                    <Input
+                      id="billing-email"
+                      type="email"
+                      value={billing.billingEmail}
+                      onChange={(event) => setBilling((state) => ({ ...state, billingEmail: event.target.value }))}
+                      disabled={loading}
+                      placeholder="billing@company.com"
+                      autoComplete="email"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="payment-method">Payment method label</Label>
+                    <Input
+                      id="payment-method"
+                      value={billing.paymentMethod}
+                      onChange={(event) => setBilling((state) => ({ ...state, paymentMethod: event.target.value }))}
+                      disabled={loading}
+                      placeholder="Corporate Amex"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    id="auto-renew"
+                    type="checkbox"
+                    checked={billing.autoRenew}
+                    onChange={(event) => setBilling((state) => ({ ...state, autoRenew: event.target.checked }))}
+                    disabled={loading}
+                    className="h-4 w-4 rounded border-input"
+                  />
+                  <Label htmlFor="auto-renew" className="cursor-pointer font-normal">Auto-renew plan</Label>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button type="submit" disabled={loading}>Save billing settings</Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCancelPlan}
+                    disabled={loading}
+                  >
+                    Cancel at period end
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         </div>
 
-        <dl className="profile-hero-stats">
-          <div>
-            <dt>Status</dt>
-            <dd className={`status-${subscriptionStatus}`}>{subscriptionStatus}</dd>
-          </div>
-          <div>
-            <dt>Auto-renew</dt>
-            <dd>{billing.autoRenew ? "Enabled" : "Disabled"}</dd>
-          </div>
-          <div>
-            <dt>Period end</dt>
-            <dd>{periodEnd ? new Date(periodEnd).toLocaleString() : "—"}</dd>
-          </div>
-          <div>
-            <dt>Plan summary</dt>
-            <dd>{activePlanSummary}</dd>
-          </div>
-        </dl>
-      </header>
-
-      <div className="profile-layout">
-        <div className="profile-main">
-          <form className="profile-card profile-form" onSubmit={handleProfileSubmit}>
-            <div className="profile-card-header">
-              <div>
-                <h2>Profile</h2>
-                <p>Update the information that appears in your workspace and notifications.</p>
+        <Card>
+          <CardHeader>
+            <CardTitle>Subscription</CardTitle>
+            <CardDescription>Status and history sync directly from Supabase billing records.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <dl className="space-y-3 text-sm">
+              <div className="flex justify-between border-b border-border pb-2">
+                <dt className="font-medium">Current plan</dt>
+                <dd className="text-muted-foreground">{billing.plan.toUpperCase()}</dd>
               </div>
-              <span className="profile-card-badge">Account Center</span>
-            </div>
-
-            <div className="profile-avatar-row">
-              <div className="profile-avatar">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={profile.avatarUrl || AVATAR_FALLBACK}
-                  alt={profile.fullName ? `${profile.fullName}'s avatar` : "Profile avatar"}
-                />
+              <div className="flex justify-between border-b border-border pb-2">
+                <dt className="font-medium">Status</dt>
+                <dd className="flex items-center gap-2">
+                  <StatusIcon className="h-4 w-4" />
+                  <span>{subscriptionStatus}</span>
+                </dd>
               </div>
-              <div className="profile-avatar-actions">
-                <input
-                  ref={avatarInputRef}
-                  id="profile-avatar-input"
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  className="sr-only"
-                  onChange={handleAvatarSelect}
-                  disabled={avatarUploading || loading}
-                />
-                <button
-                  type="button"
-                  className="profile-button"
-                  onClick={() => avatarInputRef.current?.click()}
-                  disabled={avatarUploading || loading}
-                >
-                  {avatarUploading ? "Uploading…" : "Change avatar"}
-                </button>
-                <p>Use a clear square image under 5MB (PNG, JPG, or WebP).</p>
+              <div className="flex justify-between border-b border-border pb-2">
+                <dt className="font-medium">Auto-renew</dt>
+                <dd className="text-muted-foreground">{billing.autoRenew ? "Enabled" : "Disabled"}</dd>
               </div>
-            </div>
-
-            <label className="profile-field">
-              <span>Full name</span>
-              <input
-                value={profile.fullName}
-                onChange={(event) => setProfile((state) => ({ ...state, fullName: event.target.value }))}
-                disabled={loading}
-                placeholder="Your name"
-                autoComplete="name"
-              />
-            </label>
-
-            <label className="profile-field">
-              <span>Email</span>
-              <input
-                type="email"
-                value={profile.email}
-                onChange={(event) => setProfile((state) => ({ ...state, email: event.target.value }))}
-                disabled={loading}
-                placeholder="you@company.com"
-                autoComplete="email"
-              />
-            </label>
-
-            <label className="profile-field">
-              <span>Company</span>
-              <input
-                value={profile.company}
-                onChange={(event) => setProfile((state) => ({ ...state, company: event.target.value }))}
-                disabled={loading}
-                placeholder="LexyHub"
-              />
-            </label>
-
-            <label className="profile-field">
-              <span>Bio</span>
-              <textarea
-                rows={3}
-                value={profile.bio}
-                onChange={(event) => setProfile((state) => ({ ...state, bio: event.target.value }))}
-                disabled={loading}
-                placeholder="Share a short intro for teammates."
-              />
-            </label>
-
-            <label className="profile-field">
-              <span>Timezone</span>
-              <input
-                value={profile.timezone}
-                onChange={(event) => setProfile((state) => ({ ...state, timezone: event.target.value }))}
-                disabled={loading}
-                placeholder="America/Chicago"
-                autoComplete="timezone"
-              />
-            </label>
-
-            <label className="profile-checkbox">
-              <input
-                type="checkbox"
-                checked={profile.notifications}
-                onChange={(event) => setProfile((state) => ({ ...state, notifications: event.target.checked }))}
-                disabled={loading}
-              />
-              <span>Send product notifications</span>
-            </label>
-
-            <div className="profile-form-actions">
-              <button type="submit" className="profile-button" disabled={loading}>
-                Save profile
-              </button>
-            </div>
-          </form>
-
-          <form className="profile-card profile-form" onSubmit={handleBillingSubmit}>
-            <div className="profile-card-header">
-              <div>
-                <h2>Billing</h2>
-                <p>Control your renewal cadence, billing contact, and saved payment label.</p>
-              </div>
-            </div>
-
-            <label className="profile-field">
-              <span>Plan</span>
-              <select
-                value={billing.plan}
-                onChange={(event) =>
-                  setBilling((state) => ({ ...state, plan: event.target.value as BillingPreferences["plan"] }))
-                }
-                disabled={loading}
-              >
-                <option value="spark">Spark</option>
-                <option value="scale">Scale</option>
-                <option value="apex">Apex</option>
-              </select>
-            </label>
-
-            <label className="profile-field">
-              <span>Billing email</span>
-              <input
-                type="email"
-                value={billing.billingEmail}
-                onChange={(event) => setBilling((state) => ({ ...state, billingEmail: event.target.value }))}
-                disabled={loading}
-                placeholder="billing@company.com"
-                autoComplete="email"
-              />
-            </label>
-
-            <label className="profile-checkbox">
-              <input
-                type="checkbox"
-                checked={billing.autoRenew}
-                onChange={(event) => setBilling((state) => ({ ...state, autoRenew: event.target.checked }))}
-                disabled={loading}
-              />
-              <span>Auto-renew plan</span>
-            </label>
-
-            <label className="profile-field">
-              <span>Payment method label</span>
-              <input
-                value={billing.paymentMethod}
-                onChange={(event) => setBilling((state) => ({ ...state, paymentMethod: event.target.value }))}
-                disabled={loading}
-                placeholder="Corporate Amex"
-              />
-            </label>
-
-            <div className="profile-form-actions">
-              <button type="submit" className="profile-button" disabled={loading}>
-                Save billing settings
-              </button>
-              <button
-                type="button"
-                className="profile-button profile-button--secondary"
-                onClick={handleCancelPlan}
-                disabled={loading}
-              >
-                Cancel at period end
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <aside className="profile-sidebar">
-          <section className="profile-card profile-summary">
-            <h2>Subscription</h2>
-            <p>Status and history sync directly from Supabase billing records.</p>
-
-            <dl className="profile-summary-grid">
-              <div>
-                <dt>Current plan</dt>
-                <dd>{billing.plan.toUpperCase()}</dd>
-              </div>
-              <div>
-                <dt>Status</dt>
-                <dd className={`status-${subscriptionStatus}`}>{subscriptionStatus}</dd>
-              </div>
-              <div>
-                <dt>Auto-renew</dt>
-                <dd>{billing.autoRenew ? "Enabled" : "Disabled"}</dd>
-              </div>
-              <div>
-                <dt>Current period end</dt>
-                <dd>{periodEnd ? new Date(periodEnd).toLocaleString() : "—"}</dd>
+              <div className="flex justify-between">
+                <dt className="font-medium">Current period end</dt>
+                <dd className="text-muted-foreground">{periodEnd ? new Date(periodEnd).toLocaleString() : "—"}</dd>
               </div>
             </dl>
 
-            <h3>Invoice history</h3>
-            <ul className="profile-invoices">
-              {invoiceHistory.length === 0 ? <li>No invoices yet.</li> : null}
-              {invoiceHistory.map((invoice) => (
-                <li key={invoice.id}>
-                  <div>
-                    <strong>{invoice.period}</strong>
-                    <span>{invoice.status}</span>
-                  </div>
-                  <span>{invoice.total}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        </aside>
+            <Separator />
+
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold">Invoice history</h3>
+              {invoiceHistory.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No invoices yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {invoiceHistory.map((invoice) => (
+                    <div key={invoice.id} className="flex items-center justify-between border-b border-border pb-2 text-sm last:border-0 last:pb-0">
+                      <div className="flex flex-col gap-1">
+                        <span className="font-medium">{invoice.period}</span>
+                        <span className="text-xs text-muted-foreground">{invoice.status}</span>
+                      </div>
+                      <span className="font-medium">{invoice.total}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

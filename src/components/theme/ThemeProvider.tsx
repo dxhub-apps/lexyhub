@@ -33,7 +33,12 @@ function applyTheme(theme: "light" | "dark") {
   if (typeof document === "undefined") {
     return;
   }
-  document.documentElement.dataset.theme = theme;
+  // Use Tailwind's dark mode class
+  if (theme === "dark") {
+    document.documentElement.classList.add("dark");
+  } else {
+    document.documentElement.classList.remove("dark");
+  }
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }): JSX.Element {

@@ -2,7 +2,7 @@
 
 import { ChangeEvent, FormEvent, useMemo, useState } from "react";
 
-import { useToast } from "@/components/ui/ToastProvider";
+import { useToast } from "@/components/ui/use-toast";
 import type { ListingIntelligenceReport } from "@/lib/listings/intelligence";
 import type { NormalizedEtsyListing } from "@/lib/etsy/types";
 import type {
@@ -61,7 +61,7 @@ export function ListingIntelligenceForm(): JSX.Element {
   const loading = loadingMode !== null;
   const [result, setResult] = useState<ListingIntelligenceResponse | null>(null);
   const [ingestedListing, setIngestedListing] = useState<NormalizedEtsyListing | null>(null);
-  const { push } = useToast();
+  const { toast } = useToast();
 
   const keywordLeaders = useMemo(() => {
     if (!result?.report.keywordDensity.length) {
@@ -82,10 +82,10 @@ export function ListingIntelligenceForm(): JSX.Element {
     try {
       const trimmedUrl = listingUrl.trim();
       if (!trimmedUrl && !form.title.trim()) {
-        push({
+        toast({
           title: "Listing title required",
           description: "Provide a title or paste an Etsy URL to analyze.",
-          tone: "warning",
+          variant: "warning",
         });
         setLoadingMode(null);
         return;
@@ -122,17 +122,17 @@ export function ListingIntelligenceForm(): JSX.Element {
       const json = (await response.json()) as ListingIntelligenceResponse;
       setResult(json);
       setIngestedListing(json.listing ?? null);
-      push({
+      toast({
         title: "Scorecard ready",
         description: "Listing quality analysis completed.",
-        tone: "success",
+        variant: "success",
       });
     } catch (error) {
       console.error("Listing intelligence request failed", error);
-      push({
+      toast({
         title: "Unable to score listing",
         description: error instanceof Error ? error.message : "Unknown error",
-        tone: "error",
+        variant: "destructive",
       });
     } finally {
       setLoadingMode(null);
@@ -162,17 +162,17 @@ export function ListingIntelligenceForm(): JSX.Element {
       setResult(json);
       setIngestedListing(json.listing ?? null);
       setListingUrl(json.listing?.url ?? "");
-      push({
+      toast({
         title: "Best seller ready",
         description: "Fetched Etsy best seller insights with no URL required.",
-        tone: "success",
+        variant: "success",
       });
     } catch (error) {
       console.error("Best seller ingestion failed", error);
-      push({
+      toast({
         title: "Unable to fetch best seller",
         description: error instanceof Error ? error.message : "Unknown error",
-        tone: "error",
+        variant: "destructive",
       });
     } finally {
       setLoadingMode(null);
@@ -322,7 +322,7 @@ export function ListingIntelligenceForm(): JSX.Element {
               </div>
               <div>
                 <dt>Tone</dt>
-                <dd className="analysis-pill">{result.report.tone}</dd>
+                <dd className="analysis-pill">{result.report.variant}</dd>
               </div>
             </dl>
           </section>

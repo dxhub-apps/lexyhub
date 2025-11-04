@@ -2,106 +2,70 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard,
+  Star,
+  Search,
+  TrendingUp,
+  Sparkles,
+  PenTool,
+  Activity,
+  Shield,
+} from "lucide-react";
 
-import { ToastProvider } from "@/components/ui/ToastProvider";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { Topbar } from "./Topbar";
 import { Sidebar, type SidebarNavItem } from "./Sidebar";
-
-const iconProps = {
-  width: 20,
-  height: 20,
-  stroke: "currentColor",
-  strokeWidth: 1.8,
-  strokeLinecap: "round" as const,
-  strokeLinejoin: "round" as const,
-  fill: "none" as const,
-};
-
-const DashboardIcon = () => (
-  <svg viewBox="0 0 24 24" {...iconProps}>
-    <path d="M4.5 4.5h5v7h-5zM4.5 14.5h5v5h-5zM14.5 4.5h5v5h-5zM11 10.5h8.5v9H11z" />
-  </svg>
-);
-
-const WatchlistIcon = () => (
-  <svg viewBox="0 0 24 24" {...iconProps}>
-    <path d="m12 17.5-3.3 1.7.6-3.7-2.7-2.7 3.7-.5L12 9l1.7 3.3 3.7.5-2.7 2.7.6 3.7z" />
-  </svg>
-);
-
-const KeywordsIcon = () => (
-  <svg viewBox="0 0 24 24" {...iconProps}>
-    <circle cx="11" cy="11" r="5.5" />
-    <path d="m15.5 15.5 4 4" />
-  </svg>
-);
-
-const InsightsIcon = () => (
-  <svg viewBox="0 0 24 24" {...iconProps}>
-    <path d="M4.5 15.5 8 12l3 3 6-6 2.5 2.5" />
-    <path d="M4.5 19.5h15" />
-  </svg>
-);
-
-const MarketTwinIcon = () => (
-  <svg viewBox="0 0 24 24" {...iconProps}>
-    <path d="M7.5 6.5a4.5 4.5 0 0 1 9 0c0 2.5-2 4-4.5 6.5-2.5-2.5-4.5-4-4.5-6.5z" />
-    <path d="M5.5 18.5c0-2.1 1.9-3.4 3.6-4.8M18.5 18.5c0-2.1-1.9-3.4-3.6-4.8" />
-    <path d="M5.5 18.5h13" />
-  </svg>
-);
-
-const EditingIcon = () => (
-  <svg viewBox="0 0 24 24" {...iconProps}>
-    <path d="m5.5 17.5-.5 3 3-.5 10.5-10.5-2.5-2.5z" />
-    <path d="m16.5 7.5 2.5 2.5" />
-    <path d="M5.5 17.5 4 19" />
-  </svg>
-);
-
-const StatusIcon = () => (
-  <svg viewBox="0 0 24 24" {...iconProps}>
-    <path d="M4.5 13.5 9 9l4 5 3-3 3.5 3.5" />
-    <path d="M4.5 18.5h15" />
-  </svg>
-);
-
-const BackofficeIcon = () => (
-  <svg viewBox="0 0 24 24" {...iconProps}>
-    <path d="M12 4.5 5.5 8v5c0 4.7 3.7 7.9 6.5 9 2.8-1.1 6.5-4.3 6.5-9v-5z" />
-    <path d="M10 12.5 12 14l2-1.5V11h-4z" />
-  </svg>
-);
+import { cn } from "@/lib/utils";
 
 const NAV_ITEMS: readonly SidebarNavItem[] = [
-  { href: "/dashboard", label: "Dashboard", description: "Quota pulse", icon: <DashboardIcon /> },
+  {
+    href: "/dashboard",
+    label: "Dashboard",
+    description: "Quota pulse",
+    icon: <LayoutDashboard className="h-5 w-5" />,
+  },
   {
     href: "/watchlists",
     label: "Watchlists",
     description: "Monitored items",
-    icon: <WatchlistIcon />,
+    icon: <Star className="h-5 w-5" />,
   },
-  { href: "/keywords", label: "Keywords", description: "AI search", icon: <KeywordsIcon /> },
-  { href: "/insights", label: "Insights", description: "Visual AI", icon: <InsightsIcon /> },
+  {
+    href: "/keywords",
+    label: "Keywords",
+    description: "AI search",
+    icon: <Search className="h-5 w-5" />,
+  },
+  {
+    href: "/insights",
+    label: "Insights",
+    description: "Visual AI",
+    icon: <TrendingUp className="h-5 w-5" />,
+  },
   {
     href: "/market-twin",
     label: "Market Twin",
     description: "Simulations",
-    icon: <MarketTwinIcon />,
+    icon: <Sparkles className="h-5 w-5" />,
   },
   {
     href: "/editing",
     label: "Editing",
     description: "Etsy suite",
-    icon: <EditingIcon />,
+    icon: <PenTool className="h-5 w-5" />,
   },
-  { href: "/status", label: "Status", description: "Service status", icon: <StatusIcon /> },
+  {
+    href: "/status",
+    label: "Status",
+    description: "Service status",
+    icon: <Activity className="h-5 w-5" />,
+  },
   {
     href: "/admin/backoffice",
     label: "Backoffice",
     description: "Admin controls",
-    icon: <BackofficeIcon />,
+    icon: <Shield className="h-5 w-5" />,
   },
 ] as const;
 
@@ -116,6 +80,7 @@ export function AppShell({ children, isAdmin }: AppShellProps) {
     () => NAV_ITEMS.filter((item) => isAdmin || item.href !== "/admin/backoffice"),
     [isAdmin],
   );
+
   const activeNavItem = useMemo(() => {
     const currentPath = pathname ?? "/";
     if (currentPath === "/") {
@@ -133,6 +98,7 @@ export function AppShell({ children, isAdmin }: AppShellProps) {
       }) ?? nav[0]
     );
   }, [nav, pathname]);
+
   const [isMobile, setIsMobile] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -172,40 +138,48 @@ export function AppShell({ children, isAdmin }: AppShellProps) {
 
   return (
     <ThemeProvider>
-      <ToastProvider>
-        <div className={`app-shell${sidebarCollapsed ? " app-shell-collapsed" : ""}`}>
-          <Sidebar
-            navItems={nav}
-            pathname={pathname ?? "/"}
-            collapsed={sidebarCollapsed}
+      <div className="min-h-screen bg-background">
+        <Sidebar
+          navItems={nav}
+          pathname={pathname ?? "/"}
+          collapsed={sidebarCollapsed}
+          isMobile={isMobile}
+          navOpen={navOpen}
+          onToggleCollapse={toggleSidebarCollapsed}
+          onDismissMobile={closeNav}
+        />
+
+        {/* Mobile overlay backdrop */}
+        {isMobile && navOpen && (
+          <div
+            className="fixed inset-0 z-30 bg-background/80 backdrop-blur-sm"
+            aria-label="Close navigation"
+            onClick={closeNav}
+          />
+        )}
+
+        {/* Main content area */}
+        <div
+          className={cn(
+            "flex min-h-screen flex-col transition-all duration-200",
+            sidebarCollapsed && !isMobile ? "ml-16" : "ml-64",
+            isMobile && "ml-0"
+          )}
+        >
+          <Topbar
             isMobile={isMobile}
             navOpen={navOpen}
-            onToggleCollapse={toggleSidebarCollapsed}
-            onDismissMobile={closeNav}
+            onToggleNav={toggleNav}
+            onToggleSidebar={toggleSidebarCollapsed}
+            sidebarCollapsed={sidebarCollapsed}
+            activeNavItem={activeNavItem}
           />
-          {isMobile && navOpen ? (
-            <button
-              type="button"
-              className="app-sidebar-overlay"
-              aria-label="Close navigation"
-              onClick={closeNav}
-            />
-          ) : null}
-          <div className="app-shell-content">
-            <Topbar
-              isMobile={isMobile}
-              navOpen={navOpen}
-              onToggleNav={toggleNav}
-              onToggleSidebar={toggleSidebarCollapsed}
-              sidebarCollapsed={sidebarCollapsed}
-              activeNavItem={activeNavItem}
-            />
-            <main className="app-main">
-              <div className="app-container">{children}</div>
-            </main>
-          </div>
+
+          <main className="flex-1 pt-16">
+            <div className="app-container">{children}</div>
+          </main>
         </div>
-      </ToastProvider>
+      </div>
     </ThemeProvider>
   );
 }

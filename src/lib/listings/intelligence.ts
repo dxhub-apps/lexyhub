@@ -35,7 +35,7 @@ export type ListingIntelligenceReport = {
   readability: number;
   keywordDensity: KeywordDensity[];
   intent: ListingIntent;
-  tone: ListingTone;
+  variant: ListingTone;
   missingAttributes: string[];
   quickFixes: ListingQuickFix[];
 };
@@ -338,7 +338,7 @@ export function analyzeListing(listing: ListingInput): ListingIntelligenceReport
     readability,
     keywordDensity,
     intent: detectIntent(listing),
-    tone: detectTone(listing),
+    variant: detectTone(listing),
     missingAttributes,
     quickFixes,
   };
