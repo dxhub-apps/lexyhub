@@ -25,26 +25,27 @@ export default function SeasonalCalendarPage() {
     setLoading(true);
     setError(null);
     try {
-      // Fetch events for current and next month plus some buffer
-      const startDate = new Date(currentYear, currentMonth, 1);
-      const endDate = new Date(nextYear, nextMonth + 1, 0);
+      // Fetch ALL seasonal periods from the database
+      // The list view needs to show all upcoming and past events
+      const response = await fetch("/api/seasonal-periods");
 
-      const response = await fetch(
-        `/api/seasonal-periods?startDate=${startDate.toISOString().split("T")[0]}&endDate=${endDate.toISOString().split("T")[0]}`
-      );
       if (!response.ok) {
         throw new Error("Failed to fetch seasonal periods");
       }
       const data = await response.json();
+
+      console.log("Fetched seasonal periods:", data);
       setEvents(data);
     } catch (err) {
+      console.error("Error fetching seasonal periods:", err);
       setError(err instanceof Error ? err.message : "Failed to load events");
     } finally {
       setLoading(false);
     }
-  }, [currentYear, currentMonth, nextYear, nextMonth]);
+  }, []);
 
   useEffect(() => {
+    // Fetch all events once when component mounts
     fetchSeasonalPeriods();
   }, [fetchSeasonalPeriods]);
 
@@ -139,45 +140,69 @@ export default function SeasonalCalendarPage() {
             />
           </div>
 
-          {/* Upcoming Events List */}
-          <div className="space-y-6">
-            {upcomingEvents.length > 0 && (
-              <div>
-                <h2 className="text-2xl font-semibold mb-4">Upcoming Events</h2>
-                <div className="grid gap-4">
-                  {upcomingEvents.map((event) => (
-                    <EventCard
-                      key={event.id}
-                      event={event}
-                      onClick={() => {
-                        setSelectedEvent(event);
-                        setModalOpen(true);
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
+          {/* Empty State */}
+          {events.length === 0 && (
+            <Card className="p-12 text-center">
+              <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-semibold mb-2">No Seasonal Events Found</h3>
+              <p className="text-muted-foreground mb-4">
+                The seasonal_periods table appears to be empty.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Events should be populated from the database seed data or added by an admin.
+              </p>
+            </Card>
+          )}
 
-            {pastEvents.length > 0 && (
-              <div>
-                <h2 className="text-2xl font-semibold mb-4">Past Events</h2>
-                <div className="grid gap-4">
-                  {pastEvents.map((event) => (
-                    <EventCard
-                      key={event.id}
-                      event={event}
-                      onClick={() => {
-                        setSelectedEvent(event);
-                        setModalOpen(true);
-                      }}
-                      isPast
-                    />
-                  ))}
+          {/* Upcoming Events List */}
+          {events.length > 0 && (
+            <div className="space-y-6">
+              {upcomingEvents.length > 0 && (
+                <div>
+                  <h2 className="text-2xl font-semibold mb-4">Upcoming Events</h2>
+                  <div className="grid gap-4">
+                    {upcomingEvents.map((event) => (
+                      <EventCard
+                        key={event.id}
+                        event={event}
+                        onClick={() => {
+                          setSelectedEvent(event);
+                          setModalOpen(true);
+                        }}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+
+              {upcomingEvents.length === 0 && pastEvents.length === 0 && (
+                <Card className="p-8 text-center">
+                  <p className="text-muted-foreground">
+                    No events to display. All seasonal periods may be in the past.
+                  </p>
+                </Card>
+              )}
+
+              {pastEvents.length > 0 && (
+                <div>
+                  <h2 className="text-2xl font-semibold mb-4">Past Events</h2>
+                  <div className="grid gap-4">
+                    {pastEvents.map((event) => (
+                      <EventCard
+                        key={event.id}
+                        event={event}
+                        onClick={() => {
+                          setSelectedEvent(event);
+                          setModalOpen(true);
+                        }}
+                        isPast
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
 
