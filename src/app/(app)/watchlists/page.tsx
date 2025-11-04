@@ -192,8 +192,10 @@ export default function WatchlistsPage(): JSX.Element {
         <CardContent className="space-y-4">
           <Button asChild className="w-full sm:w-auto">
             <Link href="/keywords">
-              <Plus className="mr-2 h-4 w-4" />
-              {primaryActionLabel}
+              <span className="flex items-center justify-center">
+                <Plus className="mr-2 h-4 w-4" />
+                {primaryActionLabel}
+              </span>
             </Link>
           </Button>
 
@@ -305,8 +307,10 @@ export default function WatchlistsPage(): JSX.Element {
             <CardContent>
               <Button asChild>
                 <Link href="/keywords">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add your first keyword
+                  <span className="flex items-center justify-center">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add your first keyword
+                  </span>
                 </Link>
               </Button>
             </CardContent>
