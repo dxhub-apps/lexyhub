@@ -100,49 +100,6 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return dot / (normA * normB);
 }
 
-async function fetchExactKeywordMatch(
-  query: string,
-  market: string,
-  sources: string[],
-  tiers: Array<string | number>,
-): Promise<KeywordRow | null> {
-  const supabase = getSupabaseServerClient();
-
-  if (!supabase) {
-    return null;
-  }
-
-  try {
-    let queryBuilder = supabase
-      .from("keywords")
-      .select(
-        "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score, base_demand_index, adjusted_demand_index, deseasoned_trend_momentum, seasonal_label",
-      )
-      .eq("market", market)
-      .ilike("term", query);
-
-    if (sources.length > 0) {
-      queryBuilder = queryBuilder.in("source", sources);
-    }
-
-    if (tiers.length > 0) {
-      queryBuilder = queryBuilder.in("tier", tiers);
-    }
-
-    const { data, error } = await queryBuilder.limit(1).single();
-
-    if (error) {
-      // No exact match found
-      return null;
-    }
-
-    return data;
-  } catch (error) {
-    console.error("Failed to fetch exact keyword match", error);
-    return null;
-  }
-}
-
 async function fetchKeywordsFromSupabase(
   market: string,
   sources: string[],
@@ -265,8 +222,10 @@ async function rankKeywords(
   queryEmbedding: { embedding: number[]; model: string },
   keywords: KeywordRow[],
   supabaseClient: ReturnType<typeof getSupabaseServerClient>,
+  originalQuery: string,
 ): Promise<RankedKeyword[]> {
   const ranked: RankedKeyword[] = [];
+  const normalizedQuery = originalQuery.toLowerCase().trim();
 
   for (const keyword of keywords) {
     const embedding = await getOrCreateEmbedding(keyword.term, {
@@ -276,10 +235,17 @@ async function rankKeywords(
 
     const similarity = cosineSimilarity(queryEmbedding.embedding, embedding.embedding);
     const compositeScore = computeCompositeScore(keyword);
-    const rankingScore = similarity * 0.55 + compositeScore * 0.45;
+
+    // Check if this is an exact match (case-insensitive)
+    const isExactMatch = keyword.term.toLowerCase().trim() === normalizedQuery;
+
+    // Exact matches get perfect scores
+    const rankingScore = isExactMatch ? 1.0 : (similarity * 0.55 + compositeScore * 0.45);
+    const finalSimilarity = isExactMatch ? 1.0 : similarity;
+
     ranked.push({
       ...keyword,
-      similarity,
+      similarity: finalSimilarity,
       embeddingModel: embedding.model,
       provenance_id: createProvenanceId(keyword.source, keyword.market, keyword.term),
       compositeScore,
@@ -392,12 +358,9 @@ async function handleSearch(req: Request): Promise<NextResponse> {
 
   const userId = resolveUserId(req);
 
-  // First, try to find an exact match
-  const exactMatch = await fetchExactKeywordMatch(query, market, resolvedSources, allowedTiers);
-
-  // Fetch other keywords for similarity matching
+  // Fetch keywords for similarity matching
   const keywords = await fetchKeywordsFromSupabase(market, resolvedSources, allowedTiers, limit);
-  if (keywords.length === 0 && !exactMatch) {
+  if (keywords.length === 0) {
     await recordKeywordSearchRequest({
       supabase,
       query: trimmedQuery,
@@ -425,29 +388,10 @@ async function handleSearch(req: Request): Promise<NextResponse> {
 
   const queryEmbedding = await getOrCreateEmbedding(query, { supabase });
 
-  // Filter out exact match from keywords to avoid duplication
-  const keywordsToRank = exactMatch
-    ? keywords.filter(k => k.term.toLowerCase() !== query.toLowerCase())
-    : keywords;
-
-  const ranked = await rankKeywords(queryEmbedding, keywordsToRank, supabase);
-
-  // If we have an exact match, add it as the first result with 100% similarity
-  let sliced: RankedKeyword[];
-  if (exactMatch) {
-    const compositeScore = computeCompositeScore(exactMatch);
-    const exactRanked: RankedKeyword = {
-      ...exactMatch,
-      similarity: 1.0, // 100% similarity for exact match
-      embeddingModel: queryEmbedding.model,
-      provenance_id: createProvenanceId(exactMatch.source, exactMatch.market, exactMatch.term),
-      compositeScore,
-      rankingScore: 1.0, // Highest ranking for exact match
-    };
-    sliced = [exactRanked, ...ranked.slice(0, limit - 1)];
-  } else {
-    sliced = ranked.slice(0, limit);
-  }
+  // Rank keywords with exact match detection built-in
+  // Pass trimmedQuery so we can match against the original user input
+  const ranked = await rankKeywords(queryEmbedding, keywords, supabase, trimmedQuery);
+  const sliced = ranked.slice(0, limit);
 
   const cacheSources = [...resolvedSources].sort();
 
