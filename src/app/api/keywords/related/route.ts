@@ -29,9 +29,15 @@ const RELATIONSHIP_TYPES = [
 ];
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  let keyword = "unknown";
+  let market = "us";
+  let limit = 10;
+
   try {
     const body = await request.json();
-    const { keyword, market = "us", limit = 10 } = body;
+    keyword = body.keyword || "unknown";
+    market = body.market || "us";
+    limit = body.limit || 10;
 
     if (!keyword) {
       return NextResponse.json(
@@ -147,12 +153,11 @@ Only return the JSON array, no other text.`
     console.error("Error generating related keywords:", error);
 
     // Provide fallback in case of any error
-    const body = await request.json().catch(() => ({ keyword: "unknown", limit: 10 }));
-    const fallbackKeywords = generateFallbackKeywords(body.keyword, body.limit || 10);
+    const fallbackKeywords = generateFallbackKeywords(keyword, limit);
 
     return NextResponse.json({
-      keyword: body.keyword,
-      market: body.market || "us",
+      keyword: keyword,
+      market: market,
       relatedKeywords: fallbackKeywords,
       count: fallbackKeywords.length,
       fallback: true,

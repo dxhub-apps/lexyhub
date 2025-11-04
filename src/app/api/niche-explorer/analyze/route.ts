@@ -6,9 +6,11 @@ const openai = new OpenAI({
 });
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  let niche = "unknown";
   try {
     const body = await request.json();
-    const { niche, market = "us" } = body;
+    niche = body.niche || "unknown";
+    const market = body.market || "us";
 
     if (!niche) {
       return NextResponse.json(
@@ -130,7 +132,7 @@ Only return valid JSON, no other text.`
 
     return NextResponse.json({
       error: error.message || "Failed to analyze niche",
-      niche: request.body?.niche || "unknown",
+      niche: niche,
     }, { status: 500 });
   }
 }
