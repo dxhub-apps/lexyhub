@@ -4,8 +4,15 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "@supabase/auth-helpers-react";
+import { TrendingUp, Sparkles, Star, BarChart3 } from "lucide-react";
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { useToast } from "@/components/ui/use-toast";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 type UsageSummary = {
   plan: string;
@@ -186,80 +193,223 @@ export default function DashboardPage(): JSX.Element {
     (card): card is UsageKpi => Boolean(card),
   );
 
+  // Generate mock keyword momentum data for visualization
+  const keywordMomentumData = useMemo(() => {
+    const hours = Array.from({ length: 24 }, (_, i) => i);
+    return hours.map((hour) => ({
+      hour: `${hour.toString().padStart(2, '0')}:00`,
+      volume: Math.floor(Math.random() * 500) + 200,
+      trending: Math.floor(Math.random() * 300) + 100,
+    }));
+  }, []);
+
   return (
-    <div className="dashboard-page">
-      <section className="dashboard-card dashboard-hero">
-        <div>
-          <h1>LexyHub Control Center</h1>
-          <p>Momentum-aware quotas and watchlists to keep your operators in sync.</p>
-        </div>
-        <div className="dashboard-hero-meta">
-          <span>Plan · {planCard?.value ?? "Calculating"}</span>
-          <span>
-            Daily query limit · {usage ? formatNumber.format(usage.limits.dailyQueryLimit) : "—"}
-          </span>
-          <span>Momentum · {usage?.momentum ?? "Pending sync"}</span>
-          <span>Workspace · Core Market</span>
-        </div>
-      </section>
-
-      <section className="dashboard-kpi-grid">
-        {kpiCards.map((card) => {
-          const toneClass = card.progress ? ` dashboard-kpi-indicator-${card.progress.tone}` : "";
-          return (
-            <article key={card.id} className="dashboard-kpi">
-              <div className="dashboard-kpi-header">
-                <span>{card.label}</span>
-                {card.progress ? (
-                  <span className={`dashboard-kpi-indicator${toneClass}`}>
-                    <span className="dashboard-kpi-indicator-dot" aria-hidden="true" />
-                    {card.progress.caption}
-                  </span>
-                ) : null}
-              </div>
-              <strong className="dashboard-kpi-value">{card.value}</strong>
-              {card.helper ? <p className="dashboard-kpi-helper">{card.helper}</p> : null}
-              {card.progress ? (
-                <div className="dashboard-kpi-progress" aria-hidden="true">
-                  <span style={{ width: `${card.progress.percent}%` }} />
-                </div>
-              ) : null}
-            </article>
-          );
-        })}
-      </section>
-
-      <section className="dashboard-analytics-grid">
-        <article className="dashboard-card">
-          <div className="dashboard-section-header">
-            <h2>Keyword momentum</h2>
-            <div className="dashboard-analytics-legend">
-              <span>Today</span>
-              <span>·</span>
-              <span>Top movers</span>
+    <div className="space-y-8">
+      {/* Hero Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div className="space-y-2">
+              <CardTitle className="text-3xl font-bold">LexyHub Control Center</CardTitle>
+              <CardDescription className="text-base">
+                Momentum-aware quotas and watchlists to keep your operators in sync.
+              </CardDescription>
+            </div>
+            <Badge variant="outline" className="text-sm">
+              {planCard?.value ?? "Calculating"}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="flex items-center gap-2 text-sm">
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Daily queries</span>
+              <span className="font-medium">
+                {usage ? formatNumber.format(usage.limits.dailyQueryLimit) : "—"}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Momentum</span>
+              <span className="font-medium">{usage?.momentum ?? "Pending sync"}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <Sparkles className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Workspace</span>
+              <span className="font-medium">Core Market</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <Star className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Status</span>
+              <Badge variant="default" className="h-5 px-2 text-xs">Active</Badge>
             </div>
           </div>
-          <div className="dashboard-chart-placeholder">Live chart connects once data is provisioned.</div>
-          <p className="dashboard-kpi-helper">
-            Track volume acceleration and AI opportunity picks to prioritise daily outreach.
-          </p>
-        </article>
-        <aside className="dashboard-card dashboard-sidecard">
-          <h2>Next best actions</h2>
-          <p>Keep the pipeline moving with the highest leverage tasks for today.</p>
-          <div className="dashboard-sidecard-actions">
-            <button type="button" className="primary-action">
+        </CardContent>
+      </Card>
+
+      {/* Usage KPI Cards */}
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {kpiCards.map((card) => {
+          const progressColor = card.progress?.tone === "positive"
+            ? "bg-green-500"
+            : card.progress?.tone === "caution"
+            ? "bg-yellow-500"
+            : card.progress?.tone === "critical"
+            ? "bg-red-500"
+            : undefined;
+
+          return (
+            <Card key={card.id}>
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <CardDescription className="text-sm font-medium">
+                    {card.label}
+                  </CardDescription>
+                  {card.progress && (
+                    <Badge
+                      variant={card.progress.tone === "positive" ? "default" : "secondary"}
+                      className={cn(
+                        "h-5 gap-1 px-2 text-xs",
+                        card.progress.tone === "caution" && "bg-yellow-100 text-yellow-900 dark:bg-yellow-900/20 dark:text-yellow-400",
+                        card.progress.tone === "critical" && "bg-red-100 text-red-900 dark:bg-red-900/20 dark:text-red-400"
+                      )}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                      {card.progress.caption}
+                    </Badge>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="text-2xl font-bold">{card.value}</div>
+                {card.helper && (
+                  <p className="text-xs text-muted-foreground">{card.helper}</p>
+                )}
+                {card.progress && (
+                  <div className="space-y-2">
+                    <Progress
+                      value={card.progress.percent}
+                      className="h-2"
+                      indicatorClassName={progressColor}
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Analytics Grid */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Keyword Momentum Chart */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <CardTitle>Keyword momentum</CardTitle>
+                <CardDescription>
+                  Track volume acceleration and AI opportunity picks to prioritise daily outreach.
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="h-3 w-3 rounded-full bg-primary" />
+                  <span className="text-muted-foreground">Volume</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-3 w-3 rounded-full bg-chart-2" />
+                  <span className="text-muted-foreground">Trending</span>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={keywordMomentumData}
+                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorTrending" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="hour"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) => `${value}`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--popover))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "var(--radius)",
+                    }}
+                    labelStyle={{ color: "hsl(var(--popover-foreground))" }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="volume"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorVolume)"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="trending"
+                    stroke="hsl(var(--chart-2))"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorTrending)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Next Best Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Next best actions</CardTitle>
+            <CardDescription>
+              Keep the pipeline moving with the highest leverage tasks for today.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button className="w-full justify-start" size="lg">
+              <Sparkles className="mr-2 h-4 w-4" />
               Add new keyword set
-            </button>
-            <button type="button" className="secondary-action">
+            </Button>
+            <Button variant="outline" className="w-full justify-start" size="lg">
+              <BarChart3 className="mr-2 h-4 w-4" />
               Connect marketplace source
-            </button>
-            <button type="button" className="secondary-action">
+            </Button>
+            <Button variant="outline" className="w-full justify-start" size="lg">
+              <TrendingUp className="mr-2 h-4 w-4" />
               Review AI opportunities
-            </button>
-          </div>
-        </aside>
-      </section>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
