@@ -4,8 +4,16 @@ export const dynamic = 'force-dynamic';
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useSession } from "@supabase/auth-helpers-react";
+import { Zap, Play, Eye, Heart } from "lucide-react";
 
 import { useToast } from "@/components/ui/use-toast";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 type ListingOption = {
   id: string;
@@ -209,148 +217,204 @@ export default function MarketTwinPage(): JSX.Element {
   };
 
   return (
-    <div className="market-twin">
-      <section className="surface-card market-twin-hero">
-        <div>
-          <h1>AI Market Twin</h1>
-          <p>Compare your baseline Etsy listings against hypothetical upgrades to predict visibility shifts.</p>
-        </div>
-        <span className="badge">Live Simulation</span>
-      </section>
-
-      <section className="market-twin-grid">
-        <form className="market-twin-form" onSubmit={handleSubmit}>
-          <h2>Simulation wizard</h2>
-          <p>Select a baseline listing, tweak the scenario, and generate AI-backed projections.</p>
-
-          <label>
-            <span>Baseline listing</span>
-            <select
-              value={selectedListingId ?? ""}
-              onChange={(event) => setSelectedListingId(event.target.value || null)}
-              disabled={loading || listings.length === 0}
-            >
-              <option value="" disabled>
-                {loading ? "Loading listings..." : "Select a listing"}
-              </option>
-              {listings.map((listing) => (
-                <option key={listing.id} value={listing.id}>
-                  {listing.title} — {listing.shopName ?? "Etsy shop"}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            <span>Scenario title</span>
-            <input value={scenarioTitle} onChange={(event) => setScenarioTitle(event.target.value)} placeholder="Improved SEO title" />
-          </label>
-
-          <label>
-            <span>Scenario price (USD)</span>
-            <input
-              type="number"
-              step="0.01"
-              value={scenarioPrice}
-              onChange={(event) => setScenarioPrice(event.target.value)}
-              placeholder="29.99"
-            />
-          </label>
-
-          <label>
-            <span>Scenario tags</span>
-            <textarea
-              rows={3}
-              value={scenarioTags}
-              onChange={(event) => setScenarioTags(event.target.value)}
-              placeholder="handmade, gift, trending"
-            />
-          </label>
-
-          <label>
-            <span>Goals</span>
-            <input value={goals} onChange={(event) => setGoals(event.target.value)} placeholder="Increase visibility;Improve conversion" />
-          </label>
-
-          <label>
-            <span>Description tweaks</span>
-            <textarea
-              rows={4}
-              value={scenarioDescription}
-              onChange={(event) => setScenarioDescription(event.target.value)}
-              placeholder="Highlight faster shipping, new bundles, or creative variations."
-            />
-          </label>
-
-          <button type="submit" className="market-twin-primary" disabled={submitting}>
-            {submitting ? "Running simulation..." : "Run Market Twin"}
-          </button>
-        </form>
-
-        <aside className="market-twin-sidebar">
-          <h2>Baseline snapshot</h2>
-          {activeListing ? (
-            <div className="market-twin-baseline">
-              <h3>{activeListing.title}</h3>
-              <dl>
-                <div>
-                  <dt>Shop</dt>
-                  <dd>{activeListing.shopName ?? "Etsy"}</dd>
-                </div>
-                <div>
-                  <dt>Status</dt>
-                  <dd>{activeListing.status}</dd>
-                </div>
-                <div>
-                  <dt>Price</dt>
-                  <dd>{formatCurrency(activeListing.priceCents, activeListing.currency)}</dd>
-                </div>
-                <div>
-                  <dt>Tags</dt>
-                  <dd>{activeListing.tags.length ? activeListing.tags.join(", ") : "No tags"}</dd>
-                </div>
-                <div>
-                  <dt>Signals</dt>
-                  <dd>
-                    {activeListing.stats ? (
-                      <>
-                        {activeListing.stats.views} views · {activeListing.stats.favorites} favorites
-                      </>
-                    ) : (
-                      "No stats yet"
-                    )}
-                  </dd>
-                </div>
-              </dl>
+    <div className="space-y-8">
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-3">
+              <Zap className="h-6 w-6 text-muted-foreground" />
+              <div className="space-y-1">
+                <CardTitle className="text-3xl font-bold">AI Market Twin</CardTitle>
+                <CardDescription className="text-base">
+                  Compare your baseline Etsy listings against hypothetical upgrades to predict visibility shifts.
+                </CardDescription>
+              </div>
             </div>
-          ) : (
-            <p className="market-twin-placeholder">Select a listing to inspect baseline metrics.</p>
-          )}
+            <Badge className="gap-1">
+              <Play className="h-3 w-3" />
+              Live Simulation
+            </Badge>
+          </div>
+        </CardHeader>
+      </Card>
 
-          <h2>Recent simulations</h2>
-          <ul className="market-twin-history">
-            {history.length === 0 && <li className="market-twin-placeholder">No simulations recorded yet.</li>}
-            {history.map((record) => {
-              const timestamp = record.createdAt ?? record.created_at;
-              const label = timestamp ? new Date(timestamp).toLocaleString() : "Pending";
-              return (
-                <li key={record.id ?? record.createdAt ?? label}>
-                  <div>
-                    <strong>{record.baseline?.title ?? record.scenario_input?.scenarioTitle ?? "Scenario"}</strong>
-                    <span>{label}</span>
-                  </div>
-                  <p>{record.result?.explanation ?? record.extras?.explanation ?? "Analysis pending. Check back shortly."}</p>
-                  <footer>
-                    <span>Visibility: {formatPercent(record.result?.predictedVisibility ?? record.predicted_visibility)}</span>
-                    <span>Confidence: {formatPercent(record.result?.confidence ?? record.confidence)}</span>
-                    <span>Semantic gap: {formatPercent(record.result?.semanticGap ?? record.extras?.semanticGap)}</span>
-                  </footer>
-                </li>
-              );
-            })}
-          </ul>
-        </aside>
-      </section>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Simulation wizard</CardTitle>
+            <CardDescription>Select a baseline listing, tweak the scenario, and generate AI-backed projections.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="baseline-listing">Baseline listing</Label>
+                <Select
+                  value={selectedListingId ?? ""}
+                  onValueChange={(value) => setSelectedListingId(value || null)}
+                  disabled={loading || listings.length === 0}
+                >
+                  <SelectTrigger id="baseline-listing">
+                    <SelectValue placeholder={loading ? "Loading listings..." : "Select a listing"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {listings.map((listing) => (
+                      <SelectItem key={listing.id} value={listing.id}>
+                        {listing.title} — {listing.shopName ?? "Etsy shop"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="scenario-title">Scenario title</Label>
+                  <Input
+                    id="scenario-title"
+                    value={scenarioTitle}
+                    onChange={(event) => setScenarioTitle(event.target.value)}
+                    placeholder="Improved SEO title"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="scenario-price">Scenario price (USD)</Label>
+                  <Input
+                    id="scenario-price"
+                    type="number"
+                    step="0.01"
+                    value={scenarioPrice}
+                    onChange={(event) => setScenarioPrice(event.target.value)}
+                    placeholder="29.99"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="scenario-tags">Scenario tags</Label>
+                <Textarea
+                  id="scenario-tags"
+                  rows={3}
+                  value={scenarioTags}
+                  onChange={(event) => setScenarioTags(event.target.value)}
+                  placeholder="handmade, gift, trending"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="goals">Goals</Label>
+                <Input
+                  id="goals"
+                  value={goals}
+                  onChange={(event) => setGoals(event.target.value)}
+                  placeholder="Increase visibility;Improve conversion"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description-tweaks">Description tweaks</Label>
+                <Textarea
+                  id="description-tweaks"
+                  rows={4}
+                  value={scenarioDescription}
+                  onChange={(event) => setScenarioDescription(event.target.value)}
+                  placeholder="Highlight faster shipping, new bundles, or creative variations."
+                />
+              </div>
+
+              <Button type="submit" disabled={submitting} className="w-full">
+                {submitting ? "Running simulation..." : "Run Market Twin"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Baseline snapshot</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {activeListing ? (
+                <div className="space-y-4">
+                  <h3 className="font-semibold">{activeListing.title}</h3>
+                  <dl className="space-y-2 text-sm">
+                    <div className="flex justify-between border-b border-border pb-2">
+                      <dt className="font-medium">Shop</dt>
+                      <dd className="text-muted-foreground">{activeListing.shopName ?? "Etsy"}</dd>
+                    </div>
+                    <div className="flex justify-between border-b border-border pb-2">
+                      <dt className="font-medium">Status</dt>
+                      <dd className="text-muted-foreground">{activeListing.status}</dd>
+                    </div>
+                    <div className="flex justify-between border-b border-border pb-2">
+                      <dt className="font-medium">Price</dt>
+                      <dd className="text-muted-foreground">{formatCurrency(activeListing.priceCents, activeListing.currency)}</dd>
+                    </div>
+                    <div className="flex justify-between border-b border-border pb-2">
+                      <dt className="font-medium">Tags</dt>
+                      <dd className="text-muted-foreground">{activeListing.tags.length ? activeListing.tags.join(", ") : "No tags"}</dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt className="font-medium">Signals</dt>
+                      <dd className="text-muted-foreground">
+                        {activeListing.stats ? (
+                          <div className="flex items-center gap-2">
+                            <span className="flex items-center gap-1">
+                              <Eye className="h-3 w-3" />
+                              {activeListing.stats.views}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Heart className="h-3 w-3" />
+                              {activeListing.stats.favorites}
+                            </span>
+                          </div>
+                        ) : (
+                          "No stats yet"
+                        )}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Select a listing to inspect baseline metrics.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent simulations</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {history.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No simulations recorded yet.</p>
+              ) : (
+                <div className="space-y-4">
+                  {history.map((record) => {
+                    const timestamp = record.createdAt ?? record.created_at;
+                    const label = timestamp ? new Date(timestamp).toLocaleString() : "Pending";
+                    return (
+                      <div key={record.id ?? record.createdAt ?? label} className="space-y-2 border-b border-border pb-4 last:border-0 last:pb-0">
+                        <div className="flex items-start justify-between">
+                          <strong className="text-sm font-semibold">{record.baseline?.title ?? record.scenario_input?.scenarioTitle ?? "Scenario"}</strong>
+                          <span className="text-xs text-muted-foreground">{label}</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{record.result?.explanation ?? record.extras?.explanation ?? "Analysis pending. Check back shortly."}</p>
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          <Badge variant="outline">Visibility: {formatPercent(record.result?.predictedVisibility ?? record.predicted_visibility)}</Badge>
+                          <Badge variant="outline">Confidence: {formatPercent(record.result?.confidence ?? record.confidence)}</Badge>
+                          <Badge variant="outline">Semantic gap: {formatPercent(record.result?.semanticGap ?? record.extras?.semanticGap)}</Badge>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
