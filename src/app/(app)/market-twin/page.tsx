@@ -2,9 +2,9 @@
 
 export const dynamic = 'force-dynamic';
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useState } from "react";
 import { useSession } from "@supabase/auth-helpers-react";
-import { Zap, Play, Eye, Heart } from "lucide-react";
+import { Zap, Play, ExternalLink, Loader2 } from "lucide-react";
 
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,50 +12,40 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 
-type ListingOption = {
-  id: string;
+type ProductData = {
+  url: string;
+  marketplace: string;
   title: string;
-  shopName: string | null;
-  status: string;
-  priceCents: number | null;
-  currency: string | null;
+  price: number | null;
+  currency: string;
+  description: string;
   tags: string[];
-  stats?: { views: number; favorites: number };
+  images: string[];
 };
 
-type SimulationHistoryItem = {
-  id?: string;
-  listing_id?: string;
-  created_at?: string;
-  createdAt?: string;
-  scenario_input?: {
-    listingId: string;
-    scenarioTitle: string;
-    scenarioTags: string[];
-    scenarioPriceCents: number;
-    scenarioDescription?: string;
-    goals?: string[];
+type SimulationResult = {
+  id: string;
+  createdAt: string;
+  product: ProductData;
+  scenario: {
+    title: string;
+    tags: string[];
+    priceCents: number;
+    description: string;
+    goals: string[];
   };
-  predicted_visibility?: number | null;
-  confidence?: number | null;
-  extras?: {
-    explanation?: string;
-    semanticGap?: number;
-    trendCorrelationDelta?: number;
-  };
-  baseline?: { title: string };
-  result?: {
-    explanation?: string;
-    predictedVisibility?: number;
-    confidence?: number;
-    semanticGap?: number;
+  result: {
+    explanation: string;
+    predictedVisibility: number;
+    confidence: number;
+    semanticGap: number;
+    recommendations: string[];
   };
 };
 
-function formatCurrency(cents: number | null | undefined, currency?: string | null): string {
+function formatCurrency(cents: number | null | undefined, currency?: string): string {
   if (cents == null) {
     return "n/a";
   }
@@ -77,85 +67,95 @@ export default function MarketTwinPage(): JSX.Element {
   const { toast } = useToast();
   const session = useSession();
   const userId = session?.user?.id ?? null;
-  const [listings, setListings] = useState<ListingOption[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [history, setHistory] = useState<SimulationHistoryItem[]>([]);
-  const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
+
+  // Product URL and data
+  const [productUrl, setProductUrl] = useState("");
+  const [productData, setProductData] = useState<ProductData | null>(null);
+  const [fetchingProduct, setFetchingProduct] = useState(false);
+
+  // Scenario inputs
   const [scenarioTitle, setScenarioTitle] = useState("");
   const [scenarioTags, setScenarioTags] = useState<string>("");
   const [scenarioPrice, setScenarioPrice] = useState<number | string>("");
   const [scenarioDescription, setScenarioDescription] = useState("");
-  const [goals, setGoals] = useState<string>("Increase visibility;Improve conversion");
+  const [goals, setGoals] = useState<string>("Increase visibility;Improve conversion;Optimize pricing");
+
+  // Simulation state
   const [submitting, setSubmitting] = useState(false);
+  const [history, setHistory] = useState<SimulationResult[]>([]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadData() {
-      if (!userId) {
-        setListings([]);
-        setHistory([]);
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
-      try {
-        const encodedUserId = encodeURIComponent(userId);
-        const listingResponse = await fetch(`/api/listings?userId=${encodedUserId}`, {
-          signal: controller.signal,
-        });
-        const listingJson = await listingResponse.json();
-        setListings(listingJson.listings ?? []);
-
-        const historyResponse = await fetch(`/api/market-twin?userId=${encodedUserId}`, {
-          signal: controller.signal,
-        });
-        const historyJson = await historyResponse.json();
-        setHistory(historyJson.simulations ?? []);
-      } catch (error) {
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
-          console.warn("Failed to load Market Twin data", error);
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadData();
-
-    return () => controller.abort();
-  }, [userId]);
-
-  useEffect(() => {
-    if (!selectedListingId) {
-      if (listings.length > 0) {
-        setSelectedListingId(listings[0].id);
-      }
+  const fetchProductData = async () => {
+    if (!productUrl.trim()) {
+      toast({
+        title: "URL required",
+        description: "Enter a product URL from any marketplace.",
+        variant: "warning"
+      });
       return;
     }
 
-    const listing = listings.find((item) => item.id === selectedListingId);
-    if (listing) {
-      setScenarioTitle(listing.title);
-      setScenarioTags(listing.tags.join(", "));
-      setScenarioPrice(listing.priceCents != null ? (listing.priceCents / 100).toFixed(2) : "");
+    if (!userId) {
+      toast({
+        title: "Sign in required",
+        description: "You must be signed in to analyze products.",
+        variant: "destructive",
+      });
+      return;
     }
-  }, [listings, selectedListingId]);
 
-  const activeListing = useMemo(
-    () => listings.find((listing) => listing.id === selectedListingId) ?? null,
-    [listings, selectedListingId],
-  );
+    setFetchingProduct(true);
+    try {
+      const response = await fetch("/api/market-twin/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, url: productUrl }),
+      });
+
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error ?? "Failed to fetch product data");
+      }
+
+      setProductData(json.product);
+      setScenarioTitle(json.product.title);
+      setScenarioTags(json.product.tags.join(", "));
+      setScenarioPrice(json.product.price != null ? (json.product.price / 100).toFixed(2) : "");
+      setScenarioDescription(json.product.description);
+
+      toast({
+        title: "Product loaded",
+        description: `Fetched data from ${json.product.marketplace}`,
+        variant: "success",
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to fetch product",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      });
+    } finally {
+      setFetchingProduct(false);
+    }
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!selectedListingId) {
-      toast({ title: "Select a listing", description: "Choose an Etsy listing to simulate.", variant: "warning" });
+
+    if (!productData) {
+      toast({
+        title: "Load product first",
+        description: "Click 'Load Product' to analyze a product URL.",
+        variant: "warning"
+      });
       return;
     }
+
     if (!scenarioTitle.trim()) {
-      toast({ title: "Scenario title required", description: "Give your hypothetical listing a title.", variant: "warning" });
+      toast({
+        title: "Scenario title required",
+        description: "Give your optimized listing a title.",
+        variant: "warning"
+      });
       return;
     }
 
@@ -178,7 +178,8 @@ export default function MarketTwinPage(): JSX.Element {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
-          listingId: selectedListingId,
+          productUrl: productData.url,
+          productData,
           scenarioTitle,
           scenarioTags: scenarioTags
             .split(",")
@@ -199,8 +200,8 @@ export default function MarketTwinPage(): JSX.Element {
       }
 
       toast({
-        title: "Simulation ready",
-        description: "Market Twin computed new visibility and semantic fit.",
+        title: "Simulation complete",
+        description: "Market Twin generated AI-backed projections.",
         variant: "success",
       });
 
@@ -226,7 +227,7 @@ export default function MarketTwinPage(): JSX.Element {
               <div className="space-y-1">
                 <CardTitle className="text-3xl font-bold">AI Market Twin</CardTitle>
                 <CardDescription className="text-base">
-                  Compare your baseline Etsy listings against hypothetical upgrades to predict visibility shifts.
+                  Paste any product link, tweak the scenario, and generate AI-backed market projections and optimizations.
                 </CardDescription>
               </div>
             </div>
@@ -236,151 +237,179 @@ export default function MarketTwinPage(): JSX.Element {
             </Badge>
           </div>
         </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Supports products from Etsy, Amazon, Shopify, and other major marketplaces. The AI analyzes visibility, pricing, SEO, and market fit.
+          </p>
+        </CardContent>
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Simulation wizard</CardTitle>
-            <CardDescription>Select a baseline listing, tweak the scenario, and generate AI-backed projections.</CardDescription>
+            <CardDescription>Paste a product link, load the data, tweak your scenario, and generate predictions.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="baseline-listing">Baseline listing</Label>
-                <Select
-                  value={selectedListingId ?? ""}
-                  onValueChange={(value) => setSelectedListingId(value || null)}
-                  disabled={loading || listings.length === 0}
-                >
-                  <SelectTrigger id="baseline-listing">
-                    <SelectValue placeholder={loading ? "Loading listings..." : "Select a listing"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {listings.map((listing) => (
-                      <SelectItem key={listing.id} value={listing.id}>
-                        {listing.title} — {listing.shopName ?? "Etsy shop"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Product URL Input */}
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="scenario-title">Scenario title</Label>
-                  <Input
-                    id="scenario-title"
-                    value={scenarioTitle}
-                    onChange={(event) => setScenarioTitle(event.target.value)}
-                    placeholder="Improved SEO title"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="scenario-price">Scenario price (USD)</Label>
-                  <Input
-                    id="scenario-price"
-                    type="number"
-                    step="0.01"
-                    value={scenarioPrice}
-                    onChange={(event) => setScenarioPrice(event.target.value)}
-                    placeholder="29.99"
-                  />
+                  <Label htmlFor="product-url">Product URL</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="product-url"
+                      value={productUrl}
+                      onChange={(event) => setProductUrl(event.target.value)}
+                      placeholder="https://www.etsy.com/listing/... or https://www.amazon.com/..."
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      onClick={fetchProductData}
+                      disabled={fetchingProduct || !productUrl.trim()}
+                    >
+                      {fetchingProduct ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          Load Product
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Paste a product URL from Etsy, Amazon, Shopify, or other marketplaces
+                  </p>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="scenario-tags">Scenario tags</Label>
-                <Textarea
-                  id="scenario-tags"
-                  rows={3}
-                  value={scenarioTags}
-                  onChange={(event) => setScenarioTags(event.target.value)}
-                  placeholder="handmade, gift, trending"
-                />
-              </div>
+              {productData && (
+                <>
+                  <div className="rounded-md border bg-muted/50 p-4 space-y-2">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">{productData.marketplace}</Badge>
+                        <span className="text-sm font-medium">Product loaded</span>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground line-clamp-1">{productData.title}</p>
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="goals">Goals</Label>
-                <Input
-                  id="goals"
-                  value={goals}
-                  onChange={(event) => setGoals(event.target.value)}
-                  placeholder="Increase visibility;Improve conversion"
-                />
-              </div>
+                  <div className="border-t pt-6 space-y-4">
+                    <h3 className="font-semibold">Scenario tweaks</h3>
 
-              <div className="space-y-2">
-                <Label htmlFor="description-tweaks">Description tweaks</Label>
-                <Textarea
-                  id="description-tweaks"
-                  rows={4}
-                  value={scenarioDescription}
-                  onChange={(event) => setScenarioDescription(event.target.value)}
-                  placeholder="Highlight faster shipping, new bundles, or creative variations."
-                />
-              </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="scenario-title">Optimized title</Label>
+                        <Input
+                          id="scenario-title"
+                          value={scenarioTitle}
+                          onChange={(event) => setScenarioTitle(event.target.value)}
+                          placeholder="Improved SEO title"
+                        />
+                      </div>
 
-              <Button type="submit" disabled={submitting} className="w-full">
-                {submitting ? "Running simulation..." : "Run Market Twin"}
-              </Button>
+                      <div className="space-y-2">
+                        <Label htmlFor="scenario-price">Optimized price (USD)</Label>
+                        <Input
+                          id="scenario-price"
+                          type="number"
+                          step="0.01"
+                          value={scenarioPrice}
+                          onChange={(event) => setScenarioPrice(event.target.value)}
+                          placeholder="29.99"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="scenario-tags">Optimized tags</Label>
+                      <Textarea
+                        id="scenario-tags"
+                        rows={2}
+                        value={scenarioTags}
+                        onChange={(event) => setScenarioTags(event.target.value)}
+                        placeholder="handmade, gift, trending, sustainable"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="description-tweaks">Description tweaks</Label>
+                      <Textarea
+                        id="description-tweaks"
+                        rows={3}
+                        value={scenarioDescription}
+                        onChange={(event) => setScenarioDescription(event.target.value)}
+                        placeholder="Highlight faster shipping, new bundles, or creative variations."
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="goals">Optimization goals</Label>
+                      <Input
+                        id="goals"
+                        value={goals}
+                        onChange={(event) => setGoals(event.target.value)}
+                        placeholder="Increase visibility;Improve conversion;Optimize pricing"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Semicolon-separated goals to guide AI recommendations
+                      </p>
+                    </div>
+
+                    <Button type="submit" disabled={submitting} className="w-full">
+                      {submitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Running simulation...
+                        </>
+                      ) : (
+                        "Run Market Twin Analysis"
+                      )}
+                    </Button>
+                  </div>
+                </>
+              )}
             </form>
           </CardContent>
         </Card>
 
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Baseline snapshot</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {activeListing ? (
+          {productData && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Product snapshot</CardTitle>
+              </CardHeader>
+              <CardContent>
                 <div className="space-y-4">
-                  <h3 className="font-semibold">{activeListing.title}</h3>
+                  <h3 className="font-semibold line-clamp-2">{productData.title}</h3>
                   <dl className="space-y-2 text-sm">
                     <div className="flex justify-between border-b border-border pb-2">
-                      <dt className="font-medium">Shop</dt>
-                      <dd className="text-muted-foreground">{activeListing.shopName ?? "Etsy"}</dd>
-                    </div>
-                    <div className="flex justify-between border-b border-border pb-2">
-                      <dt className="font-medium">Status</dt>
-                      <dd className="text-muted-foreground">{activeListing.status}</dd>
+                      <dt className="font-medium">Marketplace</dt>
+                      <dd className="text-muted-foreground">{productData.marketplace}</dd>
                     </div>
                     <div className="flex justify-between border-b border-border pb-2">
                       <dt className="font-medium">Price</dt>
-                      <dd className="text-muted-foreground">{formatCurrency(activeListing.priceCents, activeListing.currency)}</dd>
-                    </div>
-                    <div className="flex justify-between border-b border-border pb-2">
-                      <dt className="font-medium">Tags</dt>
-                      <dd className="text-muted-foreground">{activeListing.tags.length ? activeListing.tags.join(", ") : "No tags"}</dd>
+                      <dd className="text-muted-foreground">
+                        {formatCurrency(productData.price, productData.currency)}
+                      </dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="font-medium">Signals</dt>
-                      <dd className="text-muted-foreground">
-                        {activeListing.stats ? (
-                          <div className="flex items-center gap-2">
-                            <span className="flex items-center gap-1">
-                              <Eye className="h-3 w-3" />
-                              {activeListing.stats.views}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Heart className="h-3 w-3" />
-                              {activeListing.stats.favorites}
-                            </span>
-                          </div>
-                        ) : (
-                          "No stats yet"
-                        )}
+                      <dt className="font-medium">Tags</dt>
+                      <dd className="text-muted-foreground text-xs">
+                        {productData.tags.length ? productData.tags.slice(0, 3).join(", ") + (productData.tags.length > 3 ? "..." : "") : "No tags"}
                       </dd>
                     </div>
                   </dl>
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Select a listing to inspect baseline metrics.</p>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -388,27 +417,32 @@ export default function MarketTwinPage(): JSX.Element {
             </CardHeader>
             <CardContent>
               {history.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No simulations recorded yet.</p>
+                <p className="text-sm text-muted-foreground">No simulations yet. Run your first analysis above.</p>
               ) : (
                 <div className="space-y-4">
-                  {history.map((record) => {
-                    const timestamp = record.createdAt ?? record.created_at;
-                    const label = timestamp ? new Date(timestamp).toLocaleString() : "Pending";
-                    return (
-                      <div key={record.id ?? record.createdAt ?? label} className="space-y-2 border-b border-border pb-4 last:border-0 last:pb-0">
-                        <div className="flex items-start justify-between">
-                          <strong className="text-sm font-semibold">{record.baseline?.title ?? record.scenario_input?.scenarioTitle ?? "Scenario"}</strong>
-                          <span className="text-xs text-muted-foreground">{label}</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">{record.result?.explanation ?? record.extras?.explanation ?? "Analysis pending. Check back shortly."}</p>
-                        <div className="flex flex-wrap gap-2 text-xs">
-                          <Badge variant="outline">Visibility: {formatPercent(record.result?.predictedVisibility ?? record.predicted_visibility)}</Badge>
-                          <Badge variant="outline">Confidence: {formatPercent(record.result?.confidence ?? record.confidence)}</Badge>
-                          <Badge variant="outline">Semantic gap: {formatPercent(record.result?.semanticGap ?? record.extras?.semanticGap)}</Badge>
-                        </div>
+                  {history.map((record) => (
+                    <div key={record.id} className="space-y-2 border-b border-border pb-4 last:border-0 last:pb-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <strong className="text-sm font-semibold line-clamp-1">{record.scenario.title}</strong>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {new Date(record.createdAt).toLocaleString()}
+                        </span>
                       </div>
-                    );
-                  })}
+                      <Badge variant="outline" className="text-xs">{record.product.marketplace}</Badge>
+                      <p className="text-sm text-muted-foreground line-clamp-2">{record.result.explanation}</p>
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        <Badge variant="secondary">
+                          Visibility: {formatPercent(record.result.predictedVisibility)}
+                        </Badge>
+                        <Badge variant="secondary">
+                          Confidence: {formatPercent(record.result.confidence)}
+                        </Badge>
+                        <Badge variant="secondary">
+                          Semantic gap: {formatPercent(record.result.semanticGap)}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
