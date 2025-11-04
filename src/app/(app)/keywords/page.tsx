@@ -46,6 +46,13 @@ type KeywordResult = {
   method?: string | null;
   extras?: Record<string, unknown> | null;
   compositeScore?: number;
+  demand_index?: number | null;
+  competition_score?: number | null;
+  engagement_score?: number | null;
+  base_demand_index?: number | null;
+  adjusted_demand_index?: number | null;
+  deseasoned_trend_momentum?: number | null;
+  seasonal_label?: string | null;
 };
 
 type SearchResponse = {
@@ -143,7 +150,7 @@ type State = {
   // view
   activeTab: "overview" | "opportunities";
   // table controls
-  sortKey: "term" | "ai_opportunity_score" | "trend_momentum" | "compositeScore" | "source" | "freshness_ts";
+  sortKey: "term" | "ai_opportunity_score" | "trend_momentum" | "compositeScore" | "source" | "freshness_ts" | "adjusted_demand_index" | "competition_score";
   sortDir: "asc" | "desc";
   page: number;
   // optimizer modal
@@ -164,7 +171,7 @@ const initialState: State = {
   loading: false,
   error: null,
   activeTab: "opportunities",
-  sortKey: "ai_opportunity_score",
+  sortKey: "adjusted_demand_index",
   sortDir: "desc",
   page: 1,
   optOpen: false,
@@ -807,9 +814,9 @@ export default function KeywordsPage(): JSX.Element {
                     <tr className="border-b bg-muted/50">
                       {([
                         { key: "term", label: "Keyword" },
-                        { key: "ai_opportunity_score", label: "Demand index" },
-                        { key: "compositeScore", label: "Competition" },
-                        { key: "trend_momentum", label: "Trend momentum" },
+                        { key: "adjusted_demand_index", label: "Demand Index" },
+                        { key: "competition_score", label: "Competition" },
+                        { key: "trend_momentum", label: "Trend Momentum" },
                         { key: "source", label: "Source" },
                         { key: "__actions", label: "Actions" },
                       ] as const).map((col) => (
@@ -873,9 +880,20 @@ export default function KeywordsPage(): JSX.Element {
                               )}
                             </div>
                           </th>
-                          <td className="px-4 py-3 text-sm">{percent(k.ai_opportunity_score ?? null)}</td>
-                          <td className="px-4 py-3 text-sm">{percent(k.compositeScore ?? null)}</td>
-                          <td className="px-4 py-3 text-sm">{percent(k.trend_momentum ?? null)}</td>
+                          <td className="px-4 py-3 text-sm">
+                            <div className="flex flex-col gap-1">
+                              <span>{percent(k.adjusted_demand_index ?? k.demand_index ?? k.ai_opportunity_score ?? null)}</span>
+                              {k.seasonal_label && (
+                                <Badge variant="outline" className="text-xs">{k.seasonal_label}</Badge>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-sm">{percent(k.competition_score ?? k.compositeScore ?? null)}</td>
+                          <td className="px-4 py-3 text-sm">
+                            <div className="flex flex-col gap-1">
+                              <span>{percent(k.deseasoned_trend_momentum ?? k.trend_momentum ?? null)}</span>
+                            </div>
+                          </td>
                           <td className="px-4 py-3 text-sm">
                             <Badge variant="secondary">{SOURCE_DETAILS[k.source]?.title ?? k.source}</Badge>
                           </td>

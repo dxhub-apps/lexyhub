@@ -44,6 +44,10 @@ type KeywordDetails = {
   freshness_ts?: string | null;
   similarity?: number;
   compositeScore?: number;
+  base_demand_index?: number | null;
+  adjusted_demand_index?: number | null;
+  deseasoned_trend_momentum?: number | null;
+  seasonal_label?: string | null;
 };
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
@@ -212,9 +216,9 @@ export default function KeywordDetailsPage(): JSX.Element {
     );
   }
 
-  const demandScore = percent(keyword.demand_index ?? keyword.ai_opportunity_score);
+  const demandScore = percent(keyword.adjusted_demand_index ?? keyword.demand_index ?? keyword.ai_opportunity_score);
   const competitionScore = percent(keyword.competition_score ?? keyword.compositeScore);
-  const trendScore = percent(keyword.trend_momentum);
+  const trendScore = percent(keyword.deseasoned_trend_momentum ?? keyword.trend_momentum);
   const engagementScore = percent(keyword.engagement_score);
 
   const tags = (keyword.extras?.["tags"] as string[] | undefined) ?? [];
@@ -297,10 +301,17 @@ export default function KeywordDetailsPage(): JSX.Element {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <div className="text-3xl font-bold">{demandScore}%</div>
+              <div className="flex items-center gap-2">
+                <div className="text-3xl font-bold">{demandScore}%</div>
+                {keyword.seasonal_label && (
+                  <Badge variant="secondary" className="text-xs">{keyword.seasonal_label}</Badge>
+                )}
+              </div>
               <Progress value={demandScore} className="h-2" />
               <p className="text-xs text-muted-foreground">
-                Indicates search demand and market interest
+                {keyword.adjusted_demand_index
+                  ? "Seasonal-adjusted search demand and market interest"
+                  : "Indicates search demand and market interest"}
               </p>
             </div>
           </CardContent>
@@ -336,7 +347,9 @@ export default function KeywordDetailsPage(): JSX.Element {
               <div className="text-3xl font-bold">{trendScore}%</div>
               <Progress value={trendScore} className="h-2" />
               <p className="text-xs text-muted-foreground">
-                Growth trajectory and trending potential
+                {keyword.deseasoned_trend_momentum
+                  ? "Deseasoned growth trajectory relative to baseline"
+                  : "Growth trajectory and trending potential"}
               </p>
             </div>
           </CardContent>
