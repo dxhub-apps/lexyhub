@@ -566,23 +566,34 @@ export default function KeywordsPage(): JSX.Element {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="keyword-query">Keyword or product idea</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="keyword-query"
-                    value={state.query}
-                    onChange={(e) => { dispatch({ type: "SET_QUERY", v: e.target.value }); debouncedSubmit(e.target.value); }}
-                    placeholder="Search for opportunities, e.g. boho nursery decor"
-                    disabled={state.loading}
-                    autoComplete="off"
-                    aria-describedby="keyword-hint"
-                    className="pl-9"
-                  />
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="keyword-query"
+                      value={state.query}
+                      onChange={(e) => { dispatch({ type: "SET_QUERY", v: e.target.value }); }}
+                      placeholder="Search for opportunities, e.g. boho nursery decor"
+                      disabled={state.loading}
+                      autoComplete="off"
+                      aria-describedby="keyword-hint"
+                      className="pl-9"
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); dispatch({ type: "SET_TAB", v: "opportunities" }); void performSearch(state.query); } }}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={() => { dispatch({ type: "SET_TAB", v: "opportunities" }); void performSearch(state.query); }}
+                    disabled={state.loading || !state.query.trim()}
+                  >
+                    <Search className="mr-2 h-4 w-4" />
+                    Search
+                  </Button>
                 </div>
-                <p id="keyword-hint" className="text-xs text-muted-foreground">Press Enter to refresh demand signals.</p>
+                <p id="keyword-hint" className="text-xs text-muted-foreground">Click Search button or press Enter to find opportunities.</p>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="market-select">Market</Label>
                   <Select
@@ -601,50 +612,22 @@ export default function KeywordsPage(): JSX.Element {
                   </Select>
                 </div>
 
-                <div className="space-y-2 sm:col-span-2">
-                  <Label>Signals</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {DEFAULT_SOURCES.map((source) => {
-                      const active = state.filters.sources.includes(source);
-                      const detail = SOURCE_DETAILS[source];
-                      return (
-                        <Button
-                          key={source}
-                          type="button"
-                          variant={active ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => toggleSource(source)}
-                          disabled={state.loading || (active && state.filters.sources.length === 1)}
-                          className="flex-col items-start gap-0 h-auto py-2"
-                        >
-                          <span className="font-medium">{detail?.title ?? source}</span>
-                          <span className="text-xs font-normal opacity-70">{detail?.description ?? ""}</span>
-                        </Button>
-                      );
-                    })}
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="tag-focus">Tag focus</Label>
+                  <Input
+                    id="tag-focus"
+                    type="text"
+                    value={state.filters.tags}
+                    onChange={(e) => dispatch({ type: "SET_FILTERS", v: { ...state.filters, tags: e.target.value } })}
+                    placeholder="e.g. boho, nursery, eco"
+                    disabled={state.loading}
+                  />
+                  <p className="text-xs text-muted-foreground">Comma separate phrases to influence AI suggestions.</p>
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="tag-focus">Tag focus</Label>
-                <Input
-                  id="tag-focus"
-                  type="text"
-                  value={state.filters.tags}
-                  onChange={(e) => dispatch({ type: "SET_FILTERS", v: { ...state.filters, tags: e.target.value } })}
-                  placeholder="e.g. boho, nursery, eco"
-                  disabled={state.loading}
-                />
-                <p className="text-xs text-muted-foreground">Comma separate phrases to influence AI suggestions.</p>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Button type="submit" disabled={state.loading || !state.query.trim()}>
-                <Search className="mr-2 h-4 w-4" />
-                {state.loading ? "Searching…" : "Search"}
-              </Button>
               <Button
                 type="button"
                 variant="outline"
