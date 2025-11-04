@@ -1,4 +1,8 @@
 import { generateStatusReport, type StatusLevel } from "@/lib/status";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Activity, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -8,12 +12,24 @@ const STATUS_LABELS: Record<StatusLevel, string> = {
   critical: "Critical",
 };
 
+const STATUS_ICONS: Record<StatusLevel, React.ReactNode> = {
+  operational: <CheckCircle2 className="h-4 w-4" />,
+  warning: <AlertTriangle className="h-4 w-4" />,
+  critical: <XCircle className="h-4 w-4" />,
+};
+
+const STATUS_VARIANTS: Record<StatusLevel, "default" | "secondary" | "destructive" | "outline"> = {
+  operational: "default",
+  warning: "secondary",
+  critical: "destructive",
+};
+
 function StatusBadge({ status }: { status: StatusLevel }) {
   return (
-    <span className={`status-badge status-badge--${status}`}>
-      <span className={`status-badge__dot status-badge__dot--${status}`} aria-hidden="true" />
+    <Badge variant={STATUS_VARIANTS[status]} className="gap-1.5">
+      {STATUS_ICONS[status]}
       {STATUS_LABELS[status]}
-    </span>
+    </Badge>
   );
 }
 
@@ -50,118 +66,133 @@ export default async function StatusPage() {
   const generatedAt = new Date(status.generatedAt);
 
   return (
-    <div className="status-page">
-      <section className="surface-card status-header">
-        <div className="status-header__copy">
-          <span className="status-eyebrow">LexyHub</span>
-          <h1>Platform health</h1>
-          <p>
-            A compact snapshot of runtime diagnostics, first-party APIs, and service integrations
-            monitored from the server.
-          </p>
-        </div>
-        <dl className="status-meta">
-          <div className="status-meta__item">
-            <dt>Overall</dt>
-            <dd>
-              <StatusBadge status={overallStatus} />
-            </dd>
+    <div className="space-y-8">
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-3">
+              <Activity className="h-6 w-6 text-muted-foreground" />
+              <div className="space-y-1">
+                <CardTitle className="text-3xl font-bold">Platform Health</CardTitle>
+                <CardDescription className="text-base">
+                  A compact snapshot of runtime diagnostics, first-party APIs, and service integrations monitored from the server.
+                </CardDescription>
+              </div>
+            </div>
           </div>
-          <div className="status-meta__item">
-            <dt>Last updated</dt>
-            <dd>
-              <time dateTime={status.generatedAt}>{generatedAt.toLocaleString()}</time>
-            </dd>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-1">
+              <span className="text-sm text-muted-foreground">Overall Status</span>
+              <div>
+                <StatusBadge status={overallStatus} />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <span className="text-sm text-muted-foreground">Last Updated</span>
+              <div className="text-sm font-medium">
+                <time dateTime={status.generatedAt}>{generatedAt.toLocaleString()}</time>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <span className="text-sm text-muted-foreground">Environment</span>
+              <div className="text-sm font-medium">{status.environment}</div>
+            </div>
           </div>
-          <div className="status-meta__item">
-            <dt>Environment</dt>
-            <dd>{status.environment}</dd>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Runtime Snapshot</CardTitle>
+          <CardDescription>Key diagnostics from the current deployment</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+            <div className="rounded-md border p-4 space-y-2">
+              <span className="text-sm text-muted-foreground">Node.js</span>
+              <div className="text-lg font-semibold">{status.runtime.node}</div>
+            </div>
+            <div className="rounded-md border p-4 space-y-2">
+              <span className="text-sm text-muted-foreground">Platform</span>
+              <div className="text-lg font-semibold">
+                {status.runtime.platform} {status.runtime.release}
+              </div>
+            </div>
+            <div className="rounded-md border p-4 space-y-2">
+              <span className="text-sm text-muted-foreground">Process Uptime</span>
+              <div className="text-lg font-semibold">{formatSeconds(status.runtime.uptimeSeconds)}</div>
+            </div>
+            {status.runtime.region && (
+              <div className="rounded-md border p-4 space-y-2">
+                <span className="text-sm text-muted-foreground">Region</span>
+                <div className="text-lg font-semibold">{status.runtime.region}</div>
+              </div>
+            )}
           </div>
-        </dl>
-      </section>
+        </CardContent>
+      </Card>
 
-      <section className="status-section">
-        <div className="status-section__header">
-          <h2>Runtime snapshot</h2>
-          <p>Key diagnostics from the current deployment.</p>
-        </div>
-        <div className="status-grid">
-          <article className="status-card">
-            <span>Node.js</span>
-            <strong>{status.runtime.node}</strong>
-          </article>
-          <article className="status-card">
-            <span>Platform</span>
-            <strong>
-              {status.runtime.platform} {status.runtime.release}
-            </strong>
-          </article>
-          <article className="status-card">
-            <span>Process Uptime</span>
-            <strong>{formatSeconds(status.runtime.uptimeSeconds)}</strong>
-          </article>
-          {status.runtime.region ? (
-            <article className="status-card">
-              <span>Region</span>
-              <strong>{status.runtime.region}</strong>
-            </article>
-          ) : null}
-        </div>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>API Surface</CardTitle>
+          <CardDescription>Availability of the shipped API handlers</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {status.apis.map((api) => (
+              <div key={api.id} className="rounded-md border p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold">{api.name}</h3>
+                  <StatusBadge status={api.status} />
+                </div>
+                <p className="text-sm text-muted-foreground">{api.message}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
-      <section className="status-section">
-        <div className="status-section__header">
-          <h2>API surface</h2>
-          <p>Availability of the shipped API handlers.</p>
-        </div>
-        <div className="status-list">
-          {status.apis.map((api) => (
-            <article key={api.id} className="status-item">
-              <header>
-                <h3>{api.name}</h3>
-                <StatusBadge status={api.status} />
-              </header>
-              <p>{api.message}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Service Integrations</CardTitle>
+          <CardDescription>External dependencies monitored from the server</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {status.services.map((service) => (
+              <div key={service.id} className="rounded-md border p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold">{service.name}</h3>
+                  <StatusBadge status={service.status} />
+                </div>
+                <p className="text-sm text-muted-foreground">{service.message}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
-      <section className="status-section">
-        <div className="status-section__header">
-          <h2>Service integrations</h2>
-          <p>External dependencies monitored from the server.</p>
-        </div>
-        <div className="status-list">
-          {status.services.map((service) => (
-            <article key={service.id} className="status-item">
-              <header>
-                <h3>{service.name}</h3>
-                <StatusBadge status={service.status} />
-              </header>
-              <p>{service.message}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="status-section">
-        <div className="status-section__header">
-          <h2>Background workers</h2>
-          <p>Automation endpoints that populate live intelligence data.</p>
-        </div>
-        <div className="status-list">
-          {status.workers.map((worker) => (
-            <article key={worker.id} className="status-item">
-              <header>
-                <h3>{worker.name}</h3>
-                <StatusBadge status={worker.status} />
-              </header>
-              <p>{worker.message}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Background Workers</CardTitle>
+          <CardDescription>Automation endpoints that populate live intelligence data</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {status.workers.map((worker) => (
+              <div key={worker.id} className="rounded-md border p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold">{worker.name}</h3>
+                  <StatusBadge status={worker.status} />
+                </div>
+                <p className="text-sm text-muted-foreground">{worker.message}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
