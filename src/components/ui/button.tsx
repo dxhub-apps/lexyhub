@@ -44,6 +44,16 @@ export interface ButtonProps
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, loading, children, disabled, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
+
+    // When loading is true, we need to wrap loader + children in a single element
+    // to avoid React.Children.only errors when Button is used with asChild patterns
+    const content = loading ? (
+      <span className="inline-flex items-center">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        {children}
+      </span>
+    ) : children;
+
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
@@ -51,8 +61,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || loading}
         {...props}
       >
-        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        {children}
+        {content}
       </Comp>
     );
   }

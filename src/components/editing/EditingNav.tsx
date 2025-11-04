@@ -24,8 +24,10 @@ export function EditingNav(): JSX.Element {
         const active = pathname === item.href;
         return (
           <Link key={item.href} href={item.href} className={`editing-nav-item${active ? " editing-nav-item--active" : ""}`}>
-            <span className="editing-nav-item-label">{item.label}</span>
-            <span className="editing-nav-item-description">{item.description}</span>
+            <span className="flex flex-col">
+              <span className="editing-nav-item-label">{item.label}</span>
+              <span className="editing-nav-item-description">{item.description}</span>
+            </span>
           </Link>
         );
       })}
