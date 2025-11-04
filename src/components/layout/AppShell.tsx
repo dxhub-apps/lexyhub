@@ -11,6 +11,7 @@ import {
   PenTool,
   Activity,
   Shield,
+  Calendar,
 } from "lucide-react";
 
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
@@ -36,6 +37,12 @@ const NAV_ITEMS: readonly SidebarNavItem[] = [
     label: "Keywords",
     description: "AI search",
     icon: <Search className="h-5 w-5" />,
+  },
+  {
+    href: "/seasonal-calendar",
+    label: "Seasonal Calendar",
+    description: "Commerce events",
+    icon: <Calendar className="h-5 w-5" />,
   },
   {
     href: "/niche-explorer",
