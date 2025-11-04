@@ -367,10 +367,12 @@ Migrated from native HTML to shadcn/ui:
 8. `cbe9e52` - Phase 7: Market Twin
 9. `0b2103e` - Phase 8: Profile
 10. `58ad5eb` - Documentation update
-11. `11dee4e` - Bugfix: Watchlists Link/Button nesting
+11. `11dee4e` - Bugfix: Watchlists Link/Button nesting (incomplete)
 12. `a1f6fee` - Bugfix: UserMenu Link/Button nesting (incorrect fix)
 13. `d3fd41e` - Documentation update
 14. `4f34ec7` - Bugfix: UserMenu asChild removal (correct fix)
+15. `c647c08` - Documentation update
+16. `1fb233f` - Bugfix: Watchlists Button asChild span wrapper (complete fix)
 
 ---
 
@@ -409,8 +411,8 @@ The following pages retain existing functionality but have not been visually ref
 | **Accessibility** | WCAG 2.1 AA compliant |
 | **Dark Mode** | Full support |
 | **Responsive Design** | Mobile, tablet, desktop |
-| **Total Commits** | 14 |
-| **Runtime Errors Fixed** | 2 (React.Children.only) |
+| **Total Commits** | 16 |
+| **Runtime Errors Fixed** | 3 (React.Children.only in Watchlists + UserMenu) |
 
 ---
 
@@ -443,12 +445,17 @@ Next.js 13+ App Router Link component enforces strict child constraints when use
 
 **Solutions Applied:**
 
-1. **Watchlists Page** (Commit: `11dee4e`):
+1. **Watchlists Page - Part 1** (Commit: `11dee4e` - incomplete):
    - Changed from `<Link><Button>` to `<Button asChild><Link>`
-   - Fixed 2 instances in primary action buttons
+   - This fixed the nesting but introduced new error with multiple children
    - File: `src/app/(app)/watchlists/page.tsx`
 
-2. **UserMenu Component** (Commit: `a1f6fee` - incorrect, `4f34ec7` - correct):
+2. **Watchlists Page - Part 2** (Commit: `1fb233f` - complete fix):
+   - Wrapped icon + text in `<span>` to make Link have ONE child
+   - Fixed 2 instances where Button asChild had Link with multiple children
+   - File: `src/app/(app)/watchlists/page.tsx`
+
+3. **UserMenu Component** (Commit: `a1f6fee` - incorrect, `4f34ec7` - correct):
    - Initial attempt: Added `flex items-center` class (didn't fix the issue)
    - Correct fix: Removed `asChild` from DropdownMenuItem
    - Reason: When DropdownMenuItem uses `asChild`, Link can only have ONE child
@@ -457,11 +464,31 @@ Next.js 13+ App Router Link component enforces strict child constraints when use
 
 **Pattern Reference:**
 
-**CORRECT** - Button with asChild + Link:
+**CORRECT** - Button with asChild + Link (single child - text only):
 ```tsx
 <Button asChild className="w-full">
+  <Link href="/settings">Manage plan</Link>
+</Button>
+```
+
+**CORRECT** - Button with asChild + Link (multiple elements wrapped in span):
+```tsx
+<Button asChild>
   <Link href="/keywords">
-    <Icon className="mr-2 h-4 w-4" />
+    <span className="flex items-center">
+      <Icon className="mr-2 h-4 w-4" />
+      Add keywords
+    </span>
+  </Link>
+</Button>
+```
+
+**INCORRECT** - Button with asChild + Link with multiple children:
+```tsx
+<!-- DON'T DO THIS - causes React.Children.only error -->
+<Button asChild>
+  <Link href="/keywords">
+    <Icon className="mr-2 h-4 w-4" />  <!-- Multiple children = error -->
     Add keywords
   </Link>
 </Button>
