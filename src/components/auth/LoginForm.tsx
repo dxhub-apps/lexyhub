@@ -3,6 +3,11 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useSupabaseClient } from "@supabase/auth-helpers-react";
+import { Loader2, LogIn } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/use-toast";
 
 type FormState = {
   email: string;
@@ -16,9 +21,9 @@ type LoginFormProps = {
 export function LoginForm({ redirectTo = "/dashboard" }: LoginFormProps): JSX.Element {
   const router = useRouter();
   const supabase = useSupabaseClient();
+  const { toast } = useToast();
   const [form, setForm] = useState<FormState>({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleChange = (event: FormEvent<HTMLInputElement>) => {
     const { name, value } = event.currentTarget;
@@ -28,7 +33,6 @@ export function LoginForm({ redirectTo = "/dashboard" }: LoginFormProps): JSX.El
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoading(true);
-    setError(null);
 
     const { data, error: authError } = await supabase.auth.signInWithPassword({
       email: form.email,
@@ -36,16 +40,30 @@ export function LoginForm({ redirectTo = "/dashboard" }: LoginFormProps): JSX.El
     });
 
     if (authError) {
-      setError(authError.message);
+      toast({
+        title: "Authentication failed",
+        description: authError.message,
+        variant: "destructive",
+      });
       setLoading(false);
       return;
     }
 
     if (!data.session) {
-      setError("No active session was created. Please try again.");
+      toast({
+        title: "Authentication failed",
+        description: "No active session was created. Please try again.",
+        variant: "destructive",
+      });
       setLoading(false);
       return;
     }
+
+    toast({
+      title: "Welcome back!",
+      description: "You've successfully signed in.",
+      variant: "success",
+    });
 
     setLoading(false);
     router.replace(redirectTo);
@@ -53,37 +71,50 @@ export function LoginForm({ redirectTo = "/dashboard" }: LoginFormProps): JSX.El
   };
 
   return (
-    <form className="auth-form" onSubmit={handleSubmit} noValidate>
-      <div className="auth-field">
-        <label htmlFor="email">Email</label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          value={form.email}
-          onInput={handleChange}
-          placeholder="you@example.com"
-        />
+    <form onSubmit={handleSubmit} noValidate className="space-y-6">
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={form.email}
+            onInput={handleChange}
+            placeholder="you@example.com"
+            className="h-11"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={form.password}
+            onInput={handleChange}
+            placeholder="••••••••"
+            className="h-11"
+          />
+        </div>
       </div>
-      <div className="auth-field">
-        <label htmlFor="password">Password</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          value={form.password}
-          onInput={handleChange}
-          placeholder="••••••••"
-        />
-      </div>
-      {error ? <p className="auth-error" role="alert">{error}</p> : null}
-      <button type="submit" className="auth-submit" disabled={loading}>
-        {loading ? "Signing in…" : "Sign in"}
-      </button>
+      <Button type="submit" className="w-full h-11" disabled={loading}>
+        {loading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Signing in...
+          </>
+        ) : (
+          <>
+            <LogIn className="mr-2 h-4 w-4" />
+            Sign in
+          </>
+        )}
+      </Button>
     </form>
   );
 }

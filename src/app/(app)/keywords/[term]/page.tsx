@@ -20,7 +20,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-import KeywordSparkline from "@/components/keywords/KeywordSparkline";
+import KeywordTrendChart from "@/components/keywords/KeywordTrendChart";
+import RelatedKeywords from "@/components/keywords/RelatedKeywords";
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -401,10 +402,16 @@ export default function KeywordDetailsPage(): JSX.Element {
             </div>
           </div>
 
-          {/* Sparkline */}
+          {/* Trend Chart */}
           <div className="space-y-3">
             <h3 className="text-sm font-semibold">Performance Trend</h3>
-            <KeywordSparkline points={sparklinePoints} />
+            <KeywordTrendChart
+              keyword={keyword.term}
+              demandScore={demandScore}
+              competitionScore={competitionScore}
+              trendScore={trendScore}
+              engagementScore={engagementScore}
+            />
           </div>
 
           {/* Metadata */}
@@ -515,6 +522,19 @@ export default function KeywordDetailsPage(): JSX.Element {
         </CardContent>
       </Card>
 
+      {/* Related Keywords */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Related Opportunities</CardTitle>
+          <CardDescription>
+            AI-powered keyword suggestions based on user intent and behavioral patterns
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RelatedKeywords keyword={term} market={keyword.market} />
+        </CardContent>
+      </Card>
+
       {/* Actions */}
       <Card>
         <CardHeader>
@@ -523,21 +543,27 @@ export default function KeywordDetailsPage(): JSX.Element {
         <CardContent>
           <div className="flex flex-wrap gap-3">
             <Button asChild>
-              <Link href="/market-twin">
+              <Link href={`/market-twin?keyword=${encodeURIComponent(term)}`}>
                 <Zap className="mr-2 h-4 w-4" />
                 Run Market Simulation
               </Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link href="/keywords">
+              <Link href={`/keywords?query=${encodeURIComponent(term)}`}>
                 <BarChart3 className="mr-2 h-4 w-4" />
                 Explore Similar Keywords
               </Link>
             </Button>
             <Button variant="outline" asChild>
+              <Link href={`/niche-explorer?niche=${encodeURIComponent(term)}`}>
+                <TrendingUp className="mr-2 h-4 w-4" />
+                Explore Niche
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
               <Link href="/watchlists">
                 <Star className="mr-2 h-4 w-4" />
-                View Watchlists
+                View Watchlist
               </Link>
             </Button>
           </div>
