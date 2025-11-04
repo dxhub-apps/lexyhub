@@ -88,7 +88,6 @@ export default function InsightsPage() {
             </ul>
           </CardContent>
         </Card>
-      </div>
     </div>
   );
 }
