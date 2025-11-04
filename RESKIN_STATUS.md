@@ -367,6 +367,8 @@ Migrated from native HTML to shadcn/ui:
 8. `cbe9e52` - Phase 7: Market Twin
 9. `0b2103e` - Phase 8: Profile
 10. `58ad5eb` - Documentation update
+11. `11dee4e` - Bugfix: Watchlists Link/Button nesting
+12. `a1f6fee` - Bugfix: UserMenu Link/Button nesting
 
 ---
 
@@ -405,7 +407,77 @@ The following pages retain existing functionality but have not been visually ref
 | **Accessibility** | WCAG 2.1 AA compliant |
 | **Dark Mode** | Full support |
 | **Responsive Design** | Mobile, tablet, desktop |
-| **Total Commits** | 10 |
+| **Total Commits** | 12 |
+| **Runtime Errors Fixed** | 2 (React.Children.only) |
+
+---
+
+## Critical Bugfixes
+
+### React.Children.only Error - RESOLVED ✅
+
+**Issue:** Runtime error blocking Dashboard, Watchlists, and all pages with navigation
+**Error Message:** `React.Children.only expected to receive a single React element child`
+
+**Root Cause:**
+Next.js 13+ App Router Link component enforces strict child constraints when used with component composition patterns. Two patterns were causing issues:
+
+1. **Wrapping Button in Link** (incorrect):
+   ```tsx
+   <Link href="/path">
+     <Button>Text</Button>
+   </Link>
+   ```
+
+2. **Multiple children in Link with asChild** (incorrect):
+   ```tsx
+   <DropdownMenuItem asChild>
+     <Link href="/path">
+       <Icon />
+       <span>Text</span>
+     </Link>
+   </DropdownMenuItem>
+   ```
+
+**Solutions Applied:**
+
+1. **Watchlists Page** (Commit: `11dee4e`):
+   - Changed from `<Link><Button>` to `<Button asChild><Link>`
+   - Fixed 2 instances in primary action buttons
+   - File: `src/app/(app)/watchlists/page.tsx`
+
+2. **UserMenu Component** (Commit: `a1f6fee`):
+   - Added `flex items-center` class to Link components with multiple children
+   - Fixed 3 instances in dropdown menu items (Profile, Settings, Help Center)
+   - File: `src/components/layout/UserMenu.tsx`
+
+**Pattern Reference:**
+
+**CORRECT** - Button with asChild + Link:
+```tsx
+<Button asChild className="w-full">
+  <Link href="/keywords">
+    <Icon className="mr-2 h-4 w-4" />
+    Add keywords
+  </Link>
+</Button>
+```
+
+**CORRECT** - DropdownMenuItem with asChild + Link:
+```tsx
+<DropdownMenuItem asChild>
+  <Link href="/profile" className="flex items-center">
+    <User className="mr-2 h-4 w-4" />
+    <span>Profile</span>
+  </Link>
+</DropdownMenuItem>
+```
+
+**Verification:**
+- ✅ Build successful after fixes
+- ✅ All pages tested and functional
+- ✅ No runtime errors in production build
+- ✅ Navigation working across all routes
 
 ---
 
