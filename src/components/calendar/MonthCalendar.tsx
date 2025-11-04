@@ -1,7 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export interface CalendarEvent {
@@ -124,62 +131,123 @@ export function MonthCalendar({
 
         {/* Calendar grid */}
         <div className="grid grid-cols-7 gap-2">
-          {calendarDays.map((dayData, index) => {
-            const isToday = dayData.date.getTime() === today.getTime();
-            const hasEvents = dayData.events.length > 0;
-
-            return (
-              <div
-                key={index}
-                className={cn(
-                  "min-h-[80px] p-2 rounded-lg border transition-colors",
-                  dayData.isCurrentMonth
-                    ? "bg-background"
-                    : "bg-muted/20 text-muted-foreground",
-                  isToday && "ring-2 ring-primary",
-                  hasEvents && dayData.isCurrentMonth && "border-accent",
-                  !hasEvents && "hover:bg-muted/30"
-                )}
-              >
-                <div className="flex flex-col h-full">
-                  <div
-                    className={cn(
-                      "text-sm font-medium mb-1",
-                      isToday && "text-primary"
-                    )}
-                  >
-                    {dayData.day}
-                  </div>
-                  {hasEvents && (
-                    <div className="flex-1 space-y-1 overflow-y-auto">
-                      {dayData.events.slice(0, 2).map((event) => (
-                        <button
-                          key={event.id}
-                          onClick={() => onEventClick?.(event, dayData.date)}
-                          className="w-full text-left"
-                        >
-                          <Badge
-                            variant="secondary"
-                            className="text-[10px] px-1 py-0 h-5 w-full justify-start truncate bg-accent/20 hover:bg-accent/40 border-accent cursor-pointer transition-colors"
-                          >
-                            {event.name}
-                          </Badge>
-                        </button>
-                      ))}
-                      {dayData.events.length > 2 && (
-                        <div className="text-[10px] text-muted-foreground px-1">
-                          +{dayData.events.length - 2} more
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          {calendarDays.map((dayData, index) => (
+            <CalendarDay
+              key={index}
+              dayData={dayData}
+              isToday={dayData.date.getTime() === today.getTime()}
+              onEventClick={onEventClick}
+            />
+          ))}
         </div>
       </div>
     </Card>
+  );
+}
+
+interface CalendarDayProps {
+  dayData: {
+    date: Date;
+    day: number;
+    isCurrentMonth: boolean;
+    events: CalendarEvent[];
+  };
+  isToday: boolean;
+  onEventClick?: (event: CalendarEvent, date: Date) => void;
+}
+
+function CalendarDay({ dayData, isToday, onEventClick }: CalendarDayProps) {
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const hasEvents = dayData.events.length > 0;
+  const visibleEvents = dayData.events.slice(0, 2);
+  const hiddenEvents = dayData.events.slice(2);
+
+  const handleEventClick = (event: CalendarEvent) => {
+    onEventClick?.(event, dayData.date);
+    setPopoverOpen(false);
+  };
+
+  return (
+    <div
+      className={cn(
+        "min-h-[100px] p-2 rounded-lg border transition-all",
+        dayData.isCurrentMonth
+          ? "bg-background"
+          : "bg-muted/20 text-muted-foreground",
+        isToday && "ring-2 ring-primary bg-primary/5",
+        hasEvents && dayData.isCurrentMonth && "border-accent/50 bg-accent/5",
+        !hasEvents && "hover:bg-muted/30"
+      )}
+    >
+      <div className="flex flex-col h-full">
+        <div
+          className={cn(
+            "text-sm font-semibold mb-1",
+            isToday && "text-primary",
+            hasEvents && "text-accent-foreground"
+          )}
+        >
+          {dayData.day}
+        </div>
+        {hasEvents && (
+          <div className="flex-1 space-y-1 overflow-hidden">
+            {visibleEvents.map((event) => (
+              <button
+                key={event.id}
+                onClick={() => handleEventClick(event)}
+                className="w-full text-left group"
+                title={`${event.name} (Weight: ${event.weight})`}
+              >
+                <Badge
+                  variant="secondary"
+                  className="text-[10px] px-1.5 py-0.5 h-auto w-full justify-start truncate bg-accent/30 hover:bg-accent/50 border border-accent/60 cursor-pointer transition-all group-hover:scale-[1.02] group-hover:shadow-sm font-medium"
+                >
+                  {event.name}
+                </Badge>
+              </button>
+            ))}
+            {hiddenEvents.length > 0 && (
+              <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto py-0.5 px-1 text-[10px] text-accent-foreground hover:text-accent hover:bg-accent/10 w-full justify-start font-medium"
+                  >
+                    +{hiddenEvents.length} more event
+                    {hiddenEvents.length > 1 ? "s" : ""}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-2" align="start">
+                  <div className="space-y-1">
+                    <div className="text-xs font-semibold text-muted-foreground mb-2">
+                      All events on {dayData.date.toLocaleDateString()}
+                    </div>
+                    {dayData.events.map((event) => (
+                      <button
+                        key={event.id}
+                        onClick={() => handleEventClick(event)}
+                        className="w-full text-left group"
+                      >
+                        <Badge
+                          variant="secondary"
+                          className="text-xs px-2 py-1 h-auto w-full justify-start bg-accent/20 hover:bg-accent/40 border-accent cursor-pointer transition-colors"
+                        >
+                          <span className="truncate">{event.name}</span>
+                          <span className="ml-auto text-[10px] opacity-70">
+                            W: {event.weight}
+                          </span>
+                        </Badge>
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
