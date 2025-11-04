@@ -5,12 +5,13 @@ export const dynamic = 'force-dynamic';
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "@supabase/auth-helpers-react";
 import Link from "next/link";
-import { Star, Trash2, Plus, ExternalLink } from "lucide-react";
+import { Star, Trash2, Plus, ExternalLink, TrendingUp, BarChart3 } from "lucide-react";
 
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CompetitionScore } from "@/components/watchlists/CompetitionScore";
 
 type WatchlistItem = {
   id: string;
@@ -19,6 +20,10 @@ type WatchlistItem = {
   context?: string;
   type: "keyword" | "listing";
   url?: string | null;
+  // Keyword metrics
+  competitionScore?: number;
+  demandScore?: number;
+  trendScore?: number;
 };
 
 type Watchlist = {
@@ -68,6 +73,17 @@ export default function WatchlistsPage(): JSX.Element {
               ? String(item.listing.id)
               : "Listing";
 
+          // Extract keyword metrics if available
+          const competitionScore = isKeyword && item.keyword?.competition_score !== undefined
+            ? Math.round((item.keyword.competition_score ?? 0) * 100)
+            : undefined;
+          const demandScore = isKeyword && item.keyword?.demand_index !== undefined
+            ? Math.round((item.keyword.demand_index ?? 0) * 100)
+            : undefined;
+          const trendScore = isKeyword && item.keyword?.trend_momentum !== undefined
+            ? Math.round((item.keyword.trend_momentum ?? 0) * 100)
+            : undefined;
+
           return {
             id: String(item.id ?? ""),
             addedAt: String(item.addedAt ?? item.added_at ?? ""),
@@ -75,6 +91,9 @@ export default function WatchlistsPage(): JSX.Element {
             context,
             type: isKeyword ? "keyword" : "listing",
             url: item.listing?.url ?? null,
+            competitionScore,
+            demandScore,
+            trendScore,
           } satisfies WatchlistItem;
         });
 
@@ -106,15 +125,14 @@ export default function WatchlistsPage(): JSX.Element {
 
   const summaryMessage = useMemo(() => {
     if (loading) {
-      return "We’re loading your saved watchlists.";
+      return "Loading your watchlist...";
     }
-    if (watchlists.length === 0) {
-      return "You haven't saved any watchlists yet. Use the keyword explorer to start tracking ideas.";
+    if (totalItems === 0) {
+      return "You haven't saved any keywords yet. Use the keyword explorer to start tracking ideas.";
     }
-    const listLabel = watchlists.length === 1 ? "watchlist" : "watchlists";
     const itemLabel = totalItems === 1 ? "keyword" : "keywords";
-    return `You're tracking ${totalItems} ${itemLabel} across ${watchlists.length} ${listLabel}.`;
-  }, [loading, totalItems, watchlists.length]);
+    return `You're tracking ${totalItems} ${itemLabel}.`;
+  }, [loading, totalItems]);
 
   const handleRemove = useCallback(
     async (item: WatchlistItem) => {
@@ -176,84 +194,95 @@ export default function WatchlistsPage(): JSX.Element {
 
     return (
       <Card key={watchlist.id}>
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <div className="space-y-2">
-              <Badge variant="outline" className="w-fit">Watchlist</Badge>
-              <CardTitle>{watchlist.name}</CardTitle>
-            </div>
-            <div className="flex flex-col items-end gap-1 text-sm text-muted-foreground">
-              <span>Tracking {trackedCount} {trackedLabel}</span>
-              <span>Updated {formattedUpdated}</span>
-            </div>
-          </div>
-          <CardDescription>{watchlist.description ?? "Auto-created starter watchlist."}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Button asChild className="w-full sm:w-auto">
-            <Link href="/keywords">
-              <span className="flex items-center justify-center">
-                <Plus className="mr-2 h-4 w-4" />
-                {primaryActionLabel}
-              </span>
-            </Link>
-          </Button>
-
+        <CardContent className="space-y-4 pt-6">
           {watchlist.items.length === 0 ? (
-            <p className="text-sm text-muted-foreground">This watchlist is empty. Add items from the keyword explorer.</p>
+            <div className="text-center py-12">
+              <p className="text-sm text-muted-foreground mb-4">Your watchlist is empty. Add keywords from the explorer to start tracking opportunities.</p>
+              <Button asChild>
+                <Link href="/keywords">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add your first keyword
+                </Link>
+              </Button>
+            </div>
           ) : (
-            <div className="rounded-md border">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th scope="col" className="px-4 py-3 text-left text-sm font-medium">Item</th>
-                    <th scope="col" className="px-4 py-3 text-left text-sm font-medium">Source</th>
-                    <th scope="col" className="px-4 py-3 text-left text-sm font-medium">Added on</th>
-                    <th scope="col" className="px-4 py-3 text-left text-sm font-medium" aria-label="actions">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {watchlist.items.map((item) => {
-                    const addedAt = new Date(item.addedAt);
-                    const formatted = Number.isNaN(addedAt.getTime())
-                      ? "Unknown"
-                      : addedAt.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-                    const sourceLabel = item.type === "keyword"
-                      ? (item.context
-                          ? item.context
-                              .toLowerCase()
-                              .split(/[_\s]+/)
-                              .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-                              .join(" ")
-                          : "Keyword")
-                      : "Product listing";
-                    return (
-                      <tr key={item.id} className="border-b last:border-0 hover:bg-muted/50">
-                        <td className="px-4 py-3 text-sm font-medium">
-                          {item.url ? (
-                            <a href={item.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+            <div className="space-y-3">
+              {watchlist.items.map((item) => {
+                const addedAt = new Date(item.addedAt);
+                const formatted = Number.isNaN(addedAt.getTime())
+                  ? "Unknown"
+                  : addedAt.toLocaleString(undefined, { dateStyle: "medium" });
+                const sourceLabel = item.type === "keyword"
+                  ? (item.context
+                      ? item.context
+                          .toLowerCase()
+                          .split(/[_\s]+/)
+                          .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+                          .join(" ")
+                      : "Keyword")
+                  : "Product listing";
+
+                return (
+                  <div key={item.id} className="border rounded-lg p-4 hover:border-primary hover:shadow-sm transition-all">
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          {item.type === "keyword" ? (
+                            <Link
+                              href={`/keywords/${encodeURIComponent(item.label)}`}
+                              className="text-lg font-semibold hover:text-primary transition-colors inline-flex items-center gap-2"
+                            >
                               {item.label}
-                              <ExternalLink className="h-3 w-3" />
+                              <ExternalLink className="h-4 w-4" />
+                            </Link>
+                          ) : item.url ? (
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-lg font-semibold hover:text-primary transition-colors inline-flex items-center gap-2"
+                            >
+                              {item.label}
+                              <ExternalLink className="h-4 w-4" />
                             </a>
                           ) : (
-                            item.label
+                            <span className="text-lg font-semibold">{item.label}</span>
                           )}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <Badge variant="secondary">{sourceLabel}</Badge>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">{formatted}</td>
-                        <td className="px-4 py-3 text-sm">
-                          <Button variant="ghost" size="sm" onClick={() => handleRemove(item)}>
-                            <Trash2 className="mr-1 h-3 w-3" />
-                            Remove
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="secondary" className="text-xs">{sourceLabel}</Badge>
+                            <span className="text-xs text-muted-foreground">Added {formatted}</span>
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => handleRemove(item)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      {item.type === "keyword" && item.competitionScore !== undefined && (
+                        <div className="space-y-2">
+                          <CompetitionScore score={item.competitionScore} size="sm" />
+                          <div className="grid grid-cols-2 gap-3 pt-2">
+                            {item.demandScore !== undefined && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <BarChart3 className="h-3.5 w-3.5 text-blue-600" />
+                                <span className="text-muted-foreground">Demand:</span>
+                                <span className="font-semibold text-blue-600">{item.demandScore}%</span>
+                              </div>
+                            )}
+                            {item.trendScore !== undefined && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <TrendingUp className="h-3.5 w-3.5 text-green-600" />
+                                <span className="text-muted-foreground">Momentum:</span>
+                                <span className="font-semibold text-green-600">{item.trendScore}%</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -265,15 +294,29 @@ export default function WatchlistsPage(): JSX.Element {
     <div className="space-y-8">
       <Card>
         <CardHeader>
-          <Badge variant="outline" className="w-fit mb-2">Monitoring</Badge>
-          <CardTitle className="text-3xl font-bold">Watchlists</CardTitle>
-          <CardDescription className="mt-2 text-base">
-            Keep the ideas you care about in one place. Add them from the{" "}
-            <Link href="/keywords" className="text-primary hover:underline">
-              keyword explorer
-            </Link>{" "}
-            whenever inspiration strikes.
-          </CardDescription>
+          <div className="flex items-start justify-between">
+            <div className="space-y-3 flex-1">
+              <Badge variant="outline" className="w-fit">Monitoring</Badge>
+              <CardTitle className="text-3xl font-bold">Watchlist</CardTitle>
+              <CardDescription className="text-base">
+                Track keywords and monitor their performance over time. Add items from the{" "}
+                <Link href="/keywords" className="text-primary hover:underline">
+                  keyword explorer
+                </Link>{" "}
+                or{" "}
+                <Link href="/niche-explorer" className="text-primary hover:underline">
+                  niche explorer
+                </Link>
+                .
+              </CardDescription>
+            </div>
+            <Button asChild>
+              <Link href="/keywords">
+                <Plus className="mr-2 h-4 w-4" />
+                Add Keywords
+              </Link>
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -294,25 +337,6 @@ export default function WatchlistsPage(): JSX.Element {
           <Card className="border-destructive bg-destructive/10">
             <CardContent className="pt-6">
               <p className="text-sm text-destructive">{error}</p>
-            </CardContent>
-          </Card>
-        ) : watchlists.length === 0 ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Start your first watchlist</CardTitle>
-              <CardDescription>
-                You haven&apos;t saved any watchlists yet. Add keywords from the explorer to build your first collection.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild>
-                <Link href="/keywords">
-                  <span className="flex items-center justify-center">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add your first keyword
-                  </span>
-                </Link>
-              </Button>
             </CardContent>
           </Card>
         ) : (
