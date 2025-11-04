@@ -167,25 +167,7 @@ async function persistSuggestion(
     console.warn("Failed to insert ai_predictions row", predictionError);
   }
 
-  const predictionId = prediction?.id ?? null;
-
-  const { error: suggestionError } = await supabase.from("ai_suggestions").insert({
-    ai_prediction_id: predictionId,
-    user_id: userId,
-    keyword_id: request.keywordId ?? null,
-    listing_id: request.listingId ?? null,
-    suggestion_type: "tag-optimizer",
-    payload: { tags: result.tags },
-    reasoning: result.reasoning,
-    confidence: result.confidence,
-    model: result.model,
-    prompt_version: result.promptVersion,
-    extras: { goals: request.goals, attributes: request.attributes },
-  });
-
-  if (suggestionError) {
-    console.warn("Failed to persist ai_suggestions row", suggestionError);
-  }
+  // ai_suggestions table has been deprecated - all data is now in ai_predictions
 }
 
 export async function POST(req: Request): Promise<NextResponse> {

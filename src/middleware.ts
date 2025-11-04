@@ -9,17 +9,16 @@ const PUBLIC_PATHS = new Set(["/login", "/api/auth"]);
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({ request: { headers: request.headers } });
   const supabase = createMiddlewareClient({ req: request, res: response });
-  const [sessionResult, userResult] = await Promise.all([
-    supabase.auth.getSession(),
-    supabase.auth.getUser(),
-  ]);
 
-  const {
-    data: { session },
-  } = sessionResult;
+  // Use getUser() first for secure authentication validation
   const {
     data: { user },
-  } = userResult;
+  } = await supabase.auth.getUser();
+
+  // Only get session after user is validated
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
   const { pathname } = request.nextUrl;
 

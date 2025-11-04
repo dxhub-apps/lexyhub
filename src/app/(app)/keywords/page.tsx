@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { useSession } from "@supabase/auth-helpers-react";
+import Link from "next/link";
 import { Search, TrendingUp, BarChart3, Star, X, RefreshCw, Download, Plus } from "lucide-react";
 
 import KeywordSparkline from "@/components/keywords/KeywordSparkline";
@@ -296,12 +297,11 @@ export default function KeywordsPage(): JSX.Element {
   }, [visibleResults, state.sortKey, state.sortDir]);
 
   // Pagination
-  const PAGE = PAGE_SIZE;
-  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE));
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const pageSafe = Math.min(Math.max(1, state.page), pageCount);
   const pageSlice = useMemo(() => {
-    const start = (pageSafe - 1) * PAGE;
-    return sorted.slice(start, start + PAGE);
+    const start = (pageSafe - 1) * PAGE_SIZE;
+    return sorted.slice(start, start + PAGE_SIZE);
   }, [sorted, pageSafe]);
 
   // Lineage + sparkline inputs
@@ -855,7 +855,12 @@ export default function KeywordsPage(): JSX.Element {
                         <tr key={`${k.term}-${k.source}`} className="border-b last:border-0 hover:bg-muted/50">
                           <th scope="row" className="px-4 py-3 text-left font-medium">
                             <div className="space-y-1">
-                              <div className="font-semibold">{k.term}</div>
+                              <Link
+                                href={`/keywords/${encodeURIComponent(k.term)}`}
+                                className="font-semibold text-primary hover:underline"
+                              >
+                                {k.term}
+                              </Link>
                               {cats && <div className="text-xs text-muted-foreground">{cats}</div>}
                               {tags.length > 0 && (
                                 <div className="flex flex-wrap gap-1" aria-label="Associated tags">
