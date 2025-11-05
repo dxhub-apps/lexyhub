@@ -1,8 +1,43 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { CheckSquare, Plus, Search, Edit2, Trash2, Calendar, User, AlertCircle, X } from "lucide-react";
 
 import type { TaskRecord, TaskStatus } from "@/lib/backoffice/tasks";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const defaultHeaders = { "Content-Type": "application/json", "x-user-role": "admin" };
 
@@ -53,12 +88,24 @@ type ViewState = {
 
 const initialState: ViewState = { statuses: [], tasks: [] };
 
+const categoryColors = {
+  todo: "bg-gray-100 text-gray-700 border-gray-300",
+  in_progress: "bg-blue-100 text-blue-700 border-blue-300",
+  review: "bg-yellow-100 text-yellow-700 border-yellow-300",
+  done: "bg-green-100 text-green-700 border-green-300",
+};
+
 export default function BackofficeTasksPage(): JSX.Element {
   const [data, setData] = useState<ViewState>(initialState);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusForm, setStatusForm] = useState<StatusFormState>(initialStatusForm);
   const [taskForm, setTaskForm] = useState<TaskFormState>(() => createEmptyTaskForm());
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [showStatusDialog, setShowStatusDialog] = useState(false);
+  const [showTaskDialog, setShowTaskDialog] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: "status" | "task"; id: string } | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -107,6 +154,8 @@ export default function BackofficeTasksPage(): JSX.Element {
       ...createEmptyTaskForm(),
       status_id: data.statuses[0]?.id ?? previous.status_id,
     }));
+    setShowStatusDialog(false);
+    setShowTaskDialog(false);
   };
 
   const upsert = async (url: string, payload: Record<string, unknown>, method: "POST" | "PUT") => {
@@ -181,11 +230,39 @@ export default function BackofficeTasksPage(): JSX.Element {
     }
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      if (deleteTarget.type === "status") {
+        await remove(`/api/admin/task-statuses?id=${deleteTarget.id}`);
+      } else {
+        await remove(`/api/admin/tasks?id=${deleteTarget.id}`);
+      }
+      setDeleteTarget(null);
+      resetForms();
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
   const dependencyOptions = useMemo(() => data.tasks.map((task) => ({ value: task.id, label: task.title })), [data.tasks]);
+
+  const filteredTasks = useMemo(() => {
+    return data.tasks.filter((task) => {
+      const matchesSearch = searchQuery
+        ? task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          task.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          task.owner?.toLowerCase().includes(searchQuery.toLowerCase())
+        : true;
+      const matchesStatus = statusFilter === "all" || task.status_id === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [data.tasks, searchQuery, statusFilter]);
 
   const tasksByStatus = useMemo(() => {
     const groups = new Map<string, TaskRecord[]>();
-    for (const task of data.tasks) {
+    for (const task of filteredTasks) {
       const key = task.status_id;
       const list = groups.get(key);
       if (list) {
@@ -195,278 +272,485 @@ export default function BackofficeTasksPage(): JSX.Element {
       }
     }
     return groups;
-  }, [data.tasks]);
+  }, [filteredTasks]);
 
   return (
-    <div className="task-workspace">
-      <header className="task-workspace__header">
-        <div>
-          <h1>Backoffice task tracker</h1>
-          <p className="subtitle">
-            Coordinate delivery workstreams, model dependencies, and keep owners accountable – Jira style, without leaving the
-            backoffice.
-          </p>
-        </div>
-      </header>
-      {loading ? <p>Loading tasks…</p> : null}
-      {error ? <p className="error">{error}</p> : null}
-
-      <section className="surface-card task-statuses">
-        <h2>Workflow statuses</h2>
-        <p className="muted">
-          Define the stages tasks flow through. Ordering controls how columns render and determines the default selection for new
-          work items.
-        </p>
-        <form className="form-grid" onSubmit={onSubmitStatus}>
-          <label>
-            Name
-            <input
-              required
-              placeholder="e.g. In Progress"
-              value={statusForm.name ?? ""}
-              onChange={(event) => setStatusForm((prev) => ({ ...prev, name: event.target.value }))}
-            />
-          </label>
-          <label>
-            Category
-            <select
-              value={statusForm.category ?? "todo"}
-              onChange={(event) => setStatusForm((prev) => ({ ...prev, category: event.target.value }))}
-            >
-              <option value="todo">To do</option>
-              <option value="in_progress">In progress</option>
-              <option value="review">In review</option>
-              <option value="done">Done</option>
-            </select>
-          </label>
-          <label>
-            Order
-            <input
-              type="number"
-              value={statusForm.order_index ?? 0}
-              onChange={(event) =>
-                setStatusForm((prev) => ({ ...prev, order_index: Number.parseInt(event.target.value, 10) || 0 }))
-              }
-            />
-          </label>
-          <label className="form-grid--full">
-            Description
-            <textarea
-              rows={3}
-              placeholder="Where in the workflow should this status be used?"
-              value={statusForm.description ?? ""}
-              onChange={(event) => setStatusForm((prev) => ({ ...prev, description: event.target.value }))}
-            />
-          </label>
-          <div className="form-actions">
-            <button type="submit">{statusForm.id ? "Update" : "Create"} status</button>
-            {statusForm.id ? (
-              <button type="button" onClick={() => setStatusForm(initialStatusForm)}>
-                Cancel
-              </button>
-            ) : null}
-          </div>
-        </form>
-        <ul className="task-statuses__list">
-          {data.statuses.map((status) => (
-            <li key={status.id}>
-              <div>
-                <strong>{status.name}</strong>
-                <span className={`task-status-badge task-status-badge--${status.category}`}>{status.category}</span>
+    <div className="space-y-6">
+      {/* Header */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-3">
+              <CheckSquare className="h-6 w-6 text-muted-foreground" />
+              <div className="space-y-1">
+                <CardTitle className="text-3xl font-bold">Task Tracker</CardTitle>
+                <CardDescription className="text-base">
+                  Coordinate delivery workstreams, model dependencies, and keep owners accountable
+                </CardDescription>
               </div>
-              {status.description ? <p className="muted">{status.description}</p> : null}
-              <div className="task-statuses__actions">
-                <button type="button" onClick={() => setStatusForm(status)}>
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      await remove(`/api/admin/task-statuses?id=${status.id}`);
-                      resetForms();
-                      await loadData();
-                    } catch (err) {
-                      setError(err instanceof Error ? err.message : String(err));
-                    }
-                  }}
-                >
-                  Delete
-                </button>
-              </div>
-            </li>
-          ))}
-          {data.statuses.length === 0 ? <li className="muted">No statuses defined yet.</li> : null}
-        </ul>
-      </section>
-
-      <section className="surface-card task-editor">
-        <h2>Tasks</h2>
-        <p className="muted">
-          Capture backlog items, link blockers, and set schedule expectations. Dependencies keep everyone aware of sequencing
-          risk.
-        </p>
-        <form className="form-grid" onSubmit={onSubmitTask}>
-          <label>
-            Title
-            <input
-              required
-              placeholder="Implement Etsy sync"
-              value={taskForm.title}
-              onChange={(event) => setTaskForm((prev) => ({ ...prev, title: event.target.value }))}
-            />
-          </label>
-          <label>
-            Owner
-            <input
-              placeholder="Owner or squad"
-              value={taskForm.owner}
-              onChange={(event) => setTaskForm((prev) => ({ ...prev, owner: event.target.value }))}
-            />
-          </label>
-          <label>
-            Status
-            <select
-              required
-              value={taskForm.status_id ?? ""}
-              onChange={(event) => setTaskForm((prev) => ({ ...prev, status_id: event.target.value }))}
-            >
-              <option value="" disabled>
-                Select status
-              </option>
-              {data.statuses.map((status) => (
-                <option key={status.id} value={status.id}>
-                  {status.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Start date
-            <input
-              type="date"
-              value={taskForm.start_date}
-              onChange={(event) => setTaskForm((prev) => ({ ...prev, start_date: event.target.value }))}
-            />
-          </label>
-          <label>
-            Due date
-            <input
-              type="date"
-              value={taskForm.due_date}
-              onChange={(event) => setTaskForm((prev) => ({ ...prev, due_date: event.target.value }))}
-            />
-          </label>
-          <label className="form-grid--full">
-            Description
-            <textarea
-              rows={4}
-              placeholder="Outline the scope, deliverables, and acceptance criteria"
-              value={taskForm.description}
-              onChange={(event) => setTaskForm((prev) => ({ ...prev, description: event.target.value }))}
-            />
-          </label>
-          <label className="form-grid--full">
-            Dependencies
-            <select
-              multiple
-              value={taskForm.dependencies}
-              onChange={(event) => {
-                const selected = Array.from(event.currentTarget.selectedOptions).map((option) => option.value);
-                setTaskForm((prev) => ({ ...prev, dependencies: selected.filter((id) => id !== prev.id) }));
-              }}
-            >
-              {dependencyOptions.map((option) => (
-                <option key={option.value} value={option.value} disabled={option.value === taskForm.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="form-actions">
-            <button type="submit">{taskForm.id ? "Update" : "Create"} task</button>
-            {taskForm.id ? (
-              <button
-                type="button"
-                onClick={() =>
-                  setTaskForm((prev) => ({
-                    ...createEmptyTaskForm(),
-                    status_id: data.statuses[0]?.id ?? prev.status_id,
-                  }))
-                }
-              >
-                Cancel
-              </button>
-            ) : null}
-          </div>
-        </form>
-        <div className="task-columns">
-          {data.statuses.map((status) => {
-            const items = tasksByStatus.get(status.id) ?? [];
-            return (
-              <article key={status.id} className="task-column">
-                <header>
-                  <h3>{status.name}</h3>
-                  <span className="task-count">{items.length} task{items.length === 1 ? "" : "s"}</span>
-                </header>
-                <ul>
-                  {items.map((task) => (
-                    <li key={task.id}>
-                      <div className="task-card">
-                        <div className="task-card__title">
-                          <strong>{task.title}</strong>
-                          {task.owner ? <span className="muted">{task.owner}</span> : null}
+            </div>
+            <div className="flex gap-2">
+              <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" onClick={() => setStatusForm(initialStatusForm)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Status
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[500px]">
+                  <form onSubmit={onSubmitStatus}>
+                    <DialogHeader>
+                      <DialogTitle>{statusForm.id ? "Edit" : "Create"} Status</DialogTitle>
+                      <DialogDescription>
+                        Define workflow stages that tasks flow through
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="status-name">Name *</Label>
+                        <Input
+                          id="status-name"
+                          required
+                          placeholder="e.g. In Progress"
+                          value={statusForm.name ?? ""}
+                          onChange={(e) => setStatusForm((prev) => ({ ...prev, name: e.target.value }))}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="status-category">Category</Label>
+                        <Select
+                          value={statusForm.category ?? "todo"}
+                          onValueChange={(value) => setStatusForm((prev) => ({ ...prev, category: value }))}
+                        >
+                          <SelectTrigger id="status-category">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="todo">To do</SelectItem>
+                            <SelectItem value="in_progress">In progress</SelectItem>
+                            <SelectItem value="review">In review</SelectItem>
+                            <SelectItem value="done">Done</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="status-order">Order</Label>
+                        <Input
+                          id="status-order"
+                          type="number"
+                          value={statusForm.order_index ?? 0}
+                          onChange={(e) =>
+                            setStatusForm((prev) => ({ ...prev, order_index: Number.parseInt(e.target.value, 10) || 0 }))
+                          }
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="status-description">Description</Label>
+                        <Textarea
+                          id="status-description"
+                          rows={3}
+                          placeholder="Where in the workflow should this status be used?"
+                          value={statusForm.description ?? ""}
+                          onChange={(e) => setStatusForm((prev) => ({ ...prev, description: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => setShowStatusDialog(false)}>
+                        Cancel
+                      </Button>
+                      <Button type="submit">{statusForm.id ? "Update" : "Create"}</Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+              <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
+                <DialogTrigger asChild>
+                  <Button onClick={() => setTaskForm(createEmptyTaskForm())}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Task
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
+                  <form onSubmit={onSubmitTask}>
+                    <DialogHeader>
+                      <DialogTitle>{taskForm.id ? "Edit" : "Create"} Task</DialogTitle>
+                      <DialogDescription>
+                        Capture backlog items, link blockers, and set schedule expectations
+                      </DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="max-h-[60vh] pr-4">
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="task-title">Title *</Label>
+                          <Input
+                            id="task-title"
+                            required
+                            placeholder="Implement Etsy sync"
+                            value={taskForm.title}
+                            onChange={(e) => setTaskForm((prev) => ({ ...prev, title: e.target.value }))}
+                          />
                         </div>
-                        {task.description ? <p className="muted">{task.description}</p> : null}
-                        <dl className="task-card__meta">
-                          <div>
-                            <dt>Start</dt>
-                            <dd>{task.start_date ?? "—"}</dd>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="task-owner">Owner</Label>
+                            <Input
+                              id="task-owner"
+                              placeholder="Owner or squad"
+                              value={taskForm.owner}
+                              onChange={(e) => setTaskForm((prev) => ({ ...prev, owner: e.target.value }))}
+                            />
                           </div>
-                          <div>
-                            <dt>Due</dt>
-                            <dd>{task.due_date ?? "—"}</dd>
+                          <div className="grid gap-2">
+                            <Label htmlFor="task-status">Status *</Label>
+                            <Select
+                              required
+                              value={taskForm.status_id ?? ""}
+                              onValueChange={(value) => setTaskForm((prev) => ({ ...prev, status_id: value }))}
+                            >
+                              <SelectTrigger id="task-status">
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {data.statuses.map((status) => (
+                                  <SelectItem key={status.id} value={status.id}>
+                                    {status.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
-                        </dl>
-                        {task.dependencies.length > 0 ? (
-                          <div className="task-card__dependencies">
-                            <span>Blocked by:</span>
-                            <ul>
-                              {task.dependencies.map((dependency) => (
-                                <li key={dependency.id}>{dependency.title}</li>
-                              ))}
-                            </ul>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="task-start">Start date</Label>
+                            <Input
+                              id="task-start"
+                              type="date"
+                              value={taskForm.start_date}
+                              onChange={(e) => setTaskForm((prev) => ({ ...prev, start_date: e.target.value }))}
+                            />
                           </div>
-                        ) : null}
-                        <div className="task-card__actions">
-                          <button type="button" onClick={() => setTaskForm(mapTaskToFormState(task))}>
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              try {
-                                await remove(`/api/admin/tasks?id=${task.id}`);
-                                resetForms();
-                                await loadData();
-                              } catch (err) {
-                                setError(err instanceof Error ? err.message : String(err));
-                              }
-                            }}
-                          >
-                            Delete
-                          </button>
+                          <div className="grid gap-2">
+                            <Label htmlFor="task-due">Due date</Label>
+                            <Input
+                              id="task-due"
+                              type="date"
+                              value={taskForm.due_date}
+                              onChange={(e) => setTaskForm((prev) => ({ ...prev, due_date: e.target.value }))}
+                            />
+                          </div>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="task-description">Description</Label>
+                          <Textarea
+                            id="task-description"
+                            rows={4}
+                            placeholder="Outline the scope, deliverables, and acceptance criteria"
+                            value={taskForm.description}
+                            onChange={(e) => setTaskForm((prev) => ({ ...prev, description: e.target.value }))}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Dependencies (blocks this task)</Label>
+                          <div className="border rounded-md p-3 max-h-[200px] overflow-y-auto space-y-2">
+                            {dependencyOptions.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">No other tasks available</p>
+                            ) : (
+                              dependencyOptions.map((option) => (
+                                <div key={option.value} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    id={`dep-${option.value}`}
+                                    checked={taskForm.dependencies.includes(option.value)}
+                                    disabled={option.value === taskForm.id}
+                                    onCheckedChange={(checked) => {
+                                      setTaskForm((prev) => ({
+                                        ...prev,
+                                        dependencies: checked
+                                          ? [...prev.dependencies, option.value]
+                                          : prev.dependencies.filter((id) => id !== option.value),
+                                      }));
+                                    }}
+                                  />
+                                  <label
+                                    htmlFor={`dep-${option.value}`}
+                                    className={`text-sm flex-1 cursor-pointer ${
+                                      option.value === taskForm.id ? "text-muted-foreground line-through" : ""
+                                    }`}
+                                  >
+                                    {option.label}
+                                  </label>
+                                </div>
+                              ))
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </li>
-                  ))}
-                  {items.length === 0 ? <li className="muted">Nothing here yet.</li> : null}
-                </ul>
-              </article>
+                    </ScrollArea>
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => setShowTaskDialog(false)}>
+                        Cancel
+                      </Button>
+                      <Button type="submit">{taskForm.id ? "Update" : "Create"}</Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Error Alert */}
+      {error && (
+        <Card className="border-destructive">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-destructive" />
+              <p className="text-sm text-destructive">{error}</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto"
+                onClick={() => setError(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Statuses Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Workflow Statuses</CardTitle>
+          <CardDescription>
+            Define the stages tasks flow through. Ordering controls column rendering and default selection.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {data.statuses.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p className="mb-2">No statuses defined yet.</p>
+              <p className="text-sm">Create your first status to get started.</p>
+            </div>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {data.statuses.map((status) => (
+                <Card key={status.id} className={`border-2 ${categoryColors[status.category as keyof typeof categoryColors] || categoryColors.todo}`}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1 flex-1">
+                        <CardTitle className="text-lg">{status.name}</CardTitle>
+                        <Badge variant="outline" className="text-xs">
+                          {status.category}
+                        </Badge>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setStatusForm(status);
+                            setShowStatusDialog(true);
+                          }}
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDeleteTarget({ type: "status", id: status.id })}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  {status.description && (
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">{status.description}</p>
+                    </CardContent>
+                  )}
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Search and Filter */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search tasks..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                {data.statuses.map((status) => (
+                  <SelectItem key={status.id} value={status.id}>
+                    {status.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Kanban Board */}
+      {loading ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            Loading tasks...
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {data.statuses.map((status) => {
+            const items = tasksByStatus.get(status.id) ?? [];
+            const categoryColor = categoryColors[status.category as keyof typeof categoryColors] || categoryColors.todo;
+            return (
+              <Card key={status.id} className={`border-t-4 ${categoryColor.split(" ")[0]}`}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">{status.name}</CardTitle>
+                    <Badge variant="secondary">{items.length}</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {items.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      No tasks
+                    </p>
+                  ) : (
+                    items.map((task) => (
+                      <Card key={task.id} className="hover:shadow-md transition-shadow">
+                        <CardContent className="p-4 space-y-3">
+                          <div className="space-y-1">
+                            <h4 className="font-semibold text-sm leading-tight">{task.title}</h4>
+                            {task.owner && (
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <User className="h-3 w-3" />
+                                {task.owner}
+                              </div>
+                            )}
+                          </div>
+                          {task.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-2">
+                              {task.description}
+                            </p>
+                          )}
+                          {(task.start_date || task.due_date) && (
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                              {task.start_date && (
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {task.start_date}
+                                </div>
+                              )}
+                              {task.due_date && (
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {task.due_date}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {task.dependencies.length > 0 && (
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground">Blocked by:</p>
+                              <div className="space-y-1">
+                                {task.dependencies.map((dep) => (
+                                  <Badge key={dep.id} variant="outline" className="text-xs">
+                                    {dep.title}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          <div className="flex gap-2 pt-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="flex-1 h-8"
+                              onClick={() => {
+                                setTaskForm(mapTaskToFormState(task));
+                                setShowTaskDialog(true);
+                              }}
+                            >
+                              <Edit2 className="h-3 w-3 mr-1" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8"
+                              onClick={() => setDeleteTarget({ type: "task", id: task.id })}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
             );
           })}
+          {data.statuses.length === 0 && (
+            <Card className="col-span-full">
+              <CardContent className="py-12 text-center">
+                <CheckSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-lg font-medium mb-2">No statuses yet</p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Create your first workflow status to start tracking tasks
+                </p>
+                <Button onClick={() => setShowStatusDialog(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Status
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
-      </section>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the {deleteTarget?.type}.
+              {deleteTarget?.type === "status" && (
+                <span className="block mt-2 text-destructive">
+                  Warning: This will also delete all tasks with this status!
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

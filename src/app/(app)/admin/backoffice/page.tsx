@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Settings, Shield, CheckSquare, Flag, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { Settings, Shield, CheckSquare, Flag, Bell, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 
 import type { CrawlerStatus, HealthMetric } from "@/lib/backoffice/status";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -217,6 +217,12 @@ export default function BackofficeOverviewPage(): JSX.Element {
                 <Link href="/admin/backoffice/tasks">
                   <CheckSquare className="mr-2 h-4 w-4" />
                   Plan Tasks
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/admin/backoffice/notifications">
+                  <Bell className="mr-2 h-4 w-4" />
+                  Notifications
                 </Link>
               </Button>
               <Button variant="outline" asChild>
