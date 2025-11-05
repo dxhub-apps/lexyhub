@@ -358,9 +358,65 @@ async function handleSearch(req: Request): Promise<NextResponse> {
 
   const userId = resolveUserId(req);
 
+  // First, try to fetch exact match directly from database
+  let exactMatchKeyword: KeywordRow | null = null;
+  try {
+    let exactMatchQuery = supabase
+      .from("keywords")
+      .select(
+        "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score, base_demand_index, adjusted_demand_index, deseasoned_trend_momentum, seasonal_label",
+      )
+      .eq("market", market)
+      .eq("term", query); // Try exact match with normalized query first
+
+    if (resolvedSources.length > 0) {
+      exactMatchQuery = exactMatchQuery.in("source", resolvedSources);
+    }
+
+    if (allowedTiers.length > 0) {
+      exactMatchQuery = exactMatchQuery.in("tier", allowedTiers);
+    }
+
+    const { data: exactData } = await exactMatchQuery.limit(1).maybeSingle();
+
+    if (exactData) {
+      exactMatchKeyword = exactData;
+    } else {
+      // Try case-insensitive match with original trimmed query
+      let caseInsensitiveQuery = supabase
+        .from("keywords")
+        .select(
+          "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score, base_demand_index, adjusted_demand_index, deseasoned_trend_momentum, seasonal_label",
+        )
+        .eq("market", market)
+        .ilike("term", trimmedQuery);
+
+      if (resolvedSources.length > 0) {
+        caseInsensitiveQuery = caseInsensitiveQuery.in("source", resolvedSources);
+      }
+
+      if (allowedTiers.length > 0) {
+        caseInsensitiveQuery = caseInsensitiveQuery.in("tier", allowedTiers);
+      }
+
+      const { data: iLikeData } = await caseInsensitiveQuery.limit(1).maybeSingle();
+      if (iLikeData) {
+        exactMatchKeyword = iLikeData;
+      }
+    }
+  } catch (error) {
+    console.error("Failed to fetch exact match keyword", error);
+  }
+
   // Fetch keywords for similarity matching
   const keywords = await fetchKeywordsFromSupabase(market, resolvedSources, allowedTiers, limit);
-  if (keywords.length === 0) {
+
+  // If we found an exact match, ensure it's in the keywords array
+  const allKeywords = exactMatchKeyword
+    ? [exactMatchKeyword, ...keywords.filter(k => k.id !== exactMatchKeyword.id)]
+    : keywords;
+
+  if (allKeywords.length === 0) {
     await recordKeywordSearchRequest({
       supabase,
       query: trimmedQuery,
@@ -390,7 +446,7 @@ async function handleSearch(req: Request): Promise<NextResponse> {
 
   // Rank keywords with exact match detection built-in
   // Pass trimmedQuery so we can match against the original user input
-  const ranked = await rankKeywords(queryEmbedding, keywords, supabase, trimmedQuery);
+  const ranked = await rankKeywords(queryEmbedding, allKeywords, supabase, trimmedQuery);
   const sliced = ranked.slice(0, limit);
 
   const cacheSources = [...resolvedSources].sort();
