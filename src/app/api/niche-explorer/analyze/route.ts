@@ -145,22 +145,31 @@ Only return valid JSON, no other text.`
 function generateFallbackAnalysis(niche: string) {
   const now = new Date();
   const months = [];
+  const baselineDemand = 65;
+  const baselineCompetition = 50;
+
   for (let i = 5; i >= 0; i--) {
     const date = new Date(now);
     date.setMonth(date.getMonth() - i);
+    // Slight trend increase over time
+    const trendFactor = (5 - i) * 2;
     months.push({
       date: date.toISOString().slice(0, 7),
-      demand: Math.floor(Math.random() * 30) + 50,
-      competition: Math.floor(Math.random() * 20) + 40,
+      demand: baselineDemand + trendFactor,
+      competition: baselineCompetition + Math.floor(trendFactor / 2),
     });
   }
 
+  const demandScores = [75, 72, 68, 65, 82, 60, 55, 78, 70, 63, 80, 58, 73, 67, 76, 61, 69, 74, 64, 71];
+  const competitionScores = [60, 55, 70, 45, 50, 65, 40, 75, 58, 62, 48, 68, 52, 72, 55, 63, 57, 66, 53, 69];
+  const freshnessOptions = ["emerging", "stable", "mature", "stable", "emerging"];
+
   return {
     overview: {
-      totalKeywords: Math.floor(Math.random() * 500) + 200,
-      avgDemand: Math.floor(Math.random() * 20) + 60,
-      avgCompetition: Math.floor(Math.random() * 30) + 40,
-      momentum: "expanding",
+      totalKeywords: 350,
+      avgDemand: 70,
+      avgCompetition: 55,
+      momentum: "stable" as const,
       topMarkets: [
         { market: "US", share: 45 },
         { market: "UK", share: 20 },
@@ -169,21 +178,26 @@ function generateFallbackAnalysis(niche: string) {
         { market: "Germany", share: 8 },
       ],
     },
-    keywords: Array.from({ length: 20 }, (_, i) => ({
-      term: `${niche} ${["ideas", "trends", "styles", "guide", "tips", "for sale", "wholesale", "bulk", "cheap", "best", "top rated", "handmade", "custom", "unique", "vintage", "modern", "classic", "premium", "luxury", "affordable"][i]}`,
-      demand: Math.floor(Math.random() * 40) + 40,
-      competition: Math.floor(Math.random() * 60) + 20,
-      opportunity: Math.floor(Math.random() * 40) + 40,
-      momentum: Math.floor(Math.random() * 40) + 30,
-      freshness: ["emerging", "stable", "mature"][Math.floor(Math.random() * 3)],
-    })),
+    keywords: Array.from({ length: 20 }, (_, i) => {
+      const suffixes = ["ideas", "trends", "styles", "guide", "tips", "for sale", "wholesale", "bulk", "cheap", "best", "top rated", "handmade", "custom", "unique", "vintage", "modern", "classic", "premium", "luxury", "affordable"];
+      const demand = demandScores[i];
+      const competition = competitionScores[i];
+      return {
+        term: `${niche} ${suffixes[i]}`,
+        demand,
+        competition,
+        opportunity: Math.max(0, Math.min(100, demand - competition + 50)),
+        momentum: Math.max(0, Math.min(100, (demand + (100 - competition)) / 2)),
+        freshness: freshnessOptions[i % freshnessOptions.length] as "emerging" | "stable" | "mature",
+      };
+    }),
     trends: {
       historical: months,
       topGrowing: Array.from({ length: 5 }, (_, i) => ({
         term: `trending ${niche} ${i + 1}`,
-        growthRate: Math.floor(Math.random() * 50) + 30,
-        searchVolume: Math.floor(Math.random() * 5000) + 1000,
-        socialMentions: Math.floor(Math.random() * 1000) + 200,
+        growthRate: 45 + (i * 5),
+        searchVolume: 2500 + (i * 500),
+        socialMentions: 500 + (i * 100),
       })),
     },
     clusters: [

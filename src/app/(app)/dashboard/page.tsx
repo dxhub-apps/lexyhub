@@ -5,7 +5,6 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "@supabase/auth-helpers-react";
 import { Search, Download } from "lucide-react";
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -189,16 +188,6 @@ export default function DashboardPage(): JSX.Element {
     (card): card is UsageKpi => Boolean(card),
   );
 
-  // Generate mock keyword momentum data for visualization
-  const keywordMomentumData = useMemo(() => {
-    const hours = Array.from({ length: 24 }, (_, i) => i);
-    return hours.map((hour) => ({
-      hour: `${hour.toString().padStart(2, '0')}:00`,
-      volume: Math.floor(Math.random() * 500) + 200,
-      trending: Math.floor(Math.random() * 300) + 100,
-    }));
-  }, []);
-
   return (
     <div className="space-y-8">
       {/* Hero Section */}
@@ -271,93 +260,8 @@ export default function DashboardPage(): JSX.Element {
         })}
       </div>
 
-      {/* Analytics Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Keyword Momentum Chart */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <CardTitle>Keyword momentum</CardTitle>
-                <CardDescription>
-                  24-hour keyword activity trends
-                </CardDescription>
-              </div>
-              <div className="flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-blue-500" />
-                  <span className="text-muted-foreground">Volume</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-purple-500" />
-                  <span className="text-muted-foreground">Trending</span>
-                </div>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={keywordMomentumData}
-                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorTrending" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis
-                    dataKey="hour"
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(value) => `${value}`}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--popover))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "var(--radius)",
-                    }}
-                    labelStyle={{ color: "hsl(var(--popover-foreground))" }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="volume"
-                    stroke="#3b82f6"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorVolume)"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="trending"
-                    stroke="#a855f7"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorTrending)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Next Best Actions */}
-        <Card>
+      {/* Quick Actions */}
+      <Card>
           <CardHeader>
             <CardTitle>Get started</CardTitle>
             <CardDescription>
@@ -379,7 +283,6 @@ export default function DashboardPage(): JSX.Element {
             </Button>
           </CardContent>
         </Card>
-      </div>
     </div>
   );
 }

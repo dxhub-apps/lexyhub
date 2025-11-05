@@ -18,15 +18,10 @@ interface CapturePayload {
 }
 
 /**
- * Extension capture events table schema:
- * - id: bigserial
- * - user_id: uuid
- * - source: text (e.g., 'etsy_search', 'amazon_listing')
- * - url: text
- * - terms: jsonb
- * - serp_meta: jsonb
- * - captured_at: timestamptz
- * - hour_bucket: timestamptz (for deduplication)
+ * Extension capture events are stored in keyword_events table with:
+ * - event_type: 'ext_capture'
+ * - payload containing: source, url, terms, serp_meta, hour_bucket
+ * This allows tracking of keyword discovery from the browser extension
  */
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -94,30 +89,26 @@ export async function POST(request: Request): Promise<NextResponse> {
       now.getHours()
     ).toISOString();
 
-    // TODO: Implement actual database table and deduplication logic
-    // For MVP, just log the capture event
-    console.log("Extension capture event:", {
-      userId: context.userId,
-      source,
-      url: url.substring(0, 100), // Truncate for logging
-      termsCount: terms.length,
-      hourBucket,
+    // Store the capture event in keyword_events table
+    // This allows tracking of keyword discovery from browser extension
+    const { error } = await supabase.from("keyword_events").insert({
+      user_id: context.userId,
+      event_type: "ext_capture",
+      occurred_at: now.toISOString(),
+      payload: {
+        source,
+        url,
+        terms,
+        serp_meta: serp_meta || {},
+        hour_bucket: hourBucket,
+      },
     });
 
-    // In production, you would:
-    // 1. Check for duplicate capture within the same hour bucket
-    // 2. Insert into extension_capture_events table
-    // 3. Optionally aggregate for analytics
-
-    // const { error } = await supabase.from("extension_capture_events").insert({
-    //   user_id: context.userId,
-    //   source,
-    //   url,
-    //   terms,
-    //   serp_meta: serp_meta || {},
-    //   captured_at: now.toISOString(),
-    //   hour_bucket: hourBucket,
-    // });
+    if (error) {
+      console.error("Failed to store extension capture event:", error);
+      // Don't fail the request if storage fails
+      // Extension should work even if analytics storage fails
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

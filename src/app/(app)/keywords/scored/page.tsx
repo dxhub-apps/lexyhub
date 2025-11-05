@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Search, TrendingUp, TrendingDown, Activity } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 interface ScoredKeyword {
   id: string;
@@ -22,11 +21,6 @@ interface ScoredKeyword {
   seasonal_label: string | null;
   opportunity_badge: string | null;
   last_seen: string | null;
-}
-
-interface HistoricalData {
-  date: string;
-  adjusted_demand_index: number;
 }
 
 const BADGE_COLORS: Record<string, string> = {
@@ -48,9 +42,6 @@ export default function ScoredKeywordsPage() {
     minTM: "",
     sort: "adjusted_demand_index.desc",
   });
-
-  const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null);
-  const [sparklineData, setSparklineData] = useState<HistoricalData[]>([]);
 
   const fetchKeywords = useCallback(async () => {
     setLoading(true);
@@ -83,24 +74,6 @@ export default function ScoredKeywordsPage() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     fetchKeywords();
-  };
-
-  const fetchSparkline = async (keywordId: string) => {
-    try {
-      // Mock sparkline data for now - in production, fetch from API
-      const mockData: HistoricalData[] = Array.from({ length: 14 }, (_, i) => ({
-        date: new Date(Date.now() - (13 - i) * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-        adjusted_demand_index: 50 + Math.random() * 30,
-      }));
-      setSparklineData(mockData);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const handleRowClick = (keyword: ScoredKeyword) => {
-    setSelectedKeyword(keyword.id);
-    fetchSparkline(keyword.id);
   };
 
   return (
@@ -248,8 +221,7 @@ export default function ScoredKeywordsPage() {
                   keywords.map((kw) => (
                     <tr
                       key={kw.id}
-                      className="border-b hover:bg-muted/50 cursor-pointer"
-                      onClick={() => handleRowClick(kw)}
+                      className="border-b hover:bg-muted/50"
                     >
                       <td className="px-4 py-3 font-medium">
                         <div>
@@ -327,37 +299,6 @@ export default function ScoredKeywordsPage() {
           </div>
         </CardContent>
       </Card>
-
-      {selectedKeyword && sparklineData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>14-Day Adjusted Demand Index</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={sparklineData}>
-                <XAxis
-                  dataKey="date"
-                  tick={{ fontSize: 12 }}
-                  tickFormatter={(date) => new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
-                <Tooltip
-                  labelFormatter={(date) => new Date(date).toLocaleDateString()}
-                  formatter={(value: number) => [`${value.toFixed(1)}`, "Adjusted DI"]}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="adjusted_demand_index"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
