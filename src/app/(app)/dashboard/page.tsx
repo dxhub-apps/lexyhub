@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "@supabase/auth-helpers-react";
-import { TrendingUp, Sparkles, Star, BarChart3 } from "lucide-react";
+import { Search, Download } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { useToast } from "@/components/ui/use-toast";
@@ -144,15 +144,13 @@ export default function DashboardPage(): JSX.Element {
     return [
       {
         id: "plan",
-        label: "Plan overview",
+        label: "Current plan",
         value: `${usage.plan} · ${usage.momentum}`,
-        helper: "Momentum adjusts how quickly your allowances replenish.",
       },
       {
         id: "queries",
-        label: "Daily keyword queries",
-        value: `${formatNumber.format(keywordQueries)} of ${formatNumber.format(queryLimit)}`,
-        helper: `${formatPercent.format(queryPercent)} of today's allowance used`,
+        label: "Keyword queries",
+        value: `${formatNumber.format(keywordQueries)} / ${formatNumber.format(queryLimit)}`,
         progress: {
           percent: Math.round(queryPercent * 100),
           caption: formatCaption(queryRemaining, "queries"),
@@ -162,8 +160,7 @@ export default function DashboardPage(): JSX.Element {
       {
         id: "ai",
         label: "AI suggestions",
-        value: `${formatNumber.format(aiConsumed)} of ${formatNumber.format(aiLimit)}`,
-        helper: `${formatPercent.format(aiPercent)} of today's allowance used`,
+        value: `${formatNumber.format(aiConsumed)} / ${formatNumber.format(aiLimit)}`,
         progress: {
           percent: Math.round(aiPercent * 100),
           caption: formatCaption(aiRemaining, "suggestions"),
@@ -172,9 +169,8 @@ export default function DashboardPage(): JSX.Element {
       },
       {
         id: "watchlist",
-        label: "Watchlist additions",
-        value: `${formatNumber.format(watchlistAdds)} of ${formatNumber.format(watchlistLimit)}`,
-        helper: `${formatPercent.format(watchlistPercent)} of today's allowance used`,
+        label: "Watchlist items",
+        value: `${formatNumber.format(watchlistAdds)} / ${formatNumber.format(watchlistLimit)}`,
         progress: {
           percent: Math.round(watchlistPercent * 100),
           caption: formatCaption(watchlistRemaining, "spots"),
@@ -210,9 +206,9 @@ export default function DashboardPage(): JSX.Element {
         <CardHeader>
           <div className="flex items-start justify-between">
             <div className="space-y-2">
-              <CardTitle className="text-3xl font-bold">LexyHub Control Center</CardTitle>
+              <CardTitle className="text-3xl font-bold">Dashboard</CardTitle>
               <CardDescription className="text-base">
-                Momentum-aware quotas and watchlists to keep your operators in sync.
+                Track your usage and discover keyword opportunities
               </CardDescription>
             </div>
             <Badge variant="outline" className="text-sm">
@@ -220,32 +216,6 @@ export default function DashboardPage(): JSX.Element {
             </Badge>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="flex items-center gap-2 text-sm">
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Daily queries</span>
-              <span className="font-medium">
-                {usage ? formatNumber.format(usage.limits.dailyQueryLimit) : "—"}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Momentum</span>
-              <span className="font-medium">{usage?.momentum ?? "Pending sync"}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Sparkles className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Workspace</span>
-              <span className="font-medium">Core Market</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Star className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Status</span>
-              <Badge variant="default" className="h-5 px-2 text-xs">Active</Badge>
-            </div>
-          </div>
-        </CardContent>
       </Card>
 
       {/* Usage KPI Cards */}
@@ -310,16 +280,16 @@ export default function DashboardPage(): JSX.Element {
               <div className="space-y-1">
                 <CardTitle>Keyword momentum</CardTitle>
                 <CardDescription>
-                  Track volume acceleration and AI opportunity picks to prioritise daily outreach.
+                  24-hour keyword activity trends
                 </CardDescription>
               </div>
               <div className="flex items-center gap-4 text-sm">
                 <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-primary" />
+                  <div className="h-3 w-3 rounded-full bg-blue-500" />
                   <span className="text-muted-foreground">Volume</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-chart-2" />
+                  <div className="h-3 w-3 rounded-full bg-purple-500" />
                   <span className="text-muted-foreground">Trending</span>
                 </div>
               </div>
@@ -334,12 +304,12 @@ export default function DashboardPage(): JSX.Element {
                 >
                   <defs>
                     <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="colorTrending" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <XAxis
@@ -367,7 +337,7 @@ export default function DashboardPage(): JSX.Element {
                   <Area
                     type="monotone"
                     dataKey="volume"
-                    stroke="hsl(var(--primary))"
+                    stroke="#3b82f6"
                     strokeWidth={2}
                     fillOpacity={1}
                     fill="url(#colorVolume)"
@@ -375,7 +345,7 @@ export default function DashboardPage(): JSX.Element {
                   <Area
                     type="monotone"
                     dataKey="trending"
-                    stroke="hsl(var(--chart-2))"
+                    stroke="#a855f7"
                     strokeWidth={2}
                     fillOpacity={1}
                     fill="url(#colorTrending)"
@@ -389,23 +359,23 @@ export default function DashboardPage(): JSX.Element {
         {/* Next Best Actions */}
         <Card>
           <CardHeader>
-            <CardTitle>Next best actions</CardTitle>
+            <CardTitle>Get started</CardTitle>
             <CardDescription>
-              Keep the pipeline moving with the highest leverage tasks for today.
+              Quick actions to improve your listings
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button className="w-full justify-start" size="lg">
-              <Sparkles className="mr-2 h-4 w-4" />
-              Add new keyword set
+            <Button className="w-full justify-start" size="lg" asChild>
+              <a href="/keywords">
+                <Search className="mr-2 h-4 w-4" />
+                Search keywords
+              </a>
             </Button>
-            <Button variant="outline" className="w-full justify-start" size="lg">
-              <BarChart3 className="mr-2 h-4 w-4" />
-              Connect marketplace source
-            </Button>
-            <Button variant="outline" className="w-full justify-start" size="lg">
-              <TrendingUp className="mr-2 h-4 w-4" />
-              Review AI opportunities
+            <Button variant="outline" className="w-full justify-start" size="lg" asChild>
+              <a href="https://chromewebstore.google.com/detail/lexyhub-etsy-keyword-seo/nfianbjinfbchfmmappglgkdpchfnlkd" target="_blank" rel="noopener noreferrer">
+                <Download className="mr-2 h-4 w-4" />
+                Install Chrome extension
+              </a>
             </Button>
           </CardContent>
         </Card>
