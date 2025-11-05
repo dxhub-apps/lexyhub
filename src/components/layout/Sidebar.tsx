@@ -72,10 +72,10 @@ export function Sidebar({
               <Image
                 src={resolvedTheme === "dark" ? "/logos/Lexyhub_logo_white.svg" : "/logos/Lexyhub_logo_dark.svg"}
                 alt="LexyHub"
-                width={140}
-                height={32}
+                width={175}
+                height={40}
                 priority
-                className="h-8 w-auto"
+                className="h-10 w-auto"
               />
             </Link>
           )}
@@ -84,10 +84,10 @@ export function Sidebar({
               <Image
                 src="/logos/lexyhub_icon.svg"
                 alt="LexyHub"
-                width={32}
-                height={32}
+                width={40}
+                height={40}
                 priority
-                className="h-8 w-8"
+                className="h-10 w-10"
               />
             </Link>
           )}
