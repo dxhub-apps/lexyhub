@@ -1,0 +1,30 @@
+{
+  "name": "lexyhub-extension",
+  "version": "1.0.0",
+  "description": "LexyHub browser extension for keyword research on e-commerce marketplaces",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "build:chrome": "node scripts/build.js chrome",
+    "build:firefox": "node scripts/build.js firefox",
+    "build:safari": "node scripts/build.js safari",
+    "watch": "node scripts/watch.js",
+    "lint": "eslint src/**/*.ts",
+    "type-check": "tsc --noEmit",
+    "zip": "node scripts/zip.js"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.254",
+    "esbuild": "^0.19.8",
+    "typescript": "^5.3.3",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
+    "archiver": "^6.0.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dxhub-apps/lexyhub.git"
+  },
+  "author": "LexyHub",
+  "license": "MIT"
+}

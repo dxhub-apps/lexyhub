@@ -1,0 +1,113 @@
+{
+  "manifest_version": 3,
+  "name": "LexyHub Extension",
+  "version": "1.0.0",
+  "description": "Keyword research assistant for e-commerce marketplaces. Capture keywords, track watchlists, and get real-time insights on Etsy, Amazon, and Shopify.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "cookies"
+  ],
+  "host_permissions": [
+    "https://www.etsy.com/*",
+    "https://www.amazon.com/*",
+    "https://www.amazon.ca/*",
+    "https://www.amazon.co.uk/*",
+    "https://www.amazon.de/*",
+    "https://www.amazon.fr/*",
+    "https://www.amazon.it/*",
+    "https://www.amazon.es/*",
+    "https://www.google.com/*",
+    "https://www.pinterest.com/*",
+    "https://www.pinterest.ca/*",
+    "https://www.reddit.com/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.etsy.com/*"
+      ],
+      "js": [
+        "content/etsy.js"
+      ],
+      "css": [
+        "content/styles.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.amazon.com/*",
+        "https://www.amazon.ca/*",
+        "https://www.amazon.co.uk/*",
+        "https://www.amazon.de/*",
+        "https://www.amazon.fr/*",
+        "https://www.amazon.it/*",
+        "https://www.amazon.es/*"
+      ],
+      "js": [
+        "content/amazon.js"
+      ],
+      "css": [
+        "content/styles.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://*/*"
+      ],
+      "js": [
+        "content/shopify.js"
+      ],
+      "css": [
+        "content/styles.css"
+      ],
+      "run_at": "document_idle",
+      "exclude_matches": [
+        "https://www.etsy.com/*",
+        "https://www.amazon.com/*",
+        "https://www.amazon.ca/*",
+        "https://www.amazon.co.uk/*",
+        "https://www.google.com/*",
+        "https://www.pinterest.com/*",
+        "https://www.reddit.com/*"
+      ]
+    }
+  ],
+  "action": {
+    "default_popup": "popup/index.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "LexyHub"
+  },
+  "options_page": "options/index.html",
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "content/styles.css",
+        "icons/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}
