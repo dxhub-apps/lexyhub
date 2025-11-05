@@ -157,15 +157,16 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 sm:h-11 sm:w-11 rounded-full p-0">
+        <Button variant="ghost" className="relative h-10 w-10 sm:h-11 sm:w-11 rounded-full p-0 overflow-hidden">
           <Image
             src={avatarSrc}
             alt="User avatar"
-            className="rounded-full object-cover"
+            className="rounded-full object-cover aspect-square"
             width={44}
             height={44}
             unoptimized={avatarSrc.startsWith("data:")}
             onError={handleAvatarError}
+            priority={false}
           />
         </Button>
       </DropdownMenuTrigger>
