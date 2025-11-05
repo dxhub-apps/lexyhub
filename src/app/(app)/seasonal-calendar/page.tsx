@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { MonthCalendar, CalendarEvent } from "@/components/calendar/MonthCalendar";
 import { EventDetailsModal } from "@/components/calendar/EventDetailsModal";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, Calendar, Globe, ChevronLeft, ChevronRight } from "lucide-react";
+
+const EVENTS_PER_PAGE = 10;
 
 export default function SeasonalCalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -15,6 +17,7 @@ export default function SeasonalCalendarPage() {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentPage, setCurrentPage] = useState(1);
 
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
@@ -56,15 +59,53 @@ export default function SeasonalCalendarPage() {
 
   const handlePreviousMonth = () => {
     setCurrentDate(new Date(currentYear, currentMonth - 1, 1));
+    setCurrentPage(1); // Reset to first page when changing months
   };
 
   const handleNextMonth = () => {
     setCurrentDate(new Date(currentYear, currentMonth + 1, 1));
+    setCurrentPage(1); // Reset to first page when changing months
   };
 
   const handleToday = () => {
     setCurrentDate(new Date());
+    setCurrentPage(1); // Reset to first page
   };
+
+  const handleDayClick = (date: Date, dayEvents: CalendarEvent[]) => {
+    // Scroll to event list and optionally highlight the events for this day
+    const eventListElement = document.getElementById("month-events-list");
+    if (eventListElement) {
+      eventListElement.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  // Filter events for the currently displayed months
+  const monthEvents = useMemo(() => {
+    return events.filter((event) => {
+      const startDate = new Date(event.start_date);
+      const endDate = new Date(event.end_date);
+
+      // Check if event overlaps with current month or next month
+      const currentMonthStart = new Date(currentYear, currentMonth, 1);
+      const currentMonthEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59);
+      const nextMonthStart = new Date(nextYear, nextMonth, 1);
+      const nextMonthEnd = new Date(nextYear, nextMonth + 1, 0, 23, 59, 59);
+
+      return (
+        (startDate <= currentMonthEnd && endDate >= currentMonthStart) ||
+        (startDate <= nextMonthEnd && endDate >= nextMonthStart)
+      );
+    }).sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+  }, [events, currentYear, currentMonth, nextYear, nextMonth]);
+
+  // Pagination for month events
+  const totalPages = Math.ceil(monthEvents.length / EVENTS_PER_PAGE);
+  const paginatedEvents = useMemo(() => {
+    const startIndex = (currentPage - 1) * EVENTS_PER_PAGE;
+    const endIndex = startIndex + EVENTS_PER_PAGE;
+    return monthEvents.slice(startIndex, endIndex);
+  }, [monthEvents, currentPage]);
 
   // Get all upcoming events sorted chronologically
   const today = new Date();
@@ -131,12 +172,14 @@ export default function SeasonalCalendarPage() {
               month={currentMonth}
               events={events}
               onEventClick={handleEventClick}
+              onDayClick={handleDayClick}
             />
             <MonthCalendar
               year={nextYear}
               month={nextMonth}
               events={events}
               onEventClick={handleEventClick}
+              onDayClick={handleDayClick}
             />
           </div>
 
@@ -152,6 +195,70 @@ export default function SeasonalCalendarPage() {
                 Events should be populated from the database seed data or added by an admin.
               </p>
             </Card>
+          )}
+
+          {/* Month Events List with Pagination */}
+          {monthEvents.length > 0 && (
+            <div id="month-events-list" className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-semibold">
+                  Events for Selected Months
+                </h2>
+                <div className="text-sm text-muted-foreground">
+                  {monthEvents.length} {monthEvents.length === 1 ? "event" : "events"}
+                </div>
+              </div>
+
+              <div className="grid gap-4">
+                {paginatedEvents.map((event) => (
+                  <EventCard
+                    key={event.id}
+                    event={event}
+                    onClick={() => {
+                      setSelectedEvent(event);
+                      setModalOpen(true);
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-6">
+                  <Button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <div className="flex items-center gap-2">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <Button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        className="min-w-[2.5rem]"
+                      >
+                        {page}
+                      </Button>
+                    ))}
+                  </div>
+                  <Button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Upcoming Events List */}
