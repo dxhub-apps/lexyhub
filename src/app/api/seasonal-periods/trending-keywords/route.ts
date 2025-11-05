@@ -2,6 +2,8 @@ import { getSupabaseServerClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
+export const dynamic = 'force-dynamic';
+
 export interface TrendingKeyword {
   term: string;
   adjusted_demand_index: number | null;
