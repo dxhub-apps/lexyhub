@@ -12,7 +12,6 @@ jobs:
     env:
       APP_BASE_URL: ${{ secrets.LEXYHUB_APP_URL }}
       SERVICE_TOKEN: ${{ secrets.LEXYHUB_SERVICE_TOKEN }}
-      # Temporary: Etsy sync is disabled until the external API is ready again.
       JOB_ENDPOINTS: "trend-aggregation intent-classify rebuild-clusters embed-missing"
       ENABLE_KEYWORD_TELEMETRY_JOB: ${{ secrets.ENABLE_KEYWORD_TELEMETRY_JOB }}
     steps:

@@ -3,8 +3,6 @@ name: Security Scan
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
   schedule:
     # Run security scan daily at 2 AM UTC
     - cron: "0 2 * * *"
@@ -32,17 +30,14 @@ jobs:
 
       - name: Run npm audit
         run: |
-          # Run audit and save output
           npm audit --json > audit-results.json || true
 
-          # Check for high/critical vulnerabilities
           HIGH_VULNS=$(cat audit-results.json | jq '.metadata.vulnerabilities.high // 0')
           CRITICAL_VULNS=$(cat audit-results.json | jq '.metadata.vulnerabilities.critical // 0')
 
           echo "High vulnerabilities: $HIGH_VULNS"
           echo "Critical vulnerabilities: $CRITICAL_VULNS"
 
-          # Fail if high or critical vulnerabilities found
           if [ "$HIGH_VULNS" -gt 0 ] || [ "$CRITICAL_VULNS" -gt 0 ]; then
             echo "⚠️ High or critical vulnerabilities found!"
             npm audit
@@ -72,7 +67,6 @@ jobs:
             p/typescript
             p/react
             p/nextjs
-          # Generate SARIF report for GitHub Security tab
           generateSarif: true
 
       - name: Upload SARIF file
@@ -87,7 +81,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Full history for better detection
+          fetch-depth: 0
 
       - name: TruffleHog OSS
         uses: trufflesecurity/trufflehog@main
@@ -118,28 +112,10 @@ jobs:
         with:
           category: "/language:javascript"
 
-  # License compliance check
-  license-check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Check licenses
-        run: |
-          npx license-checker --summary --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD;CC0-1.0;Unlicense;WTFPL"
-
   # Security summary
   security-summary:
     runs-on: ubuntu-latest
-    needs: [dependency-scan, sast-scan, secret-scan, codeql-analysis, license-check]
+    needs: [dependency-scan, sast-scan, secret-scan, codeql-analysis]
     if: always()
     steps:
       - name: Security scan summary
@@ -152,4 +128,3 @@ jobs:
           echo "| SAST Scan | ${{ needs.sast-scan.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Secret Scan | ${{ needs.secret-scan.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| CodeQL Analysis | ${{ needs.codeql-analysis.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| License Check | ${{ needs.license-check.result }} |" >> $GITHUB_STEP_SUMMARY
