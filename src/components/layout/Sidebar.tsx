@@ -2,10 +2,12 @@
 
 import { type ReactNode } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useTheme } from "@/components/theme/ThemeProvider";
 
 export type SidebarNavItem = {
   href: string;
@@ -35,6 +37,8 @@ export function Sidebar({
   onToggleCollapse,
   onDismissMobile,
 }: SidebarProps): JSX.Element {
+  const { resolvedTheme } = useTheme();
+
   const isActive = (href: string) => {
     if (href === "/dashboard") {
       return pathname.startsWith("/dashboard");
@@ -65,12 +69,26 @@ export function Sidebar({
         <div className="flex h-16 items-center justify-between px-4 border-b border-border">
           {!collapsed && (
             <Link href="/dashboard" className="flex items-center space-x-2">
-              <span className="text-lg font-semibold tracking-tight">{NAV_TITLE}</span>
+              <Image
+                src={resolvedTheme === "dark" ? "/logos/Lexyhub_logo_white.svg" : "/logos/Lexyhub_logo_dark.svg"}
+                alt="LexyHub"
+                width={140}
+                height={32}
+                priority
+                className="h-8 w-auto"
+              />
             </Link>
           )}
           {collapsed && !isMobile && (
             <Link href="/dashboard" className="flex items-center justify-center w-full">
-              <span className="text-lg font-bold">L</span>
+              <Image
+                src="/logos/lexyhub_icon.svg"
+                alt="LexyHub"
+                width={32}
+                height={32}
+                priority
+                className="h-8 w-8"
+              />
             </Link>
           )}
           {!isMobile && (
