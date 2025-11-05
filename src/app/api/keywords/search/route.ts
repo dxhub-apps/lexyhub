@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 
 import { DEFAULT_EMBEDDING_MODEL, getOrCreateEmbedding } from "@/lib/ai/embeddings";
 import { env } from "@/lib/env";
-import { buildKeywordInsightCacheKey, getKeywordInsightFromCache, upsertKeywordInsightCache } from "@/lib/keywords/insights-cache";
+import {
+  buildKeywordInsightCacheKey,
+  getKeywordInsightFromCache,
+  upsertKeywordInsightCache,
+} from "@/lib/keywords/insights-cache";
 import { createProvenanceId, normalizeKeywordTerm } from "@/lib/keywords/utils";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 import type { PlanTier } from "@/lib/usage/quotas";
@@ -57,26 +61,16 @@ const PLAN_RANK: Record<string, number> = {
 };
 
 function normalizePlanTier(plan?: string | null): PlanTier {
-  if (plan === "growth" || plan === "scale") {
-    return plan;
-  }
+  if (plan === "growth" || plan === "scale") return plan;
   return "free";
 }
 
 function normalizeMetric(value: number | null | undefined, fallback = 0.5): number {
-  if (value == null) {
-    return fallback;
-  }
+  if (value == null) return fallback;
   const numeric = Number(value);
-  if (Number.isNaN(numeric)) {
-    return fallback;
-  }
-  if (numeric < 0) {
-    return fallback;
-  }
-  if (numeric > 1) {
-    return Math.min(1, numeric / 100);
-  }
+  if (Number.isNaN(numeric)) return fallback;
+  if (numeric < 0) return fallback;
+  if (numeric > 1) return Math.min(1, numeric / 100);
   return Math.min(1, numeric);
 }
 
@@ -94,9 +88,7 @@ function cosineSimilarity(a: number[], b: number[]): number {
   const dot = a.reduce((sum, value, index) => sum + value * (b[index] ?? 0), 0);
   const normA = Math.sqrt(a.reduce((sum, value) => sum + value * value, 0));
   const normB = Math.sqrt(b.reduce((sum, value) => sum + value * value, 0));
-  if (normA === 0 || normB === 0) {
-    return 0;
-  }
+  if (normA === 0 || normB === 0) return 0;
   return dot / (normA * normB);
 }
 
@@ -105,12 +97,10 @@ async function fetchKeywordsFromSupabase(
   sources: string[],
   tiers: Array<string | number>,
   limit: number,
+  likeTerm?: string
 ): Promise<KeywordRow[]> {
   const supabase = getSupabaseServerClient();
-
-  if (!supabase) {
-    return [];
-  }
+  if (!supabase) return [];
 
   const createQuery = (tierFilters: Array<string | number>) => {
     let queryBuilder = supabase
@@ -123,9 +113,11 @@ async function fetchKeywordsFromSupabase(
     if (sources.length > 0) {
       queryBuilder = queryBuilder.in("source", sources);
     }
-
     if (tierFilters.length > 0) {
       queryBuilder = queryBuilder.in("tier", tierFilters);
+    }
+    if (likeTerm && likeTerm.length >= 3) {
+      queryBuilder = queryBuilder.ilike("term", `%${likeTerm}%`);
     }
 
     return queryBuilder;
@@ -139,9 +131,7 @@ async function fetchKeywordsFromSupabase(
   if (error && error.code === "22P02") {
     const numericTierFilters = tiers
       .map((tier) => {
-        if (typeof tier === "number") {
-          return tier;
-        }
+        if (typeof tier === "number") return tier;
         const rank = PLAN_RANK[tier as keyof typeof PLAN_RANK];
         return typeof rank === "number" ? rank : null;
       })
@@ -158,6 +148,49 @@ async function fetchKeywordsFromSupabase(
   }
 
   return data ?? [];
+}
+
+// exact-match helper ignoring plan/source filters
+async function findExactKeyword(
+  supabase: NonNullable<ReturnType<typeof getSupabaseServerClient>>,
+  market: string,
+  trimmedQuery: string
+): Promise<KeywordRow | null> {
+  // 1) exact case-insensitive equality via RPC (uses lower(term)=lower(p_term))
+  try {
+    const { data: exactEq } = await supabase
+      .rpc("lexy_lower_eq_keyword", { p_market: market, p_term: trimmedQuery })
+      .maybeSingle();
+    if (exactEq) return exactEq as KeywordRow;
+  } catch (e) {
+    // fall through to plain queries if RPC not yet deployed
+  }
+
+  // 2) exact ILIKE (same text, different case)
+  const { data: exactIlike } = await supabase
+    .from("keywords")
+    .select(
+      "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score, base_demand_index, adjusted_demand_index, deseasoned_trend_momentum, seasonal_label",
+    )
+    .eq("market", market)
+    .ilike("term", trimmedQuery)
+    .limit(1)
+    .maybeSingle();
+  if (exactIlike) return exactIlike as KeywordRow;
+
+  // 3) partial contains to improve recall
+  const { data: partial } = await supabase
+    .from("keywords")
+    .select(
+      "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score, base_demand_index, adjusted_demand_index, deseasoned_trend_momentum, seasonal_label",
+    )
+    .eq("market", market)
+    .ilike("term", `%${trimmedQuery}%`)
+    .order("term", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  return (partial as KeywordRow) ?? null;
 }
 
 async function buildSummary(query: string, ranked: RankedKeyword[]): Promise<string> {
@@ -188,25 +221,21 @@ async function buildSummary(query: string, ranked: RankedKeyword[]): Promise<str
             content: `Query: ${query}. Keywords: ${ranked
               .slice(0, 10)
               .map((item) => `${item.term} (similarity ${(item.similarity * 100).toFixed(1)}%)`)
-              .join(", " )}. Provide one actionable insight and compliance reminder.`,
+              .join(", ")}. Provide one actionable insight and compliance reminder.`,
           },
         ],
         temperature: 0.3,
       }),
     });
 
-    if (!response.ok) {
-      throw new Error(`OpenAI summary request failed: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`OpenAI summary request failed: ${response.status}`);
 
     const payload = (await response.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
     };
 
     const summary = payload.choices?.[0]?.message?.content;
-    if (!summary) {
-      throw new Error("OpenAI response missing summary content");
-    }
+    if (!summary) throw new Error("OpenAI response missing summary content");
 
     return summary.trim();
   } catch (error) {
@@ -225,7 +254,7 @@ async function rankKeywords(
   originalQuery: string,
 ): Promise<RankedKeyword[]> {
   const ranked: RankedKeyword[] = [];
-  const normalizedQuery = originalQuery.toLowerCase().trim();
+  const qLower = originalQuery.toLowerCase().trim();
 
   for (const keyword of keywords) {
     const embedding = await getOrCreateEmbedding(keyword.term, {
@@ -233,22 +262,18 @@ async function rankKeywords(
       model: DEFAULT_EMBEDDING_MODEL,
     });
 
-    const similarity = cosineSimilarity(queryEmbedding.embedding, embedding.embedding);
-    const compositeScore = computeCompositeScore(keyword);
+    const sim = cosineSimilarity(queryEmbedding.embedding, embedding.embedding);
+    const composite = computeCompositeScore(keyword);
+    const isExact = keyword.term.toLowerCase().trim() === qLower;
 
-    // Check if this is an exact match (case-insensitive)
-    const isExactMatch = keyword.term.toLowerCase().trim() === normalizedQuery;
-
-    // Exact matches get perfect scores
-    const rankingScore = isExactMatch ? 1.0 : (similarity * 0.55 + compositeScore * 0.45);
-    const finalSimilarity = isExactMatch ? 1.0 : similarity;
+    const rankingScore = isExact ? Number.MAX_SAFE_INTEGER : (sim * 0.55 + composite * 0.45);
 
     ranked.push({
       ...keyword,
-      similarity: finalSimilarity,
+      similarity: isExact ? 1 : sim,
       embeddingModel: embedding.model,
       provenance_id: createProvenanceId(keyword.source, keyword.market, keyword.term),
-      compositeScore,
+      compositeScore: composite,
       rankingScore,
     });
   }
@@ -273,9 +298,7 @@ async function loadSearchPayload(req: Request): Promise<SearchRequestPayload> {
 
 function resolveUserId(req: Request): string | null {
   const headerUserId = req.headers.get("x-lexy-user-id");
-  if (headerUserId && headerUserId.trim()) {
-    return headerUserId.trim();
-  }
+  if (headerUserId && headerUserId.trim()) return headerUserId.trim();
 
   try {
     const url = new URL(req.url);
@@ -318,29 +341,30 @@ async function recordKeywordSearchRequest({
   };
 
   const { error } = await supabase.from("keyword_search_requests").insert(payload);
-
-  if (error) {
-    console.error("Failed to record keyword search request", { error, payload });
-  }
+  if (error) console.error("Failed to record keyword search request", { error, payload });
 }
 
 async function handleSearch(req: Request): Promise<NextResponse> {
   const payload = await loadSearchPayload(req);
   const market = payload.market ? normalizeKeywordTerm(payload.market) : "us";
   const plan = normalizePlanTier(payload.plan ?? undefined);
+
   const requestedSources = Array.isArray(payload.sources)
     ? payload.sources
     : payload.source
-      ? payload.source.split(",")
-      : undefined;
+    ? payload.source.split(",")
+    : undefined;
+
   const allowedSources = PLAN_SOURCES[plan];
   const candidateSources = (requestedSources ?? allowedSources).map((item) => normalizeKeywordTerm(item));
   const filteredSources = candidateSources.filter((item) => allowedSources.includes(item));
   const resolvedSources = filteredSources.length > 0 ? filteredSources : allowedSources;
   const primarySource = resolvedSources[0] ?? allowedSources[0];
+
   const allowedTiers = Object.entries(PLAN_RANK)
     .filter(([, rank]) => rank <= PLAN_RANK[plan])
     .map(([tier]) => tier);
+
   const limit = Math.max(1, Math.min(payload.limit ?? 20, 50));
 
   const queryRaw = payload.query;
@@ -351,69 +375,35 @@ async function handleSearch(req: Request): Promise<NextResponse> {
   const trimmedQuery = queryRaw.trim();
   const query = normalizeKeywordTerm(trimmedQuery);
   const supabase = getSupabaseServerClient();
-
-  if (!supabase) {
-    return NextResponse.json({ error: "Supabase client unavailable" }, { status: 503 });
-  }
+  if (!supabase) return NextResponse.json({ error: "Supabase client unavailable" }, { status: 503 });
 
   const userId = resolveUserId(req);
 
-  // First, try to fetch exact match directly from database
+  // exact match ignoring plan/source restrictions
   let exactMatchKeyword: KeywordRow | null = null;
   try {
-    let exactMatchQuery = supabase
-      .from("keywords")
-      .select(
-        "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score, base_demand_index, adjusted_demand_index, deseasoned_trend_momentum, seasonal_label",
-      )
-      .eq("market", market)
-      .eq("term", query); // Try exact match with normalized query first
-
-    if (resolvedSources.length > 0) {
-      exactMatchQuery = exactMatchQuery.in("source", resolvedSources);
-    }
-
-    if (allowedTiers.length > 0) {
-      exactMatchQuery = exactMatchQuery.in("tier", allowedTiers);
-    }
-
-    const { data: exactData } = await exactMatchQuery.limit(1).maybeSingle();
-
-    if (exactData) {
-      exactMatchKeyword = exactData;
-    } else {
-      // Try case-insensitive match with original trimmed query
-      let caseInsensitiveQuery = supabase
-        .from("keywords")
-        .select(
-          "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score, base_demand_index, adjusted_demand_index, deseasoned_trend_momentum, seasonal_label",
-        )
-        .eq("market", market)
-        .ilike("term", trimmedQuery);
-
-      if (resolvedSources.length > 0) {
-        caseInsensitiveQuery = caseInsensitiveQuery.in("source", resolvedSources);
-      }
-
-      if (allowedTiers.length > 0) {
-        caseInsensitiveQuery = caseInsensitiveQuery.in("tier", allowedTiers);
-      }
-
-      const { data: iLikeData } = await caseInsensitiveQuery.limit(1).maybeSingle();
-      if (iLikeData) {
-        exactMatchKeyword = iLikeData;
-      }
-    }
+    exactMatchKeyword = await findExactKeyword(supabase, market, trimmedQuery);
   } catch (error) {
     console.error("Failed to fetch exact match keyword", error);
   }
 
-  // Fetch keywords for similarity matching
-  const keywords = await fetchKeywordsFromSupabase(market, resolvedSources, allowedTiers, limit);
+  // fetch candidate pool under plan filters and a light text prefilter
+  const keywords = await fetchKeywordsFromSupabase(
+    market,
+    resolvedSources,
+    allowedTiers,
+    limit,
+    trimmedQuery
+  );
 
-  // If we found an exact match, ensure it's in the keywords array
-  const allKeywords = exactMatchKeyword
-    ? [exactMatchKeyword, ...keywords.filter(k => k.id !== exactMatchKeyword.id)]
+  // ensure exact match is present even if its source/tier is outside plan gating
+  const needsInject =
+    !!exactMatchKeyword && !keywords.some((k) => k.id && k.id === exactMatchKeyword!.id);
+
+  const allKeywords = needsInject
+    ? [exactMatchKeyword!, ...keywords]
+    : exactMatchKeyword
+    ? [exactMatchKeyword, ...keywords.filter((k) => k.id !== exactMatchKeyword.id)]
     : keywords;
 
   if (allKeywords.length === 0) {
@@ -444,13 +434,11 @@ async function handleSearch(req: Request): Promise<NextResponse> {
 
   const queryEmbedding = await getOrCreateEmbedding(query, { supabase });
 
-  // Rank keywords with exact match detection built-in
-  // Pass trimmedQuery so we can match against the original user input
+  // rank; exact matches are hard-pinned inside ranker by setting MAX_SAFE_INTEGER
   const ranked = await rankKeywords(queryEmbedding, allKeywords, supabase, trimmedQuery);
   const sliced = ranked.slice(0, limit);
 
   const cacheSources = [...resolvedSources].sort();
-
   const cacheKey = buildKeywordInsightCacheKey({
     query,
     market,
