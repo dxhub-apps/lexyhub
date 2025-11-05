@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { UsageChip } from "@/components/billing/UsageChip";
 
 const PLAN_SUMMARY: Record<string, string> = {
   spark: "Starter access with 100 keyword queries and Market Twin previews.",
@@ -91,6 +92,15 @@ export default function ProfilePage(): JSX.Element {
   const [periodEnd, setPeriodEnd] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [usage, setUsage] = useState<{
+    searches: { used: number; limit: number };
+    ai_opportunities: { used: number; limit: number };
+    niches: { used: number; limit: number };
+  }>({
+    searches: { used: 0, limit: 10 },
+    ai_opportunities: { used: 0, limit: 2 },
+    niches: { used: 0, limit: 1 },
+  });
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const activePlanSummary = useMemo(() => PLAN_SUMMARY[billing.plan], [billing.plan]);
 
@@ -175,6 +185,20 @@ export default function ProfilePage(): JSX.Element {
         description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
+    }
+
+    // Load usage data
+    try {
+      const usageResponse = await fetch(`/api/billing/usage?userId=${encodeURIComponent(userId)}`);
+      if (usageResponse.ok) {
+        const usageJson = await usageResponse.json();
+        if (usageJson.usage) {
+          setUsage(usageJson.usage);
+        }
+      }
+    } catch (error) {
+      console.warn("Failed to load usage data", error);
+      // Don't show toast for usage errors, just log it
     } finally {
       setLoading(false);
     }
@@ -415,6 +439,39 @@ export default function ProfilePage(): JSX.Element {
               <span className="text-sm text-muted-foreground">Plan summary</span>
               <span className="text-sm font-medium">{activePlanSummary}</span>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Monthly Usage</CardTitle>
+          <CardDescription>
+            Your current usage for this billing period. Upgrade your plan for higher limits.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <UsageChip
+              label="Searches"
+              used={usage.searches.used}
+              limit={usage.searches.limit}
+            />
+            <UsageChip
+              label="AI Opportunities"
+              used={usage.ai_opportunities.used}
+              limit={usage.ai_opportunities.limit}
+            />
+            <UsageChip
+              label="Niches"
+              used={usage.niches.used}
+              limit={usage.niches.limit}
+            />
+          </div>
+          <div className="mt-4">
+            <Button variant="outline" size="sm" asChild>
+              <a href="/pricing">View Plans</a>
+            </Button>
           </div>
         </CardContent>
       </Card>
