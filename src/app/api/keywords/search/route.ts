@@ -93,6 +93,28 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return dot / (normA * normB);
 }
 
+function coerceKeyword(row: any): KeywordRow {
+  return {
+    id: row?.id ?? undefined,
+    term: String(row.term),
+    market: String(row.market),
+    source: String(row.source),
+    tier: row?.tier ?? undefined,
+    method: row?.method ?? null,
+    extras: row?.extras ?? null,
+    trend_momentum: row?.trend_momentum ?? null,
+    ai_opportunity_score: row?.ai_opportunity_score ?? null,
+    demand_index: row?.demand_index ?? null,
+    competition_score: row?.competition_score ?? null,
+    engagement_score: row?.engagement_score ?? null,
+    freshness_ts: row?.freshness_ts ?? null,
+    base_demand_index: row?.base_demand_index ?? null,
+    adjusted_demand_index: row?.adjusted_demand_index ?? null,
+    deseasoned_trend_momentum: row?.deseasoned_trend_momentum ?? null,
+    seasonal_label: row?.seasonal_label ?? null,
+  };
+}
+
 async function fetchKeywordsFromSupabase(
   market: string,
   sources: string[],
@@ -111,7 +133,6 @@ async function fetchKeywordsFromSupabase(
       .from("keywords")
       .select(selectColumns)
       .eq("market", market)
-      // hard filter out null/empty terms at source
       .not("term", "is", null)
       .neq("term", "");
 
@@ -133,7 +154,6 @@ async function fetchKeywordsFromSupabase(
 
   let { data, error } = await executeQuery(tiers);
 
-  // tier stored as numeric in some envs; retry with numeric filters if needed
   if (error && error.code === "22P02") {
     const numericTierFilters = tiers
       .map((tier) => {
@@ -153,10 +173,10 @@ async function fetchKeywordsFromSupabase(
     return [];
   }
 
-  // client-side sanity guard
-  return (data ?? []).filter(
-    (k): k is KeywordRow => typeof k.term === "string" && k.term.trim().length > 0,
-  );
+  const rows: any[] = Array.isArray(data) ? data : [];
+  return rows
+    .filter((k) => typeof k?.term === "string" && k.term.trim().length > 0)
+    .map((k) => coerceKeyword(k));
 }
 
 // exact-match helper ignoring plan/source filters
@@ -168,17 +188,15 @@ async function findExactKeyword(
   const selectColumns =
     "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score, base_demand_index, adjusted_demand_index, deseasoned_trend_momentum, seasonal_label";
 
-  // 1) exact case-insensitive equality via RPC (uses lower(term)=lower(p_term))
   try {
     const { data: exactEq } = await supabase
       .rpc("lexy_lower_eq_keyword", { p_market: market, p_term: trimmedQuery })
       .maybeSingle();
-    if (exactEq && typeof (exactEq as any).term === "string") return exactEq as KeywordRow;
+    if (exactEq && typeof (exactEq as any).term === "string") return coerceKeyword(exactEq);
   } catch {
-    // fall through to plain queries if RPC not yet deployed
+    // ignore
   }
 
-  // 2) exact ILIKE (same text, different case)
   const { data: exactIlike } = await supabase
     .from("keywords")
     .select(selectColumns)
@@ -188,9 +206,8 @@ async function findExactKeyword(
     .ilike("term", trimmedQuery)
     .limit(1)
     .maybeSingle();
-  if (exactIlike && typeof exactIlike.term === "string") return exactIlike as KeywordRow;
+  if (exactIlike && typeof (exactIlike as any).term === "string") return coerceKeyword(exactIlike);
 
-  // 3) partial contains to improve recall
   const { data: partial } = await supabase
     .from("keywords")
     .select(selectColumns)
@@ -202,7 +219,7 @@ async function findExactKeyword(
     .limit(1)
     .maybeSingle();
 
-  return partial && typeof partial.term === "string" ? (partial as KeywordRow) : null;
+  return partial && typeof (partial as any).term === "string" ? coerceKeyword(partial) : null;
 }
 
 async function buildSummary(query: string, ranked: RankedKeyword[]): Promise<string> {
@@ -269,7 +286,6 @@ async function rankKeywords(
   const qLower = originalQuery.toLowerCase().trim();
 
   for (const keyword of keywords) {
-    // harden against bad data
     const term = typeof keyword.term === "string" ? keyword.term.trim() : "";
     if (!term) continue;
 
@@ -286,7 +302,7 @@ async function rankKeywords(
 
     ranked.push({
       ...keyword,
-      term, // ensured non-empty
+      term,
       similarity: isExact ? 1 : sim,
       embeddingModel: embedding.model,
       provenance_id: createProvenanceId(keyword.source, keyword.market, term),
@@ -398,7 +414,6 @@ async function handleSearch(req: Request): Promise<NextResponse> {
 
   const userId = resolveUserId(req);
 
-  // Log every search to telemetry
   await recordKeywordSearchRequest({
     supabase,
     query: trimmedQuery,
@@ -410,7 +425,6 @@ async function handleSearch(req: Request): Promise<NextResponse> {
     reason: "queried",
   });
 
-  // Backfill normalized keyword to golden source
   try {
     await supabase.rpc("lexy_upsert_keyword", {
       p_term: trimmedQuery,
@@ -425,7 +439,6 @@ async function handleSearch(req: Request): Promise<NextResponse> {
     console.error("Failed to upsert search keyword to golden source", error);
   }
 
-  // exact match ignoring plan/source restrictions
   let exactMatchKeyword: KeywordRow | null = null;
   try {
     exactMatchKeyword = await findExactKeyword(supabase, market, trimmedQuery);
@@ -433,7 +446,6 @@ async function handleSearch(req: Request): Promise<NextResponse> {
     console.error("Failed to fetch exact match keyword", error);
   }
 
-  // fetch candidate pool under plan filters and a light text prefilter
   const keywords = await fetchKeywordsFromSupabase(
     market,
     resolvedSources,
@@ -442,7 +454,6 @@ async function handleSearch(req: Request): Promise<NextResponse> {
     trimmedQuery,
   );
 
-  // ensure exact match is present even if its source/tier is outside plan gating
   const needsInject =
     !!exactMatchKeyword && !keywords.some((k) => k.id && k.id === exactMatchKeyword!.id);
 
@@ -470,7 +481,6 @@ async function handleSearch(req: Request): Promise<NextResponse> {
 
   const queryEmbedding = await getOrCreateEmbedding(query, { supabase });
 
-  // rank; exact matches are hard-pinned inside ranker by setting MAX_SAFE_INTEGER
   const ranked = await rankKeywords(queryEmbedding, allKeywords, supabase, trimmedQuery);
   const sliced = ranked.slice(0, limit);
 
