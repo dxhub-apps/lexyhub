@@ -35,16 +35,27 @@ chrome.runtime.sendMessage({ type: 'GET_AUTH_STATE' }, (response) => {
 });
 
 // Login button
-document.getElementById('loginBtn').addEventListener('click', () => {
-  // Send message to background script to initiate login with polling
-  chrome.runtime.sendMessage({ type: 'INITIATE_LOGIN' }, (response) => {
-    if (response && response.success) {
-      console.log('[LexyHub] Login initiated');
-    } else {
-      console.error('[LexyHub] Failed to initiate login');
-    }
+const loginBtn = document.getElementById('loginBtn');
+if (loginBtn) {
+  loginBtn.addEventListener('click', () => {
+    console.log('[LexyHub] Login button clicked');
+    // Send message to background script to initiate login with polling
+    chrome.runtime.sendMessage({ type: 'INITIATE_LOGIN' }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('[LexyHub] Runtime error:', chrome.runtime.lastError);
+        return;
+      }
+      console.log('[LexyHub] INITIATE_LOGIN response:', response);
+      if (response && response.success) {
+        console.log('[LexyHub] Login initiated successfully');
+      } else {
+        console.error('[LexyHub] Failed to initiate login:', response);
+      }
+    });
   });
-});
+} else {
+  console.error('[LexyHub] Login button not found in DOM');
+}
 
 // Open options
 document.getElementById('openOptions').addEventListener('click', (e) => {
