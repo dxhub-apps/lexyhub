@@ -1,8 +1,24 @@
 import Link from "next/link";
+import { Metadata } from "next";
 import { FileSearch, Users, Tag } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
+export const metadata: Metadata = {
+  title: "Editing Suite | Lexy",
+  description: "Comprehensive Etsy listing optimization tools with AI-powered insights for listing intelligence, competitor analysis, and tag optimization.",
+};
+
+/**
+ * Editing Suite Overview Page
+ *
+ * Displays the main dashboard for the editing suite with three primary tools:
+ * - Listing Intelligence: Quality audits for listings
+ * - Competitor Analysis: Market benchmarking and insights
+ * - Tag Optimizer: Data-driven tag recommendations
+ *
+ * @returns {JSX.Element} Overview dashboard with feature cards
+ */
 export default function EditingOverviewPage(): JSX.Element {
   return (
     <div className="space-y-8">
