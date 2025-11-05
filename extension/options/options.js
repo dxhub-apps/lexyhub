@@ -97,17 +97,25 @@ document.getElementById('saveBtn').addEventListener('click', () => {
 });
 
 // Login button
-document.getElementById('loginBtn').addEventListener('click', () => {
-  // Send message to background script to initiate login with polling
-  chrome.runtime.sendMessage({ type: 'INITIATE_LOGIN' }, (response) => {
-    if (response && response.success) {
-      console.log('[LexyHub] Login initiated');
-    } else {
-      console.error('[LexyHub] Failed to initiate login');
-      alert('Failed to initiate login. Please try again.');
-    }
+const loginBtn = document.getElementById('loginBtn');
+if (loginBtn) {
+  loginBtn.addEventListener('click', () => {
+    console.log('[LexyHub] Login button clicked in options');
+    // Send message to background script to initiate login with polling
+    chrome.runtime.sendMessage({ type: 'INITIATE_LOGIN' }, (response) => {
+      console.log('[LexyHub] INITIATE_LOGIN response:', response);
+      if (response && response.success) {
+        console.log('[LexyHub] Login initiated successfully');
+        // Optionally close the options page or show a message
+      } else {
+        console.error('[LexyHub] Failed to initiate login:', response);
+        alert('Failed to initiate login. Please try again.');
+      }
+    });
   });
-});
+} else {
+  console.error('[LexyHub] Login button not found in options DOM');
+}
 
 // Logout button
 document.getElementById('logoutBtn').addEventListener('click', () => {
