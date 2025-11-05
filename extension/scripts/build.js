@@ -8,11 +8,12 @@
 const fs = require('fs');
 const path = require('path');
 const esbuild = require('esbuild');
+const { execSync } = require('child_process');
 
 const target = process.argv[2] || 'chrome';
 const distDir = path.join(__dirname, '..', 'dist', target);
 
-console.log(`Building extension for ${target}...`);
+console.log(`\n🔨 Building LexyHub Extension for ${target}...\n`);
 
 // Clean dist directory
 if (fs.existsSync(distDir)) {
@@ -20,14 +21,32 @@ if (fs.existsSync(distDir)) {
 }
 fs.mkdirSync(distDir, { recursive: true });
 
+// Check if icons exist, if not generate them
+const iconsSourceDir = path.join(__dirname, '..', 'icons');
+const icon16 = path.join(iconsSourceDir, 'icon16.png');
+
+if (!fs.existsSync(icon16)) {
+  console.log('📦 Icons not found. Generating placeholder icons...\n');
+  try {
+    execSync('node scripts/create-placeholder-icons.js', {
+      cwd: path.join(__dirname, '..'),
+      stdio: 'inherit'
+    });
+  } catch (err) {
+    console.error('Failed to generate icons:', err.message);
+    process.exit(1);
+  }
+}
+
 // Copy static files
+console.log('📋 Copying static files...\n');
+
 const staticFiles = [
   'manifest.json',
   'popup/index.html',
   'popup/popup.js',
   'options/index.html',
   'options/options.js',
-  'src/content/styles.css',
 ];
 
 staticFiles.forEach(file => {
@@ -44,17 +63,49 @@ staticFiles.forEach(file => {
     fs.copyFileSync(src, dest);
     console.log(`  ✓ Copied ${file}`);
   } else {
-    console.warn(`  ⚠ Missing ${file}`);
+    console.warn(`  ⚠  Missing ${file}`);
   }
 });
 
-// Create icons directory (placeholder for now)
-const iconsDir = path.join(distDir, 'icons');
-if (!fs.existsSync(iconsDir)) {
-  fs.mkdirSync(iconsDir, { recursive: true });
+// Copy content styles
+const contentStylesSrc = path.join(__dirname, '..', 'src', 'content', 'styles.css');
+const contentStylesDest = path.join(distDir, 'content', 'styles.css');
+if (fs.existsSync(contentStylesSrc)) {
+  const contentDir = path.join(distDir, 'content');
+  if (!fs.existsSync(contentDir)) {
+    fs.mkdirSync(contentDir, { recursive: true });
+  }
+  fs.copyFileSync(contentStylesSrc, contentStylesDest);
+  console.log(`  ✓ Copied src/content/styles.css`);
+} else {
+  console.warn(`  ⚠  Missing src/content/styles.css`);
 }
 
+// Copy icons
+console.log('\n🎨 Copying icons...\n');
+const iconsDestDir = path.join(distDir, 'icons');
+if (!fs.existsSync(iconsDestDir)) {
+  fs.mkdirSync(iconsDestDir, { recursive: true });
+}
+
+const iconSizes = [16, 48, 128];
+iconSizes.forEach(size => {
+  const iconFile = `icon${size}.png`;
+  const src = path.join(iconsSourceDir, iconFile);
+  const dest = path.join(iconsDestDir, iconFile);
+
+  if (fs.existsSync(src)) {
+    fs.copyFileSync(src, dest);
+    console.log(`  ✓ Copied icons/${iconFile}`);
+  } else {
+    console.error(`  ✗ Missing icons/${iconFile}`);
+    process.exit(1);
+  }
+});
+
 // Build TypeScript files with esbuild
+console.log('\n⚙️  Building TypeScript files...\n');
+
 const entryPoints = [
   { in: 'src/background/index.ts', out: 'background' },
   { in: 'src/content/etsy.ts', out: 'content/etsy' },
@@ -71,19 +122,25 @@ const buildPromises = entryPoints.map(entry => {
     target: 'es2020',
     minify: true,
     sourcemap: false,
-    logLevel: 'info',
+    logLevel: 'error', // Only show errors
   }).then(() => {
     console.log(`  ✓ Built ${entry.out}.js`);
   }).catch(err => {
-    console.error(`  ✗ Failed to build ${entry.out}.js:`, err);
+    console.error(`  ✗ Failed to build ${entry.out}.js:`);
+    console.error(err.message);
     process.exit(1);
   });
 });
 
 Promise.all(buildPromises).then(() => {
-  console.log(`\n✓ Build completed for ${target}!`);
-  console.log(`Output: ${distDir}`);
+  console.log('\n✅ Build completed successfully!\n');
+  console.log(`📁 Output directory: ${distDir}`);
+  console.log('\n🚀 Next steps:');
+  console.log(`   1. Open Chrome and go to: chrome://extensions/`);
+  console.log(`   2. Enable "Developer mode" (top right)`);
+  console.log(`   3. Click "Load unpacked"`);
+  console.log(`   4. Select: ${distDir}\n`);
 }).catch(err => {
-  console.error('\n✗ Build failed:', err);
+  console.error('\n✗ Build failed:', err.message);
   process.exit(1);
 });
