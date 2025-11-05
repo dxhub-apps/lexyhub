@@ -72,7 +72,7 @@ export function PaywallModal({
           </div>
           <DialogTitle className="text-center">Quota Limit Reached</DialogTitle>
           <DialogDescription className="text-center">
-            You've used{" "}
+            You&apos;ve used{" "}
             <Badge variant="outline" className="font-mono">
               {used}/{limit === -1 ? "∞" : limit}
             </Badge>{" "}
