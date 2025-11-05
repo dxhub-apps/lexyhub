@@ -70,6 +70,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       handleGetAuthState(sendResponse);
       return true; // Keep channel open for async response
 
+    case "INITIATE_LOGIN":
+      handleInitiateLogin(sendResponse);
+      return true;
+
+    case "LOGOUT":
+      handleLogout(sendResponse);
+      return true;
+
     case "GET_WATCHLIST":
       handleGetWatchlist(message.payload, sendResponse);
       return true;
@@ -118,6 +126,26 @@ async function handleGetAuthState(sendResponse: (response: any) => void) {
   } catch (error) {
     console.error("[LexyHub] Error getting auth state:", error);
     sendResponse({ isAuthenticated: false, hasToken: false });
+  }
+}
+
+async function handleInitiateLogin(sendResponse: (response: any) => void) {
+  try {
+    await auth.initiateLogin();
+    sendResponse({ success: true });
+  } catch (error) {
+    console.error("[LexyHub] Error initiating login:", error);
+    sendResponse({ success: false, error: String(error) });
+  }
+}
+
+async function handleLogout(sendResponse: (response: any) => void) {
+  try {
+    await auth.logout();
+    sendResponse({ success: true });
+  } catch (error) {
+    console.error("[LexyHub] Error during logout:", error);
+    sendResponse({ success: false, error: String(error) });
   }
 }
 
