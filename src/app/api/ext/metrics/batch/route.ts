@@ -12,9 +12,12 @@ interface KeywordMetrics {
   t: string;  // term
   demand: number;
   competition: number;
+  engagement: number;
   ai_score: number;
   trend: "up" | "down" | "flat" | "unknown";
   freshness: string;
+  intent?: string;
+  seasonality?: string;
 }
 
 /**
@@ -28,6 +31,33 @@ function getTrendIndicator(trendMomentum: number | null): "up" | "down" | "flat"
   if (trendMomentum > 0.6) return "up";
   if (trendMomentum < 0.4) return "down";
   return "flat";
+}
+
+/**
+ * Format timestamp as relative time
+ */
+function formatRelativeTime(timestamp: string | null): string {
+  if (!timestamp) return "unknown";
+
+  const now = new Date();
+  const then = new Date(timestamp);
+  const diffMs = now.getTime() - then.getTime();
+  const diffSeconds = Math.floor(diffMs / 1000);
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  const diffWeeks = Math.floor(diffDays / 7);
+  const diffMonths = Math.floor(diffDays / 30);
+
+  if (diffSeconds < 60) return "just now";
+  if (diffMinutes < 60) return `${diffMinutes} min ago`;
+  if (diffHours < 24) return `${diffHours} hr ago`;
+  if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  if (diffWeeks < 4) return `${diffWeeks} week${diffWeeks > 1 ? 's' : ''} ago`;
+  if (diffMonths < 12) return `${diffMonths} month${diffMonths > 1 ? 's' : ''} ago`;
+
+  const diffYears = Math.floor(diffMonths / 12);
+  return `${diffYears} year${diffYears > 1 ? 's' : ''} ago`;
 }
 
 /**
@@ -124,7 +154,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const { data, error } = await supabase
       .from("keywords")
       .select(
-        "term, term_normalized, demand_index, competition_score, ai_opportunity_score, trend_momentum, freshness_ts"
+        "term, term_normalized, demand_index, competition_score, engagement_score, ai_opportunity_score, trend_momentum, freshness_ts, extras"
       )
       .eq("market", market.toLowerCase())
       .in("term_normalized", normalizedTerms);
@@ -149,13 +179,17 @@ export async function POST(request: Request): Promise<NextResponse> {
       const row = dataMap.get(normalizedTerm);
 
       if (row) {
+        const extras = row.extras || {};
         metrics.push({
           t: originalTerm,
           demand: normalizeMetric(row.demand_index, 50),
           competition: normalizeMetric(row.competition_score, 50),
-          ai_score: normalizeMetric(row.ai_opportunity_score, 50) / 100, // Keep as [0, 1]
+          engagement: normalizeMetric(row.engagement_score, 50),
+          ai_score: normalizeMetric(row.ai_opportunity_score, 50),
           trend: getTrendIndicator(row.trend_momentum),
-          freshness: row.freshness_ts || new Date().toISOString(),
+          freshness: formatRelativeTime(row.freshness_ts),
+          intent: extras.intent || undefined,
+          seasonality: extras.seasonality || undefined,
         });
       } else {
         // Term not found in golden source yet
@@ -163,9 +197,10 @@ export async function POST(request: Request): Promise<NextResponse> {
           t: originalTerm,
           demand: 0,
           competition: 0,
+          engagement: 0,
           ai_score: 0,
           trend: "unknown",
-          freshness: new Date().toISOString(),
+          freshness: "unknown",
         });
       }
     }
