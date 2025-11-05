@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Bell } from 'lucide-react';
 import { useUser } from '@supabase/auth-helpers-react';
 import { Button } from '@/components/ui/button';
@@ -16,19 +16,7 @@ export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
 
-  useEffect(() => {
-    if (!user?.id) return;
-
-    // Fetch unread count
-    fetchUnreadCount();
-
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(fetchUnreadCount, 30000);
-
-    return () => clearInterval(interval);
-  }, [user?.id]);
-
-  async function fetchUnreadCount() {
+  const fetchUnreadCount = useCallback(async () => {
     if (!user?.id) return;
 
     try {
@@ -40,14 +28,26 @@ export function NotificationBell() {
     } catch (error) {
       console.error('Failed to fetch unread count:', error);
     }
-  }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Fetch unread count
+    fetchUnreadCount();
+
+    // Poll for new notifications every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+
+    return () => clearInterval(interval);
+  }, [user?.id, fetchUnreadCount]);
 
   // Refresh count when popover opens
   useEffect(() => {
     if (isOpen && user?.id) {
       fetchUnreadCount();
     }
-  }, [isOpen, user?.id]);
+  }, [isOpen, user?.id, fetchUnreadCount]);
 
   if (!user?.id) return null;
 

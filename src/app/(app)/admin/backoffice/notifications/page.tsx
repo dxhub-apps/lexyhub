@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Plus,
@@ -75,11 +75,7 @@ export default function NotificationsListPage() {
   const [kindFilter, setKindFilter] = useState<string>('all');
   const [severityFilter, setSeverityFilter] = useState<string>('all');
 
-  useEffect(() => {
-    fetchNotifications();
-  }, [statusFilter, kindFilter, severityFilter, searchQuery]);
-
-  async function fetchNotifications() {
+  const fetchNotifications = useCallback(async () => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
@@ -98,7 +94,11 @@ export default function NotificationsListPage() {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [statusFilter, kindFilter, severityFilter, searchQuery]);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   async function handlePublish(id: string) {
     if (!confirm('Are you sure you want to publish this notification?')) return;

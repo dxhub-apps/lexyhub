@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useUser } from '@supabase/auth-helpers-react';
 import { Bell, Loader2, Save, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -65,12 +65,7 @@ export default function NotificationPreferencesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  useEffect(() => {
-    if (!user?.id) return;
-    fetchPreferences();
-  }, [user?.id]);
-
-  async function fetchPreferences() {
+  const fetchPreferences = useCallback(async () => {
     if (!user?.id) return;
 
     try {
@@ -84,7 +79,12 @@ export default function NotificationPreferencesPage() {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    fetchPreferences();
+  }, [user?.id, fetchPreferences]);
 
   async function updatePreference(
     category: NotificationCategory,

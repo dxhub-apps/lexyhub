@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Loader2, TrendingUp, MousePointer, XCircle, Mail, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -33,13 +33,7 @@ export default function NotificationAnalyticsPage() {
   const [metrics, setMetrics] = useState<NotificationMetrics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    if (notificationId) {
-      fetchMetrics();
-    }
-  }, [notificationId]);
-
-  async function fetchMetrics() {
+  const fetchMetrics = useCallback(async () => {
     try {
       const response = await fetch(
         `/api/admin/backoffice/notifications/${notificationId}/metrics`
@@ -54,7 +48,13 @@ export default function NotificationAnalyticsPage() {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [notificationId]);
+
+  useEffect(() => {
+    if (notificationId) {
+      fetchMetrics();
+    }
+  }, [notificationId, fetchMetrics]);
 
   if (isLoading) {
     return (

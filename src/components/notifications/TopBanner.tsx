@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { X, Info, CheckCircle2, AlertTriangle, AlertCircle } from 'lucide-react';
 import { useUser } from '@supabase/auth-helpers-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -57,18 +57,7 @@ export function TopBanner() {
   const [banner, setBanner] = useState<Banner | null>(null);
   const [isVisible, setIsVisible] = useState(true);
 
-  useEffect(() => {
-    if (!user?.id) return;
-
-    fetchBanner();
-
-    // Check for new banners every 5 minutes
-    const interval = setInterval(fetchBanner, 5 * 60 * 1000);
-
-    return () => clearInterval(interval);
-  }, [user?.id]);
-
-  async function fetchBanner() {
+  const fetchBanner = useCallback(async () => {
     if (!user?.id) return;
 
     try {
@@ -85,7 +74,18 @@ export function TopBanner() {
     } catch (error) {
       console.error('Failed to fetch active banner:', error);
     }
-  }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    fetchBanner();
+
+    // Check for new banners every 5 minutes
+    const interval = setInterval(fetchBanner, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [user?.id, fetchBanner]);
 
   async function handleDismiss() {
     if (!banner || !user?.id) return;

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Check, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Check, Loader2, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -34,11 +34,7 @@ export function NotificationFeed({ userId, onNotificationRead }: NotificationFee
   const [isLoading, setIsLoading] = useState(true);
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
 
-  useEffect(() => {
-    fetchNotifications();
-  }, [activeTab, userId]);
-
-  async function fetchNotifications() {
+  const fetchNotifications = useCallback(async () => {
     setIsLoading(true);
     try {
       const unreadParam = activeTab === 'unread' ? '&unread=true' : '';
@@ -55,7 +51,11 @@ export function NotificationFeed({ userId, onNotificationRead }: NotificationFee
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [activeTab, userId]);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   async function handleMarkAllRead() {
     setIsMarkingAllRead(true);
@@ -193,7 +193,7 @@ export function NotificationFeed({ userId, onNotificationRead }: NotificationFee
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <Bell className="mb-2 h-12 w-12 text-muted-foreground/50" />
                 <p className="text-sm font-medium text-muted-foreground">No unread notifications</p>
-                <p className="text-xs text-muted-foreground">You're all caught up!</p>
+                <p className="text-xs text-muted-foreground">You&apos;re all caught up!</p>
               </div>
             ) : (
               <div className="divide-y">
