@@ -118,8 +118,8 @@ export async function POST(request: Request): Promise<NextResponse> {
     const opportunityAnalysis = {
       total_terms: terms.length,
       high_opportunity_count: clusters.high_opportunity.length,
-      avg_demand: keywordData?.reduce((sum, kw) => sum + (kw.demand_index || 0), 0) / (keywordData?.length || 1),
-      avg_competition: keywordData?.reduce((sum, kw) => sum + (kw.competition_score || 0), 0) / (keywordData?.length || 1),
+      avg_demand: (keywordData?.reduce((sum, kw) => sum + (kw.demand_index || 0), 0) ?? 0) / (keywordData?.length || 1),
+      avg_competition: (keywordData?.reduce((sum, kw) => sum + (kw.competition_score || 0), 0) ?? 0) / (keywordData?.length || 1),
     };
 
     // Store brief in database
