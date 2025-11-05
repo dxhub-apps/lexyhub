@@ -379,6 +379,33 @@ async function handleSearch(req: Request): Promise<NextResponse> {
 
   const userId = resolveUserId(req);
 
+  // Log every search to telemetry (Task 1)
+  await recordKeywordSearchRequest({
+    supabase,
+    query: trimmedQuery,
+    normalizedQuery: query,
+    market,
+    plan,
+    sources: resolvedSources,
+    userId,
+    reason: 'queried',
+  });
+
+  // Backfill normalized keyword to golden source (Task 1)
+  try {
+    await supabase.rpc('lexy_upsert_keyword', {
+      p_term: trimmedQuery,
+      p_market: market,
+      p_source: 'ai',
+      p_tier: plan,
+      p_method: 'search_touch',
+      p_extras: {},
+      p_freshness: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Failed to upsert search keyword to golden source', error);
+  }
+
   // exact match ignoring plan/source restrictions
   let exactMatchKeyword: KeywordRow | null = null;
   try {
@@ -407,16 +434,6 @@ async function handleSearch(req: Request): Promise<NextResponse> {
     : keywords;
 
   if (allKeywords.length === 0) {
-    await recordKeywordSearchRequest({
-      supabase,
-      query: trimmedQuery,
-      normalizedQuery: query,
-      market,
-      plan,
-      sources: resolvedSources,
-      userId,
-    });
-
     return NextResponse.json({
       query,
       market,

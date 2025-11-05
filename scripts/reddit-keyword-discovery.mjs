@@ -344,19 +344,16 @@ function addPhraseSample(phrase, baseScore, recordedISO, inTitle, isQuestionLike
 async function upsertKeyword(term, method = "ngram_extract", extras = {}) {
   await withRetry(
     async () => {
-      const { error } = await db.from("keywords").upsert(
-        {
-          term,
-          source: "reddit",
-          market: "us",
-          is_seed: false,
-          ingest_source: "reddit",
-          ingest_metadata: extras, // contains samplePosts and stats
-          method,
-          allow_search_sampling: true,
-        },
-        { onConflict: "term,source,market" }
-      );
+      // Use lexy_upsert_keyword RPC (Task 3)
+      const { error } = await db.rpc("lexy_upsert_keyword", {
+        p_term: term,
+        p_market: "us",
+        p_source: "reddit",
+        p_tier: "free",
+        p_method: method,
+        p_extras: extras, // contains samplePosts and stats
+        p_freshness: new Date().toISOString(),
+      });
       if (error) throw error;
     },
     "db_keywords"

@@ -289,7 +289,9 @@ export class AmazonKeywordProvider implements KeywordSourceProvider {
 
     const now = this.dependencies.now?.() ?? new Date();
 
-    const payload = deduped.map((item) => {
+    // Use lexy_upsert_keyword RPC for each keyword (Task 3)
+    let keywordsUpserted = 0;
+    for (const item of deduped) {
       const metrics = metricsMap.get(item.term);
       const demand = normalizeScale(metrics?.searchVolume, 1000, 0.55);
       const competition = normalizeScale(metrics?.competition ?? metrics?.conversionRate, 100, 0.45);
@@ -297,30 +299,24 @@ export class AmazonKeywordProvider implements KeywordSourceProvider {
       const engagement = normalizeRate(metrics?.conversionRate, 0.12);
       const opportunity = computeOpportunityScore(demand, competition, trend);
 
-      return toKeywordPayload({
-        term: item.term,
-        market,
-        source: this.id,
-        tier: this.tier,
-        method: "amazon-suggest-paapi",
-        sourceReason: `Amazon suggest enrichment (seed: ${item.seedTerm})`,
-        demandIndex: demand,
-        competitionScore: competition,
-        engagementScore: engagement,
-        trendMomentum: trend,
-        aiOpportunityScore: opportunity,
-        freshnessTs: now.toISOString(),
-        extras: buildExtras(item, metrics),
-      });
-    });
-
-    const { error: upsertError, data: upserted } = await supabase
-      .from("keywords")
-      .upsert(payload, { onConflict: "term,source,market" })
-      .select("id");
-
-    if (upsertError) {
-      throw new Error(`Amazon provider failed to upsert keywords: ${upsertError.message}`);
+      try {
+        await supabase.rpc('lexy_upsert_keyword', {
+          p_term: item.term,
+          p_market: market,
+          p_source: this.id,
+          p_tier: this.tier,
+          p_method: "amazon-suggest-paapi",
+          p_extras: buildExtras(item, metrics),
+          p_demand: demand,
+          p_competition: competition,
+          p_engagement: engagement,
+          p_ai: opportunity,
+          p_freshness: now.toISOString(),
+        });
+        keywordsUpserted++;
+      } catch (error) {
+        console.error(`Amazon provider failed to upsert keyword "${item.term}":`, error);
+      }
     }
 
     const seedIds = seeds.map((seed) => seed.id);
@@ -340,7 +336,7 @@ export class AmazonKeywordProvider implements KeywordSourceProvider {
     return {
       providerId: this.id,
       keywordsProcessed,
-      keywordsUpserted: upserted?.length ?? payload.length,
+      keywordsUpserted,
       suggestionsEvaluated: aggregated.length,
       tokensConsumed: suggestionTokens + metricsTokens,
       startedAt,

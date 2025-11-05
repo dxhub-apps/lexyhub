@@ -57,19 +57,32 @@ async function upsertKeywords(
   if (!payloads.length) {
     return new Map();
   }
-  const { data, error } = await client
-    .from("keywords")
-    .upsert(payloads, { onConflict: "term,source,market" })
-    .select("id, term");
-  if (error) {
-    throw new Error(`Failed to upsert keywords: ${formatPostgrestError(error)}`);
-  }
+
+  // Use lexy_upsert_keyword RPC for each keyword (Task 3)
   const map = new Map<string, string>();
-  for (const row of data ?? []) {
-    if (row.term && row.id) {
-      map.set(row.term as string, row.id as string);
+  for (const payload of payloads) {
+    try {
+      const { data, error } = await client.rpc('lexy_upsert_keyword', {
+        p_term: payload.term,
+        p_market: payload.market,
+        p_source: payload.source,
+        p_tier: 'free',
+        p_method: 'etsy_ingest',
+        p_extras: payload.extras || {},
+        p_freshness: new Date().toISOString(),
+      });
+      if (error) {
+        console.warn(`Failed to upsert keyword "${payload.term}": ${formatPostgrestError(error)}`);
+        continue;
+      }
+      if (data) {
+        map.set(payload.term, data as string);
+      }
+    } catch (error) {
+      console.warn(`Error upserting keyword "${payload.term}":`, error);
     }
   }
+
   return map;
 }
 
