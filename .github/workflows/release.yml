@@ -175,24 +175,14 @@ jobs:
               prerelease: false
             });
 
-  # Deploy to production (after release)
-  deploy-production:
-    name: Deploy to Production
+  # Deployment notification (Vercel auto-deploys from main)
+  deploy-notification:
+    name: Deployment Notification
     needs: create-release
     runs-on: ubuntu-latest
-    environment:
-      name: production
-      url: https://your-production-url.com
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy notification
+      - name: Log deployment info
         run: |
-          echo "🚀 Deploying version ${{ needs.changelog.outputs.new_version }} to production"
+          echo "🚀 Release v${{ needs.changelog.outputs.new_version }} created"
           echo "Vercel will automatically deploy from the main branch"
-
-      - name: Notify team
-        if: always()
-        run: |
-          echo "Release v${{ needs.changelog.outputs.new_version }} deployed to production"
-          # Add Slack/Discord notification here if needed
+          echo "Monitor deployment at: https://vercel.com/dashboard"
