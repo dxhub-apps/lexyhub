@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LexyHub Extension</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 400px;
+      min-height: 500px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f9fafb;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      color: white;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .boost-badge {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .tabs {
+      display: flex;
+      background: white;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 12px;
+      text-align: center;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: #6b7280;
+      transition: all 0.2s;
+      border-bottom: 2px solid transparent;
+    }
+
+    .tab:hover {
+      color: #374151;
+      background: #f9fafb;
+    }
+
+    .tab.active {
+      color: #6366f1;
+      border-bottom-color: #6366f1;
+    }
+
+    .content {
+      padding: 20px;
+    }
+
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    .auth-prompt {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .auth-prompt img {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 16px;
+    }
+
+    .auth-prompt h2 {
+      font-size: 18px;
+      margin-bottom: 8px;
+      color: #1f2937;
+    }
+
+    .auth-prompt p {
+      color: #6b7280;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #6366f1;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #4f46e5;
+    }
+
+    .term-list {
+      list-style: none;
+    }
+
+    .term-item {
+      padding: 12px;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .term-item .term {
+      font-weight: 500;
+      color: #1f2937;
+    }
+
+    .term-item .market {
+      font-size: 12px;
+      color: #6b7280;
+      text-transform: uppercase;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #6b7280;
+    }
+
+    .footer {
+      padding: 12px 20px;
+      border-top: 1px solid #e5e7eb;
+      background: white;
+      text-align: center;
+    }
+
+    .footer a {
+      color: #6366f1;
+      text-decoration: none;
+      font-size: 12px;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>LexyHub</h1>
+    <span class="boost-badge" id="boostBadge" style="display: none;">⚡ Boost Active</span>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="discover">Discover</button>
+    <button class="tab" data-tab="session">Session</button>
+    <button class="tab" data-tab="briefs">Briefs</button>
+    <button class="tab" data-tab="settings">Settings</button>
+  </div>
+
+  <div class="content">
+    <div class="tab-panel active" id="discover">
+      <div class="auth-prompt" id="authPrompt">
+        <h2>Welcome to LexyHub!</h2>
+        <p>Sign in to start capturing keywords and tracking your watchlist.</p>
+        <button class="btn btn-primary" id="loginBtn">Sign In</button>
+      </div>
+
+      <div id="discoverContent" style="display: none;">
+        <h3 style="margin-bottom: 12px; font-size: 14px; color: #6b7280; text-transform: uppercase;">Discovered Terms</h3>
+        <div class="empty-state">
+          <p>Browse marketplaces to discover keywords</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="session">
+      <div class="empty-state">
+        <p>Your browsing session will appear here</p>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="briefs">
+      <div class="empty-state">
+        <p>Created briefs will appear here</p>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="settings">
+      <h3 style="margin-bottom: 12px; font-size: 14px; color: #6b7280; text-transform: uppercase;">Enabled Domains</h3>
+      <label style="display: block; margin-bottom: 8px;">
+        <input type="checkbox" id="domainEtsy" checked> Etsy
+      </label>
+      <label style="display: block; margin-bottom: 8px;">
+        <input type="checkbox" id="domainAmazon" checked> Amazon
+      </label>
+      <label style="display: block; margin-bottom: 8px;">
+        <input type="checkbox" id="domainShopify" checked> Shopify
+      </label>
+      <button class="btn btn-primary" id="saveSettings" style="margin-top: 16px;">Save Settings</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    <a href="#" id="openOptions">Advanced Settings</a> •
+    <a href="https://app.lexyhub.com" target="_blank">Open App</a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
