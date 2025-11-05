@@ -17,12 +17,23 @@ import { Badge } from "@/components/ui/badge";
 type ProductData = {
   url: string;
   marketplace: string;
-  title: string;
-  price: number | null;
-  currency: string;
-  description: string;
+  id: string | null;
+  title: string | null;
+  price: {
+    amount: number | null;
+    currency: string | null;
+  };
+  description: string | null;
   tags: string[];
   images: string[];
+  category?: string[];
+  shop?: {
+    id?: string | null;
+    name?: string | null;
+    url?: string | null;
+  };
+  extras?: Record<string, unknown>;
+  fetchedAt: string;
 };
 
 type SimulationResult = {
@@ -117,10 +128,10 @@ export default function MarketTwinPage(): JSX.Element {
       }
 
       setProductData(json.product);
-      setScenarioTitle(json.product.title);
+      setScenarioTitle(json.product.title || "");
       setScenarioTags(json.product.tags.join(", "));
-      setScenarioPrice(json.product.price != null ? (json.product.price / 100).toFixed(2) : "");
-      setScenarioDescription(json.product.description);
+      setScenarioPrice(json.product.price.amount != null ? json.product.price.amount.toFixed(2) : "");
+      setScenarioDescription(json.product.description || "");
 
       toast({
         title: "Product loaded",
@@ -396,7 +407,9 @@ export default function MarketTwinPage(): JSX.Element {
                     <div className="flex justify-between border-b border-border pb-2">
                       <dt className="font-medium">Price</dt>
                       <dd className="text-muted-foreground">
-                        {formatCurrency(productData.price, productData.currency)}
+                        {productData.price.amount
+                          ? `${productData.price.amount.toFixed(2)} ${productData.price.currency || 'USD'}`
+                          : 'N/A'}
                       </dd>
                     </div>
                     <div className="flex justify-between">
