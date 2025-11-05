@@ -414,36 +414,57 @@ async function handleSearch(req: Request): Promise<NextResponse> {
 
   const userId = resolveUserId(req);
 
-  await recordKeywordSearchRequest({
-    supabase,
-    query: trimmedQuery,
-    normalizedQuery: query,
-    market,
-    plan,
-    sources: resolvedSources,
-    userId,
-    reason: "queried",
-  });
-
-  try {
-    await supabase.rpc("lexy_upsert_keyword", {
-      p_term: trimmedQuery,
-      p_market: market,
-      p_source: "ai",
-      p_tier: plan,
-      p_method: "search_touch",
-      p_extras: {},
-      p_freshness: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error("Failed to upsert search keyword to golden source", error);
-  }
-
+  // Check if keyword already exists in the keywords table
   let exactMatchKeyword: KeywordRow | null = null;
   try {
     exactMatchKeyword = await findExactKeyword(supabase, market, trimmedQuery);
   } catch (error) {
     console.error("Failed to fetch exact match keyword", error);
+  }
+
+  // Only record in keyword_search_requests if the keyword doesn't exist yet
+  const keywordExists = exactMatchKeyword !== null;
+
+  if (!keywordExists) {
+    // Record this as a new keyword search request that needs to be processed
+    await recordKeywordSearchRequest({
+      supabase,
+      query: trimmedQuery,
+      normalizedQuery: query,
+      market,
+      plan,
+      sources: resolvedSources,
+      userId,
+      reason: "new_keyword",
+    });
+
+    // Immediately insert the keyword into the keywords table for future searches
+    try {
+      const result = await supabase.rpc("lexy_upsert_keyword", {
+        p_term: trimmedQuery,
+        p_market: market,
+        p_source: "ai",
+        p_tier: plan,
+        p_method: "search_touch",
+        p_extras: {},
+        p_freshness: new Date().toISOString(),
+      });
+
+      if (result.error) {
+        console.error("Error from lexy_upsert_keyword:", result.error);
+      } else {
+        console.log("Successfully upserted keyword:", trimmedQuery, "with id:", result.data);
+
+        // Re-fetch the keyword after inserting it
+        try {
+          exactMatchKeyword = await findExactKeyword(supabase, market, trimmedQuery);
+        } catch (error) {
+          console.error("Failed to re-fetch exact match keyword after insert", error);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to upsert search keyword to golden source", error);
+    }
   }
 
   const keywords = await fetchKeywordsFromSupabase(
