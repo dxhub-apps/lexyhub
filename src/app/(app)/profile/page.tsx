@@ -14,7 +14,7 @@ import {
 
 import { upload } from "@vercel/blob/client";
 import { useSession } from "@supabase/auth-helpers-react";
-import { User, CreditCard, Upload, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { User, CreditCard, Upload, CheckCircle2, XCircle, Clock, Users } from "lucide-react";
 
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,6 +67,16 @@ type BillingPreferences = {
   paymentMethod: string;
 };
 
+type AffiliateSettings = {
+  code: string;
+  displayName: string;
+  email: string;
+  payoutMethod: string;
+  payoutEmail: string;
+  status: string;
+  baseRate: number;
+};
+
 const EMPTY_PROFILE: ProfileDetails = {
   fullName: "",
   email: "",
@@ -104,6 +114,7 @@ export default function ProfilePage(): JSX.Element {
     ai_opportunities: { used: 0, limit: 2 },
     niches: { used: 0, limit: 1 },
   });
+  const [affiliate, setAffiliate] = useState<AffiliateSettings | null>(null);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const activePlanSummary = useMemo(() => PLAN_SUMMARY[billing.plan], [billing.plan]);
 
@@ -202,6 +213,20 @@ export default function ProfilePage(): JSX.Element {
     } catch (error) {
       console.warn("Failed to load usage data", error);
       // Don't show toast for usage errors, just log it
+    }
+
+    // Load affiliate data
+    try {
+      const affiliateResponse = await fetch(`/api/affiliate?userId=${encodeURIComponent(userId)}`);
+      if (affiliateResponse.ok) {
+        const affiliateJson = await affiliateResponse.json();
+        if (affiliateJson.affiliate) {
+          setAffiliate(affiliateJson.affiliate);
+        }
+      }
+    } catch (error) {
+      console.warn("Failed to load affiliate data", error);
+      // Don't show toast for affiliate errors, just log it
     } finally {
       setLoading(false);
     }
@@ -395,6 +420,54 @@ export default function ProfilePage(): JSX.Element {
     } catch (error) {
       toast({
         title: "Cancellation failed",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAffiliateSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!userId) {
+      toast({
+        title: "Affiliate settings unavailable",
+        description: "You must be signed in to update affiliate settings.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!affiliate) {
+      toast({
+        title: "Affiliate settings unavailable",
+        description: "No affiliate record found for your account.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      const response = await fetch(`/api/affiliate?userId=${encodeURIComponent(userId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          displayName: affiliate.displayName,
+          email: affiliate.email,
+          payoutMethod: affiliate.payoutMethod,
+          payoutEmail: affiliate.payoutEmail,
+        }),
+      });
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error ?? "Failed to update affiliate settings");
+      }
+      toast({
+        title: "Affiliate settings updated",
+        description: "Your affiliate information has been saved successfully.",
+        variant: "success",
+      });
+      await loadData();
+    } catch (error) {
+      toast({
+        title: "Update failed",
         description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
@@ -686,6 +759,123 @@ export default function ProfilePage(): JSX.Element {
                   </Button>
                 </div>
               </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-muted-foreground" />
+                <CardTitle>Affiliate Settings</CardTitle>
+              </div>
+              <CardDescription>Manage your affiliate partner information and payout preferences.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {affiliate ? (
+                <form onSubmit={handleAffiliateSubmit} className="space-y-6">
+                  <div className="rounded-lg border bg-muted/30 p-4">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Your Affiliate Code</Label>
+                      <div className="flex items-center gap-2">
+                        <code className="rounded bg-background px-3 py-2 font-mono text-sm font-semibold">{affiliate.code}</code>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(affiliate.code);
+                            toast({
+                              title: "Code copied",
+                              description: "Affiliate code copied to clipboard",
+                              variant: "success",
+                            });
+                          }}
+                        >
+                          Copy
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Share this code with your referrals</p>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="affiliate-display-name">Partner Display Name</Label>
+                      <Input
+                        id="affiliate-display-name"
+                        value={affiliate.displayName}
+                        onChange={(event) => setAffiliate((state) => state ? ({ ...state, displayName: event.target.value }) : null)}
+                        disabled={loading}
+                        placeholder="Your partner name"
+                      />
+                      <p className="text-xs text-muted-foreground">This can be different from your account name</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="affiliate-email">Partner Email</Label>
+                      <Input
+                        id="affiliate-email"
+                        type="email"
+                        value={affiliate.email}
+                        onChange={(event) => setAffiliate((state) => state ? ({ ...state, email: event.target.value }) : null)}
+                        disabled={loading}
+                        placeholder="partner@example.com"
+                      />
+                      <p className="text-xs text-muted-foreground">This can be different from your account email</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="payout-method">Payout Method</Label>
+                      <Select
+                        value={affiliate.payoutMethod}
+                        onValueChange={(value) => setAffiliate((state) => state ? ({ ...state, payoutMethod: value }) : null)}
+                        disabled={loading}
+                      >
+                        <SelectTrigger id="payout-method">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="paypal">PayPal</SelectItem>
+                          <SelectItem value="stripe_connect">Stripe Connect</SelectItem>
+                          <SelectItem value="manual">Manual Transfer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="payout-email">Payout Email/Account</Label>
+                      <Input
+                        id="payout-email"
+                        value={affiliate.payoutEmail}
+                        onChange={(event) => setAffiliate((state) => state ? ({ ...state, payoutEmail: event.target.value }) : null)}
+                        disabled={loading}
+                        placeholder="paypal@example.com"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border bg-muted/30 p-4">
+                    <dl className="grid gap-2 text-sm">
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">Commission Rate</dt>
+                        <dd className="font-medium">{(affiliate.baseRate * 100).toFixed(0)}%</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">Status</dt>
+                        <dd className="font-medium capitalize">{affiliate.status}</dd>
+                      </div>
+                    </dl>
+                  </div>
+
+                  <Button type="submit" disabled={loading}>Save affiliate settings</Button>
+                </form>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No affiliate record found. Your affiliate record will be created automatically when you sign up.
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
