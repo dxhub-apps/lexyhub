@@ -72,6 +72,60 @@ export class AuthManager {
   async initiateLogin(): Promise<void> {
     const loginUrl = "https://app.lexyhub.com/auth/extension";
     await chrome.tabs.create({ url: loginUrl });
+
+    // The auth page will store credentials in its localStorage
+    // Extension will check for them when user returns
+    this.startPollingForAuth();
+  }
+
+  /**
+   * Poll for authentication from localStorage (set by auth page)
+   * This is a fallback method since direct postMessage doesn't work cross-origin
+   */
+  private startPollingForAuth(): void {
+    const checkInterval = setInterval(async () => {
+      try {
+        // Query all tabs for the auth page
+        const tabs = await chrome.tabs.query({
+          url: "https://app.lexyhub.com/auth/extension*",
+        });
+
+        if (tabs.length > 0 && tabs[0].id) {
+          // Execute script to check localStorage
+          const results = await chrome.scripting.executeScript({
+            target: { tabId: tabs[0].id },
+            func: () => {
+              const token = localStorage.getItem("lexyhub_ext_token");
+              const userStr = localStorage.getItem("lexyhub_ext_user");
+              if (token && userStr) {
+                // Clear the items so we don't reuse them
+                localStorage.removeItem("lexyhub_ext_token");
+                localStorage.removeItem("lexyhub_ext_user");
+                return { token, user: JSON.parse(userStr) };
+              }
+              return null;
+            },
+          });
+
+          if (results && results[0]?.result) {
+            const { token, user } = results[0].result;
+            await this.handleAuthCallback(token, user);
+            clearInterval(checkInterval);
+
+            // Close the auth tab
+            if (tabs[0].id) {
+              await chrome.tabs.remove(tabs[0].id);
+            }
+          }
+        }
+      } catch (err) {
+        // Tab might be closed or script injection failed
+        // Continue polling
+      }
+    }, 1000);
+
+    // Stop polling after 5 minutes
+    setTimeout(() => clearInterval(checkInterval), 5 * 60 * 1000);
   }
 
   /**
@@ -81,5 +135,6 @@ export class AuthManager {
   async handleAuthCallback(token: string, user: User): Promise<void> {
     await this.setToken(token);
     await this.setUser(user);
+    console.log("[Auth] Successfully authenticated user:", user.email);
   }
 }
