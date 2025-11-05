@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo } from "react";
-import { Menu, Bell } from "lucide-react";
+import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { UserMenu } from "./UserMenu";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import type { SidebarNavItem } from "./Sidebar";
 
 type TopbarProps = {
@@ -73,16 +74,7 @@ export function Topbar({
 
         {/* Right section */}
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="View notifications"
-            className="relative"
-          >
-            <Bell className="h-5 w-5" />
-            {/* Notification badge - only show if there are notifications */}
-            {/* <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive" /> */}
-          </Button>
+          <NotificationBell />
 
           <Separator orientation="vertical" className="h-6" />
 
