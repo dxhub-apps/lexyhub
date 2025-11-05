@@ -106,6 +106,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       handleUpdateSettings(message.payload, sendResponse);
       return true;
 
+    case "SAVE_SESSION":
+      handleSaveSession(message.payload, sendResponse);
+      return true;
+
     default:
       console.warn("[LexyHub] Unknown message type:", message.type);
       sendResponse({ error: "Unknown message type" });
@@ -258,5 +262,85 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 chrome.alarms.create("fetch-remote-config", {
   periodInMinutes: 15,
 });
+
+async function handleSaveSession(
+  payload: any,
+  sendResponse: (response: any) => void
+) {
+  try {
+    const response_data = await api.saveSession(payload);
+    sendResponse({ success: true, data: response_data });
+  } catch (error) {
+    console.error("[LexyHub] Error saving session:", error);
+    sendResponse({ success: false, error: String(error) });
+  }
+}
+
+// Context Menu Setup
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create({
+    id: "lexyhub-send-to-watchlist",
+    title: "Add '%s' to LexyHub Watchlist",
+    contexts: ["selection"],
+  });
+
+  chrome.contextMenus.create({
+    id: "lexyhub-create-brief",
+    title: "Create LexyHub Brief for '%s'",
+    contexts: ["selection"],
+  });
+});
+
+// Context Menu Click Handler
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  const selectedText = info.selectionText?.trim();
+  if (!selectedText) return;
+
+  // Detect market from tab URL
+  const market = detectMarketFromUrl(tab?.url || '');
+
+  if (info.menuItemId === "lexyhub-send-to-watchlist") {
+    try {
+      await api.addToWatchlist({
+        term: selectedText,
+        market,
+        source_url: tab?.url,
+      });
+
+      // Show notification
+      chrome.notifications.create({
+        type: "basic",
+        iconUrl: "icons/icon-48.png",
+        title: "LexyHub",
+        message: `Added "${selectedText}" to watchlist`,
+      });
+    } catch (error) {
+      console.error("[LexyHub] Error adding from context menu:", error);
+    }
+  } else if (info.menuItemId === "lexyhub-create-brief") {
+    try {
+      await api.createBrief([selectedText], market);
+
+      chrome.notifications.create({
+        type: "basic",
+        iconUrl: "icons/icon-48.png",
+        title: "LexyHub",
+        message: `Creating brief for "${selectedText}"...`,
+      });
+    } catch (error) {
+      console.error("[LexyHub] Error creating brief from context menu:", error);
+    }
+  }
+});
+
+function detectMarketFromUrl(url: string): string {
+  if (url.includes('etsy.com')) return 'etsy';
+  if (url.includes('amazon.')) return 'amazon';
+  if (url.includes('google.com/search')) return 'google';
+  if (url.includes('pinterest.')) return 'pinterest';
+  if (url.includes('reddit.com')) return 'reddit';
+  if (url.includes('bing.com')) return 'bing';
+  return 'shopify'; // default
+}
 
 console.log("[LexyHub] Background service worker initialized");

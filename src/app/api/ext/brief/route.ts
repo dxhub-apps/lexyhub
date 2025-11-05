@@ -77,50 +77,82 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    // Check if a 'briefs' table exists, otherwise use a generic approach
-    // For this implementation, I'll assume we store briefs as JSON in a metadata table
-    // or use the existing watchlists mechanism
-
     // Generate brief title from terms
-    const briefTitle = `Extension Brief: ${terms.slice(0, 2).join(", ")}${terms.length > 2 ? "..." : ""}`;
+    const briefTitle = `${terms.slice(0, 2).join(", ")}${terms.length > 2 ? "..." : ""}`;
 
-    // Create brief record
-    // Since the spec doesn't detail the briefs table schema, I'll use a simple approach:
-    // Store in a generic 'extension_briefs' table or similar
+    // Fetch keyword data for clustering
+    const normalizedTerms = terms.map(t => t.toLowerCase().trim().replace(/\s+/g, " "));
 
-    // For MVP, let's create a simple JSON structure and return it
-    // In production, you'd store this in a database table
-    const briefId = crypto.randomUUID();
+    const { data: keywordData, error: keywordError } = await supabase
+      .from("keywords")
+      .select("term, demand_index, competition_score, ai_opportunity_score, extras")
+      .eq("market", market.toLowerCase())
+      .in("term_normalized", normalizedTerms);
 
-    // TODO: Store in database
-    // const { data: brief, error: briefError } = await supabase
-    //   .from("extension_briefs")
-    //   .insert({
-    //     id: briefId,
-    //     user_id: context.userId,
-    //     title: briefTitle,
-    //     market: market.toLowerCase(),
-    //     terms,
-    //     created_at: new Date().toISOString(),
-    //   })
-    //   .select("id")
-    //   .single();
+    if (keywordError) {
+      console.error("Error fetching keyword data:", keywordError);
+    }
 
-    // For now, return a success response with a permalink
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.lexyhub.com";
-    const briefUrl = `${appUrl}/briefs/${briefId}`;
+    // Simple clustering by AI score
+    const clusters: any = {
+      high_opportunity: [],
+      medium_opportunity: [],
+      low_opportunity: [],
+    };
 
-    // Log the brief creation for tracking
-    console.log("Extension brief created:", {
-      briefId,
-      userId: context.userId,
-      market,
-      termsCount: terms.length,
+    (keywordData || []).forEach((kw) => {
+      const score = kw.ai_opportunity_score || 0;
+      if (score >= 70) {
+        clusters.high_opportunity.push(kw.term);
+      } else if (score >= 40) {
+        clusters.medium_opportunity.push(kw.term);
+      } else {
+        clusters.low_opportunity.push(kw.term);
+      }
     });
 
+    // Generate executive summary
+    const executiveSummary = `Analysis of ${terms.length} keywords in ${market} market. ${clusters.high_opportunity.length} high-opportunity terms identified.`;
+
+    // Generate opportunity analysis
+    const opportunityAnalysis = {
+      total_terms: terms.length,
+      high_opportunity_count: clusters.high_opportunity.length,
+      avg_demand: keywordData?.reduce((sum, kw) => sum + (kw.demand_index || 0), 0) / (keywordData?.length || 1),
+      avg_competition: keywordData?.reduce((sum, kw) => sum + (kw.competition_score || 0), 0) / (keywordData?.length || 1),
+    };
+
+    // Store brief in database
+    const { data: brief, error: briefError } = await supabase
+      .from("extension_briefs")
+      .insert({
+        user_id: context.userId,
+        title: briefTitle,
+        market: market.toLowerCase(),
+        terms,
+        clusters,
+        executive_summary: executiveSummary,
+        opportunity_analysis: opportunityAnalysis,
+        ai_insights: `Focus on ${clusters.high_opportunity.length > 0 ? clusters.high_opportunity.join(", ") : "medium-opportunity terms"} for best results.`,
+      })
+      .select("id")
+      .single();
+
+    if (briefError) {
+      console.error("Error creating brief:", briefError);
+      return NextResponse.json(
+        { error: "Failed to create brief" },
+        { status: 500 }
+      );
+    }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.lexyhub.com";
+    const briefUrl = `${appUrl}/briefs/${brief.id}`;
+
     return NextResponse.json({
-      brief_id: briefId,
+      brief_id: brief.id,
       url: briefUrl,
+      summary: executiveSummary,
     });
   } catch (error) {
     console.error("Unexpected error in /api/ext/brief:", error);

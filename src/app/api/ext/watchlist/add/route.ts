@@ -118,6 +118,29 @@ export async function POST(request: Request): Promise<NextResponse> {
       // Don't fail the request if queueing fails
     }
 
+    // 3. Track community signal (if user has opted in)
+    const { data: settings } = await supabase
+      .from("user_extension_settings")
+      .select("community_signal_opt_in")
+      .eq("user_id", context.userId)
+      .single();
+
+    if (settings?.community_signal_opt_in) {
+      // Call the increment function
+      const { error: signalError } = await supabase.rpc(
+        "increment_community_signal",
+        {
+          p_term: term.trim(),
+          p_market: market.toLowerCase(),
+        }
+      );
+
+      if (signalError) {
+        console.error("Error incrementing community signal:", signalError);
+        // Don't fail the request
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       watchlist_id: watchlistItem.id,

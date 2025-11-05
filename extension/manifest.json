@@ -12,7 +12,10 @@
     "storage",
     "activeTab",
     "scripting",
-    "cookies"
+    "cookies",
+    "contextMenus",
+    "notifications",
+    "alarms"
   ],
   "host_permissions": [
     "https://www.etsy.com/*",
@@ -66,6 +69,55 @@
     },
     {
       "matches": [
+        "https://www.google.com/search*"
+      ],
+      "js": [
+        "content/google.js"
+      ],
+      "css": [
+        "content/styles.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.bing.com/search*"
+      ],
+      "js": [
+        "content/bing.js"
+      ],
+      "css": [
+        "content/styles.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.pinterest.com/*",
+        "https://www.pinterest.ca/*"
+      ],
+      "js": [
+        "content/pinterest.js"
+      ],
+      "css": [
+        "content/styles.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.reddit.com/*"
+      ],
+      "js": [
+        "content/reddit.js"
+      ],
+      "css": [
+        "content/styles.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
         "https://*/*"
       ],
       "js": [
@@ -81,6 +133,7 @@
         "https://www.amazon.ca/*",
         "https://www.amazon.co.uk/*",
         "https://www.google.com/*",
+        "https://www.bing.com/*",
         "https://www.pinterest.com/*",
         "https://www.reddit.com/*"
       ]

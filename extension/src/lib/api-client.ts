@@ -148,4 +148,34 @@ export class APIClient {
       body: JSON.stringify(payload),
     });
   }
+
+  /**
+   * Save research session
+   */
+  async saveSession(payload: any): Promise<any> {
+    return this.request<any>("/session", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  /**
+   * Create listing snapshot
+   */
+  async createSnapshot(payload: any): Promise<any> {
+    return this.request<any>("/snapshot", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  /**
+   * Get trending term suggestions
+   */
+  async getTrendingSuggestions(term: string, market: string, limit = 10): Promise<any> {
+    return this.request<any>("/trends/suggest", {
+      method: "POST",
+      body: JSON.stringify({ term, market, limit }),
+    });
+  }
 }
