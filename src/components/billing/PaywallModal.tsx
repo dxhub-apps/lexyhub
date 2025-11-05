@@ -96,7 +96,7 @@ export function PaywallModal({
             </Link>
           </Button>
           <Button asChild variant="outline" className="w-full">
-            <Link href="/profile">Manage Subscription</Link>
+            <Link href="/billing">Manage Subscription</Link>
           </Button>
           <Button variant="ghost" onClick={() => onOpenChange(false)} className="w-full">
             Cancel

@@ -141,7 +141,7 @@ export default function PricingPage(): JSX.Element {
                 variant={plan.popular ? "default" : "outline"}
                 asChild
               >
-                <Link href="/profile">{plan.cta}</Link>
+                <Link href="/billing">{plan.cta}</Link>
               </Button>
             </CardContent>
           </Card>
