@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase-browser';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 
 export default function ExtensionAuthPage() {
@@ -12,7 +12,7 @@ export default function ExtensionAuthPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const supabase = createClient();
+    const supabase = createClientComponentClient();
 
     // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -181,7 +181,7 @@ export default function ExtensionAuthPage() {
               </summary>
               <div className="mt-3 space-y-3">
                 <p className="text-gray-600 text-xs">
-                  If the extension didn't automatically connect, copy this token:
+                  If the extension didn&apos;t automatically connect, copy this token:
                 </p>
                 <div className="relative">
                   <input
