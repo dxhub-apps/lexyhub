@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
  * ingestion pipeline so hashes and caches line up regardless of source.
  */
 export function normalizeKeywordTerm(term: string): string {
+  if (!term) return "";
   return term
     .normalize("NFKC")
     .trim()

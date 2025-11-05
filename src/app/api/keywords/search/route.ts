@@ -356,8 +356,10 @@ async function handleSearch(req: Request): Promise<NextResponse> {
     : undefined;
 
   const allowedSources = PLAN_SOURCES[plan];
-  const candidateSources = (requestedSources ?? allowedSources).map((item) => normalizeKeywordTerm(item));
-  const filteredSources = candidateSources.filter((item) => allowedSources.includes(item));
+  const candidateSources = (requestedSources ?? allowedSources)
+    .filter((item) => item && item.trim())
+    .map((item) => normalizeKeywordTerm(item));
+  const filteredSources = candidateSources.filter((item) => item && allowedSources.includes(item));
   const resolvedSources = filteredSources.length > 0 ? filteredSources : allowedSources;
   const primarySource = resolvedSources[0] ?? allowedSources[0];
 
