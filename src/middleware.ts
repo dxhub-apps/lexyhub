@@ -8,6 +8,32 @@ const PUBLIC_PATHS = new Set(["/login", "/api/auth"]);
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({ request: { headers: request.headers } });
+  const { pathname, searchParams } = request.nextUrl;
+
+  // Affiliate click capture (before auth checks so it works for logged-out visitors)
+  const ref = searchParams.get("ref");
+  if (ref) {
+    // Set 90-day cookie
+    response.cookies.set("aff_ref", JSON.stringify({ ref, ts: Date.now() }), {
+      maxAge: 60 * 60 * 24 * 90, // 90 days
+      path: "/",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+    });
+
+    // Record click asynchronously (don't block request)
+    const url = request.nextUrl;
+    fetch(`${url.origin}/api/affiliate/click`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        ref,
+        path: pathname,
+        utm: Object.fromEntries(searchParams),
+      }),
+    }).catch(() => {}); // Silently ignore errors
+  }
+
   const supabase = createMiddlewareClient({ req: request, res: response });
 
   // Use getUser() first for secure authentication validation
@@ -19,8 +45,6 @@ export async function middleware(request: NextRequest) {
   const {
     data: { session },
   } = await supabase.auth.getSession();
-
-  const { pathname } = request.nextUrl;
 
   const isPublicPath = Array.from(PUBLIC_PATHS).some((path) => pathname === path || pathname.startsWith(`${path}/`));
   const isStaticAsset = pathname.startsWith("/_next") || pathname.startsWith("/assets") || pathname.endsWith(".ico");

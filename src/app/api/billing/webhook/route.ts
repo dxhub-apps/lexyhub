@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import { NextRequest, NextResponse } from "next/server";
 
 import { recordInvoice, recordWebhookEvent, syncSubscription, verifyStripeWebhook } from "@/lib/billing/stripe";
+import { recordCommissionFromInvoice } from "@/lib/billing/affiliates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,6 +28,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       await syncSubscription(event.data.object as Stripe.Subscription);
       break;
     case "invoice.paid":
+      await recordInvoice(event.data.object as Stripe.Invoice);
+      await recordCommissionFromInvoice(event.data.object as Stripe.Invoice);
+      break;
     case "invoice.payment_failed":
       await recordInvoice(event.data.object as Stripe.Invoice);
       break;
