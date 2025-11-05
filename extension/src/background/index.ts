@@ -276,6 +276,90 @@ async function handleSaveSession(
   }
 }
 
+async function handleGetTrending(
+  payload: { market: string; limit?: number },
+  sendResponse: (response: any) => void
+) {
+  try {
+    const { market, limit = 10 } = payload;
+    const trends = await api.getTrendingSuggestions('', market, limit);
+    sendResponse({ success: true, data: trends.suggestions || [] });
+  } catch (error) {
+    console.error("[LexyHub] Error getting trends:", error);
+    sendResponse({ success: false, error: String(error) });
+  }
+}
+
+async function handleGetCurrentSession(sendResponse: (response: any) => void) {
+  try {
+    // Get session from storage
+    const session = await storage.get('current_session');
+    sendResponse({ success: true, data: session });
+  } catch (error) {
+    console.error("[LexyHub] Error getting session:", error);
+    sendResponse({ success: false, error: String(error) });
+  }
+}
+
+async function handleEndSession(sendResponse: (response: any) => void) {
+  try {
+    const session = await storage.get('current_session');
+    if (session) {
+      await api.saveSession(session);
+      await storage.remove('current_session');
+    }
+    sendResponse({ success: true });
+  } catch (error) {
+    console.error("[LexyHub] Error ending session:", error);
+    sendResponse({ success: false, error: String(error) });
+  }
+}
+
+async function handleGetBriefs(
+  payload: { limit?: number },
+  sendResponse: (response: any) => void
+) {
+  try {
+    // In a real implementation, this would call an API endpoint
+    // For now, return empty array
+    sendResponse({ success: true, data: [] });
+  } catch (error) {
+    console.error("[LexyHub] Error getting briefs:", error);
+    sendResponse({ success: false, error: String(error) });
+  }
+}
+
+async function handleExportData(sendResponse: (response: any) => void) {
+  try {
+    const settings = await storage.get('settings');
+    const watchlist = await storage.get('watchlist');
+    const session = await storage.get('current_session');
+
+    const exportData = {
+      exported_at: new Date().toISOString(),
+      settings,
+      watchlist,
+      session,
+    };
+
+    sendResponse({ success: true, data: exportData });
+  } catch (error) {
+    console.error("[LexyHub] Error exporting data:", error);
+    sendResponse({ success: false, error: String(error) });
+  }
+}
+
+async function handleDeleteData(sendResponse: (response: any) => void) {
+  try {
+    // Clear all extension data
+    await storage.clear();
+    sendResponse({ success: true });
+  } catch (error) {
+    console.error("[LexyHub] Error deleting data:", error);
+    sendResponse({ success: false, error: String(error) });
+  }
+}
+
 // Context Menu Setup
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
