@@ -56,7 +56,7 @@ export async function getNotificationFeed(
   const limit = params.limit || 20;
   const offset = (page - 1) * limit;
 
-  // Build query to get notifications with delivery state
+  // Build query to get notifications with delivery state for this user
   let query = supabase
     .from('notifications')
     .select(
@@ -67,12 +67,8 @@ export async function getNotificationFeed(
       { count: 'exact' }
     )
     .eq('status', 'live')
-    .eq('create_inapp', true);
-
-  // Filter by unread if requested
-  if (params.unread) {
-    query = query.or('notification_delivery.state.is.null,notification_delivery.state.eq.pending');
-  }
+    .eq('create_inapp', true)
+    .eq('notification_delivery.user_id', userId);
 
   // Check schedule
   const now = new Date().toISOString();
@@ -82,8 +78,13 @@ export async function getNotificationFeed(
   // Sort by created_at desc
   query = query.order('created_at', { ascending: false });
 
+  // If filtering by unread, we need to fetch more records to account for filtering
+  // Fetch extra records and filter in-memory for simplicity
+  const fetchLimit = params.unread ? limit * 3 : limit;
+  const fetchOffset = params.unread ? 0 : offset;
+
   // Pagination
-  query = query.range(offset, offset + limit - 1);
+  query = query.range(fetchOffset, fetchOffset + fetchLimit - 1);
 
   const { data, error, count } = await query;
 
@@ -93,13 +94,26 @@ export async function getNotificationFeed(
   }
 
   // Transform data to include delivery as a property
-  const notifications = (data || []).map((item: any) => {
+  let notifications = (data || []).map((item: any) => {
     const { notification_delivery, ...notification } = item;
     return {
       ...notification,
       delivery: notification_delivery && notification_delivery.length > 0 ? notification_delivery[0] : undefined,
     };
   });
+
+  // Apply unread filter in-memory if requested
+  if (params.unread) {
+    notifications = notifications.filter((n) => {
+      // Unread means: no delivery record OR delivery state is null/pending
+      return !n.delivery || n.delivery.state === null || n.delivery.state === 'pending';
+    });
+
+    // Apply pagination after filtering
+    const startIdx = offset;
+    const endIdx = offset + limit;
+    notifications = notifications.slice(startIdx, endIdx);
+  }
 
   return {
     data: notifications,
