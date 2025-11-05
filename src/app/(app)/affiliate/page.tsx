@@ -165,7 +165,7 @@ export default function AffiliateDashboardPage(): JSX.Element {
   }
 
   if (!data) {
-    return null;
+    return <></>;
   }
 
   return (
