@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession, useSupabaseClient } from "@supabase/auth-helpers-react";
-import { User, Settings, HelpCircle, LogOut, Sun, Moon, Monitor, Palette } from "lucide-react";
+import { User, CreditCard, HelpCircle, LogOut, Sun, Moon, Monitor, Palette } from "lucide-react";
 
 import { useTheme, type ThemeOption } from "@/components/theme/ThemeProvider";
 import {
@@ -194,9 +194,9 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem>
-              <Link href="/profile" className="flex w-full items-center">
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Manage Plan</span>
+              <Link href="/billing" className="flex w-full items-center">
+                <CreditCard className="mr-2 h-4 w-4" />
+                <span>Billing</span>
               </Link>
             </DropdownMenuItem>
           </>
