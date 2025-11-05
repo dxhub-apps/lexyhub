@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useSupabaseClient } from "@supabase/auth-helpers-react";
 import { Loader2, LogIn } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,50 +72,64 @@ export function LoginForm({ redirectTo = "/dashboard" }: LoginFormProps): JSX.El
   };
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-6">
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            value={form.email}
-            onInput={handleChange}
-            placeholder="you@example.com"
-            className="h-11"
-          />
+    <div className="space-y-6">
+      <form onSubmit={handleSubmit} noValidate className="space-y-6">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={form.email}
+              onInput={handleChange}
+              placeholder="you@example.com"
+              className="h-11"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={form.password}
+              onInput={handleChange}
+              placeholder="••••••••"
+              className="h-11"
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={form.password}
-            onInput={handleChange}
-            placeholder="••••••••"
-            className="h-11"
-          />
-        </div>
+        <Button type="submit" className="w-full h-11" disabled={loading}>
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Signing in...
+            </>
+          ) : (
+            <>
+              <LogIn className="mr-2 h-4 w-4" />
+              Sign in
+            </>
+          )}
+        </Button>
+      </form>
+
+      <div className="text-center">
+        <p className="text-sm text-muted-foreground">
+          Don&apos;t have an account?{" "}
+          <Link
+            href={`/signup${redirectTo !== "/dashboard" ? `?redirect_to=${encodeURIComponent(redirectTo)}` : ""}`}
+            className="font-medium text-primary hover:underline"
+          >
+            Sign up for free
+          </Link>
+        </p>
       </div>
-      <Button type="submit" className="w-full h-11" disabled={loading}>
-        {loading ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Signing in...
-          </>
-        ) : (
-          <>
-            <LogIn className="mr-2 h-4 w-4" />
-            Sign in
-          </>
-        )}
-      </Button>
-    </form>
+    </div>
   );
 }

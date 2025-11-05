@@ -51,7 +51,7 @@ describe("Admin Authorization", () => {
       const user = {
         id: "1",
         app_metadata: { admin: true },
-      } as User;
+      } as unknown as User;
       expect(metadataDeclaresAdmin(user)).toBe(true);
     });
 
@@ -59,7 +59,7 @@ describe("Admin Authorization", () => {
       const user = {
         id: "1",
         app_metadata: { role: "admin" },
-      } as User;
+      } as unknown as User;
       expect(metadataDeclaresAdmin(user)).toBe(true);
     });
 
@@ -67,7 +67,7 @@ describe("Admin Authorization", () => {
       const user = {
         id: "1",
         app_metadata: { roles: ["user", "admin"] },
-      } as User;
+      } as unknown as User;
       expect(metadataDeclaresAdmin(user)).toBe(true);
     });
 
@@ -76,7 +76,7 @@ describe("Admin Authorization", () => {
         id: "1",
         app_metadata: {},
         user_metadata: { admin: true },
-      } as User;
+      } as unknown as User;
       expect(metadataDeclaresAdmin(user)).toBe(true);
     });
 
@@ -85,7 +85,7 @@ describe("Admin Authorization", () => {
         id: "1",
         app_metadata: { role: "user" },
         user_metadata: {},
-      } as User;
+      } as unknown as User;
       expect(metadataDeclaresAdmin(user)).toBe(false);
     });
 
@@ -96,9 +96,9 @@ describe("Admin Authorization", () => {
 
     it("handles various admin role strings", () => {
       expect(
-        metadataDeclaresAdmin({ id: "1", app_metadata: { role: "administrator" } } as User),
+        metadataDeclaresAdmin({ id: "1", app_metadata: { role: "administrator" } } as unknown as User),
       ).toBe(true);
-      expect(metadataDeclaresAdmin({ id: "1", app_metadata: { role: "ADMIN" } } as User)).toBe(
+      expect(metadataDeclaresAdmin({ id: "1", app_metadata: { role: "ADMIN" } } as unknown as User)).toBe(
         true,
       );
     });
@@ -132,7 +132,7 @@ describe("Admin Authorization", () => {
         id: "1",
         email: "admin@example.com",
         app_metadata: {},
-      } as User;
+      } as unknown as User;
       expect(isAdminUser(user, null)).toBe(true);
     });
 
@@ -141,7 +141,7 @@ describe("Admin Authorization", () => {
         id: "1",
         email: "user@example.com",
         app_metadata: { admin: true },
-      } as User;
+      } as unknown as User;
       expect(isAdminUser(user, null)).toBe(true);
     });
 
@@ -150,7 +150,7 @@ describe("Admin Authorization", () => {
         id: "1",
         email: "user@example.com",
         app_metadata: {},
-      } as User;
+      } as unknown as User;
       expect(isAdminUser(user, "admin")).toBe(true);
     });
 
@@ -159,7 +159,7 @@ describe("Admin Authorization", () => {
         id: "1",
         email: "user@example.com",
         app_metadata: {},
-      } as User;
+      } as unknown as User;
       expect(isAdminUser(user, "free")).toBe(false);
     });
 
@@ -175,7 +175,7 @@ describe("Admin Authorization", () => {
         id: "1",
         email: "admin@example.com",
         app_metadata: {},
-      } as User;
+      } as unknown as User;
       expect(shouldElevateToAdmin(user, null)).toBe(true);
     });
 
@@ -184,7 +184,7 @@ describe("Admin Authorization", () => {
         id: "1",
         email: "user@example.com",
         app_metadata: { admin: true },
-      } as User;
+      } as unknown as User;
       expect(shouldElevateToAdmin(user, null)).toBe(true);
     });
 
@@ -193,7 +193,7 @@ describe("Admin Authorization", () => {
         id: "1",
         email: "user@example.com",
         app_metadata: {},
-      } as User;
+      } as unknown as User;
       expect(shouldElevateToAdmin(user, "admin")).toBe(true);
     });
 
@@ -202,7 +202,7 @@ describe("Admin Authorization", () => {
         id: "1",
         email: "user@example.com",
         app_metadata: {},
-      } as User;
+      } as unknown as User;
       expect(shouldElevateToAdmin(user, "free")).toBe(false);
     });
   });
