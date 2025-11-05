@@ -44,7 +44,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       return NextResponse.json({ processed: 0 });
     }
 
-    console.log(\`[ext-watchlist-upsert] Processing \${queueItems.length} items\`);
+    console.log(`[ext-watchlist-upsert] Processing ${queueItems.length} items`);
 
     let processed = 0;
     let errors = 0;
@@ -101,7 +101,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
         processed++;
       } catch (error: any) {
-        console.error(\`Error processing queue item \${item.id}:\`, error);
+        console.error(`Error processing queue item ${item.id}:`, error);
 
         // Mark as failed
         await supabase
@@ -116,7 +116,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       }
     }
 
-    console.log(\`[ext-watchlist-upsert] Completed: \${processed} processed, \${errors} errors\`);
+    console.log(`[ext-watchlist-upsert] Completed: ${processed} processed, ${errors} errors`);
 
     return NextResponse.json({
       processed,
