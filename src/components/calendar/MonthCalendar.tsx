@@ -1,14 +1,13 @@
 "use client";
 
-import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export interface CalendarEvent {
@@ -26,6 +25,7 @@ interface MonthCalendarProps {
   month: number; // 0-based (0 = January)
   events: CalendarEvent[];
   onEventClick?: (event: CalendarEvent, date: Date) => void;
+  onDayClick?: (date: Date, events: CalendarEvent[]) => void;
 }
 
 const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -49,6 +49,7 @@ export function MonthCalendar({
   month,
   events,
   onEventClick,
+  onDayClick,
 }: MonthCalendarProps) {
   // Get the first day of the month
   const firstDayOfMonth = new Date(year, month, 1);
@@ -110,38 +111,41 @@ export function MonthCalendar({
   today.setHours(0, 0, 0, 0);
 
   return (
-    <Card className="overflow-hidden">
-      <div className="p-4 border-b bg-muted/30">
-        <h3 className="text-lg font-semibold">
-          {MONTH_NAMES[month]} {year}
-        </h3>
-      </div>
-      <div className="p-4">
-        {/* Days of week header */}
-        <div className="grid grid-cols-7 gap-2 mb-2">
-          {DAYS_OF_WEEK.map((day) => (
-            <div
-              key={day}
-              className="text-center text-sm font-medium text-muted-foreground"
-            >
-              {day}
-            </div>
-          ))}
+    <TooltipProvider>
+      <Card className="overflow-hidden">
+        <div className="p-4 border-b bg-muted/30">
+          <h3 className="text-lg font-semibold">
+            {MONTH_NAMES[month]} {year}
+          </h3>
         </div>
+        <div className="p-4">
+          {/* Days of week header */}
+          <div className="grid grid-cols-7 gap-2 mb-2">
+            {DAYS_OF_WEEK.map((day) => (
+              <div
+                key={day}
+                className="text-center text-sm font-medium text-muted-foreground"
+              >
+                {day}
+              </div>
+            ))}
+          </div>
 
-        {/* Calendar grid */}
-        <div className="grid grid-cols-7 gap-2">
-          {calendarDays.map((dayData, index) => (
-            <CalendarDay
-              key={index}
-              dayData={dayData}
-              isToday={dayData.date.getTime() === today.getTime()}
-              onEventClick={onEventClick}
-            />
-          ))}
+          {/* Calendar grid */}
+          <div className="grid grid-cols-7 gap-2">
+            {calendarDays.map((dayData, index) => (
+              <CalendarDay
+                key={index}
+                dayData={dayData}
+                isToday={dayData.date.getTime() === today.getTime()}
+                onEventClick={onEventClick}
+                onDayClick={onDayClick}
+              />
+            ))}
+          </div>
         </div>
-      </div>
-    </Card>
+      </Card>
+    </TooltipProvider>
   );
 }
 
@@ -154,28 +158,50 @@ interface CalendarDayProps {
   };
   isToday: boolean;
   onEventClick?: (event: CalendarEvent, date: Date) => void;
+  onDayClick?: (date: Date, events: CalendarEvent[]) => void;
 }
 
-function CalendarDay({ dayData, isToday, onEventClick }: CalendarDayProps) {
-  const [popoverOpen, setPopoverOpen] = useState(false);
+function CalendarDay({ dayData, isToday, onEventClick, onDayClick }: CalendarDayProps) {
   const hasEvents = dayData.events.length > 0;
-  const visibleEvents = dayData.events.slice(0, 2);
-  const hiddenEvents = dayData.events.slice(2);
 
-  const handleEventClick = (event: CalendarEvent) => {
-    onEventClick?.(event, dayData.date);
-    setPopoverOpen(false);
+  const handleDayClick = () => {
+    if (hasEvents) {
+      onDayClick?.(dayData.date, dayData.events);
+    }
   };
 
-  return (
+  // Generate tooltip content with event names
+  const tooltipContent = hasEvents ? (
+    <div className="space-y-1 max-w-xs">
+      <div className="text-xs font-semibold mb-1">
+        {dayData.events.length} {dayData.events.length === 1 ? "Event" : "Events"}
+      </div>
+      {dayData.events.slice(0, 5).map((event) => (
+        <div key={event.id} className="text-xs flex items-center justify-between gap-2">
+          <span className="truncate">{event.name}</span>
+          <Badge variant="outline" className="text-[10px] px-1 py-0 h-auto">
+            W: {event.weight}
+          </Badge>
+        </div>
+      ))}
+      {dayData.events.length > 5 && (
+        <div className="text-xs text-muted-foreground">
+          +{dayData.events.length - 5} more...
+        </div>
+      )}
+    </div>
+  ) : null;
+
+  const dayCell = (
     <div
+      onClick={handleDayClick}
       className={cn(
-        "min-h-[100px] p-2 rounded-lg border transition-all",
+        "min-h-[80px] p-2 rounded-lg border transition-all",
         dayData.isCurrentMonth
           ? "bg-background"
           : "bg-muted/20 text-muted-foreground",
         isToday && "ring-2 ring-primary bg-primary/5",
-        hasEvents && dayData.isCurrentMonth && "border-accent/50 bg-accent/5",
+        hasEvents && dayData.isCurrentMonth && "border-accent/50 bg-accent/5 cursor-pointer hover:bg-accent/10 hover:border-accent hover:shadow-sm",
         !hasEvents && "hover:bg-muted/30"
       )}
     >
@@ -190,65 +216,43 @@ function CalendarDay({ dayData, isToday, onEventClick }: CalendarDayProps) {
           {dayData.day}
         </div>
         {hasEvents && (
-          <div className="flex-1 space-y-1 overflow-hidden">
-            {visibleEvents.map((event) => (
-              <button
-                key={event.id}
-                onClick={() => handleEventClick(event)}
-                className="w-full text-left group"
-                title={`${event.name} (Weight: ${event.weight})`}
-              >
-                <Badge
-                  variant="secondary"
-                  className="text-[10px] px-1.5 py-0.5 h-auto w-full justify-start truncate bg-accent/30 hover:bg-accent/50 border border-accent/60 cursor-pointer transition-all group-hover:scale-[1.02] group-hover:shadow-sm font-medium"
-                >
-                  {event.name}
-                </Badge>
-              </button>
-            ))}
-            {hiddenEvents.length > 0 && (
-              <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto py-0.5 px-1 text-[10px] text-accent-foreground hover:text-accent hover:bg-accent/10 w-full justify-start font-medium"
-                  >
-                    +{hiddenEvents.length} more event
-                    {hiddenEvents.length > 1 ? "s" : ""}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-2" align="start">
-                  <div className="space-y-1">
-                    <div className="text-xs font-semibold text-muted-foreground mb-2">
-                      All events on {dayData.date.toLocaleDateString()}
-                    </div>
-                    {dayData.events.map((event) => (
-                      <button
-                        key={event.id}
-                        onClick={() => handleEventClick(event)}
-                        className="w-full text-left group"
-                      >
-                        <Badge
-                          variant="secondary"
-                          className="text-xs px-2 py-1 h-auto w-full justify-start bg-accent/20 hover:bg-accent/40 border-accent cursor-pointer transition-colors"
-                        >
-                          <span className="truncate">{event.name}</span>
-                          <span className="ml-auto text-[10px] opacity-70">
-                            W: {event.weight}
-                          </span>
-                        </Badge>
-                      </button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            )}
+          <div className="flex-1 flex items-center justify-center">
+            <div className="flex gap-1">
+              {dayData.events.slice(0, 3).map((_, index) => (
+                <div
+                  key={index}
+                  className={cn(
+                    "w-2 h-2 rounded-full",
+                    "bg-accent border border-accent-foreground/20"
+                  )}
+                />
+              ))}
+              {dayData.events.length > 3 && (
+                <div className="text-[10px] text-accent-foreground font-medium ml-0.5">
+                  +{dayData.events.length - 3}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
     </div>
   );
+
+  if (hasEvents && tooltipContent) {
+    return (
+      <Tooltip delayDuration={200}>
+        <TooltipTrigger asChild>
+          {dayCell}
+        </TooltipTrigger>
+        <TooltipContent side="top" align="center" className="p-3">
+          {tooltipContent}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return dayCell;
 }
 
 function getEventsForDate(
