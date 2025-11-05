@@ -1,3 +1,4 @@
+// src/app/api/keywords/search/route.ts
 import { NextResponse } from "next/server";
 
 import { DEFAULT_EMBEDDING_MODEL, getOrCreateEmbedding } from "@/lib/ai/embeddings";
@@ -102,13 +103,17 @@ async function fetchKeywordsFromSupabase(
   const supabase = getSupabaseServerClient();
   if (!supabase) return [];
 
+  const selectColumns =
+    "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score, base_demand_index, adjusted_demand_index, deseasoned_trend_momentum, seasonal_label";
+
   const createQuery = (tierFilters: Array<string | number>) => {
     let queryBuilder = supabase
       .from("keywords")
-      .select(
-        "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score, base_demand_index, adjusted_demand_index, deseasoned_trend_momentum, seasonal_label",
-      )
-      .eq("market", market);
+      .select(selectColumns)
+      .eq("market", market)
+      // hard filter out null/empty terms at source
+      .not("term", "is", null)
+      .neq("term", "");
 
     if (sources.length > 0) {
       queryBuilder = queryBuilder.in("source", sources);
@@ -128,6 +133,7 @@ async function fetchKeywordsFromSupabase(
 
   let { data, error } = await executeQuery(tiers);
 
+  // tier stored as numeric in some envs; retry with numeric filters if needed
   if (error && error.code === "22P02") {
     const numericTierFilters = tiers
       .map((tier) => {
@@ -147,7 +153,10 @@ async function fetchKeywordsFromSupabase(
     return [];
   }
 
-  return data ?? [];
+  // client-side sanity guard
+  return (data ?? []).filter(
+    (k): k is KeywordRow => typeof k.term === "string" && k.term.trim().length > 0,
+  );
 }
 
 // exact-match helper ignoring plan/source filters
@@ -156,41 +165,44 @@ async function findExactKeyword(
   market: string,
   trimmedQuery: string
 ): Promise<KeywordRow | null> {
+  const selectColumns =
+    "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score, base_demand_index, adjusted_demand_index, deseasoned_trend_momentum, seasonal_label";
+
   // 1) exact case-insensitive equality via RPC (uses lower(term)=lower(p_term))
   try {
     const { data: exactEq } = await supabase
       .rpc("lexy_lower_eq_keyword", { p_market: market, p_term: trimmedQuery })
       .maybeSingle();
-    if (exactEq) return exactEq as KeywordRow;
-  } catch (e) {
+    if (exactEq && typeof (exactEq as any).term === "string") return exactEq as KeywordRow;
+  } catch {
     // fall through to plain queries if RPC not yet deployed
   }
 
   // 2) exact ILIKE (same text, different case)
   const { data: exactIlike } = await supabase
     .from("keywords")
-    .select(
-      "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score, base_demand_index, adjusted_demand_index, deseasoned_trend_momentum, seasonal_label",
-    )
+    .select(selectColumns)
     .eq("market", market)
+    .not("term", "is", null)
+    .neq("term", "")
     .ilike("term", trimmedQuery)
     .limit(1)
     .maybeSingle();
-  if (exactIlike) return exactIlike as KeywordRow;
+  if (exactIlike && typeof exactIlike.term === "string") return exactIlike as KeywordRow;
 
   // 3) partial contains to improve recall
   const { data: partial } = await supabase
     .from("keywords")
-    .select(
-      "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score, base_demand_index, adjusted_demand_index, deseasoned_trend_momentum, seasonal_label",
-    )
+    .select(selectColumns)
     .eq("market", market)
+    .not("term", "is", null)
+    .neq("term", "")
     .ilike("term", `%${trimmedQuery}%`)
     .order("term", { ascending: true })
     .limit(1)
     .maybeSingle();
 
-  return (partial as KeywordRow) ?? null;
+  return partial && typeof partial.term === "string" ? (partial as KeywordRow) : null;
 }
 
 async function buildSummary(query: string, ranked: RankedKeyword[]): Promise<string> {
@@ -257,22 +269,27 @@ async function rankKeywords(
   const qLower = originalQuery.toLowerCase().trim();
 
   for (const keyword of keywords) {
-    const embedding = await getOrCreateEmbedding(keyword.term, {
+    // harden against bad data
+    const term = typeof keyword.term === "string" ? keyword.term.trim() : "";
+    if (!term) continue;
+
+    const embedding = await getOrCreateEmbedding(term, {
       supabase: supabaseClient,
       model: DEFAULT_EMBEDDING_MODEL,
     });
 
     const sim = cosineSimilarity(queryEmbedding.embedding, embedding.embedding);
     const composite = computeCompositeScore(keyword);
-    const isExact = keyword.term.toLowerCase().trim() === qLower;
+    const isExact = term.toLowerCase() === qLower;
 
-    const rankingScore = isExact ? Number.MAX_SAFE_INTEGER : (sim * 0.55 + composite * 0.45);
+    const rankingScore = isExact ? Number.MAX_SAFE_INTEGER : sim * 0.55 + composite * 0.45;
 
     ranked.push({
       ...keyword,
+      term, // ensured non-empty
       similarity: isExact ? 1 : sim,
       embeddingModel: embedding.model,
-      provenance_id: createProvenanceId(keyword.source, keyword.market, keyword.term),
+      provenance_id: createProvenanceId(keyword.source, keyword.market, term),
       compositeScore: composite,
       rankingScore,
     });
@@ -381,7 +398,7 @@ async function handleSearch(req: Request): Promise<NextResponse> {
 
   const userId = resolveUserId(req);
 
-  // Log every search to telemetry (Task 1)
+  // Log every search to telemetry
   await recordKeywordSearchRequest({
     supabase,
     query: trimmedQuery,
@@ -390,22 +407,22 @@ async function handleSearch(req: Request): Promise<NextResponse> {
     plan,
     sources: resolvedSources,
     userId,
-    reason: 'queried',
+    reason: "queried",
   });
 
-  // Backfill normalized keyword to golden source (Task 1)
+  // Backfill normalized keyword to golden source
   try {
-    await supabase.rpc('lexy_upsert_keyword', {
+    await supabase.rpc("lexy_upsert_keyword", {
       p_term: trimmedQuery,
       p_market: market,
-      p_source: 'ai',
+      p_source: "ai",
       p_tier: plan,
-      p_method: 'search_touch',
+      p_method: "search_touch",
       p_extras: {},
       p_freshness: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('Failed to upsert search keyword to golden source', error);
+    console.error("Failed to upsert search keyword to golden source", error);
   }
 
   // exact match ignoring plan/source restrictions
@@ -422,7 +439,7 @@ async function handleSearch(req: Request): Promise<NextResponse> {
     resolvedSources,
     allowedTiers,
     limit,
-    trimmedQuery
+    trimmedQuery,
   );
 
   // ensure exact match is present even if its source/tier is outside plan gating
