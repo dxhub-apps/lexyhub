@@ -77,6 +77,24 @@ export async function getAffiliate(id: string): Promise<Affiliate | null> {
   return data as Affiliate | null;
 }
 
+export async function getAffiliateByUserId(userId: string): Promise<Affiliate | null> {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from("affiliates")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("Failed to fetch affiliate by user_id", error);
+    return null;
+  }
+
+  return data as Affiliate | null;
+}
+
 export async function insertAffiliateClick(click: AffiliateClick): Promise<void> {
   const supabase = getSupabaseServerClient();
   if (!supabase) return;

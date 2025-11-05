@@ -177,6 +177,61 @@ WHERE c.status = 'pending'
 ORDER BY c.created_at DESC;
 ```
 
+### Affiliate Dashboard
+
+Affiliates can access their dashboard at `/affiliate` to view:
+
+- **Referral link** with one-click copy
+- **Total clicks** from their referral link
+- **Total referrals** (conversions)
+- **Conversion rate** percentage
+- **Total earnings** (pending + paid)
+- **Recent referrals** list with status
+- **Commission history** with payment status
+
+**Requirements:**
+- User must have `user_id` set in `affiliates` table
+- Accessible only to registered affiliates
+- Real-time stats pulled from database
+
+**Linking Users to Affiliates:**
+
+```sql
+-- Link an existing affiliate account to a user
+UPDATE public.affiliates
+SET user_id = 'user-uuid-here',
+    display_name = 'John Doe',
+    email = 'john@example.com'
+WHERE code = 'PARTNER2024';
+```
+
+**Creating a New Affiliate with User Link:**
+
+```sql
+INSERT INTO public.affiliates (
+  code,
+  user_id,
+  display_name,
+  email,
+  base_rate,
+  lifetime,
+  recur_months,
+  cookie_days,
+  status
+)
+VALUES (
+  'NEWPARTNER',
+  'user-uuid-here',
+  'Partner Name',
+  'partner@example.com',
+  0.30,
+  false,
+  12,
+  90,
+  'active'
+);
+```
+
 ---
 
 ## API Reference
@@ -231,6 +286,40 @@ ORDER BY c.created_at DESC;
   "expires_at": "2026-11-05T00:00:00Z"
 }
 ```
+
+### `/api/affiliate/dashboard`
+
+**GET** — Get affiliate dashboard data
+
+**Query Params:**
+- `userId` (required)
+
+**Response:**
+```json
+{
+  "affiliate": {
+    "code": "PARTNER2024",
+    "status": "active",
+    "base_rate": 0.30,
+    "lifetime": false,
+    "recur_months": 12
+  },
+  "stats": {
+    "totalClicks": 150,
+    "totalReferrals": 12,
+    "totalEarnings": 45600,
+    "pendingEarnings": 12300,
+    "paidEarnings": 33300,
+    "conversionRate": "8.0"
+  },
+  "referrals": [...],
+  "commissions": [...]
+}
+```
+
+**Error Responses:**
+- `404` — User is not a registered affiliate
+- `400` — Missing userId parameter
 
 ### `/api/billing/webhook`
 

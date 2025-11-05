@@ -28,9 +28,12 @@ import { Separator } from "@/components/ui/separator";
 import { UsageChip } from "@/components/billing/UsageChip";
 
 const PLAN_SUMMARY: Record<string, string> = {
-  spark: "Starter access with 100 keyword queries and Market Twin previews.",
-  scale: "Full Etsy sync, Market Twin history, and quota multipliers.",
-  apex: "Unlimited sources, dedicated analyst hours, and real-time refreshes.",
+  free: "Perfect for exploring LexyHub features with basic limits.",
+  basic: "Essential tools for growing sellers with increased capacity.",
+  pro: "Unlimited access to all features for serious entrepreneurs.",
+  spark: "Essential tools for growing sellers with increased capacity.",
+  scale: "Unlimited access to all features for serious entrepreneurs.",
+  apex: "Unlimited access to all features for serious entrepreneurs.",
 };
 
 type InvoiceHistoryRow = {
@@ -230,7 +233,7 @@ export default function ProfilePage(): JSX.Element {
       }
       toast({
         title: "Profile updated",
-        description: "Your preferences are saved to Supabase.",
+        description: "Your changes have been saved successfully.",
         variant: "success",
       });
       await loadData();
@@ -350,8 +353,8 @@ export default function ProfilePage(): JSX.Element {
         throw new Error(json.error ?? "Failed to update billing");
       }
       toast({
-        title: "Subscription settings saved",
-        description: "Billing preferences are now stored in Supabase.",
+        title: "Subscription updated",
+        description: "Your billing preferences have been saved.",
         variant: "success",
       });
       await loadData();
@@ -411,7 +414,7 @@ export default function ProfilePage(): JSX.Element {
               <div className="space-y-1">
                 <CardTitle className="text-3xl font-bold">Profile &amp; Billing</CardTitle>
                 <CardDescription className="text-base">
-                  Keep your workspace details and subscription preferences tidy. Upload a friendly avatar, confirm how we contact you, and tune your billing cadence.
+                  Manage your account details, subscription plan, and billing preferences.
                 </CardDescription>
               </div>
             </div>
@@ -609,7 +612,7 @@ export default function ProfilePage(): JSX.Element {
                 <CreditCard className="h-5 w-5 text-muted-foreground" />
                 <CardTitle>Billing</CardTitle>
               </div>
-              <CardDescription>Control your renewal cadence, billing contact, and saved payment label.</CardDescription>
+              <CardDescription>Manage your subscription plan and billing preferences.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleBillingSubmit} className="space-y-6">
@@ -690,7 +693,7 @@ export default function ProfilePage(): JSX.Element {
         <Card>
           <CardHeader>
             <CardTitle>Subscription</CardTitle>
-            <CardDescription>Status and history sync directly from Supabase billing records.</CardDescription>
+            <CardDescription>Your subscription status and billing history.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <dl className="space-y-3 text-sm">
