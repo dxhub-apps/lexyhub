@@ -54,7 +54,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    let keywords = (data as TrendingKeyword[]).map(k => ({ ...k, source: "database" as const }));
+    let keywords: TrendingKeyword[] = (data as TrendingKeyword[]).map(k => ({
+      ...k,
+      source: "database" as const
+    }));
 
     // If we have fewer than 5 keywords from the database, enrich with AI suggestions
     if (keywords.length < 5) {
@@ -67,7 +70,7 @@ export async function GET(request: NextRequest) {
           k => !existingTerms.has(k.term.toLowerCase())
         );
 
-        keywords = [...keywords, ...uniqueAIKeywords];
+        keywords = [...keywords, ...uniqueAIKeywords] as TrendingKeyword[];
       } catch (aiError) {
         console.error("Error generating AI keywords:", aiError);
         // Continue with database keywords only if AI fails
