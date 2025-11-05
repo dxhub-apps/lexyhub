@@ -47,10 +47,45 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Log for debugging
-    console.log(`Fetched ${data?.length || 0} seasonal periods from database`);
+    // Make events recurring annually by adjusting dates to current/next year
+    const currentYear = new Date().getFullYear();
+    const adjustedData = data?.map((period) => {
+      const startDate = new Date(period.start_date);
+      const endDate = new Date(period.end_date);
 
-    return NextResponse.json(data as SeasonalPeriod[]);
+      // Get the month and day from the original dates
+      const startMonth = startDate.getMonth();
+      const startDay = startDate.getDate();
+      const endMonth = endDate.getMonth();
+      const endDay = endDate.getDate();
+
+      // Create new dates with current year
+      let newStartDate = new Date(currentYear, startMonth, startDay);
+      let newEndDate = new Date(currentYear, endMonth, endDay);
+
+      // If the event has already passed this year, move it to next year
+      const now = new Date();
+      if (newEndDate < now) {
+        newStartDate = new Date(currentYear + 1, startMonth, startDay);
+        newEndDate = new Date(currentYear + 1, endMonth, endDay);
+      }
+
+      // Handle events that span across years (like Christmas to New Year)
+      if (endMonth < startMonth || (endMonth === startMonth && endDay < startDay)) {
+        newEndDate = new Date(newStartDate.getFullYear() + 1, endMonth, endDay);
+      }
+
+      return {
+        ...period,
+        start_date: newStartDate.toISOString().split('T')[0],
+        end_date: newEndDate.toISOString().split('T')[0],
+      };
+    }) || [];
+
+    // Log for debugging
+    console.log(`Fetched ${adjustedData.length} seasonal periods from database (adjusted to current year)`);
+
+    return NextResponse.json(adjustedData as SeasonalPeriod[]);
   } catch (error) {
     console.error("Unexpected error:", error);
     return NextResponse.json(

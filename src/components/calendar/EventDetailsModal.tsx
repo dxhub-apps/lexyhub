@@ -140,8 +140,18 @@ export function EventDetailsModal({
                 >
                   <div className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/10 transition-colors group cursor-pointer">
                     <div className="flex-1">
-                      <div className="font-medium group-hover:text-primary transition-colors">
-                        {keyword.term}
+                      <div className="flex items-center gap-2">
+                        <div className="font-medium group-hover:text-primary transition-colors">
+                          {keyword.term}
+                        </div>
+                        {keyword.source === "ai" && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0 h-auto bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30"
+                          >
+                            AI
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex gap-4 mt-1 text-sm text-muted-foreground">
                         <span>
