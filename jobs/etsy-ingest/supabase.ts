@@ -66,7 +66,7 @@ async function upsertKeywords(
         p_term: payload.term,
         p_market: payload.market,
         p_source: payload.source,
-        p_tier: 'free',
+        p_tier: 0,
         p_method: 'etsy_ingest',
         p_extras: payload.extras || {},
         p_freshness: new Date().toISOString(),

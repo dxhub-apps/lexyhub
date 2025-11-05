@@ -175,7 +175,7 @@ async function persistSuggestion(
         p_term: tag,
         p_market: market,
         p_source: 'ai',
-        p_tier: 'free',
+        p_tier: 0,
         p_method: 'ai_suggestion',
         p_extras: {
           suggested_by: 'tag_optimizer',
