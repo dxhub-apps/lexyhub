@@ -167,7 +167,27 @@ async function persistSuggestion(
     console.warn("Failed to insert ai_predictions row", predictionError);
   }
 
-  // ai_suggestions table has been deprecated - all data is now in ai_predictions
+  // Task 4: Populate keywords golden source with AI suggestions
+  const market = request.market ?? 'us';
+  for (const tag of result.tags) {
+    try {
+      await supabase.rpc('lexy_upsert_keyword', {
+        p_term: tag,
+        p_market: market,
+        p_source: 'ai',
+        p_tier: 'free',
+        p_method: 'ai_suggestion',
+        p_extras: {
+          suggested_by: 'tag_optimizer',
+          parent_keyword_id: request.keywordId,
+          parent_listing_id: request.listingId,
+        },
+        p_freshness: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error(`Failed to upsert AI suggestion "${tag}" to keywords`, error);
+    }
+  }
 }
 
 export async function POST(req: Request): Promise<NextResponse> {

@@ -26,26 +26,26 @@ async function upsertKeywords(
     return keywords.length;
   }
 
-  const payload = keywords.map((keyword) => ({
-    term: keyword.term,
-    source: keyword.source,
-    market: "us",
-    tier: "internal",
-    is_seed: false,
-    demand_index: null,
-    competition_score: null,
-    engagement_score: null,
-    ai_opportunity_score: null,
-    trend_momentum: null,
-    extras: keyword.extras ?? {},
-  }));
-
-  const { error } = await client.from("keywords").upsert(payload, { onConflict: "term,source,market" });
-  if (error) {
-    throw new Error(`Unable to persist scraped keywords: ${error.message}`);
+  // Use lexy_upsert_keyword RPC for each keyword (Task 3)
+  let upserted = 0;
+  for (const keyword of keywords) {
+    try {
+      await client.rpc('lexy_upsert_keyword', {
+        p_term: keyword.term,
+        p_market: "us",
+        p_source: keyword.source,
+        p_tier: "free",
+        p_method: 'scraper',
+        p_extras: keyword.extras ?? {},
+        p_freshness: new Date().toISOString(),
+      });
+      upserted++;
+    } catch (error) {
+      console.error(`Failed to upsert keyword "${keyword.term}":`, error);
+    }
   }
 
-  return keywords.length;
+  return upserted;
 }
 
 async function recordCrawler(
