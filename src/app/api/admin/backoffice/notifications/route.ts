@@ -85,7 +85,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       );
     }
 
-    const notification = await createNotification(result.data, adminUser.id);
+    const notification = await createNotification(result.data, adminUser.user.id);
 
     return NextResponse.json({ notification }, { status: 201 });
   } catch (error) {

@@ -2,7 +2,7 @@
  * Notification service - Core CRUD operations for notifications
  */
 
-import { createServerClient } from '@/lib/supabase-server';
+import { getSupabaseServerClient } from '@/lib/supabase-server';
 import { logger } from '@/lib/logger';
 import type {
   Notification,
@@ -24,7 +24,13 @@ export async function createNotification(
   data: CreateNotificationRequest,
   userId: string
 ): Promise<Notification> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
+  if (!supabase) {
+    throw new Error('Supabase client not initialized');
+  }
 
   const notification: Partial<Notification> = {
     kind: data.kind,
@@ -85,7 +91,10 @@ export async function updateNotification(
   data: UpdateNotificationRequest,
   userId: string
 ): Promise<Notification> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   // Get existing notification to append to audit log
   const { data: existing, error: fetchError } = await supabase
@@ -172,7 +181,10 @@ export async function updateNotification(
  * Publish a notification (change status from draft/scheduled to live)
  */
 export async function publishNotification(notificationId: string, userId: string): Promise<Notification> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   const { data: existing, error: fetchError } = await supabase
     .from('notifications')
@@ -219,7 +231,10 @@ export async function publishNotification(notificationId: string, userId: string
  * Pause a live notification
  */
 export async function pauseNotification(notificationId: string, userId: string): Promise<Notification> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   const { data: existing, error: fetchError } = await supabase
     .from('notifications')
@@ -261,7 +276,10 @@ export async function pauseNotification(notificationId: string, userId: string):
  * End a notification (terminal state)
  */
 export async function endNotification(notificationId: string, userId: string): Promise<Notification> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   const { data: existing, error: fetchError } = await supabase
     .from('notifications')
@@ -303,7 +321,10 @@ export async function endNotification(notificationId: string, userId: string): P
  * Get a notification by ID
  */
 export async function getNotification(notificationId: string): Promise<Notification | null> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   const { data, error } = await supabase
     .from('notifications')
@@ -328,7 +349,10 @@ export async function getNotification(notificationId: string): Promise<Notificat
 export async function listNotifications(
   params: GetNotificationsRequest
 ): Promise<PaginatedResponse<Notification>> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
   const page = params.page || 1;
   const limit = params.limit || 25;
   const offset = (page - 1) * limit;
@@ -390,7 +414,10 @@ export async function deleteNotification(notificationId: string, userId: string)
  * Get metrics for a notification
  */
 export async function getNotificationMetrics(notificationId: string): Promise<NotificationMetrics> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   const { data, error } = await supabase
     .from('notification_delivery')
@@ -437,7 +464,10 @@ export async function createSegment(
   filters: Record<string, any>,
   userId: string
 ): Promise<NotificationSegment> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   const { data, error } = await supabase
     .from('notification_segments')
@@ -463,7 +493,10 @@ export async function createSegment(
  * List notification segments
  */
 export async function listSegments(): Promise<NotificationSegment[]> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   const { data, error } = await supabase
     .from('notification_segments')
@@ -482,7 +515,10 @@ export async function listSegments(): Promise<NotificationSegment[]> {
  * Get a segment by ID
  */
 export async function getSegment(segmentId: string): Promise<NotificationSegment | null> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   const { data, error } = await supabase
     .from('notification_segments')
@@ -508,7 +544,10 @@ export async function updateSegment(
   segmentId: string,
   updates: Partial<Pick<NotificationSegment, 'name' | 'description' | 'filters'>>
 ): Promise<NotificationSegment> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   const { data, error } = await supabase
     .from('notification_segments')
@@ -530,7 +569,10 @@ export async function updateSegment(
  * Delete a segment
  */
 export async function deleteSegment(segmentId: string): Promise<void> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   const { error } = await supabase.from('notification_segments').delete().eq('id', segmentId);
 

@@ -17,7 +17,7 @@ export async function POST(
   try {
     const adminUser = await requireAdminUser();
 
-    const notification = await endNotification(params.id, adminUser.id);
+    const notification = await endNotification(params.id, adminUser.user.id);
 
     log.info({ notification_id: params.id }, 'Ended notification');
 

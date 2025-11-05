@@ -2,7 +2,7 @@
  * Notification preferences service - Manages user notification preferences
  */
 
-import { createServerClient } from '@/lib/supabase-server';
+import { getSupabaseServerClient } from '@/lib/supabase-server';
 import { logger } from '@/lib/logger';
 import type {
   UserNotificationPrefs,
@@ -17,7 +17,10 @@ const log = logger.child({ module: 'notifications/preferences' });
  * Get all notification preferences for a user
  */
 export async function getUserPreferences(userId: string): Promise<UserNotificationPrefs[]> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   const { data, error } = await supabase
     .from('user_notification_prefs')
@@ -45,7 +48,10 @@ export async function getCategoryPreference(
   userId: string,
   category: NotificationCategory
 ): Promise<UserNotificationPrefs | null> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   const { data, error } = await supabase
     .from('user_notification_prefs')
@@ -74,7 +80,10 @@ export async function updatePreferences(
   userId: string,
   request: UpdatePreferencesRequest
 ): Promise<UserNotificationPrefs> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
   const { category, inapp_enabled, email_enabled, email_frequency } = request;
 
   // Check if preference exists
@@ -154,7 +163,10 @@ async function createDefaultPreference(
   userId: string,
   category: NotificationCategory
 ): Promise<UserNotificationPrefs> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   // Default settings per category
   const defaults: Record<NotificationCategory, { email_enabled: boolean; email_frequency: EmailFrequency }> = {
@@ -258,7 +270,10 @@ export async function getEmailFrequency(
  * Reset preferences to defaults for a user
  */
 export async function resetToDefaults(userId: string): Promise<UserNotificationPrefs[]> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   // Delete existing preferences
   const { error: deleteError } = await supabase
@@ -301,7 +316,10 @@ export async function getUsersForDigest(
   category: NotificationCategory,
   frequency: EmailFrequency
 ): Promise<string[]> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   const { data, error } = await supabase
     .from('user_notification_prefs')
@@ -340,7 +358,10 @@ export async function exportPreferences(userId: string): Promise<Record<string, 
  * Delete all preferences for a user (GDPR compliance)
  */
 export async function deleteUserPreferences(userId: string): Promise<void> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   const { error } = await supabase
     .from('user_notification_prefs')

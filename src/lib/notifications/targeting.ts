@@ -2,7 +2,7 @@
  * Notification targeting service - Handles audience filtering and user matching
  */
 
-import { createServerClient } from '@/lib/supabase-server';
+import { getSupabaseServerClient } from '@/lib/supabase-server';
 import { logger } from '@/lib/logger';
 import type { Notification, AudienceFilter } from './types';
 
@@ -12,7 +12,10 @@ const log = logger.child({ module: 'notifications/targeting' });
  * Get eligible user IDs for a notification based on targeting rules
  */
 export async function getEligibleUsers(notification: Notification): Promise<string[]> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
   const { audience_scope, audience_filter, segment_id } = notification;
 
   let userIds: string[] = [];
@@ -68,7 +71,10 @@ export async function getEligibleUsers(notification: Notification): Promise<stri
  * Get all active user IDs
  */
 async function getAllUsers(): Promise<string[]> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   const { data, error } = await supabase.from('user_profiles').select('user_id').eq('is_active', true);
 
@@ -88,7 +94,10 @@ async function getUsersByPlanCodes(planCodes: string[]): Promise<string[]> {
     return [];
   }
 
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   const { data, error } = await supabase
     .from('user_profiles')
@@ -108,7 +117,10 @@ async function getUsersByPlanCodes(planCodes: string[]): Promise<string[]> {
  * Get user IDs by segment
  */
 async function getUsersBySegment(segmentId: string): Promise<string[]> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   // Get segment filters
   const { data: segment, error: segmentError } = await supabase
@@ -135,7 +147,10 @@ async function applyFilters(userIds: string[], filters: Record<string, any>): Pr
     return userIds;
   }
 
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
   const filter = filters as AudienceFilter;
 
   let query = supabase.from('user_profiles').select('user_id').in('user_id', userIds);
@@ -214,7 +229,10 @@ async function filterByWatchedMarkets(userIds: string[], markets: string[]): Pro
     return userIds;
   }
 
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   const { data, error } = await supabase
     .from('watchlists')
@@ -243,7 +261,10 @@ async function filterByQuotaUsage(
     return userIds;
   }
 
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   // Get user profiles with quota info
   const { data, error } = await supabase
@@ -294,7 +315,10 @@ async function filterByActivity(
     return userIds;
   }
 
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - days);
 

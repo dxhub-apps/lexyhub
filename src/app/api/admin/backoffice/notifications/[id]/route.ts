@@ -86,7 +86,7 @@ export async function PATCH(
 
     const notification = await updateNotification(
       { id: params.id, ...result.data },
-      adminUser.id
+      adminUser.user.id
     );
 
     return NextResponse.json({ notification });
@@ -112,7 +112,7 @@ export async function DELETE(
   try {
     const adminUser = await requireAdminUser();
 
-    await deleteNotification(params.id, adminUser.id);
+    await deleteNotification(params.id, adminUser.user.id);
 
     return NextResponse.json({ success: true, message: 'Notification deleted successfully' });
   } catch (error) {

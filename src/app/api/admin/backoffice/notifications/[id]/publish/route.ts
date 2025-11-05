@@ -27,7 +27,7 @@ export async function POST(
     }
 
     // Publish the notification
-    const published = await publishNotification(params.id, adminUser.id);
+    const published = await publishNotification(params.id, adminUser.user.id);
 
     // Get eligible users for targeting
     const eligibleUsers = await getEligibleUsers(published);

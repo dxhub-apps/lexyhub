@@ -57,7 +57,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       result.data.name,
       result.data.description || '',
       result.data.filters,
-      adminUser.id
+      adminUser.user.id
     );
 
     return NextResponse.json({ segment }, { status: 201 });

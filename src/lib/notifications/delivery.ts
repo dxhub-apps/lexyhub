@@ -2,7 +2,7 @@
  * Notification delivery service - Handles delivery tracking and feed retrieval
  */
 
-import { createServerClient } from '@/lib/supabase-server';
+import { getSupabaseServerClient } from '@/lib/supabase-server';
 import { logger } from '@/lib/logger';
 import type {
   Notification,
@@ -20,7 +20,10 @@ const log = logger.child({ module: 'notifications/delivery' });
  * Uses the database function for priority resolution
  */
 export async function getActiveBanner(userId: string): Promise<Notification | null> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   const { data, error } = await supabase.rpc('get_active_banner_for_user', {
     p_user_id: userId,
@@ -45,7 +48,10 @@ export async function getNotificationFeed(
   userId: string,
   params: GetNotificationFeedRequest
 ): Promise<PaginatedResponse<Notification & { delivery?: NotificationDelivery }>> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
   const page = params.page || 1;
   const limit = params.limit || 20;
   const offset = (page - 1) * limit;
@@ -110,7 +116,10 @@ export async function getNotificationFeed(
  * Get unread notification count for a user
  */
 export async function getUnreadCount(userId: string): Promise<number> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   const { data, error } = await supabase.rpc('get_unread_notification_count', {
     p_user_id: userId,
@@ -128,7 +137,10 @@ export async function getUnreadCount(userId: string): Promise<number> {
  * Track delivery action (view, click, dismiss)
  */
 export async function trackDelivery(userId: string, request: TrackDeliveryRequest): Promise<void> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
   const { notification_id, action } = request;
 
   // Map action to delivery state
@@ -215,7 +227,10 @@ export async function trackDelivery(userId: string, request: TrackDeliveryReques
  * Mark notification as read/shown
  */
 export async function markAsRead(userId: string, notificationId: string): Promise<void> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   const { error } = await supabase.rpc('mark_notification_read', {
     p_notification_id: notificationId,
@@ -234,7 +249,10 @@ export async function markAsRead(userId: string, notificationId: string): Promis
  * Mark all notifications as read for a user
  */
 export async function markAllAsRead(userId: string): Promise<void> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   // Get all pending notifications
   const { data: pending, error: fetchError } = await supabase
@@ -279,7 +297,10 @@ export async function createDeliveryRecords(
   userIds: string[],
   channels: string[]
 ): Promise<void> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   if (userIds.length === 0) {
     log.warn({ notification_id: notificationId }, 'No users to deliver notification to');
@@ -321,7 +342,10 @@ export async function getDeliveryRecords(
   page = 1,
   limit = 100
 ): Promise<PaginatedResponse<NotificationDelivery>> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
   const offset = (page - 1) * limit;
 
   const { data, error, count } = await supabase
@@ -361,7 +385,10 @@ export async function updateEmailDeliveryStatus(
     error?: string;
   }
 ): Promise<void> {
-  const supabase = createServerClient();
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase client not initialized");
+  }
 
   const updates: Partial<NotificationDelivery> = {};
 
