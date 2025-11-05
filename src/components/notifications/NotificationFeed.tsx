@@ -221,7 +221,7 @@ export function NotificationFeed({ userId, onNotificationRead }: NotificationFee
                 <Bell className="mb-2 h-12 w-12 text-muted-foreground/50" />
                 <p className="text-sm font-medium text-muted-foreground">No notifications yet</p>
                 <p className="text-xs text-muted-foreground">
-                  You'll see notifications here when they arrive
+                  You&apos;ll see notifications here when they arrive
                 </p>
               </div>
             ) : (

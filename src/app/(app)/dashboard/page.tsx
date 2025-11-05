@@ -178,7 +178,7 @@ export default function DashboardPage(): JSX.Element {
         },
       },
     ];
-  }, [formatNumber, formatPercent, usage]);
+  }, [formatNumber, usage]);
 
   const planCard = usageCards.find((card) => card.id === "plan");
   const queryCard = usageCards.find((card) => card.id === "queries");
