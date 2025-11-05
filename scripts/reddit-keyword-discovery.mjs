@@ -349,7 +349,7 @@ async function upsertKeyword(term, method = "ngram_extract", extras = {}) {
         p_term: term,
         p_market: "us",
         p_source: "reddit",
-        p_tier: "free",
+        p_tier: 0,
         p_method: method,
         p_extras: extras, // contains samplePosts and stats
         p_freshness: new Date().toISOString(),

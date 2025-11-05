@@ -71,7 +71,7 @@ create or replace function public.lexy_upsert_keyword(
   p_term text,
   p_market text,
   p_source text,
-  p_tier text default 'free',
+  p_tier smallint default 0,
   p_method text default null,
   p_extras jsonb default '{}'::jsonb,
   p_demand numeric default null,

@@ -444,7 +444,7 @@ async function handleSearch(req: Request): Promise<NextResponse> {
         p_term: trimmedQuery,
         p_market: market,
         p_source: "ai",
-        p_tier: plan,
+        p_tier: PLAN_RANK[plan] ?? 0,
         p_method: "search_touch",
         p_extras: {},
         p_freshness: new Date().toISOString(),

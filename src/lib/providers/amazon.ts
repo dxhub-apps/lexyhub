@@ -65,6 +65,15 @@ function clamp(value: number, min = 0, max = 1): number {
   return Math.min(Math.max(value, min), max);
 }
 
+function tierToNumber(tier: string): number {
+  const tierMap: Record<string, number> = {
+    free: 0,
+    growth: 1,
+    scale: 2,
+  };
+  return tierMap[tier] ?? 0;
+}
+
 function normalizeScale(value: number | undefined, divisor: number, fallback = 0.5): number {
   if (value == null) {
     return fallback;
@@ -304,7 +313,7 @@ export class AmazonKeywordProvider implements KeywordSourceProvider {
           p_term: item.term,
           p_market: market,
           p_source: this.id,
-          p_tier: this.tier,
+          p_tier: tierToNumber(this.tier),
           p_method: "amazon-suggest-paapi",
           p_extras: buildExtras(item, metrics),
           p_demand: demand,

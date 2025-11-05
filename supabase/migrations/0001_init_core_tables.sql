@@ -22,7 +22,7 @@ create table if not exists public.keywords (
     term text not null,
     source text not null,
     market text not null,
-    tier text not null default 'free',
+    tier smallint not null default 0,
     is_seed boolean not null default false,
     parent_seed_id uuid references public.keyword_seeds(id),
     demand_index numeric(6,3),

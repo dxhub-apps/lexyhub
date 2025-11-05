@@ -34,7 +34,7 @@ async function upsertKeywords(
         p_term: keyword.term,
         p_market: "us",
         p_source: keyword.source,
-        p_tier: "free",
+        p_tier: 0,
         p_method: 'scraper',
         p_extras: keyword.extras ?? {},
         p_freshness: new Date().toISOString(),
