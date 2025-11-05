@@ -36,7 +36,14 @@ chrome.runtime.sendMessage({ type: 'GET_AUTH_STATE' }, (response) => {
 
 // Login button
 document.getElementById('loginBtn').addEventListener('click', () => {
-  chrome.tabs.create({ url: 'https://app.lexyhub.com/auth/extension' });
+  // Send message to background script to initiate login with polling
+  chrome.runtime.sendMessage({ type: 'INITIATE_LOGIN' }, (response) => {
+    if (response && response.success) {
+      console.log('[LexyHub] Login initiated');
+    } else {
+      console.error('[LexyHub] Failed to initiate login');
+    }
+  });
 });
 
 // Open options

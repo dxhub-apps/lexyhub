@@ -98,14 +98,38 @@ document.getElementById('saveBtn').addEventListener('click', () => {
 
 // Login button
 document.getElementById('loginBtn').addEventListener('click', () => {
-  chrome.tabs.create({ url: 'https://app.lexyhub.com/auth/extension' });
+  // Send message to background script to initiate login with polling
+  chrome.runtime.sendMessage({ type: 'INITIATE_LOGIN' }, (response) => {
+    if (response && response.success) {
+      console.log('[LexyHub] Login initiated');
+    } else {
+      console.error('[LexyHub] Failed to initiate login');
+      alert('Failed to initiate login. Please try again.');
+    }
+  });
 });
 
 // Logout button
 document.getElementById('logoutBtn').addEventListener('click', () => {
   if (confirm('Are you sure you want to sign out?')) {
-    // TODO: Implement logout via background script
-    alert('Logout functionality coming soon');
+    chrome.runtime.sendMessage({ type: 'LOGOUT' }, (response) => {
+      if (response && response.success) {
+        // Update UI
+        const authStatus = document.getElementById('authStatus');
+        const authStatusText = document.getElementById('authStatusText');
+        const loginBtn = document.getElementById('loginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        authStatus.classList.add('disconnected');
+        authStatusText.textContent = 'Not connected';
+        loginBtn.style.display = 'inline-block';
+        logoutBtn.style.display = 'none';
+
+        alert('Successfully signed out');
+      } else {
+        alert('Failed to sign out. Please try again.');
+      }
+    });
   }
 });
 
