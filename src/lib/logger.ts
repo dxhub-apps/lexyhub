@@ -13,6 +13,7 @@
  */
 
 import pino from "pino";
+import * as Sentry from "@sentry/nextjs";
 
 // Log level from environment (default: info)
 const LOG_LEVEL = process.env.LOG_LEVEL || "info";
@@ -131,6 +132,12 @@ export const log = {
    */
   error: (message: string, context?: Record<string, unknown>) => {
     logger.error(context || {}, message);
+
+    // Also send to Sentry for error tracking
+    Sentry.captureMessage(message, {
+      level: "error",
+      extra: context,
+    });
   },
 
   /**
@@ -138,6 +145,12 @@ export const log = {
    */
   fatal: (message: string, context?: Record<string, unknown>) => {
     logger.fatal(context || {}, message);
+
+    // Also send to Sentry as fatal
+    Sentry.captureMessage(message, {
+      level: "fatal",
+      extra: context,
+    });
   },
 };
 
@@ -293,6 +306,50 @@ export function logAuthEvent(
     },
     `Auth: ${event}${userId ? ` (user: ${userId})` : ""}`
   );
+}
+
+/**
+ * Log an exception with full stack trace and context
+ * Also sends to Sentry for error tracking
+ */
+export function logException(
+  error: Error,
+  context?: Record<string, unknown>,
+  level: "error" | "fatal" = "error"
+) {
+  // Log to Pino
+  logger[level](
+    {
+      type: "exception",
+      err: error,
+      ...context,
+    },
+    `Exception: ${error.message}`
+  );
+
+  // Send to Sentry
+  Sentry.captureException(error, {
+    level,
+    extra: context,
+  });
+}
+
+/**
+ * Set user context for logging and error tracking
+ */
+export function setUserContext(userId: string, userInfo?: Record<string, unknown>) {
+  // Set in Sentry
+  Sentry.setUser({
+    id: userId,
+    ...userInfo,
+  });
+}
+
+/**
+ * Clear user context (e.g., on logout)
+ */
+export function clearUserContext() {
+  Sentry.setUser(null);
 }
 
 export default logger;

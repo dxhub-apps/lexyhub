@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
+import { identifyAnalyticsUser, trackAnalyticsEvent, AnalyticsEvents, trackError } from "@/lib/analytics/tracking";
 
 type FormState = {
   email: string;
@@ -75,6 +76,12 @@ export function SignupForm({ redirectTo = "/dashboard" }: SignupFormProps): JSX.
     });
 
     if (authError) {
+      // Track failed signup attempt
+      trackError(authError, {
+        context: "signup",
+        email: form.email,
+      });
+
       toast({
         title: "Signup failed",
         description: authError.message,
@@ -97,6 +104,19 @@ export function SignupForm({ redirectTo = "/dashboard" }: SignupFormProps): JSX.
     // Check if email confirmation is required
     if (data.session) {
       // Auto-confirmed, proceed with post-signup setup
+
+      // Track successful signup
+      identifyAnalyticsUser(data.user.id, {
+        email: data.user.email,
+        plan: "free",
+        createdAt: new Date().toISOString(),
+      });
+
+      trackAnalyticsEvent(AnalyticsEvents.USER_SIGNED_UP, {
+        method: "email",
+        plan: "free",
+        email_confirmed: true,
+      });
 
       // Create user profile using RPC function (this will also trigger affiliate creation)
       try {
@@ -134,6 +154,12 @@ export function SignupForm({ redirectTo = "/dashboard" }: SignupFormProps): JSX.
       router.refresh();
     } else {
       // Email confirmation required - profile will be created on first login
+      trackAnalyticsEvent(AnalyticsEvents.USER_SIGNED_UP, {
+        method: "email",
+        plan: "free",
+        email_confirmed: false,
+      });
+
       toast({
         title: "Check your email",
         description: "We've sent you a confirmation link. Please check your email to activate your account.",

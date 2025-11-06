@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
+import { identifyAnalyticsUser, trackAnalyticsEvent, AnalyticsEvents, trackError } from "@/lib/analytics/tracking";
 
 type FormState = {
   email: string;
@@ -41,6 +42,12 @@ export function LoginForm({ redirectTo = "/dashboard" }: LoginFormProps): JSX.El
     });
 
     if (authError) {
+      // Track failed login attempt
+      trackError(authError, {
+        context: "login",
+        email: form.email,
+      });
+
       toast({
         title: "Authentication failed",
         description: authError.message,
@@ -59,6 +66,16 @@ export function LoginForm({ redirectTo = "/dashboard" }: LoginFormProps): JSX.El
       setLoading(false);
       return;
     }
+
+    // Track successful login
+    identifyAnalyticsUser(data.user.id, {
+      email: data.user.email,
+    });
+
+    trackAnalyticsEvent(AnalyticsEvents.USER_LOGGED_IN, {
+      method: "email",
+      redirect_to: redirectTo,
+    });
 
     toast({
       title: "Welcome back!",
