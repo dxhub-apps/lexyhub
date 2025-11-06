@@ -1,6 +1,6 @@
 -- ===========================================
 -- 0035_fix_profile_creation.sql
--- Fix ambiguous column error and ensure profiles are created
+-- Fix ambiguous column error and add RPC for profile creation
 -- ===========================================
 
 -- migrate:up
@@ -33,14 +33,30 @@ $$;
 
 comment on function generate_affiliate_code is 'Generates a unique 8-character uppercase alphanumeric affiliate code (fixed ambiguous column reference)';
 
--- Function to auto-create user profile when a user signs up
-create or replace function auto_create_user_profile()
-returns trigger
+-- RPC function to ensure user profile exists
+create or replace function ensure_user_profile(p_user_id uuid)
+returns jsonb
 language plpgsql
 security definer
 as $$
+declare
+  v_profile record;
 begin
-  -- Create user profile with free plan
+  -- Try to get existing profile
+  select user_id, plan, momentum into v_profile
+  from public.user_profiles
+  where user_id = p_user_id;
+
+  -- If profile exists, return it
+  if found then
+    return jsonb_build_object(
+      'exists', true,
+      'plan', v_profile.plan,
+      'momentum', v_profile.momentum
+    );
+  end if;
+
+  -- Create new profile with free plan
   insert into public.user_profiles (
     user_id,
     plan,
@@ -50,7 +66,7 @@ begin
     created_at,
     updated_at
   ) values (
-    NEW.id,
+    p_user_id,
     'free',
     'new',
     0,
@@ -58,27 +74,27 @@ begin
     now(),
     now()
   )
-  on conflict (user_id) do nothing;
+  on conflict (user_id) do nothing
+  returning user_id, plan, momentum into v_profile;
 
-  return NEW;
+  -- Return success
+  return jsonb_build_object(
+    'exists', false,
+    'created', true,
+    'plan', 'free',
+    'momentum', 'new'
+  );
 end;
 $$;
 
-comment on function auto_create_user_profile is 'Trigger function to create user profile when user signs up in auth.users';
+comment on function ensure_user_profile is 'Creates user profile if it does not exist. Can be called via RPC from application code.';
 
--- Create trigger on auth.users insert
-drop trigger if exists trigger_auto_create_user_profile on auth.users;
-create trigger trigger_auto_create_user_profile
-  after insert on auth.users
-  for each row
-  execute function auto_create_user_profile();
-
-comment on trigger trigger_auto_create_user_profile on auth.users is 'Automatically creates a user profile when a new user signs up';
+-- Grant execute permission to authenticated users
+grant execute on function ensure_user_profile(uuid) to authenticated;
 
 -- migrate:down
 
-drop trigger if exists trigger_auto_create_user_profile on auth.users;
-drop function if exists auto_create_user_profile;
+drop function if exists ensure_user_profile(uuid);
 
 -- Restore original generate_affiliate_code function (with the bug)
 create or replace function generate_affiliate_code()
