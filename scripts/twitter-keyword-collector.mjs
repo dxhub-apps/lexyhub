@@ -24,9 +24,8 @@ if (!TWITTER_BEARER_TOKEN) {
 }
 
 // Monthly limit tracking
-const MONTHLY_LIMIT = Number(process.env.TWITTER_MONTHLY_LIMIT || 1500);
-const DAILY_BUDGET = Math.floor(MONTHLY_LIMIT / 30);
-const PER_RUN_BUDGET = Number(process.env.TWITTER_PER_RUN_BUDGET || Math.floor(DAILY_BUDGET / 48)); // 48 runs per day (every 30min)
+const MONTHLY_LIMIT = Number(process.env.TWITTER_MONTHLY_LIMIT || 100);
+const PER_RUN_BUDGET = Number(process.env.TWITTER_PER_RUN_BUDGET || 50); // Default: 50 tweets per run (2 runs/month)
 
 // Tracking configuration
 const TRACKING_ACCOUNTS = [
@@ -39,15 +38,13 @@ const TRACKING_ACCOUNTS = [
   "printify",
 ];
 
+// Reduced to 5 hashtags to fit 100 tweets/month budget (5 × 10 = 50 per run, 2 runs/month)
 const TRACKING_HASHTAGS = [
   "#etsyseller",
-  "#etsyshop",
   "#printondemand",
   "#ecommerce",
   "#smallbusiness",
   "#handmade",
-  "#shopsmall",
-  "#productdesign",
 ];
 
 const NGRAM_MIN = 2;
@@ -329,7 +326,20 @@ async function collectFromHashtags(budget) {
   for (const hashtag of TRACKING_HASHTAGS) {
     if (remainingBudget <= 0) break;
 
-    const perHashtagLimit = Math.min(Math.floor(remainingBudget / TRACKING_HASHTAGS.length), 20);
+    // Twitter API requires max_results to be between 10 and 100
+    const MIN_TWITTER_RESULTS = 10;
+    const MAX_TWITTER_RESULTS = 100;
+
+    const perHashtagLimit = Math.min(
+      Math.max(Math.floor(remainingBudget / TRACKING_HASHTAGS.length), MIN_TWITTER_RESULTS),
+      MAX_TWITTER_RESULTS
+    );
+
+    // Skip if we don't have enough budget for minimum API requirement
+    if (remainingBudget < MIN_TWITTER_RESULTS) {
+      console.log("skipping:hashtag=%s insufficient_budget=%d", hashtag, remainingBudget);
+      break;
+    }
 
     try {
       console.log("collecting:hashtag=%s limit=%d", hashtag, perHashtagLimit);
