@@ -167,16 +167,22 @@ export function Sidebar({
           ))}
         </nav>
 
-        {/* Footer - Upgrade CTA */}
+        {/* Footer - Founders Deal CTA */}
         {!collapsed && (
           <div className="p-4 border-t border-border">
-            <div className="rounded-lg bg-muted p-3 space-y-2">
-              <h4 className="text-sm font-semibold">Upgrade workspace</h4>
-              <p className="text-xs text-muted-foreground">
-                Extend quotas and unlock advanced features.
+            <div className="rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 p-3 space-y-2 text-white">
+              <h4 className="text-sm font-bold">Founders Deal — Limited Time</h4>
+              <p className="text-xs opacity-90">
+                Unlock the LexyHub Basic Plan for only $39/year.
+                More power. Less cost.
               </p>
-              <Button variant="default" size="sm" className="w-full" asChild>
-                <Link href="/profile">Manage plan</Link>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full bg-white text-purple-700 hover:bg-gray-100"
+                asChild
+              >
+                <Link href="/billing?upgrade=founders">Upgrade now →</Link>
               </Button>
             </div>
           </div>
