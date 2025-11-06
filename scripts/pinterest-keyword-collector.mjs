@@ -1,5 +1,7 @@
 // scripts/pinterest-keyword-collector.mjs
-// Pinterest keyword trend collection using Pinterest API Free Tier
+// Pinterest keyword trend collection using Pinterest API Basic Access
+// Works with: pins:read, boards:read, user_accounts:read
+// Collects keywords from user's own boards and pins
 // Limits: 200 requests/day
 // Node 20+
 
@@ -123,16 +125,30 @@ async function pinterestGET(endpoint, params = {}) {
   return response.json();
 }
 
-async function searchPins(query, maxResults = 25) {
+// Get user's boards (works with basic boards:read permission)
+async function getUserBoards() {
   try {
-    const data = await pinterestGET("search/pins", {
-      query,
+    const data = await pinterestGET("boards", {
+      page_size: 25,
+    });
+
+    return data.items || [];
+  } catch (err) {
+    console.warn("boards_error:%s", err?.message || err);
+    return [];
+  }
+}
+
+// Get pins from a specific board (works with basic pins:read permission)
+async function getBoardPins(boardId, maxResults = 25) {
+  try {
+    const data = await pinterestGET(`boards/${boardId}/pins`, {
       page_size: Math.min(maxResults, 50),
     });
 
     return data.items || [];
   } catch (err) {
-    console.warn("search_error:%s:%s", query, err?.message || err);
+    console.warn("board_pins_error:%s:%s", boardId, err?.message || err);
     return [];
   }
 }
@@ -364,22 +380,35 @@ async function checkRateLimit() {
 // ==========================
 // Main Collection Logic
 // ==========================
-async function collectFromQueries(budget) {
+async function collectFromUserBoards(budget) {
   const keywordData = new Map();
   let pinsProcessed = 0;
   let remainingBudget = budget;
+  let apiCallsMade = 0;
 
-  // Rotate through queries
-  const queriesToUse = SEARCH_QUERIES.slice(0, Math.min(SEARCH_QUERIES.length, remainingBudget));
+  // Get user's boards (1 API call)
+  console.log("collecting:fetching user boards");
+  const boards = await getUserBoards();
+  remainingBudget -= 1;
+  apiCallsMade += 1;
 
-  for (const query of queriesToUse) {
+  if (boards.length === 0) {
+    console.warn("no_boards_found:user may not have any boards");
+    return { keywordData, pinsProcessed, apiCallsMade };
+  }
+
+  console.log("found_boards:%d", boards.length);
+
+  // Iterate through boards and collect pins
+  for (const board of boards) {
     if (remainingBudget <= 0) break;
 
-    const perQueryLimit = Math.min(Math.floor(remainingBudget / queriesToUse.length), 25);
+    const pinsPerBoard = Math.min(Math.floor(remainingBudget / boards.length), 25);
 
     try {
-      console.log("collecting:query=%s limit=%d", query, perQueryLimit);
-      const pins = await searchPins(query, perQueryLimit);
+      console.log("collecting:board=%s limit=%d", board.name, pinsPerBoard);
+      const pins = await getBoardPins(board.id, pinsPerBoard);
+      apiCallsMade += 1;
 
       for (const pin of pins) {
         // Pinterest engagement: saves (strongest intent) + comments + reactions
@@ -411,8 +440,8 @@ async function collectFromQueries(budget) {
           current.sentiment += sentiment;
           current.sentimentCount++;
 
-          if (pin.board?.name) {
-            current.boards.add(pin.board.name);
+          if (board.name) {
+            current.boards.add(board.name);
           }
 
           if (current.pins.length < 5) {
@@ -431,13 +460,13 @@ async function collectFromQueries(budget) {
         pinsProcessed++;
       }
 
-      remainingBudget -= 1; // Each search = 1 API call
+      remainingBudget -= 1; // Each board pins fetch = 1 API call
     } catch (err) {
-      console.error("query_error:%s:%s", query, err?.message || err);
+      console.error("board_error:%s:%s", board.name, err?.message || err);
     }
   }
 
-  return { keywordData, pinsProcessed };
+  return { keywordData, pinsProcessed, apiCallsMade };
 }
 
 // ==========================
@@ -466,10 +495,10 @@ async function main() {
       return;
     }
 
-    console.log("pinterest_budget:%d searches", budget);
+    console.log("pinterest_budget:%d API calls", budget);
 
-    // Collect from queries
-    const { keywordData, pinsProcessed } = await collectFromQueries(budget);
+    // Collect from user's boards (works with basic Pinterest API permissions)
+    const { keywordData, pinsProcessed, apiCallsMade } = await collectFromUserBoards(budget);
 
     console.log("pins_processed:%d keywords_extracted:%d", pinsProcessed, keywordData.size);
 
@@ -484,11 +513,11 @@ async function main() {
     const stored = await storeKeywordData(keywordData);
     console.log("keywords_stored:%d", stored);
 
-    // Track API usage (number of searches, not pins)
-    const searchesMade = Math.min(SEARCH_QUERIES.length, budget);
+    // Track API usage
+    console.log("api_calls_made:%d", apiCallsMade);
     await db.rpc("track_api_usage", {
       p_service: "pinterest",
-      p_requests: searchesMade,
+      p_requests: apiCallsMade,
     });
 
     console.log("pinterest_collector:success");
