@@ -23,6 +23,7 @@
     "jobs:social-aggregator": "tsx jobs/social-metrics-aggregator.ts",
     "jobs:hourly-refresh": "tsx jobs/hourly-keyword-refresh.ts",
     "jobs:watchlist-monitor": "tsx jobs/watchlist-momentum-monitor.ts",
+    "jobs:dataforseo-k4k": "tsx jobs/dataforseo-k4k/index.ts",
     "social:reddit": "node scripts/reddit-keyword-discovery.mjs",
     "social:twitter": "node scripts/twitter-keyword-collector.mjs",
     "social:pinterest": "node scripts/pinterest-keyword-collector.mjs",
