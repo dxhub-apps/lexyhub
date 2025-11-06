@@ -5,14 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: "Editing Suite | Lexy",
+  title: "Etsy Suite | Lexy",
   description: "Comprehensive Etsy listing optimization tools with AI-powered insights for listing intelligence, competitor analysis, and tag optimization.",
 };
 
 /**
- * Editing Suite Overview Page
+ * Etsy Suite Overview Page
  *
- * Displays the main dashboard for the editing suite with three primary tools:
+ * Displays the main dashboard for the Etsy Suite with three primary tools:
  * - Listing Intelligence: Quality audits for listings
  * - Competitor Analysis: Market benchmarking and insights
  * - Tag Optimizer: Data-driven tag recommendations
@@ -24,7 +24,7 @@ export default function EditingOverviewPage(): JSX.Element {
     <div className="space-y-8">
       <Card>
         <CardHeader>
-          <CardTitle className="text-3xl font-bold">Editing Suite</CardTitle>
+          <CardTitle className="text-3xl font-bold">Etsy Suite</CardTitle>
           <CardDescription className="text-base">
             Comprehensive tools for optimizing your Etsy listings with AI-powered insights and recommendations.
           </CardDescription>
@@ -39,22 +39,22 @@ export default function EditingOverviewPage(): JSX.Element {
               <CardTitle>Listing Intelligence</CardTitle>
             </div>
             <CardDescription>
-              Quality audits for sentiment, tone, keyword gaps, and missing attributes
+              Get instant quality scores for your Etsy listings with actionable improvement suggestions
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex gap-2">
                 <span className="text-primary">•</span>
-                <span>Quality scoring tuned for Etsy metadata</span>
+                <span>Analyze sentiment, tone, and keyword usage</span>
               </li>
               <li className="flex gap-2">
                 <span className="text-primary">•</span>
-                <span>Auto-detected attribute gaps with quick fixes</span>
+                <span>Identify missing attributes and opportunities</span>
               </li>
               <li className="flex gap-2">
                 <span className="text-primary">•</span>
-                <span>Keyword density heatmap to drive copy edits</span>
+                <span>Visualize keyword density across your content</span>
               </li>
             </ul>
             <Button asChild className="w-full">
@@ -70,22 +70,22 @@ export default function EditingOverviewPage(): JSX.Element {
               <CardTitle>Competitor Analysis</CardTitle>
             </div>
             <CardDescription>
-              Benchmark keywords and shops across pricing, reviews, and tag overlap
+              Compare your listings against competitors to discover winning strategies
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex gap-2">
                 <span className="text-primary">•</span>
-                <span>Ranks by estimated sales and review power</span>
+                <span>See how competitors rank by sales and reviews</span>
               </li>
               <li className="flex gap-2">
                 <span className="text-primary">•</span>
-                <span>Highlights shared phrases and tone clusters</span>
+                <span>Discover successful keywords and phrases</span>
               </li>
               <li className="flex gap-2">
                 <span className="text-primary">•</span>
-                <span>Visualizes saturation with strong vs. weak listings</span>
+                <span>Understand market saturation and opportunities</span>
               </li>
             </ul>
             <Button asChild className="w-full">
@@ -101,22 +101,22 @@ export default function EditingOverviewPage(): JSX.Element {
               <CardTitle>Tag Optimizer</CardTitle>
             </div>
             <CardDescription>
-              Blend keyword database with listing tags to find better alternatives
+              Discover better tags to increase your listing visibility and sales
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex gap-2">
                 <span className="text-primary">•</span>
-                <span>Scores each tag with volume, trend, and competition data</span>
+                <span>Get search volume and trend data for each tag</span>
               </li>
               <li className="flex gap-2">
                 <span className="text-primary">•</span>
-                <span>Suggests replacements that meaningfully lift demand</span>
+                <span>Find high-performing alternative tags</span>
               </li>
               <li className="flex gap-2">
                 <span className="text-primary">•</span>
-                <span>Stores run history so editors can track progress</span>
+                <span>Track your optimization history over time</span>
               </li>
             </ul>
             <Button asChild className="w-full">

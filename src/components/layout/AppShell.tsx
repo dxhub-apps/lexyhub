@@ -9,7 +9,6 @@ import {
   TrendingUp,
   Sparkles,
   PenTool,
-  Activity,
   Shield,
   Calendar,
 } from "lucide-react";
@@ -59,15 +58,9 @@ const NAV_ITEMS: readonly SidebarNavItem[] = [
   },
   {
     href: "/editing",
-    label: "Editing",
-    description: "Etsy suite",
+    label: "Etsy Suite",
+    description: "Listing tools",
     icon: <PenTool className="h-5 w-5" />,
-  },
-  {
-    href: "/status",
-    label: "Status",
-    description: "Service status",
-    icon: <Activity className="h-5 w-5" />,
   },
   {
     href: "/admin/backoffice",

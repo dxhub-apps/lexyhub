@@ -2,9 +2,9 @@ import { ReactNode } from "react";
 import { EditingNav } from "@/components/editing/EditingNav";
 
 /**
- * Editing Suite Layout
+ * Etsy Suite Layout
  *
- * Shared layout wrapper for all editing suite pages.
+ * Shared layout wrapper for all Etsy Suite pages.
  * Provides:
  * - Hero header with suite description
  * - Contextual navigation via EditingNav
@@ -25,10 +25,10 @@ export default function EditingLayout({ children }: { children: ReactNode }): JS
     <div className="editing-layout">
       <header className="editing-hero surface-card">
         <div>
-          <h1>Etsy editing suite</h1>
+          <h1>Etsy Suite</h1>
           <p>
-            Score listings, track competitors, and repair tag health without leaving the Lexy editing workspace. The tools below are
-            wired into Supabase so audit history and insights stay audit-ready.
+            Powerful tools to optimize your Etsy listings. Analyze quality, benchmark against competitors, and improve your tags
+            with AI-powered insights. All your work is automatically saved for future reference.
           </p>
         </div>
       </header>

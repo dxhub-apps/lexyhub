@@ -12,20 +12,15 @@ export function getStripeClient(): Stripe | null {
 }
 
 export type PlanMapping = {
-  plan: "free" | "basic" | "pro" | "growth" | "spark" | "scale" | "apex" | string;
+  plan: "free" | "basic" | "pro" | "growth" | string;
   momentumMultiplier: number;
 };
 
 const PLAN_HINTS: PlanMapping[] = [
-  // New plan structure
   { plan: "free", momentumMultiplier: 1 },
   { plan: "basic", momentumMultiplier: 1.2 },
   { plan: "pro", momentumMultiplier: 1.5 },
   { plan: "growth", momentumMultiplier: 2.0 },
-  // Legacy plan mappings (backwards compatibility)
-  { plan: "spark", momentumMultiplier: 1.2 }, // Maps to basic
-  { plan: "scale", momentumMultiplier: 1.5 }, // Maps to pro
-  { plan: "apex", momentumMultiplier: 2.0 },  // Maps to growth
 ];
 
 function inferPlan(subscription: Stripe.Subscription): PlanMapping {
@@ -47,7 +42,7 @@ function inferPlan(subscription: Stripe.Subscription): PlanMapping {
     }
   }
 
-  // Default to basic (legacy default was spark)
+  // Default to basic if no plan can be inferred
   return { plan: "basic", momentumMultiplier: 1.2 };
 }
 
