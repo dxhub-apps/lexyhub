@@ -4,6 +4,11 @@
 
 LexyHub's Pinterest integration is a **server-to-server API-based** system for keyword trend collection and analysis. It does NOT use OAuth for user authentication - instead, it uses a direct access token for data collection.
 
+> **⚠️ Encountering errors?** See [PINTEREST_TROUBLESHOOTING.md](./PINTEREST_TROUBLESHOOTING.md) for detailed fixes including:
+> - Feature flag disabled error
+> - Missing table/column errors
+> - Daily vs monthly tracking issues
+
 ---
 
 ## 🔧 Current Implementation
@@ -156,36 +161,77 @@ After running the test, check these tables in Supabase:
 
 ```sql
 -- Check collected keywords
-SELECT term, source, tier, method, extras->>'save_count' as saves
+SELECT
+  term,
+  source,
+  tier,
+  method,
+  extras->>'save_count' as pinterest_saves,
+  extras->>'engagement_sum' as engagement,
+  extras->>'seasonal' as seasonal_info,
+  created_at
 FROM keywords
 WHERE source = 'pinterest'
 ORDER BY created_at DESC
 LIMIT 10;
 
 -- Check daily metrics
-SELECT k.term, kmd.social_mentions, kmd.social_sentiment, kmd.extras
+SELECT
+  k.term,
+  kmd.collected_on,
+  kmd.social_mentions,
+  kmd.social_sentiment,
+  kmd.social_platforms,
+  kmd.extras->>'save_count' as saves,
+  kmd.extras->>'board_count' as boards
 FROM keyword_metrics_daily kmd
 JOIN keywords k ON k.id = kmd.keyword_id
 WHERE kmd.source = 'pinterest'
-AND kmd.collected_on = CURRENT_DATE
+  AND kmd.collected_on = CURRENT_DATE
 ORDER BY kmd.social_mentions DESC
 LIMIT 10;
 
--- Check API usage
-SELECT *
+-- Check API usage (Pinterest uses daily tracking: YYYY-MM-DD)
+SELECT
+  service,
+  period,
+  requests_made,
+  limit_per_period,
+  ROUND((requests_made::NUMERIC / limit_per_period * 100), 2) as usage_percent,
+  last_request_at
 FROM api_usage_tracking
 WHERE service = 'pinterest'
-ORDER BY last_reset_at DESC
-LIMIT 1;
+ORDER BY period DESC
+LIMIT 7;
 
 -- Check trend series
-SELECT term, trend_score, extras->>'seasonal' as seasonal
+SELECT
+  term,
+  trend_score,
+  extras->>'seasonal' as seasonal,
+  recorded_on
 FROM trend_series
 WHERE source = 'pinterest'
-AND recorded_on = CURRENT_DATE
+  AND recorded_on = CURRENT_DATE
 ORDER BY trend_score DESC
 LIMIT 10;
+
+-- Check platform-specific trends
+SELECT
+  k.term,
+  spt.mention_count,
+  spt.engagement_score,
+  spt.sentiment,
+  spt.metadata->>'save_count' as saves,
+  spt.collected_at
+FROM social_platform_trends spt
+JOIN keywords k ON k.id = spt.keyword_id
+WHERE spt.platform = 'pinterest'
+ORDER BY spt.collected_at DESC
+LIMIT 10;
 ```
+
+**Note:** If you get errors about missing columns or tables, see `PINTEREST_TROUBLESHOOTING.md` for fixes.
 
 ### Step 6: Enable GitHub Actions Workflow
 
@@ -295,11 +341,13 @@ Automatically detects seasonal keywords and tracks lead times:
 ### Check API Usage
 
 ```sql
+-- Pinterest uses daily tracking (YYYY-MM-DD format)
 SELECT
   period,
   requests_made,
   limit_per_period,
-  (requests_made::float / limit_per_period * 100) as usage_percent,
+  ROUND((requests_made::NUMERIC / limit_per_period * 100), 2) as usage_percent,
+  last_request_at,
   last_reset_at
 FROM api_usage_tracking
 WHERE service = 'pinterest'
@@ -309,26 +357,41 @@ LIMIT 7;
 
 ### Common Issues
 
-#### 1. **401 Unauthorized**
+> **📚 Detailed Solutions:** See [PINTEREST_TROUBLESHOOTING.md](./PINTEREST_TROUBLESHOOTING.md) for comprehensive error fixes.
+
+#### 1. **"pinterest_collection:disabled by feature flag"**
+- ❌ Feature flag is disabled in database
+- ✅ Run: `UPDATE feature_flags SET is_enabled = true WHERE key = 'pinterest_collection';`
+- 📖 See troubleshooting guide for full fix
+
+#### 2. **"column social_mentions does not exist"**
+- ❌ Database migration not applied
+- ✅ Add columns: `ALTER TABLE keyword_metrics_daily ADD COLUMN social_mentions...`
+- 📖 See troubleshooting guide for full script
+
+#### 3. **"relation api_usage_tracking does not exist"**
+- ❌ Database table not created
+- ✅ Create table: `CREATE TABLE api_usage_tracking...`
+- 📖 See troubleshooting guide for full schema
+
+#### 4. **401 Unauthorized**
 - ❌ Invalid `PINTEREST_ACCESS_TOKEN`
 - ✅ Regenerate token in Pinterest developer dashboard
 
-#### 2. **429 Rate Limited**
+#### 5. **429 Rate Limited**
 - ❌ Exceeded 200 requests/day
 - ✅ Wait until next day (resets at midnight UTC)
 - ✅ Check `api_usage_tracking` table
 
-#### 3. **No keywords collected**
-- ❌ Feature flag `pinterest_collection` is disabled
-- ✅ Enable in `feature_flags` table
+#### 6. **No keywords collected**
 - ❌ Pins don't meet minimum saves threshold (5)
 - ✅ Normal - only high-engagement pins are collected
 
-#### 4. **Workflow fails on GitHub**
+#### 7. **Workflow fails on GitHub**
 - ❌ Missing GitHub secrets
 - ✅ Verify all secrets are set in repository settings
 - ❌ Database migration not applied
-- ✅ Run Supabase migrations
+- ✅ Run fix scripts from troubleshooting guide
 
 ### Enable Debug Logging
 
