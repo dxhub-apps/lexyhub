@@ -1,12 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Zap } from "lucide-react";
+import { Check, Zap, TrendingUp } from "lucide-react";
 import Link from "next/link";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { PLAN_CONFIGS, getVisiblePlans } from "@/lib/billing/plans";
+import { formatPrice, calculateAnnualSavings } from "@/lib/billing/types";
+import type { BillingCycle } from "@/lib/billing/types";
 
 type PlanFeature = {
   text: string;
@@ -17,66 +22,20 @@ type PricingPlan = {
   name: string;
   code: "free" | "basic" | "pro";
   price: string;
+  annualPrice?: string;
   description: string;
   features: PlanFeature[];
   cta: string;
   popular?: boolean;
+  savings?: number;
 };
-
-const PLANS: PricingPlan[] = [
-  {
-    name: "Free",
-    code: "free",
-    price: "$0",
-    description: "Perfect for trying out LexyHub",
-    features: [
-      { text: "10 searches per month", included: true },
-      { text: "1 niche maximum", included: true },
-      { text: "2 AI opportunities per month", included: true },
-      { text: "Basic keyword insights", included: true },
-      { text: "Community support", included: true },
-      { text: "Advanced analytics", included: false },
-      { text: "Priority support", included: false },
-    ],
-    cta: "Get Started",
-  },
-  {
-    name: "Basic",
-    code: "basic",
-    price: "$7",
-    description: "For sellers growing their business",
-    features: [
-      { text: "100 searches per month", included: true },
-      { text: "10 niches maximum", included: true },
-      { text: "999 AI opportunities per month", included: true },
-      { text: "Advanced keyword insights", included: true },
-      { text: "Trend analysis", included: true },
-      { text: "Email support", included: true },
-      { text: "Priority support", included: false },
-    ],
-    cta: "Upgrade to Basic",
-    popular: true,
-  },
-  {
-    name: "Pro",
-    code: "pro",
-    price: "$19",
-    description: "For serious sellers and agencies",
-    features: [
-      { text: "Unlimited searches", included: true },
-      { text: "Unlimited niches", included: true },
-      { text: "Unlimited AI opportunities", included: true },
-      { text: "Advanced analytics dashboard", included: true },
-      { text: "Market Twin simulator", included: true },
-      { text: "Priority support", included: true },
-      { text: "API access", included: true },
-    ],
-    cta: "Upgrade to Pro",
-  },
-];
 
 export default function PricingPage(): JSX.Element {
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
+
+  // Get visible plans from config
+  const visiblePlans = getVisiblePlans();
 
   return (
     <div className="container mx-auto max-w-7xl px-4 py-12">
@@ -90,80 +49,120 @@ export default function PricingPage(): JSX.Element {
           Start with a free account and upgrade as you grow. All plans include access to our
           powerful keyword research tools.
         </p>
+
+        {/* Billing Cycle Toggle */}
+        <div className="mt-8 flex items-center justify-center gap-4">
+          <Label
+            htmlFor="billing-cycle"
+            className={`text-sm font-medium ${billingCycle === 'monthly' ? 'text-foreground' : 'text-muted-foreground'}`}
+          >
+            Monthly
+          </Label>
+          <Switch
+            id="billing-cycle"
+            checked={billingCycle === 'annual'}
+            onCheckedChange={(checked) => setBillingCycle(checked ? 'annual' : 'monthly')}
+          />
+          <Label
+            htmlFor="billing-cycle"
+            className={`text-sm font-medium ${billingCycle === 'annual' ? 'text-foreground' : 'text-muted-foreground'}`}
+          >
+            Annual
+          </Label>
+          {billingCycle === 'annual' && (
+            <Badge variant="secondary" className="ml-2">
+              <TrendingUp className="mr-1 h-3 w-3" />
+              Save ~17%
+            </Badge>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-8 md:grid-cols-3">
-        {PLANS.map((plan) => (
-          <Card
-            key={plan.code}
-            className={`relative flex flex-col transition-all ${
-              hoveredPlan === plan.code ? "scale-105 shadow-2xl" : ""
-            } ${plan.popular ? "border-primary shadow-lg" : ""}`}
-            onMouseEnter={() => setHoveredPlan(plan.code)}
-            onMouseLeave={() => setHoveredPlan(null)}
-          >
-            {plan.popular && (
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                <Badge className="bg-primary text-primary-foreground">Most Popular</Badge>
-              </div>
-            )}
-            <CardHeader>
-              <CardTitle className="text-2xl">{plan.name}</CardTitle>
-              <CardDescription className="text-sm">{plan.description}</CardDescription>
-              <div className="mt-4">
-                <span className="text-4xl font-bold">{plan.price}</span>
-                {plan.code !== "free" && (
-                  <span className="ml-2 text-muted-foreground">/month</span>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="flex flex-1 flex-col">
-              <ul className="mb-8 flex-1 space-y-3">
-                {plan.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start gap-2">
-                    <Check
-                      className={`mt-0.5 h-5 w-5 flex-shrink-0 ${
-                        feature.included ? "text-primary" : "text-muted-foreground/30"
-                      }`}
-                    />
-                    <span
-                      className={`text-sm ${
-                        feature.included ? "text-foreground" : "text-muted-foreground line-through"
-                      }`}
-                    >
-                      {feature.text}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <Button
-                className="w-full"
-                variant={plan.popular ? "default" : "outline"}
-                asChild
-              >
-                <Link href="/billing">{plan.cta}</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+        {visiblePlans.map((plan) => {
+          const priceToShow = billingCycle === 'annual'
+            ? plan.price_annual_cents
+            : plan.price_monthly_cents;
+
+          const savings = calculateAnnualSavings(
+            plan.price_monthly_cents,
+            plan.price_annual_cents
+          );
+
+          const isPopular = plan.plan_code === 'basic';
+
+          return (
+            <Card
+              key={plan.plan_code}
+              className={`relative flex flex-col transition-all ${
+                hoveredPlan === plan.plan_code ? "scale-105 shadow-2xl" : ""
+              } ${isPopular ? "border-primary shadow-lg" : ""}`}
+              onMouseEnter={() => setHoveredPlan(plan.plan_code)}
+              onMouseLeave={() => setHoveredPlan(null)}
+            >
+              {isPopular && (
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                  <Badge className="bg-primary text-primary-foreground">Most Popular</Badge>
+                </div>
+              )}
+              <CardHeader>
+                <CardTitle className="text-2xl">{plan.display_name}</CardTitle>
+                <CardDescription className="text-sm">
+                  {plan.plan_code === 'free' && 'Perfect for trying out LexyHub'}
+                  {plan.plan_code === 'basic' && 'For sellers growing their business'}
+                  {plan.plan_code === 'pro' && 'For serious sellers and agencies'}
+                </CardDescription>
+                <div className="mt-4">
+                  <span className="text-4xl font-bold">
+                    {formatPrice(priceToShow, billingCycle === 'annual' ? undefined : billingCycle)}
+                  </span>
+                  {billingCycle === 'annual' && plan.plan_code !== 'free' && (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {formatPrice(Math.round(priceToShow / 12), 'monthly')} billed annually
+                    </div>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="flex flex-1 flex-col">
+                <ul className="mb-8 flex-1 space-y-3">
+                  {plan.features.map((feature, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary" />
+                      <span className="text-sm text-foreground">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  className="w-full"
+                  variant={isPopular ? "default" : "outline"}
+                  asChild
+                >
+                  <Link href={`/billing?plan=${plan.plan_code}&cycle=${billingCycle}`}>
+                    {plan.plan_code === 'free' ? 'Get Started' : `Upgrade to ${plan.display_name}`}
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       <div className="mt-16 text-center">
         <Card className="inline-block border-2 border-dashed">
           <CardContent className="p-6">
-            <h3 className="mb-2 text-lg font-semibold">Need More?</h3>
+            <h3 className="mb-2 text-lg font-semibold">Need More Power?</h3>
             <p className="mb-4 text-sm text-muted-foreground">
-              Looking for enterprise features, custom integrations, or white-label solutions?
+              Hitting your limits? Our Growth plan offers unlimited searches, projects, and AI opportunities.
             </p>
             <Button variant="outline" asChild>
-              <Link href="mailto:sales@lexyhub.com">Ask about Growth+</Link>
+              <Link href="mailto:sales@lexyhub.com">Contact Sales for Growth Plan</Link>
             </Button>
           </CardContent>
         </Card>
       </div>
 
       <div className="mt-12 text-center text-xs text-muted-foreground">
-        <p>All plans include a 7-day free trial. No credit card required.</p>
+        <p>All paid plans include a 7-day free trial. No credit card required for Free plan.</p>
         <p className="mt-2">
           Questions?{" "}
           <Link href="/docs" className="underline hover:text-foreground">

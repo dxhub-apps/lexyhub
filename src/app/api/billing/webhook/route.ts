@@ -1,7 +1,7 @@
 import Stripe from "stripe";
 import { NextRequest, NextResponse } from "next/server";
 
-import { recordInvoice, recordWebhookEvent, syncSubscription, verifyStripeWebhook } from "@/lib/billing/stripe";
+import { recordInvoice, recordWebhookEvent, syncSubscription, verifyStripeWebhook, handleCheckoutCompleted } from "@/lib/billing/stripe";
 import { recordCommissionFromInvoice } from "@/lib/billing/affiliates";
 
 export const runtime = "nodejs";
@@ -22,8 +22,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   await recordWebhookEvent(JSON.parse(body), event);
 
   switch (event.type) {
+    case "checkout.session.completed":
+      await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+      break;
     case "customer.subscription.created":
     case "customer.subscription.updated":
+      await syncSubscription(event.data.object as Stripe.Subscription);
+      break;
     case "customer.subscription.deleted":
       await syncSubscription(event.data.object as Stripe.Subscription);
       break;
