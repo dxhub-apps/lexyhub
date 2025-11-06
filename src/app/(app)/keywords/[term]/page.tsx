@@ -22,6 +22,7 @@ import Link from "next/link";
 
 import KeywordTrendChart from "@/components/keywords/KeywordTrendChart";
 import RelatedKeywords from "@/components/keywords/RelatedKeywords";
+import { SocialMetricsCard } from "@/components/social";
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -534,6 +535,15 @@ export default function KeywordDetailsPage(): JSX.Element {
           </ul>
         </CardContent>
       </Card>
+
+      {/* Social Media Insights */}
+      {keyword.id && (
+        <SocialMetricsCard
+          keywordId={keyword.id}
+          keywordTerm={keyword.term}
+          lookbackDays={30}
+        />
+      )}
 
       {/* Related Keywords */}
       <Card>
