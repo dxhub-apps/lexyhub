@@ -223,11 +223,11 @@ async function main() {
     // Check if feature is enabled
     const { data: featureFlag } = await db
       .from("feature_flags")
-      .select("enabled, config")
-      .eq("flag_name", "tiktok_collection")
+      .select("is_enabled, rollout")
+      .eq("key", "tiktok_collection")
       .maybeSingle();
 
-    if (!featureFlag || !featureFlag.enabled) {
+    if (!featureFlag || !featureFlag.is_enabled) {
       console.log("tiktok_collection:DISABLED by feature flag (expected - ready for future activation)");
       return;
     }

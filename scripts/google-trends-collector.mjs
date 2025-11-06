@@ -229,11 +229,11 @@ async function main() {
     // Check if feature is enabled
     const { data: featureFlag } = await db
       .from("feature_flags")
-      .select("enabled")
-      .eq("flag_name", "google_trends_collection")
+      .select("is_enabled")
+      .eq("key", "google_trends_collection")
       .maybeSingle();
 
-    if (!featureFlag || !featureFlag.enabled) {
+    if (!featureFlag || !featureFlag.is_enabled) {
       console.log("google_trends_collection:disabled by feature flag");
       return;
     }

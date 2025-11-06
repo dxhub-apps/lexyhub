@@ -106,37 +106,27 @@ CREATE INDEX IF NOT EXISTS user_keyword_watchlists_alerts_idx
 -- ============================================
 -- 5. Feature Flags for Platform Control
 -- ============================================
-
-CREATE TABLE IF NOT EXISTS public.feature_flags (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  flag_name TEXT UNIQUE NOT NULL,
-  enabled BOOLEAN DEFAULT false,
-  config JSONB DEFAULT '{}'::jsonb,
-  description TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-COMMENT ON TABLE public.feature_flags IS 'Feature toggles for enabling/disabling platform integrations';
+-- Note: feature_flags table already exists from migration 0018
+-- Using existing structure: (key, description, is_enabled, rollout, created_at, updated_at)
 
 -- Seed feature flags for social platforms
-INSERT INTO public.feature_flags (flag_name, enabled, config, description) VALUES
-  ('reddit_collection', true, '{"frequency": "*/3 * * * *", "include_comments": true}'::jsonb, 'Enable Reddit keyword collection'),
-  ('twitter_collection', true, '{"frequency": "*/30 * * * *", "monthly_limit": 1500}'::jsonb, 'Enable Twitter/X keyword collection'),
-  ('pinterest_collection', true, '{"frequency": "15 */2 * * *", "daily_limit": 200}'::jsonb, 'Enable Pinterest keyword collection'),
-  ('tiktok_collection', false, '{"frequency": "45 */3 * * *", "method": "web_scraping"}'::jsonb, 'Enable TikTok keyword collection (disabled by default)'),
-  ('google_trends_collection', true, '{"frequency": "0 */2 * * *"}'::jsonb, 'Enable Google Trends data collection'),
-  ('hourly_keyword_refresh', true, '{"max_keywords": 500, "lookback_days": 7}'::jsonb, 'Enable hourly incremental keyword updates'),
-  ('watchlist_alerts', true, '{"check_interval_minutes": 15, "momentum_threshold": 15.0}'::jsonb, 'Enable watchlist momentum alerts'),
-  ('amazon_pa_api', false, '{"api_key_secret": "AMAZON_PA_API_KEY"}'::jsonb, 'Enable Amazon Product Advertising API (paid, disabled)')
-ON CONFLICT (flag_name) DO NOTHING;
+INSERT INTO public.feature_flags (key, description, is_enabled, rollout) VALUES
+  ('reddit_collection', 'Enable Reddit keyword collection', true, '{"frequency": "*/3 * * * *", "include_comments": true}'::jsonb),
+  ('twitter_collection', 'Enable Twitter/X keyword collection', true, '{"frequency": "*/30 * * * *", "monthly_limit": 1500}'::jsonb),
+  ('pinterest_collection', 'Enable Pinterest keyword collection', true, '{"frequency": "15 */2 * * *", "daily_limit": 200}'::jsonb),
+  ('tiktok_collection', 'Enable TikTok keyword collection (disabled by default)', false, '{"frequency": "45 */3 * * *", "method": "web_scraping"}'::jsonb),
+  ('google_trends_collection', 'Enable Google Trends data collection', true, '{"frequency": "0 */2 * * *"}'::jsonb),
+  ('hourly_keyword_refresh', 'Enable hourly incremental keyword updates', true, '{"max_keywords": 500, "lookback_days": 7}'::jsonb),
+  ('watchlist_alerts', 'Enable watchlist momentum alerts', true, '{"check_interval_minutes": 15, "momentum_threshold": 15.0}'::jsonb),
+  ('amazon_pa_api', 'Enable Amazon Product Advertising API (paid, disabled)', false, '{"api_key_secret": "AMAZON_PA_API_KEY"}'::jsonb)
+ON CONFLICT (key) DO NOTHING;
 
 -- ============================================
 -- 6. Helper Functions
 -- ============================================
 
 -- Function: Check if feature is enabled
-CREATE OR REPLACE FUNCTION public.is_feature_enabled(p_flag_name TEXT)
+CREATE OR REPLACE FUNCTION public.is_feature_enabled(p_flag_key TEXT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 STABLE
@@ -144,9 +134,9 @@ AS $$
 DECLARE
   v_enabled BOOLEAN;
 BEGIN
-  SELECT enabled INTO v_enabled
+  SELECT is_enabled INTO v_enabled
   FROM public.feature_flags
-  WHERE flag_name = p_flag_name;
+  WHERE key = p_flag_key;
 
   RETURN COALESCE(v_enabled, false);
 END;
@@ -155,7 +145,7 @@ $$;
 COMMENT ON FUNCTION public.is_feature_enabled IS 'Check if a feature flag is enabled';
 
 -- Function: Get feature config
-CREATE OR REPLACE FUNCTION public.get_feature_config(p_flag_name TEXT)
+CREATE OR REPLACE FUNCTION public.get_feature_config(p_flag_key TEXT)
 RETURNS JSONB
 LANGUAGE plpgsql
 STABLE
@@ -163,9 +153,9 @@ AS $$
 DECLARE
   v_config JSONB;
 BEGIN
-  SELECT config INTO v_config
+  SELECT rollout INTO v_config
   FROM public.feature_flags
-  WHERE flag_name = p_flag_name AND enabled = true;
+  WHERE key = p_flag_key AND is_enabled = true;
 
   RETURN COALESCE(v_config, '{}'::jsonb);
 END;
@@ -319,7 +309,19 @@ DROP FUNCTION IF EXISTS public.track_api_usage;
 DROP FUNCTION IF EXISTS public.get_feature_config;
 DROP FUNCTION IF EXISTS public.is_feature_enabled;
 
-DROP TABLE IF EXISTS public.feature_flags CASCADE;
+-- Note: Do NOT drop feature_flags table as it existed before this migration (0018)
+-- Only delete the rows we added
+DELETE FROM public.feature_flags WHERE key IN (
+  'reddit_collection',
+  'twitter_collection',
+  'pinterest_collection',
+  'tiktok_collection',
+  'google_trends_collection',
+  'hourly_keyword_refresh',
+  'watchlist_alerts',
+  'amazon_pa_api'
+);
+
 DROP TABLE IF EXISTS public.user_keyword_watchlists CASCADE;
 DROP TABLE IF EXISTS public.social_platform_trends CASCADE;
 DROP TABLE IF EXISTS public.api_usage_tracking CASCADE;

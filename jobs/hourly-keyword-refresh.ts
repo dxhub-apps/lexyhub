@@ -35,11 +35,11 @@ async function main() {
     // Check if feature is enabled
     const { data: featureFlag } = await supabase
       .from("feature_flags")
-      .select("enabled, config")
-      .eq("flag_name", "hourly_keyword_refresh")
+      .select("is_enabled, rollout")
+      .eq("key", "hourly_keyword_refresh")
       .maybeSingle();
 
-    if (!featureFlag || !featureFlag.enabled) {
+    if (!featureFlag || !featureFlag.is_enabled) {
       console.log("[INFO] Hourly keyword refresh disabled by feature flag");
       return;
     }
