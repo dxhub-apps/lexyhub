@@ -1,0 +1,56 @@
+name: Pinterest Trends Collector
+
+on:
+  schedule:
+    - cron: "15 */2 * * *"  # Every 2 hours (12 runs/day, ~17/run = 204/day limit)
+  workflow_dispatch:
+    inputs:
+      per_run_budget:
+        description: "Searches to perform this run (default: 17)"
+        required: false
+        default: "17"
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    name: Collect Pinterest keyword trends
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Pinterest collector (with retry)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PINTEREST_ACCESS_TOKEN: ${{ secrets.PINTEREST_ACCESS_TOKEN }}
+          PINTEREST_DAILY_LIMIT: 200
+          PINTEREST_PER_RUN_BUDGET: ${{ github.event.inputs.per_run_budget || '17' }}
+        run: |
+          n=0
+          until [ $n -ge 3 ]
+          do
+            echo "attempt=$((n+1))"
+            node scripts/pinterest-keyword-collector.mjs && break
+            n=$((n+1))
+            sleep $((3 * n))
+          done
+          [ $n -lt 3 ]
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "Pinterest trends collection failed. Check logs for details."

@@ -1,0 +1,68 @@
+name: TikTok Trends Collector
+
+on:
+  schedule:
+    - cron: "45 */3 * * *"  # Every 3 hours (DISABLED - see job condition)
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: "Force run even if disabled (for testing)"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    name: Collect TikTok keyword trends
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    # DISABLED BY DEFAULT - Remove this condition to enable
+    if: false  # Set to 'true' or remove this line when ready to activate
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check if feature is enabled
+        id: check_feature
+        run: |
+          echo "This workflow is DISABLED by default"
+          echo "TikTok collection is ready but inactive pending API approval or testing"
+          echo "To enable:"
+          echo "1. Set feature flag 'tiktok_collection' to true in database"
+          echo "2. Remove 'if: false' from job condition above"
+          echo "3. Optionally add TIKTOK_CLIENT_KEY secret for API access"
+
+      - name: Run TikTok collector (with retry)
+        if: github.event.inputs.force_run == 'true'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TIKTOK_CLIENT_KEY: ${{ secrets.TIKTOK_CLIENT_KEY }}  # Optional - for API access
+        run: |
+          n=0
+          until [ $n -ge 3 ]
+          do
+            echo "attempt=$((n+1))"
+            node scripts/tiktok-keyword-collector.mjs && break
+            n=$((n+1))
+            sleep $((3 * n))
+          done
+          [ $n -lt 3 ]
+
+      - name: Notify on failure
+        if: failure() && github.event.inputs.force_run == 'true'
+        run: echo "TikTok trends collection failed. Check logs for details."

@@ -44,7 +44,7 @@ const TITLE_BONUS = Number(process.env.INPUT_TITLE_BONUS || 1.25);      // boost
 const WINDOW_DAYS = Number(process.env.INPUT_WINDOW_DAYS || 30);        // sliding window
 const QUESTION_BONUS = Number(process.env.INPUT_QUESTION_BONUS || 1.2); // boost for question/advice threads
 const RECENCY_HALF_LIFE_DAYS = Number(process.env.INPUT_RECENCY_HALF_LIFE_DAYS || 30); // exponential decay
-const INCLUDE_COMMENTS = String(process.env.INPUT_INCLUDE_COMMENTS || "").toLowerCase() === "true";
+const INCLUDE_COMMENTS = String(process.env.INPUT_INCLUDE_COMMENTS || "true").toLowerCase() === "true"; // Changed default to true
 
 // Intent boosters (retain/boost long-tail commercial intent)
 const INTENT_BOOSTERS = new Set([
@@ -119,6 +119,54 @@ console.log("subreddits=%d queries=%d", SUBREDDITS.size, QUERIES.size);
 const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
+
+// ==========================
+// Sentiment Analysis (simple, no dependencies)
+// ==========================
+const POSITIVE_WORDS = new Set([
+  "love","excellent","amazing","best","great","awesome","perfect","fantastic","wonderful","brilliant",
+  "outstanding","superb","impressive","good","nice","helpful","recommend","success","profitable",
+  "easy","beautiful","quality","top","favorite","glad","thank","thanks","working","win","winning"
+]);
+
+const NEGATIVE_WORDS = new Set([
+  "bad","worst","terrible","awful","horrible","poor","disappointing","useless","waste","scam",
+  "fraud","fake","difficult","hard","confusing","frustrating","problem","issue","broken","fail",
+  "failed","failing","sucks","hate","avoid","warning","beware","never","don't","complaint"
+]);
+
+const INTENSIFIERS = new Set(["very","extremely","really","super","absolutely","totally","completely"]);
+
+function analyzeSentiment(text) {
+  if (!text) return 0;
+
+  const words = text.toLowerCase().split(/\s+/);
+  let score = 0;
+  let wordCount = 0;
+  let intensifier = 1.0;
+
+  for (const word of words) {
+    if (INTENSIFIERS.has(word)) {
+      intensifier = 1.5;
+      continue;
+    }
+
+    if (POSITIVE_WORDS.has(word)) {
+      score += (1 * intensifier);
+      wordCount++;
+      intensifier = 1.0;
+    } else if (NEGATIVE_WORDS.has(word)) {
+      score -= (1 * intensifier);
+      wordCount++;
+      intensifier = 1.0;
+    }
+  }
+
+  // Normalize to -1 to 1 range
+  if (wordCount === 0) return 0;
+  const normalized = score / Math.max(wordCount, 1);
+  return Math.max(-1, Math.min(1, normalized));
+}
 
 // ==========================
 // Retry helper
@@ -291,7 +339,7 @@ function extractPhrases(title, selftext = "", { minN = NGRAM_MIN, maxN = NGRAM_M
 
 // ==========================
 // Phrase aggregation (30-day window)
-// key -> { count, scoreSum, lastISO, intentBoost, titleHitCount, samplePosts }
+// key -> { count, scoreSum, lastISO, intentBoost, titleHitCount, samplePosts, sentimentSum, sentimentCount, subreddits }
 // ==========================
 const PHRASE_AGG = new Map();
 
@@ -305,7 +353,7 @@ function recencyWeight(iso) {
   return Math.exp(-lambda * ageDays);
 }
 
-function addPhraseSample(phrase, baseScore, recordedISO, inTitle, isQuestionLike, postRef) {
+function addPhraseSample(phrase, baseScore, recordedISO, inTitle, isQuestionLike, postRef, postText = "", subreddit = null) {
   if (!withinWindow(recordedISO)) return;
   const cur =
     PHRASE_AGG.get(phrase) ||
@@ -316,6 +364,9 @@ function addPhraseSample(phrase, baseScore, recordedISO, inTitle, isQuestionLike
       intentBoost: 1,
       titleHitCount: 0,
       samplePosts: [], // keep up to 5 refs for traceability
+      sentimentSum: 0,
+      sentimentCount: 0,
+      subreddits: new Set(),
     };
 
   cur.count += 1;
@@ -323,6 +374,18 @@ function addPhraseSample(phrase, baseScore, recordedISO, inTitle, isQuestionLike
   const qBoost = isQuestionLike ? QUESTION_BONUS : 1;
   const rBoost = recencyWeight(recordedISO);
   cur.scoreSum += Math.max(0, baseScore || 0) * (inTitle ? TITLE_BONUS : 1) * qBoost * rBoost;
+
+  // Track sentiment
+  if (postText) {
+    const sentiment = analyzeSentiment(postText);
+    cur.sentimentSum += sentiment;
+    cur.sentimentCount += 1;
+  }
+
+  // Track subreddit diversity
+  if (subreddit) {
+    cur.subreddits.add(subreddit);
+  }
 
   if (!cur.lastISO || recordedISO > cur.lastISO) cur.lastISO = recordedISO;
   if (inTitle) cur.titleHitCount += 1;
@@ -396,7 +459,8 @@ async function processPost(post, token) {
   };
 
   for (const [phrase, meta] of phrases.entries()) {
-    addPhraseSample(phrase, engagement, createdISO, meta.inTitle, isQuestionLike, postRef);
+    const postText = (d.title || "") + " " + (d.selftext || "");
+    addPhraseSample(phrase, engagement, createdISO, meta.inTitle, isQuestionLike, postRef, postText, d.subreddit);
   }
 
   if (INCLUDE_COMMENTS) {
@@ -412,7 +476,7 @@ async function processPost(post, token) {
         const cEng = (c.data?.score || 0); // only comment score
         const qBody = /\?/.test(body) || /^(how|what|which|why|where|when|should|could|can|advice|help)\b/i.test(body);
         for (const [phrase] of cPhrases.entries()) {
-          addPhraseSample(phrase, cEng, cISO, false, qBody, postRef);
+          addPhraseSample(phrase, cEng, cISO, false, qBody, postRef, body, d.subreddit);
         }
       }
     } catch (e) {
@@ -423,8 +487,15 @@ async function processPost(post, token) {
 
 async function flushAggregates() {
   let kept = 0;
+  const today = new Date().toISOString().split("T")[0];
+
   for (const [phrase, agg] of PHRASE_AGG.entries()) {
     if (agg.count < MIN_COUNT) continue;
+
+    // Calculate average sentiment
+    const avgSentiment = agg.sentimentCount > 0
+      ? Number((agg.sentimentSum / agg.sentimentCount).toFixed(2))
+      : 0;
 
     // Composite score: log(freq) × log(engagement) × intent × small title factor
     const score =
@@ -442,13 +513,119 @@ async function flushAggregates() {
       intent_boost: agg.intentBoost,
       last_seen_iso: agg.lastISO,
       sample_posts: agg.samplePosts, // up to 5 refs for traceability
+      sentiment: avgSentiment,
+      subreddit_count: agg.subreddits.size,
+      subreddits: Array.from(agg.subreddits),
     };
 
+    // Upsert keyword
     await upsertKeyword(phrase, "ngram_extract", extras);
+
+    // Write trend series
     await writeTrend(phrase, Number(score.toFixed(6)), agg.lastISO);
+
+    // Store social metrics in keyword_metrics_daily
+    await storeSocialMetrics(phrase, agg, today, avgSentiment);
+
+    // Store detailed platform trend
+    await storePlatformTrend(phrase, agg, avgSentiment);
+
     kept++;
   }
+
+  // Track API usage
+  await trackAPIUsage('reddit', PHRASE_AGG.size);
+
   console.log("aggregates_kept=%d min_count=%d total_seen=%d", kept, MIN_COUNT, PHRASE_AGG.size);
+}
+
+async function storeSocialMetrics(term, agg, collectedOn, sentiment) {
+  await withRetry(
+    async () => {
+      // Get keyword ID
+      const { data: keywords } = await db
+        .from("keywords")
+        .select("id")
+        .eq("term_normalized", term.toLowerCase().trim())
+        .eq("source", "reddit")
+        .limit(1);
+
+      if (!keywords || keywords.length === 0) return;
+      const keywordId = keywords[0].id;
+
+      // Upsert social metrics
+      const { error } = await db.from("keyword_metrics_daily").upsert(
+        {
+          keyword_id: keywordId,
+          collected_on: collectedOn,
+          source: "reddit",
+          social_mentions: agg.count,
+          social_sentiment: sentiment,
+          social_platforms: { reddit: agg.count },
+          extras: {
+            subreddits: Array.from(agg.subreddits),
+            engagement_sum: Number(agg.scoreSum.toFixed(3)),
+            top_posts: agg.samplePosts,
+          },
+        },
+        { onConflict: "keyword_id,collected_on,source" }
+      );
+
+      if (error) throw error;
+    },
+    "db_social_metrics"
+  );
+}
+
+async function storePlatformTrend(term, agg, sentiment) {
+  await withRetry(
+    async () => {
+      // Get keyword ID
+      const { data: keywords } = await db
+        .from("keywords")
+        .select("id")
+        .eq("term_normalized", term.toLowerCase().trim())
+        .eq("source", "reddit")
+        .limit(1);
+
+      if (!keywords || keywords.length === 0) return;
+      const keywordId = keywords[0].id;
+
+      // Insert platform trend
+      const { error } = await db.from("social_platform_trends").insert({
+        keyword_id: keywordId,
+        platform: "reddit",
+        mention_count: agg.count,
+        engagement_score: Number(agg.scoreSum.toFixed(2)),
+        sentiment: sentiment,
+        top_posts: agg.samplePosts,
+        metadata: {
+          subreddit_count: agg.subreddits.size,
+          subreddits: Array.from(agg.subreddits),
+          title_hit_count: agg.titleHitCount,
+          intent_boost: agg.intentBoost,
+        },
+      });
+
+      if (error) throw error;
+    },
+    "db_platform_trends"
+  );
+}
+
+async function trackAPIUsage(service, requests) {
+  await withRetry(
+    async () => {
+      const { error } = await db.rpc("track_api_usage", {
+        p_service: service,
+        p_requests: requests,
+      });
+
+      if (error) throw error;
+    },
+    "db_api_usage",
+    { tries: 2 } // Less critical, don't retry too much
+  );
 }
 
 // ==========================
