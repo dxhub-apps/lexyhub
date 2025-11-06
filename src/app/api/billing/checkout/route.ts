@@ -149,19 +149,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       } : undefined,
     });
 
-    // Track pricing analytics
-    await supabase.from("pricing_analytics").insert({
-      user_id: userId,
-      session_id: session.id,
-      event_type: 'checkout_started',
-      plan_code: planCode,
-      billing_cycle: billingCycle,
-      metadata: {
-        stripe_session_id: session.id,
-      },
-    }).catch((error) => {
+    // Track pricing analytics (optional, don't block on errors)
+    try {
+      await supabase.from("pricing_analytics").insert({
+        user_id: userId,
+        session_id: session.id,
+        event_type: 'checkout_started',
+        plan_code: planCode,
+        billing_cycle: billingCycle,
+        metadata: {
+          stripe_session_id: session.id,
+        },
+      });
+    } catch (error) {
       console.warn("Failed to track checkout_started analytics", error);
-    });
+    }
 
     return NextResponse.json({
       sessionId: session.id,
