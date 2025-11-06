@@ -329,7 +329,20 @@ async function collectFromHashtags(budget) {
   for (const hashtag of TRACKING_HASHTAGS) {
     if (remainingBudget <= 0) break;
 
-    const perHashtagLimit = Math.min(Math.floor(remainingBudget / TRACKING_HASHTAGS.length), 20);
+    // Twitter API requires max_results to be between 10 and 100
+    const MIN_TWITTER_RESULTS = 10;
+    const MAX_TWITTER_RESULTS = 100;
+
+    const perHashtagLimit = Math.min(
+      Math.max(Math.floor(remainingBudget / TRACKING_HASHTAGS.length), MIN_TWITTER_RESULTS),
+      MAX_TWITTER_RESULTS
+    );
+
+    // Skip if we don't have enough budget for minimum API requirement
+    if (remainingBudget < MIN_TWITTER_RESULTS) {
+      console.log("skipping:hashtag=%s insufficient_budget=%d", hashtag, remainingBudget);
+      break;
+    }
 
     try {
       console.log("collecting:hashtag=%s limit=%d", hashtag, perHashtagLimit);

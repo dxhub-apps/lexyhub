@@ -2,13 +2,13 @@ name: Twitter Trends Collector
 
 on:
   schedule:
-    - cron: "*/30 * * * *"  # Every 30 minutes (48 runs/day, ~31/run = 1,488/month)
+    - cron: "0 2 * * *"  # Daily at 2 AM UTC (1 run/day, 50/run = 50/day, 1,500/month)
   workflow_dispatch:
     inputs:
       per_run_budget:
-        description: "Tweets to collect this run (default: 31)"
+        description: "Tweets to collect this run (default: 50)"
         required: false
-        default: "31"
+        default: "50"
 
 permissions:
   contents: read
