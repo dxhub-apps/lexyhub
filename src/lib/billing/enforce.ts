@@ -1,4 +1,6 @@
 import { getSupabaseServerClient } from "@/lib/supabase-server";
+import { shouldSendUsageWarning, recordUsageWarning, createUpsellTrigger } from "./usage";
+import { USAGE_WARNING_THRESHOLDS } from "./plans";
 
 export type QuotaKey = "searches" | "ai_opportunities" | "niches";
 
@@ -59,7 +61,51 @@ export async function useQuota(
   }
 
   if (!row.allowed) {
+    // Create upsell trigger when quota exceeded
+    createUpsellTrigger(userId, 'quota_exceeded', 'growth', {
+      quota_key: key,
+      used: row.used,
+      limit: row.limit,
+    }).catch((error) => {
+      console.warn("Failed to create upsell trigger", error);
+    });
+
     throw new QuotaExceededError(key, row.used, row.limit);
+  }
+
+  // Check if we should send usage warnings (async, non-blocking)
+  if (row.limit !== -1) {
+    const percentage = (row.used / row.limit) * 100;
+
+    // Check critical threshold (90%)
+    if (percentage >= USAGE_WARNING_THRESHOLDS.CRITICAL) {
+      shouldSendUsageWarning(userId, key, USAGE_WARNING_THRESHOLDS.CRITICAL, row.used, row.limit)
+        .then((check) => {
+          if (check.shouldNotify) {
+            recordUsageWarning(userId, key, USAGE_WARNING_THRESHOLDS.CRITICAL, row.used, row.limit);
+            // TODO: Send email notification
+            console.log(`CRITICAL usage warning for user ${userId}: ${key} at ${percentage}%`);
+          }
+        })
+        .catch((error) => {
+          console.warn("Failed to check/record critical usage warning", error);
+        });
+    }
+
+    // Check warning threshold (80%)
+    if (percentage >= USAGE_WARNING_THRESHOLDS.WARNING) {
+      shouldSendUsageWarning(userId, key, USAGE_WARNING_THRESHOLDS.WARNING, row.used, row.limit)
+        .then((check) => {
+          if (check.shouldNotify) {
+            recordUsageWarning(userId, key, USAGE_WARNING_THRESHOLDS.WARNING, row.used, row.limit);
+            // TODO: Send email notification
+            console.log(`Usage warning for user ${userId}: ${key} at ${percentage}%`);
+          }
+        })
+        .catch((error) => {
+          console.warn("Failed to check/record usage warning", error);
+        });
+    }
   }
 
   return {

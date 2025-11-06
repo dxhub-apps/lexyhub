@@ -12,17 +12,24 @@ export function getStripeClient(): Stripe | null {
 }
 
 export type PlanMapping = {
-  plan: "spark" | "scale" | "apex" | string;
+  plan: "free" | "basic" | "pro" | "growth" | "spark" | "scale" | "apex" | string;
   momentumMultiplier: number;
 };
 
 const PLAN_HINTS: PlanMapping[] = [
-  { plan: "spark", momentumMultiplier: 1 },
-  { plan: "scale", momentumMultiplier: 1.4 },
-  { plan: "apex", momentumMultiplier: 1.8 },
+  // New plan structure
+  { plan: "free", momentumMultiplier: 1 },
+  { plan: "basic", momentumMultiplier: 1.2 },
+  { plan: "pro", momentumMultiplier: 1.5 },
+  { plan: "growth", momentumMultiplier: 2.0 },
+  // Legacy plan mappings (backwards compatibility)
+  { plan: "spark", momentumMultiplier: 1.2 }, // Maps to basic
+  { plan: "scale", momentumMultiplier: 1.5 }, // Maps to pro
+  { plan: "apex", momentumMultiplier: 2.0 },  // Maps to growth
 ];
 
 function inferPlan(subscription: Stripe.Subscription): PlanMapping {
+  // First, try to get plan from metadata (most reliable)
   const metadataPlan = subscription.metadata?.plan?.toLowerCase();
   if (metadataPlan) {
     const mapping = PLAN_HINTS.find((hint) => hint.plan === metadataPlan);
@@ -31,6 +38,7 @@ function inferPlan(subscription: Stripe.Subscription): PlanMapping {
     }
   }
 
+  // Second, try to infer from price nickname or product name
   const nickname = subscription.items.data[0]?.plan?.nickname?.toLowerCase();
   if (nickname) {
     const mapping = PLAN_HINTS.find((hint) => nickname.includes(hint.plan));
@@ -39,7 +47,8 @@ function inferPlan(subscription: Stripe.Subscription): PlanMapping {
     }
   }
 
-  return { plan: "spark", momentumMultiplier: 1 };
+  // Default to basic (legacy default was spark)
+  return { plan: "basic", momentumMultiplier: 1.2 };
 }
 
 export async function syncSubscription(subscription: Stripe.Subscription): Promise<void> {
@@ -147,6 +156,50 @@ export async function recordWebhookEvent(payload: unknown, event: Stripe.Event):
   if (error) {
     console.warn("Failed to persist webhook event", error);
   }
+}
+
+export async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promise<void> {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    return;
+  }
+
+  const userId = session.metadata?.user_id ?? session.metadata?.userId;
+  const planCode = session.metadata?.plan;
+  const billingCycle = session.metadata?.billing_cycle;
+
+  if (!userId) {
+    console.warn("Checkout session missing user_id metadata", session.id);
+    return;
+  }
+
+  // Update user profile with Stripe customer ID
+  if (session.customer && typeof session.customer === 'string') {
+    await supabase.from("user_profiles").upsert({
+      user_id: userId,
+      stripe_customer_id: session.customer,
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: "user_id"
+    });
+  }
+
+  // Track pricing analytics - checkout completed
+  await supabase.from("pricing_analytics").insert({
+    user_id: userId,
+    session_id: session.id,
+    event_type: 'checkout_completed',
+    plan_code: planCode || null,
+    billing_cycle: billingCycle as 'monthly' | 'annual' | null,
+    metadata: {
+      stripe_customer_id: session.customer,
+      stripe_subscription_id: session.subscription,
+    },
+  }).catch((error) => {
+    console.warn("Failed to track checkout_completed analytics", error);
+  });
+
+  console.log(`Checkout completed for user ${userId}, plan ${planCode}, customer ${session.customer}`);
 }
 
 export function verifyStripeWebhook(signature: string | null, body: string): Stripe.Event {
