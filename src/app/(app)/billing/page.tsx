@@ -94,9 +94,14 @@ export default function BillingPage(): JSX.Element {
         throw new Error(json.error ?? `Failed to load billing data (${response.status})`);
       }
 
-      // Set current plan from profile
+      // Set current plan from profile with validation
       const profilePlan = json.profile?.plan ?? "free";
-      setCurrentPlan(profilePlan as PlanCode);
+      // Ensure we only set valid plan codes, fallback to free for legacy plans
+      const validPlanCodes: PlanCode[] = ['free', 'basic', 'pro', 'growth'];
+      const validatedPlan = validPlanCodes.includes(profilePlan as PlanCode)
+        ? (profilePlan as PlanCode)
+        : 'free';
+      setCurrentPlan(validatedPlan);
 
       // Set subscription details
       setAutoRenew(!(json.subscription?.cancel_at_period_end ?? false));
@@ -239,7 +244,10 @@ export default function BillingPage(): JSX.Element {
   // Check if user should see upgrade CTAs
   const showUpgradeCTA = currentPlan === "free" || currentPlan === "basic";
   const showFoundersDeal = searchParams?.get("upgrade") === "founders";
-  const currentPlanConfig = PLAN_CONFIGS[currentPlan];
+
+  // Get current plan config with fallback for legacy plans
+  const currentPlanConfig = PLAN_CONFIGS[currentPlan] || PLAN_CONFIGS.free;
+  const displayPlanName = currentPlanConfig.display_name || currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1);
 
   return (
     <div className="space-y-8">
@@ -255,7 +263,7 @@ export default function BillingPage(): JSX.Element {
                 </CardDescription>
               </div>
             </div>
-            <Badge variant="outline" className="text-sm">Plan: {currentPlanConfig.display_name}</Badge>
+            <Badge variant="outline" className="text-sm">Plan: {displayPlanName}</Badge>
           </div>
         </CardHeader>
         <CardContent>
@@ -424,8 +432,9 @@ export default function BillingPage(): JSX.Element {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {visiblePlans.map((plan) => {
               const isCurrentPlan = plan.plan_code === currentPlan;
-              const isDowngrade = PLAN_CONFIGS[currentPlan] && plan.sort_order < PLAN_CONFIGS[currentPlan].sort_order;
-              const isUpgrade = PLAN_CONFIGS[currentPlan] && plan.sort_order > PLAN_CONFIGS[currentPlan].sort_order;
+              const currentSortOrder = currentPlanConfig.sort_order;
+              const isDowngrade = plan.sort_order < currentSortOrder;
+              const isUpgrade = plan.sort_order > currentSortOrder;
 
               return (
                 <Card
@@ -503,7 +512,7 @@ export default function BillingPage(): JSX.Element {
             <dl className="space-y-3 text-sm">
               <div className="flex justify-between border-b border-border pb-2">
                 <dt className="font-medium">Current plan</dt>
-                <dd className="text-muted-foreground">{currentPlanConfig.display_name}</dd>
+                <dd className="text-muted-foreground">{displayPlanName}</dd>
               </div>
               <div className="flex justify-between border-b border-border pb-2">
                 <dt className="font-medium">Status</dt>
