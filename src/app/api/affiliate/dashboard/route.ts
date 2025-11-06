@@ -63,13 +63,51 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       .filter((c) => c.status === "paid")
       .reduce((sum, c) => sum + (c.amount_cents ?? 0), 0);
 
-    // Get recent referrals (last 50)
+    // Get recent referrals (last 50) with enhanced metrics
     const { data: referrals } = await supabase
       .from("affiliate_referrals")
       .select("id, referred_user_id, ref_code, attributed_at, expires_at")
       .eq("affiliate_id", affiliate.id)
       .order("attributed_at", { ascending: false })
       .limit(50);
+
+    // Enhance referrals with user data, subscription data, and commissions
+    const enhancedReferrals = await Promise.all(
+      (referrals ?? []).map(async (referral) => {
+        // Get user email from auth.users
+        const { data: authUser } = await supabase.auth.admin.getUserById(referral.referred_user_id);
+
+        // Get current subscription/plan
+        const { data: subscription } = await supabase
+          .from("billing_subscriptions")
+          .select("plan, status")
+          .eq("user_id", referral.referred_user_id)
+          .in("status", ["active", "trialing"])
+          .maybeSingle();
+
+        // Get commissions earned from this referral
+        const { data: referralCommissions } = await supabase
+          .from("commissions")
+          .select("amount_cents, status")
+          .eq("referral_id", referral.id);
+
+        const totalCommission = (referralCommissions ?? []).reduce(
+          (sum, c) => sum + (c.amount_cents ?? 0),
+          0
+        );
+
+        const hasPaidPlan = subscription && subscription.status === "active";
+
+        return {
+          ...referral,
+          email: authUser?.user?.email ?? null,
+          plan: subscription?.plan ?? "free",
+          planStatus: subscription?.status ?? null,
+          hasConverted: hasPaidPlan,
+          commissionEarned: totalCommission,
+        };
+      })
+    );
 
     // Get commission history (last 100)
     const { data: commissions } = await supabase
@@ -100,7 +138,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         paidEarnings,
         conversionRate,
       },
-      referrals: referrals ?? [],
+      referrals: enhancedReferrals ?? [],
       commissions: commissions ?? [],
     });
   } catch (error) {
