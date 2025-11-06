@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { Save, Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,9 +24,36 @@ import {
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-export default function NewNotificationPage() {
+type Notification = {
+  id: string;
+  kind: 'banner' | 'inapp' | 'email' | 'mixed';
+  category: 'keyword' | 'watchlist' | 'ai' | 'account' | 'system' | 'collab';
+  title: string;
+  body?: string;
+  cta_text?: string;
+  cta_url?: string;
+  severity: 'info' | 'success' | 'warning' | 'critical';
+  priority: number;
+  icon?: string;
+  audience_scope: 'all' | 'plan' | 'user_ids' | 'segment' | 'workspace';
+  audience_filter?: any;
+  schedule_start_at?: string;
+  schedule_end_at?: string;
+  show_banner: boolean;
+  create_inapp: boolean;
+  send_email: boolean;
+  email_template_key?: 'brief_ready' | 'keyword_highlights' | 'watchlist_digest' | 'billing_event' | 'system_announcement';
+  status: 'draft' | 'scheduled' | 'live' | 'paused' | 'ended';
+};
+
+export default function EditNotificationPage() {
   const router = useRouter();
+  const params = useParams();
+  const notificationId = params.id as string;
+
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [notification, setNotification] = useState<Notification | null>(null);
 
   // Form state
   const [title, setTitle] = useState('');
@@ -49,6 +76,76 @@ export default function NewNotificationPage() {
   const [createInapp, setCreateInapp] = useState(true);
   const [sendEmail, setSendEmail] = useState(false);
   const [emailTemplateKey, setEmailTemplateKey] = useState<'system_announcement' | 'brief_ready'>('system_announcement');
+
+  // Fetch notification data
+  useEffect(() => {
+    async function fetchNotification() {
+      setIsLoading(true);
+      try {
+        const response = await fetch(`/api/admin/backoffice/notifications/${notificationId}`);
+        if (response.ok) {
+          const data = await response.json();
+          const notif = data.notification;
+          setNotification(notif);
+
+          // Populate form fields
+          setTitle(notif.title || '');
+          setBody(notif.body || '');
+          setCtaText(notif.cta_text || '');
+          setCtaUrl(notif.cta_url || '');
+          setSeverity(notif.severity || 'info');
+          setPriority(notif.priority || 50);
+          setIcon(notif.icon || '');
+          setCategory(notif.category || 'system');
+
+          setAudienceScope(notif.audience_scope || 'all');
+          if (notif.audience_filter?.plan_codes) {
+            setPlanCodes(notif.audience_filter.plan_codes.join(', '));
+          }
+          if (notif.audience_filter?.user_ids) {
+            setUserIds(notif.audience_filter.user_ids.join(', '));
+          }
+
+          // Convert ISO timestamps to datetime-local format
+          if (notif.schedule_start_at) {
+            const startDate = new Date(notif.schedule_start_at);
+            setScheduleStartAt(formatDateTimeLocal(startDate));
+          }
+          if (notif.schedule_end_at) {
+            const endDate = new Date(notif.schedule_end_at);
+            setScheduleEndAt(formatDateTimeLocal(endDate));
+          }
+
+          setShowBanner(notif.show_banner || false);
+          setCreateInapp(notif.create_inapp !== undefined ? notif.create_inapp : true);
+          setSendEmail(notif.send_email || false);
+          setEmailTemplateKey(notif.email_template_key || 'system_announcement');
+        } else {
+          alert('Failed to load notification');
+          router.push('/admin/backoffice/notifications');
+        }
+      } catch (error) {
+        console.error('Failed to fetch notification:', error);
+        alert('Failed to load notification');
+        router.push('/admin/backoffice/notifications');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    if (notificationId) {
+      fetchNotification();
+    }
+  }, [notificationId, router]);
+
+  function formatDateTimeLocal(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -89,8 +186,8 @@ export default function NewNotificationPage() {
         email_template_key: sendEmail ? emailTemplateKey : undefined,
       };
 
-      const response = await fetch('/api/admin/backoffice/notifications', {
-        method: 'POST',
+      const response = await fetch(`/api/admin/backoffice/notifications/${notificationId}`, {
+        method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload),
       });
@@ -99,15 +196,32 @@ export default function NewNotificationPage() {
         router.push('/admin/backoffice/notifications');
       } else {
         const error = await response.json();
-        alert(`Failed to create notification: ${error.error || 'Unknown error'}`);
+        alert(`Failed to update notification: ${error.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Failed to create notification:', error);
-      alert('Failed to create notification');
+      console.error('Failed to update notification:', error);
+      alert('Failed to update notification');
     } finally {
       setIsSaving(false);
     }
   }
+
+  if (isLoading) {
+    return (
+      <div className="container max-w-4xl py-8">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!notification) {
+    return null;
+  }
+
+  // Don't allow editing live or ended notifications
+  const isEditable = notification.status === 'draft' || notification.status === 'paused';
 
   return (
     <div className="container max-w-4xl py-8">
@@ -122,10 +236,17 @@ export default function NewNotificationPage() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
-        <h1 className="text-3xl font-bold tracking-tight">Create Notification</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Edit Notification</h1>
         <p className="text-muted-foreground">
-          Create a new notification to send to users
+          Update notification details
         </p>
+        {!isEditable && (
+          <div className="mt-4 rounded-md border border-yellow-500 bg-yellow-50 p-4 dark:bg-yellow-950/30">
+            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+              This notification is {notification.status}. Only draft and paused notifications can be edited.
+            </p>
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -153,6 +274,7 @@ export default function NewNotificationPage() {
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="Enter notification title"
                     required
+                    disabled={!isEditable}
                   />
                 </div>
 
@@ -164,6 +286,7 @@ export default function NewNotificationPage() {
                     onChange={(e) => setBody(e.target.value)}
                     placeholder="Enter notification body (optional)"
                     rows={4}
+                    disabled={!isEditable}
                   />
                 </div>
 
@@ -175,6 +298,7 @@ export default function NewNotificationPage() {
                       value={ctaText}
                       onChange={(e) => setCtaText(e.target.value)}
                       placeholder="e.g., Learn More"
+                      disabled={!isEditable}
                     />
                   </div>
 
@@ -185,6 +309,7 @@ export default function NewNotificationPage() {
                       value={ctaUrl}
                       onChange={(e) => setCtaUrl(e.target.value)}
                       placeholder="e.g., /features"
+                      disabled={!isEditable}
                     />
                   </div>
                 </div>
@@ -192,7 +317,7 @@ export default function NewNotificationPage() {
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="severity">Severity</Label>
-                    <Select value={severity} onValueChange={(v: any) => setSeverity(v)}>
+                    <Select value={severity} onValueChange={(v: any) => setSeverity(v)} disabled={!isEditable}>
                       <SelectTrigger id="severity">
                         <SelectValue />
                       </SelectTrigger>
@@ -214,6 +339,7 @@ export default function NewNotificationPage() {
                       max={100}
                       value={priority}
                       onChange={(e) => setPriority(parseInt(e.target.value))}
+                      disabled={!isEditable}
                     />
                   </div>
 
@@ -224,13 +350,14 @@ export default function NewNotificationPage() {
                       value={icon}
                       onChange={(e) => setIcon(e.target.value)}
                       placeholder="e.g., 🎉"
+                      disabled={!isEditable}
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="category">Category</Label>
-                  <Select value={category} onValueChange={(v: any) => setCategory(v)}>
+                  <Select value={category} onValueChange={(v: any) => setCategory(v)} disabled={!isEditable}>
                     <SelectTrigger id="category">
                       <SelectValue />
                     </SelectTrigger>
@@ -258,7 +385,7 @@ export default function NewNotificationPage() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="audienceScope">Audience Scope</Label>
-                  <Select value={audienceScope} onValueChange={(v: any) => setAudienceScope(v)}>
+                  <Select value={audienceScope} onValueChange={(v: any) => setAudienceScope(v)} disabled={!isEditable}>
                     <SelectTrigger id="audienceScope">
                       <SelectValue />
                     </SelectTrigger>
@@ -278,6 +405,7 @@ export default function NewNotificationPage() {
                       value={planCodes}
                       onChange={(e) => setPlanCodes(e.target.value)}
                       placeholder="e.g., growth, scale"
+                      disabled={!isEditable}
                     />
                     <p className="text-sm text-muted-foreground">
                       Enter plan codes separated by commas
@@ -294,6 +422,7 @@ export default function NewNotificationPage() {
                       onChange={(e) => setUserIds(e.target.value)}
                       placeholder="Enter user UUIDs, one per line or comma-separated"
                       rows={4}
+                      disabled={!isEditable}
                     />
                   </div>
                 )}
@@ -317,6 +446,7 @@ export default function NewNotificationPage() {
                       type="datetime-local"
                       value={scheduleStartAt}
                       onChange={(e) => setScheduleStartAt(e.target.value)}
+                      disabled={!isEditable}
                     />
                     <p className="text-sm text-muted-foreground">
                       Leave empty to start immediately
@@ -330,6 +460,7 @@ export default function NewNotificationPage() {
                       type="datetime-local"
                       value={scheduleEndAt}
                       onChange={(e) => setScheduleEndAt(e.target.value)}
+                      disabled={!isEditable}
                     />
                     <p className="text-sm text-muted-foreground">
                       Leave empty for no end date
@@ -359,6 +490,7 @@ export default function NewNotificationPage() {
                     id="showBanner"
                     checked={showBanner}
                     onCheckedChange={setShowBanner}
+                    disabled={!isEditable}
                   />
                 </div>
 
@@ -373,6 +505,7 @@ export default function NewNotificationPage() {
                     id="createInapp"
                     checked={createInapp}
                     onCheckedChange={setCreateInapp}
+                    disabled={!isEditable}
                   />
                 </div>
 
@@ -387,13 +520,14 @@ export default function NewNotificationPage() {
                     id="sendEmail"
                     checked={sendEmail}
                     onCheckedChange={setSendEmail}
+                    disabled={!isEditable}
                   />
                 </div>
 
                 {sendEmail && (
                   <div className="space-y-2">
                     <Label htmlFor="emailTemplateKey">Email Template</Label>
-                    <Select value={emailTemplateKey} onValueChange={(v: any) => setEmailTemplateKey(v)}>
+                    <Select value={emailTemplateKey} onValueChange={(v: any) => setEmailTemplateKey(v)} disabled={!isEditable}>
                       <SelectTrigger id="emailTemplateKey">
                         <SelectValue />
                       </SelectTrigger>
@@ -421,16 +555,16 @@ export default function NewNotificationPage() {
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={isSaving || !title}>
+          <Button type="submit" disabled={isSaving || !title || !isEditable}>
             {isSaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
+                Updating...
               </>
             ) : (
               <>
                 <Save className="mr-2 h-4 w-4" />
-                Create Notification
+                Update Notification
               </>
             )}
           </Button>

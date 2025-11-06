@@ -48,7 +48,7 @@ const CreateNotificationSchema = z.object({
   title: z.string().min(1).max(200),
   body: z.string().max(2000).optional(),
   cta_text: z.string().max(50).optional(),
-  cta_url: z.string().url().optional(),
+  cta_url: z.string().max(500).optional(),
   severity: z.enum(['info', 'success', 'warning', 'critical']).default('info'),
   priority: z.number().int().min(0).max(100).default(50),
   icon: z.string().max(50).optional(),
