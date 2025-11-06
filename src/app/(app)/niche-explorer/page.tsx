@@ -307,20 +307,6 @@ export default function NicheExplorerPage(): JSX.Element {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b bg-muted/50">
-                      <th className="px-4 py-3 text-left text-sm font-medium">
-                        <input
-                          type="checkbox"
-                          checked={selectedKeywords.length === filteredKeywords.length && filteredKeywords.length > 0}
-                          onChange={() => {
-                            if (selectedKeywords.length === filteredKeywords.length) {
-                              setSelectedKeywords([]);
-                            } else {
-                              setSelectedKeywords(filteredKeywords.map((kw) => kw.term));
-                            }
-                          }}
-                          className="rounded"
-                        />
-                      </th>
                       <th className="px-4 py-3 text-left text-sm font-medium">Keyword</th>
                       <th className="px-4 py-3 text-left text-sm font-medium">Demand</th>
                       <th className="px-4 py-3 text-left text-sm font-medium">Competition</th>
@@ -332,14 +318,6 @@ export default function NicheExplorerPage(): JSX.Element {
                   <tbody>
                     {filteredKeywords.slice(0, 20).map((keyword, index) => (
                       <tr key={index} className="border-b last:border-0 hover:bg-muted/50">
-                        <td className="px-4 py-3">
-                          <input
-                            type="checkbox"
-                            checked={selectedKeywords.includes(keyword.term)}
-                            onChange={() => toggleKeywordSelection(keyword.term)}
-                            className="rounded"
-                          />
-                        </td>
                         <td className="px-4 py-3">
                           <Link
                             href={`/keywords/${encodeURIComponent(keyword.term)}`}
