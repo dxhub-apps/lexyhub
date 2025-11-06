@@ -54,7 +54,7 @@ const SEARCH_QUERIES = [
 
 const NGRAM_MIN = 2;
 const NGRAM_MAX = 5;
-const MIN_SAVES = 5; // Minimum saves to consider (strong purchase intent indicator)
+const MIN_SAVES = 1; // Minimum saves to consider (lowered to capture more pins)
 
 // ==========================
 // Supabase
@@ -410,10 +410,16 @@ async function collectFromUserBoards(budget) {
       const pins = await getBoardPins(board.id, pinsPerBoard);
       apiCallsMade += 1;
 
+      let pinsFetched = pins.length;
+      let pinsFiltered = 0;
+
       for (const pin of pins) {
         // Pinterest engagement: saves (strongest intent) + comments + reactions
         const saves = pin.pin_metrics?.save || 0;
-        if (saves < MIN_SAVES) continue;
+        if (saves < MIN_SAVES) {
+          pinsFiltered++;
+          continue;
+        }
 
         const engagement =
           saves * 3 + // Saves = strong purchase intent
@@ -460,6 +466,7 @@ async function collectFromUserBoards(budget) {
         pinsProcessed++;
       }
 
+      console.log("board_stats:fetched=%d filtered=%d processed=%d", pinsFetched, pinsFiltered, pinsFetched - pinsFiltered);
       remainingBudget -= 1; // Each board pins fetch = 1 API call
     } catch (err) {
       console.error("board_error:%s:%s", board.name, err?.message || err);
