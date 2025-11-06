@@ -1,29 +1,13 @@
 -- migrate:up
 -- ===========================================
 -- 0030_tier_column_to_smallint.sql
--- Convert tier column from text to smallint
+-- Update lexy_upsert_keyword to accept smallint for tier parameter
+-- The tier column was already converted to smallint in previous migrations
 -- Mapping: 0=free, 1=growth, 2=scale
 -- ===========================================
 
--- First, update existing text values to numeric equivalents temporarily
-update public.keywords
-set tier = case
-  when tier = 'free' then '0'
-  when tier = 'growth' then '1'
-  when tier = 'scale' then '2'
-  else '0'
-end
-where tier in ('free', 'growth', 'scale');
-
--- Alter the column type from text to smallint
-alter table public.keywords
-alter column tier type smallint using tier::smallint;
-
--- Set default to 0 (free tier)
-alter table public.keywords
-alter column tier set default 0;
-
 -- Recreate the lexy_upsert_keyword function with smallint parameter
+-- (column is already smallint, we just need to update the function signature)
 create or replace function public.lexy_upsert_keyword(
   p_term text,
   p_market text,
@@ -63,20 +47,7 @@ end $$;
 grant execute on function public.lexy_upsert_keyword to authenticated, service_role;
 
 -- migrate:down
--- Revert tier column back to text
-alter table public.keywords
-alter column tier type text using
-  case
-    when tier = 0 then 'free'
-    when tier = 1 then 'growth'
-    when tier = 2 then 'scale'
-    else 'free'
-  end;
-
-alter table public.keywords
-alter column tier set default 'free';
-
--- Restore the original function signature
+-- Restore the original function signature with text parameter
 create or replace function public.lexy_upsert_keyword(
   p_term text,
   p_market text,
