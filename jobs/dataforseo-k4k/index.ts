@@ -142,11 +142,11 @@ async function main(): Promise<void> {
   );
 
   // Fetch keyword seeds
-  logger.info(`Fetching up to ${config.batchMaxSeeds} enabled keyword seeds`);
+  logger.info({}, `Fetching up to ${config.batchMaxSeeds} enabled keyword seeds`);
   const seeds = await fetchKeywordSeeds(supabase, config.batchMaxSeeds);
 
   if (seeds.length === 0) {
-    logger.warn("No enabled keyword seeds found, exiting");
+    logger.warn({}, "No enabled keyword seeds found, exiting");
     const summary: RunSummary = {
       ingestBatchId: INGEST_BATCH_ID,
       startedAt,
@@ -163,11 +163,11 @@ async function main(): Promise<void> {
       rowsSkippedInvalid: 0,
       estimatedCostUsd: 0,
     };
-    logger.info("RUN_SUMMARY", summary);
+    logger.info(summary, "RUN_SUMMARY");
     return;
   }
 
-  logger.info(`Fetched ${seeds.length} keyword seeds`);
+  logger.info({}, `Fetched ${seeds.length} keyword seeds`);
 
   // Group by locale
   const localeGroups = groupSeedsByLocale(
@@ -175,7 +175,7 @@ async function main(): Promise<void> {
     config.defaultLanguageCode,
     config.defaultLocationCode
   );
-  logger.info(`Grouped into ${localeGroups.length} locale groups`);
+  logger.info({}, `Grouped into ${localeGroups.length} locale groups`);
 
   // Create task chunks
   const taskChunks: TaskChunk[] = [];
@@ -185,19 +185,20 @@ async function main(): Promise<void> {
   }
 
   logger.info(
+    {},
     `Created ${taskChunks.length} task chunks (max ${config.k4kMaxTermsPerTask} terms per task)`
   );
 
   // Estimate cost
   const estimatedCostUsd = taskChunks.length * COST_PER_TASK_USD;
-  logger.info(`Estimated cost: $${estimatedCostUsd.toFixed(4)} USD`, {
+  logger.info({
     taskCount: taskChunks.length,
     costPerTask: COST_PER_TASK_USD,
-  });
+  }, `Estimated cost: $${estimatedCostUsd.toFixed(4)} USD`);
 
   // DRY RUN check
   if (config.dryRun) {
-    logger.warn("DRY_RUN mode enabled, not posting tasks or writing to database");
+    logger.warn({}, "DRY_RUN mode enabled, not posting tasks or writing to database");
     const summary: RunSummary = {
       ingestBatchId: INGEST_BATCH_ID,
       startedAt,
@@ -214,12 +215,12 @@ async function main(): Promise<void> {
       rowsSkippedInvalid: 0,
       estimatedCostUsd,
     };
-    logger.info("RUN_SUMMARY (DRY_RUN)", summary);
+    logger.info(summary, "RUN_SUMMARY (DRY_RUN)");
     return;
   }
 
   // Post tasks with concurrency limit
-  logger.info(`Posting ${taskChunks.length} tasks to DataForSEO`);
+  logger.info({}, `Posting ${taskChunks.length} tasks to DataForSEO`);
   const postLimiter = new ConcurrencyLimiter<TaskChunk, TaskState>(
     config.concurrencyTaskPost
   );
@@ -249,12 +250,12 @@ async function main(): Promise<void> {
         postedAt: Date.now(),
       };
 
-      logger.info(`POSTED_TASK`, {
+      logger.info({
         taskId: task.id,
         locale: `${chunk.languageCode}:${chunk.locationCode}`,
         keywords_count: chunk.keywords.length,
         cost: task.cost,
-      });
+      }, "POSTED_TASK");
 
       return taskState;
     },
@@ -264,14 +265,14 @@ async function main(): Promise<void> {
   // Separate successful and failed posts
   for (const result of postResults) {
     if (result instanceof Error) {
-      logger.error(`Task post failed: ${result.message}`, { error: result });
+      logger.error({ error: result }, `Task post failed: ${result.message}`);
     } else {
       taskStates.push(result);
     }
   }
 
   const tasksPosted = taskStates.length;
-  logger.info(`Successfully posted ${tasksPosted}/${taskChunks.length} tasks`);
+  logger.info({}, `Successfully posted ${tasksPosted}/${taskChunks.length} tasks`);
 
   if (tasksPosted === 0) {
     throw new Error("Failed to post any tasks to DataForSEO");
@@ -286,11 +287,11 @@ async function main(): Promise<void> {
   poller.registerTasks(taskStates);
   const pollResult = await poller.pollUntilComplete();
 
-  logger.info(`Poll result`, {
+  logger.info({
     completed: pollResult.completed.length,
     failed: pollResult.failed.length,
     timedOut: pollResult.timedOut.length,
-  });
+  }, "Poll result");
 
   // Fetch and persist results
   const getLimiter = new ConcurrencyLimiter<TaskState, void>(
@@ -311,7 +312,7 @@ async function main(): Promise<void> {
           taskState.taskId
         );
         if (alreadyProcessed) {
-          logger.debug(`Task ${taskState.taskId} already processed, skipping`);
+          logger.debug({}, `Task ${taskState.taskId} already processed, skipping`);
           return;
         }
 
@@ -325,11 +326,11 @@ async function main(): Promise<void> {
         const taskResult = response.tasks[0];
         const items = taskResult.result || [];
 
-        logger.info(`FETCH_RESULT`, {
+        logger.info({
           taskId: taskState.taskId,
           items_count: items.length,
           cost: taskResult.cost,
-        });
+        }, "FETCH_RESULT");
 
         // Save raw source
         const rawPayload: RawSourcePayload = {
@@ -367,7 +368,7 @@ async function main(): Promise<void> {
         rowsSkippedInvalid += skipped;
 
         if (valid.length === 0) {
-          logger.warn(`No valid keywords in task ${taskState.taskId}`);
+          logger.warn({}, `No valid keywords in task ${taskState.taskId}`);
           return;
         }
 
@@ -381,18 +382,18 @@ async function main(): Promise<void> {
         rowsInserted += upsertResult.inserted;
         rowsUpdated += upsertResult.updated;
 
-        logger.info(`UPSERT_SUMMARY`, {
+        logger.info({
           taskId: taskState.taskId,
           inserted: upsertResult.inserted,
           updated: upsertResult.updated,
           failed: upsertResult.failed,
           skipped: skipped,
-        });
+        }, "UPSERT_SUMMARY");
       } catch (error: any) {
-        logger.error(`Failed to process task ${taskState.taskId}: ${error.message}`, {
+        logger.error({
           taskId: taskState.taskId,
           error,
-        });
+        }, `Failed to process task ${taskState.taskId}: ${error.message}`);
 
         // Save failed raw source
         const rawPayload: RawSourcePayload = {
@@ -416,7 +417,7 @@ async function main(): Promise<void> {
         };
 
         await insertRawSource(supabase, rawPayload).catch((err) => {
-          logger.warn(`Failed to save error raw source: ${err.message}`);
+          logger.warn({}, `Failed to save error raw source: ${err.message}`);
         });
       }
     },
@@ -448,13 +449,14 @@ async function main(): Promise<void> {
     estimatedCostUsd,
   };
 
-  logger.info("RUN_SUMMARY", summary);
+  logger.info(summary, "RUN_SUMMARY");
 
   logJobExecution("dataforseo-k4k", "completed", durationMs, summary);
 
   // Determine exit code
   if (pollResult.failed.length > 0 || pollResult.timedOut.length > 0) {
     logger.warn(
+      {},
       `Job completed with ${pollResult.failed.length} failed and ${pollResult.timedOut.length} timed out tasks`
     );
     process.exit(2); // Partial success
@@ -463,7 +465,7 @@ async function main(): Promise<void> {
 
 // Execute main
 main().catch((error) => {
-  logger.error("DataForSEO K4K ingestion job failed", { error });
+  logger.error({ error }, "DataForSEO K4K ingestion job failed");
   logJobExecution("dataforseo-k4k", "failed", undefined, {
     error: error.message,
   });

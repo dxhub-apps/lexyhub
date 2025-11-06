@@ -50,7 +50,7 @@ export async function updateSeedsLastRun(
     .in("id", seedIds);
 
   if (error) {
-    logger.warn(`Failed to update seed timestamps: ${error.message}`, { error });
+    logger.warn({ error }, `Failed to update seed timestamps: ${error.message}`);
     // Non-fatal, don't throw
   }
 }
@@ -138,8 +138,8 @@ export async function upsertKeywordsBatch(
 
         if (error) {
           logger.warn(
-            `Failed to upsert keyword "${keyword.termNorm}": ${error.message}`,
-            { term: keyword.termNorm, error }
+            { term: keyword.termNorm, error },
+            `Failed to upsert keyword "${keyword.termNorm}": ${error.message}`
           );
           failed++;
           continue;
@@ -151,19 +151,19 @@ export async function upsertKeywordsBatch(
         updated++;
       } catch (error: any) {
         logger.warn(
-          `Error upserting keyword "${keyword.termNorm}": ${error.message}`,
-          { term: keyword.termNorm, error }
+          { term: keyword.termNorm, error },
+          `Error upserting keyword "${keyword.termNorm}": ${error.message}`
         );
         failed++;
       }
     }
 
     logger.debug(
-      `Upserted chunk ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(keywords.length / CHUNK_SIZE)}`,
       {
         chunkSize: chunk.length,
         progress: `${i + chunk.length}/${keywords.length}`,
-      }
+      },
+      `Upserted chunk ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(keywords.length / CHUNK_SIZE)}`
     );
   }
 
@@ -187,7 +187,7 @@ export async function taskAlreadyProcessed(
     .limit(1);
 
   if (error) {
-    logger.warn(`Error checking task existence: ${error.message}`, { taskId });
+    logger.warn({ taskId }, `Error checking task existence: ${error.message}`);
     return false;
   }
 
@@ -210,7 +210,7 @@ export async function getKeywordSeedsCount(
   const { count, error } = await query;
 
   if (error) {
-    logger.warn(`Failed to count keyword seeds: ${error.message}`, { error });
+    logger.warn({ error }, `Failed to count keyword seeds: ${error.message}`);
     return 0;
   }
 

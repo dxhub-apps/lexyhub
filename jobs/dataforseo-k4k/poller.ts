@@ -37,8 +37,8 @@ export class TaskPoller {
       this.tasks.set(task.taskId, task);
     }
     logger.info(
-      `[TaskPoller] Registered ${tasks.length} tasks for polling`,
-      { taskIds: tasks.map((t) => t.taskId) }
+      { taskIds: tasks.map((t) => t.taskId) },
+      `[TaskPoller] Registered ${tasks.length} tasks for polling`
     );
   }
 
@@ -87,14 +87,14 @@ export class TaskPoller {
         if (taskState && taskState.status === "pending") {
           taskState.status = "completed";
           taskState.completedAt = Date.now();
-          logger.info(`[TaskPoller] Task ready: ${readyTask.id}`, {
+          logger.info({
             taskId: readyTask.id,
             durationMs: taskState.completedAt - taskState.postedAt,
-          });
+          }, `[TaskPoller] Task ready: ${readyTask.id}`);
         }
       }
     } catch (error: any) {
-      logger.warn(`[TaskPoller] Poll failed: ${error.message}`, { error });
+      logger.warn({ error }, `[TaskPoller] Poll failed: ${error.message}`);
       // Don't throw - continue polling
     }
   }
@@ -104,10 +104,10 @@ export class TaskPoller {
    */
   async pollUntilComplete(): Promise<PollResult> {
     logger.info(
-      `[TaskPoller] Starting poll loop (interval=${this.config.intervalMs}ms, timeout=${this.config.timeoutMs}ms)`,
       {
         totalTasks: this.tasks.size,
-      }
+      },
+      `[TaskPoller] Starting poll loop (interval=${this.config.intervalMs}ms, timeout=${this.config.timeoutMs}ms)`
     );
 
     while (this.getPendingCount() > 0) {
@@ -115,11 +115,11 @@ export class TaskPoller {
       if (this.shouldTimeout()) {
         const pending = this.getPendingCount();
         logger.error(
-          `[TaskPoller] Timeout exceeded with ${pending} tasks still pending`,
           {
             timeoutMs: this.config.timeoutMs,
             pendingCount: pending,
-          }
+          },
+          `[TaskPoller] Timeout exceeded with ${pending} tasks still pending`
         );
         break;
       }
@@ -132,8 +132,8 @@ export class TaskPoller {
       if (pendingCount > 0) {
         const elapsed = Date.now() - this.startTime;
         logger.debug(
-          `[TaskPoller] ${pendingCount} tasks pending (elapsed ${Math.round(elapsed / 1000)}s)`,
-          { pendingCount, elapsedMs: elapsed }
+          { pendingCount, elapsedMs: elapsed },
+          `[TaskPoller] ${pendingCount} tasks pending (elapsed ${Math.round(elapsed / 1000)}s)`
         );
       }
 
@@ -158,13 +158,13 @@ export class TaskPoller {
       }
     }
 
-    logger.info(`[TaskPoller] Poll complete`, {
+    logger.info({
       total: this.tasks.size,
       completed: completed.length,
       failed: failed.length,
       timedOut: timedOut.length,
       durationMs: Date.now() - this.startTime,
-    });
+    }, "[TaskPoller] Poll complete");
 
     return { completed, failed, timedOut };
   }
@@ -178,10 +178,10 @@ export class TaskPoller {
       task.status = "failed";
       task.error = error;
       task.completedAt = Date.now();
-      logger.warn(`[TaskPoller] Task failed: ${taskId}`, {
+      logger.warn({
         taskId,
         error,
-      });
+      }, `[TaskPoller] Task failed: ${taskId}`);
     }
   }
 }
