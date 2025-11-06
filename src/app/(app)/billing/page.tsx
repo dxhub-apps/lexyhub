@@ -46,10 +46,10 @@ function formatAmount(cents?: number | null): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
 }
 
-// Stripe price IDs for checkout
-const STRIPE_PRICES: Record<string, string> = {
-  'basic_monthly': 'price_1SQOdz3enLCiqy1O4KF74msU',
-  'basic_annual': 'price_1SQPWO3enLCiqy1Oll2Lhd54', // Founders Deal
+// Founders deal Stripe price IDs (these are special promotional prices, not in standard plans)
+const FOUNDERS_PRICES: Record<string, string> = {
+  'basic': 'price_1SQPWO3enLCiqy1Oll2Lhd54',
+  'pro': 'price_1SQPWn3enLCiqy1OS5fWTyLd',
 };
 
 export default function BillingPage(): JSX.Element {
@@ -156,7 +156,8 @@ export default function BillingPage(): JSX.Element {
     void loadData();
   }, [loadData]);
 
-  const handleUpgradeClick = async (priceId: string, planName: string) => {
+  // Handle regular plan upgrades using database-driven pricing
+  const handleUpgradeClick = async (planCode: PlanCode, billingCycle: 'monthly' | 'annual' = 'monthly') => {
     if (!userId) {
       toast({
         title: "Authentication required",
@@ -168,14 +169,14 @@ export default function BillingPage(): JSX.Element {
 
     setCheckoutLoading(true);
     try {
-      // Create a direct Stripe checkout session using the price ID
-      const response = await fetch('/api/billing/checkout/direct', {
+      // Use database-driven checkout endpoint
+      const response = await fetch('/api/billing/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId,
-          priceId,
-          planName,
+          planCode,
+          billingCycle,
         }),
       });
 
@@ -186,6 +187,50 @@ export default function BillingPage(): JSX.Element {
       }
 
       // Redirect to Stripe Checkout
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (error) {
+      toast({
+        title: "Checkout failed",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      });
+      setCheckoutLoading(false);
+    }
+  };
+
+  // Handle founders deal checkouts (special promotional pricing)
+  const handleFoundersCheckout = async (planLevel: 'basic' | 'pro') => {
+    if (!userId) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to claim this deal.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCheckoutLoading(true);
+    try {
+      const response = await fetch('/api/billing/checkout/direct', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          priceId: FOUNDERS_PRICES[planLevel],
+          planName: `${planLevel.charAt(0).toUpperCase() + planLevel.slice(1)} Plan (Founders Deal)`,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error ?? 'Failed to create checkout session');
+      }
+
       if (data.url) {
         window.location.href = data.url;
       } else {
@@ -328,7 +373,7 @@ export default function BillingPage(): JSX.Element {
               <Button
                 size="lg"
                 className="bg-blue-600 hover:bg-blue-700"
-                onClick={() => handleUpgradeClick('price_1SQPWO3enLCiqy1Oll2Lhd54', 'Basic Plan (Founders Deal)')}
+                onClick={() => handleFoundersCheckout('basic')}
                 disabled={checkoutLoading}
               >
                 {checkoutLoading ? "Loading..." : "Claim Founders Deal - $39/year"}
@@ -378,7 +423,7 @@ export default function BillingPage(): JSX.Element {
             <Button
               size="lg"
               className="bg-purple-600 hover:bg-purple-700"
-              onClick={() => handleUpgradeClick('price_1SQOdz3enLCiqy1O4KF74msU', 'Basic Plan')}
+              onClick={() => handleUpgradeClick('basic', 'monthly')}
               disabled={checkoutLoading}
             >
               {checkoutLoading ? "Loading..." : "Upgrade to Basic Plan"}
@@ -478,10 +523,26 @@ export default function BillingPage(): JSX.Element {
                       ) : plan.plan_code === 'basic' ? (
                         <Button
                           className="w-full"
-                          onClick={() => handleUpgradeClick(STRIPE_PRICES.basic_monthly, 'Basic Plan')}
+                          onClick={() => handleUpgradeClick('basic', 'monthly')}
                           disabled={checkoutLoading}
                         >
                           {isUpgrade ? 'Upgrade' : isDowngrade ? 'Downgrade' : 'Get Started'}
+                        </Button>
+                      ) : plan.plan_code === 'pro' ? (
+                        <Button
+                          className="w-full"
+                          onClick={() => handleUpgradeClick('pro', 'monthly')}
+                          disabled={checkoutLoading}
+                        >
+                          {isUpgrade ? 'Upgrade' : isDowngrade ? 'Downgrade' : 'Get Started'}
+                        </Button>
+                      ) : plan.plan_code === 'growth' ? (
+                        <Button
+                          className="w-full"
+                          onClick={() => handleUpgradeClick('growth', 'monthly')}
+                          disabled={checkoutLoading}
+                        >
+                          {isUpgrade ? 'Upgrade' : 'Get Started'}
                         </Button>
                       ) : (
                         <Button
