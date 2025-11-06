@@ -13,7 +13,11 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  TrendingUp,
+  Mail,
 } from "lucide-react";
+
+import { maskEmail } from "@/lib/utils/format";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,6 +49,11 @@ type AffiliateDashboardData = {
     ref_code: string;
     attributed_at: string;
     expires_at: string | null;
+    email: string | null;
+    plan: string;
+    planStatus: string | null;
+    hasConverted: boolean;
+    commissionEarned: number;
   }>;
   commissions: Array<{
     id: string;
@@ -340,31 +349,74 @@ export default function AffiliatesPage(): JSX.Element {
                 {currentReferrals.map((referral) => {
                   const isActive =
                     !referral.expires_at || new Date(referral.expires_at) > new Date();
+                  const planDisplay =
+                    referral.plan === "free"
+                      ? "Free"
+                      : referral.plan.charAt(0).toUpperCase() + referral.plan.slice(1);
+
                   return (
                     <div
                       key={referral.id}
-                      className="flex items-center justify-between rounded-lg border p-3"
+                      className="rounded-lg border p-4"
                     >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm">
-                            {referral.referred_user_id.slice(0, 8)}...
-                          </span>
-                          {isActive ? (
-                            <Badge variant="default" className="text-xs">
-                              Active
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-xs">
-                              Expired
-                            </Badge>
-                          )}
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 space-y-3">
+                          {/* Email and Status Row */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div className="flex items-center gap-1 text-sm font-medium">
+                              <Mail className="h-3 w-3 text-muted-foreground" />
+                              <span className="font-mono">
+                                {referral.email ? maskEmail(referral.email) : "No email"}
+                              </span>
+                            </div>
+                            {isActive ? (
+                              <Badge variant="default" className="text-xs">
+                                Active
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs">
+                                Expired
+                              </Badge>
+                            )}
+                            {referral.hasConverted && (
+                              <Badge variant="default" className="text-xs bg-green-600">
+                                <CheckCircle2 className="mr-1 h-3 w-3" />
+                                Converted
+                              </Badge>
+                            )}
+                          </div>
+
+                          {/* Metrics Grid */}
+                          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                            <div>
+                              <p className="text-xs text-muted-foreground">Joined</p>
+                              <p className="text-sm font-medium">{formatDate(referral.attributed_at)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Plan</p>
+                              <p className="text-sm font-medium">
+                                {planDisplay}
+                                {referral.planStatus === "trialing" && (
+                                  <span className="ml-1 text-xs text-muted-foreground">(trial)</span>
+                                )}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Status</p>
+                              <p className="text-sm font-medium">
+                                {referral.hasConverted ? "Paid" : "Free"}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Earned</p>
+                              <p className="text-sm font-medium flex items-center gap-1">
+                                <TrendingUp className="h-3 w-3 text-green-600" />
+                                {formatCurrency(referral.commissionEarned)}
+                              </p>
+                            </div>
+                          </div>
                         </div>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Referred: {formatDate(referral.attributed_at)}
-                        </p>
                       </div>
-                      {isActive && <CheckCircle2 className="h-5 w-5 text-green-600" />}
                     </div>
                   );
                 })}
