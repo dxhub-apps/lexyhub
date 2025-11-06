@@ -94,31 +94,35 @@ export function SignupForm({ redirectTo = "/dashboard" }: SignupFormProps): JSX.
       return;
     }
 
-    // Record affiliate referral if exists
-    try {
-      await fetch("/api/affiliate/recordReferral", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: data.user.id }),
-      });
-    } catch (error) {
-      // Don't block signup if affiliate recording fails
-      console.error("Failed to record referral:", error);
-    }
-
-    // Initialize user profile with free tier
-    try {
-      await fetch("/api/auth/init-profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-    } catch (error) {
-      console.error("Failed to initialize profile:", error);
-    }
-
     // Check if email confirmation is required
     if (data.session) {
-      // Auto-confirmed, redirect immediately
+      // Auto-confirmed, proceed with post-signup setup
+
+      // Wait briefly for database triggers to complete (profile and affiliate creation)
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Record affiliate referral if exists
+      try {
+        await fetch("/api/affiliate/recordReferral", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: data.user.id }),
+        });
+      } catch (error) {
+        // Don't block signup if affiliate recording fails
+        console.error("Failed to record referral:", error);
+      }
+
+      // Verify user profile was created (database trigger should have created it)
+      try {
+        await fetch("/api/auth/init-profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (error) {
+        console.error("Failed to verify profile:", error);
+      }
+
       toast({
         title: "Welcome to LexyHub!",
         description: "Your account has been created successfully.",
@@ -128,7 +132,7 @@ export function SignupForm({ redirectTo = "/dashboard" }: SignupFormProps): JSX.
       router.replace(redirectTo);
       router.refresh();
     } else {
-      // Email confirmation required
+      // Email confirmation required - profile will be created when user confirms email
       toast({
         title: "Check your email",
         description: "We've sent you a confirmation link. Please check your email to activate your account.",
