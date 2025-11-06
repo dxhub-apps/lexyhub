@@ -11,7 +11,7 @@ type SupabaseProviderProps = {
 };
 
 export function SupabaseProvider({ initialSession, children }: SupabaseProviderProps): JSX.Element {
-  const [client] = useState<SupabaseClient>(() => {
+  const [client] = useState(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
