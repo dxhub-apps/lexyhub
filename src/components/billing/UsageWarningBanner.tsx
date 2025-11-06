@@ -88,7 +88,7 @@ export function UsageWarningBanner({
         <div>
           <div className="mb-1 flex justify-between text-sm">
             <span>
-              You've used <strong>{used}</strong> of <strong>{limit}</strong> {getQuotaDisplayName(quotaKey)}
+              You&apos;ve used <strong>{used}</strong> of <strong>{limit}</strong> {getQuotaDisplayName(quotaKey)}
             </span>
             <span className="font-semibold">{percentage}%</span>
           </div>
@@ -97,14 +97,14 @@ export function UsageWarningBanner({
 
         {isBlocked && (
           <p className="text-sm">
-            You've reached your {getQuotaDisplayName(quotaKey)} limit for this month.
+            You&apos;ve reached your {getQuotaDisplayName(quotaKey)} limit for this month.
             Upgrade to {getUpgradePlan(currentPlan)} to continue.
           </p>
         )}
 
         {isCritical && (
           <p className="text-sm">
-            You're almost at your limit. Consider upgrading to {getUpgradePlan(currentPlan)}{' '}
+            You&apos;re almost at your limit. Consider upgrading to {getUpgradePlan(currentPlan)}{' '}
             for higher limits and more features.
           </p>
         )}

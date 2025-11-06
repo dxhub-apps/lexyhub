@@ -88,7 +88,7 @@ export function FreePlusExpiredNotice(): JSX.Element {
       </CardHeader>
       <CardContent>
         <p className="mb-3 text-sm text-muted-foreground">
-          You're back to the standard Free plan limits. Want to continue with higher limits?
+          You&apos;re back to the standard Free plan limits. Want to continue with higher limits?
         </p>
         <a
           href="/pricing"

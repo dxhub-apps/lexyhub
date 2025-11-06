@@ -89,7 +89,7 @@ export function GrowthUpsellModal({
             Ready to scale beyond limits?
           </DialogTitle>
           <DialogDescription>
-            You're hitting the ceiling on your {currentPlanConfig?.display_name} plan.
+            You&apos;re hitting the ceiling on your {currentPlanConfig?.display_name} plan.
             Our Growth plan is designed for power users like you.
           </DialogDescription>
         </DialogHeader>
@@ -185,7 +185,7 @@ export function GrowthUpsellModal({
           </div>
 
           <p className="text-center text-xs text-muted-foreground">
-            Growth plan requires consultation. We'll help you determine if it's the right fit.
+            Growth plan requires consultation. We&apos;ll help you determine if it&apos;s the right fit.
           </p>
         </div>
       </DialogContent>

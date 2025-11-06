@@ -90,7 +90,7 @@ export function ExtensionTrialExpiredNotice(): JSX.Element {
       </CardHeader>
       <CardContent>
         <p className="mb-3 text-sm text-muted-foreground">
-          You're back to the Free plan. Continue with Pro features by upgrading today!
+          You&apos;re back to the Free plan. Continue with Pro features by upgrading today!
         </p>
         <a
           href="/pricing"
