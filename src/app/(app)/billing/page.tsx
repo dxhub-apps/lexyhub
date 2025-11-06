@@ -11,7 +11,8 @@ import {
 } from "react";
 
 import { useSession } from "@supabase/auth-helpers-react";
-import { CreditCard, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { CreditCard, CheckCircle2, XCircle, Clock, Sparkles, Zap } from "lucide-react";
 
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,6 +58,7 @@ export default function BillingPage(): JSX.Element {
   const { toast } = useToast();
   const session = useSession();
   const userId = session?.user?.id ?? null;
+  const searchParams = useSearchParams();
   const [billing, setBilling] = useState<BillingPreferences>({
     plan: "spark",
     billingEmail: "",
@@ -67,6 +69,8 @@ export default function BillingPage(): JSX.Element {
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>("unknown");
   const [periodEnd, setPeriodEnd] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState<string>("free");
   const [usage, setUsage] = useState<{
     searches: { used: number; limit: number };
     ai_opportunities: { used: number; limit: number };
@@ -95,6 +99,10 @@ export default function BillingPage(): JSX.Element {
       if (!response.ok) {
         throw new Error(json.error ?? `Failed to load billing data (${response.status})`);
       }
+
+      // Set current plan from profile
+      const profilePlan = json.profile?.plan ?? "free";
+      setCurrentPlan(profilePlan);
 
       setBilling((state) => {
         const nextPlan = (json.profile?.plan ?? json.subscription?.plan ?? state.plan) as BillingPreferences["plan"];
@@ -159,6 +167,51 @@ export default function BillingPage(): JSX.Element {
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  const handleUpgradeClick = async (priceId: string, planName: string) => {
+    if (!userId) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to upgrade your plan.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCheckoutLoading(true);
+    try {
+      // Create a direct Stripe checkout session using the price ID
+      const response = await fetch('/api/billing/checkout/direct', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          priceId,
+          planName,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error ?? 'Failed to create checkout session');
+      }
+
+      // Redirect to Stripe Checkout
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (error) {
+      toast({
+        title: "Checkout failed",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      });
+      setCheckoutLoading(false);
+    }
+  };
 
   const handleBillingSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -232,6 +285,10 @@ export default function BillingPage(): JSX.Element {
   const statusIcon = subscriptionStatus === "active" ? CheckCircle2 : subscriptionStatus === "canceled" ? XCircle : Clock;
   const StatusIcon = statusIcon;
 
+  // Check if user should see upgrade CTAs
+  const showUpgradeCTA = currentPlan === "free" || currentPlan === "spark";
+  const showFoundersDeal = searchParams?.get("upgrade") === "founders";
+
   return (
     <div className="space-y-8">
       <Card>
@@ -246,7 +303,7 @@ export default function BillingPage(): JSX.Element {
                 </CardDescription>
               </div>
             </div>
-            <Badge variant="outline" className="text-sm">Plan: {billing.plan.toUpperCase()}</Badge>
+            <Badge variant="outline" className="text-sm">Plan: {currentPlan.toUpperCase()}</Badge>
           </div>
         </CardHeader>
         <CardContent>
@@ -273,6 +330,102 @@ export default function BillingPage(): JSX.Element {
           </div>
         </CardContent>
       </Card>
+
+      {/* Founders Deal CTA - Show if coming from sidebar */}
+      {showFoundersDeal && showUpgradeCTA && (
+        <Card className="border-blue-600 border-2 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950">
+          <CardHeader>
+            <div className="flex items-start gap-3">
+              <Sparkles className="h-6 w-6 text-blue-600" />
+              <div className="space-y-1">
+                <CardTitle className="text-2xl font-bold text-blue-600">Founders Deal — Limited Time Only!</CardTitle>
+                <CardDescription className="text-base">
+                  Get the LexyHub Basic Plan for only $39/year. Lock in this exclusive price now!
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <span className="text-sm">100 searches per month</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <span className="text-sm">10 AI opportunities per month</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <span className="text-sm">5 niches maximum</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <span className="text-sm">Priority support</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <Button
+                size="lg"
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => handleUpgradeClick('price_1SQPWO3enLCiqy1Oll2Lhd54', 'Basic Plan (Founders Deal)')}
+                disabled={checkoutLoading}
+              >
+                {checkoutLoading ? "Loading..." : "Claim Founders Deal - $39/year"}
+              </Button>
+              <div className="text-sm text-muted-foreground">
+                <span className="line-through">$99/year</span>
+                <span className="ml-2 font-bold text-green-600">Save 61%!</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Regular Basic Plan Upgrade CTA - Show for free users */}
+      {showUpgradeCTA && !showFoundersDeal && (
+        <Card className="border-purple-600 border-2">
+          <CardHeader>
+            <div className="flex items-start gap-3">
+              <Zap className="h-6 w-6 text-purple-600" />
+              <div className="space-y-1">
+                <CardTitle className="text-2xl font-bold">Upgrade to Basic Plan</CardTitle>
+                <CardDescription className="text-base">
+                  Unlock more searches, AI opportunities, and niches to grow your business.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <span className="text-sm">100 searches per month</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <span className="text-sm">10 AI opportunities per month</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <span className="text-sm">5 niches maximum</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <span className="text-sm">Priority support</span>
+              </div>
+            </div>
+            <Button
+              size="lg"
+              className="bg-purple-600 hover:bg-purple-700"
+              onClick={() => handleUpgradeClick('price_1SQOdz3enLCiqy1O4KF74msU', 'Basic Plan')}
+              disabled={checkoutLoading}
+            >
+              {checkoutLoading ? "Loading..." : "Upgrade to Basic Plan"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
