@@ -14,6 +14,18 @@ export async function ensureAdminProfile(user: User): Promise<{ plan: string | n
     return { plan: null };
   }
 
+  // First ensure the profile exists using RPC function
+  if (!user.id) {
+    console.warn("User ID is missing; unable to ensure profile.");
+    return { plan: null };
+  }
+
+  // Call RPC to ensure profile exists before fetching
+  const { error: rpcError } = await supabase.rpc('ensure_user_profile', { p_user_id: user.id });
+  if (rpcError) {
+    console.error("Failed to ensure user profile via RPC:", rpcError);
+  }
+
   const { plan: existingPlan, momentum, quota } = await fetchUserPlan(supabase, user.id);
 
   const elevateToAdmin = shouldElevateToAdmin(user, existingPlan);

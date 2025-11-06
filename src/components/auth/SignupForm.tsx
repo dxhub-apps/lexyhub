@@ -98,8 +98,19 @@ export function SignupForm({ redirectTo = "/dashboard" }: SignupFormProps): JSX.
     if (data.session) {
       // Auto-confirmed, proceed with post-signup setup
 
-      // Wait briefly for database triggers to complete (profile and affiliate creation)
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Create user profile using RPC function (this will also trigger affiliate creation)
+      try {
+        const profileResponse = await fetch("/api/auth/init-profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (!profileResponse.ok) {
+          console.error("Failed to initialize profile:", await profileResponse.text());
+        }
+      } catch (error) {
+        console.error("Failed to initialize profile:", error);
+      }
 
       // Record affiliate referral if exists
       try {
@@ -113,16 +124,6 @@ export function SignupForm({ redirectTo = "/dashboard" }: SignupFormProps): JSX.
         console.error("Failed to record referral:", error);
       }
 
-      // Verify user profile was created (database trigger should have created it)
-      try {
-        await fetch("/api/auth/init-profile", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        });
-      } catch (error) {
-        console.error("Failed to verify profile:", error);
-      }
-
       toast({
         title: "Welcome to LexyHub!",
         description: "Your account has been created successfully.",
@@ -132,7 +133,7 @@ export function SignupForm({ redirectTo = "/dashboard" }: SignupFormProps): JSX.
       router.replace(redirectTo);
       router.refresh();
     } else {
-      // Email confirmation required - profile will be created when user confirms email
+      // Email confirmation required - profile will be created on first login
       toast({
         title: "Check your email",
         description: "We've sent you a confirmation link. Please check your email to activate your account.",
