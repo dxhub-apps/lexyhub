@@ -184,20 +184,22 @@ export async function handleCheckoutCompleted(session: Stripe.Checkout.Session):
     });
   }
 
-  // Track pricing analytics - checkout completed
-  await supabase.from("pricing_analytics").insert({
-    user_id: userId,
-    session_id: session.id,
-    event_type: 'checkout_completed',
-    plan_code: planCode || null,
-    billing_cycle: billingCycle as 'monthly' | 'annual' | null,
-    metadata: {
-      stripe_customer_id: session.customer,
-      stripe_subscription_id: session.subscription,
-    },
-  }).catch((error) => {
+  // Track pricing analytics - checkout completed (optional, don't block on errors)
+  try {
+    await supabase.from("pricing_analytics").insert({
+      user_id: userId,
+      session_id: session.id,
+      event_type: 'checkout_completed',
+      plan_code: planCode || null,
+      billing_cycle: billingCycle as 'monthly' | 'annual' | null,
+      metadata: {
+        stripe_customer_id: session.customer,
+        stripe_subscription_id: session.subscription,
+      },
+    });
+  } catch (error) {
     console.warn("Failed to track checkout_completed analytics", error);
-  });
+  }
 
   console.log(`Checkout completed for user ${userId}, plan ${planCode}, customer ${session.customer}`);
 }
