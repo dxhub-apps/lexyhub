@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { PricingMetricsCards, type PricingMetrics } from "@/components/admin/PricingMetricsCard";
 
 type RiskHeatMapCell = {
   severity: string;
@@ -154,29 +155,45 @@ export default function BackofficeOverviewPage(): JSX.Element {
   const [metrics, setMetrics] = useState<HealthMetric[]>([]);
   const [crawlers, setCrawlers] = useState<CrawlerStatus[]>([]);
   const [riskSummary, setRiskSummary] = useState<RiskSummary | null>(null);
+  const [pricingMetrics, setPricingMetrics] = useState<PricingMetrics | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     const load = async () => {
       try {
-        const response = await fetch("/api/admin/backoffice/overview", {
-          headers: { "x-user-role": "admin" },
-        });
-        if (!response.ok) {
-          const payload = await response.json().catch(() => ({}));
-          throw new Error(payload.error ?? `Overview request failed (${response.status})`);
+        // Fetch both overview and pricing metrics in parallel
+        const [overviewResponse, pricingResponse] = await Promise.all([
+          fetch("/api/admin/backoffice/overview", {
+            headers: { "x-user-role": "admin" },
+          }),
+          fetch("/api/admin/pricing-metrics", {
+            headers: { "x-user-role": "admin" },
+          }),
+        ]);
+
+        if (!overviewResponse.ok) {
+          const payload = await overviewResponse.json().catch(() => ({}));
+          throw new Error(payload.error ?? `Overview request failed (${overviewResponse.status})`);
         }
-        const payload = (await response.json()) as {
+
+        const payload = (await overviewResponse.json()) as {
           metrics: HealthMetric[];
           crawlers: CrawlerStatus[];
           riskSummary?: (RiskSummary & { heatMap?: RiskHeatMap | null }) | null;
         };
+
         if (!active) return;
         setMetrics(payload.metrics ?? []);
         setCrawlers(payload.crawlers ?? []);
         const summary = payload.riskSummary ?? null;
         setRiskSummary(summary ? { ...summary, heatMap: summary.heatMap ?? null } : null);
+
+        // Handle pricing metrics
+        if (pricingResponse.ok) {
+          const pricingData = (await pricingResponse.json()) as PricingMetrics;
+          setPricingMetrics(pricingData);
+        }
       } catch (err) {
         console.error(err);
         if (active) {
@@ -258,6 +275,20 @@ export default function BackofficeOverviewPage(): JSX.Element {
             </Card>
           )}
         </div>
+      </div>
+
+      {/* Pricing & Subscription Metrics */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Pricing & Subscriptions</h2>
+        {pricingMetrics ? (
+          <PricingMetricsCards metrics={pricingMetrics} />
+        ) : (
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-muted-foreground">Loading pricing metrics…</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <Card>
