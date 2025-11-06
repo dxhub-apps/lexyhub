@@ -237,7 +237,9 @@ async function main(): Promise<void> {
       }
 
       const task = response.tasks[0];
-      if (task.status_code !== 20000) {
+      // DataForSEO success codes are in range 20000-20999
+      // 20000 = "Ok.", 20100 = "Task Created."
+      if (task.status_code < 20000 || task.status_code >= 21000) {
         throw new Error(
           `Task post failed: ${task.status_message} (${task.status_code})`
         );
