@@ -47,9 +47,12 @@ function formatAmount(cents?: number | null): string {
 }
 
 // Stripe price IDs for checkout
+// TODO: Add your Pro plan Stripe price IDs from your Stripe dashboard
 const STRIPE_PRICES: Record<string, string> = {
   'basic_monthly': 'price_1SQOdz3enLCiqy1O4KF74msU',
   'basic_annual': 'price_1SQPWO3enLCiqy1Oll2Lhd54', // Founders Deal
+  'pro_monthly': process.env.NEXT_PUBLIC_STRIPE_PRO_MONTHLY_PRICE_ID || 'price_pro_monthly_placeholder',
+  'pro_annual': process.env.NEXT_PUBLIC_STRIPE_PRO_ANNUAL_PRICE_ID || 'price_pro_annual_placeholder',
 };
 
 export default function BillingPage(): JSX.Element {
@@ -479,6 +482,14 @@ export default function BillingPage(): JSX.Element {
                         <Button
                           className="w-full"
                           onClick={() => handleUpgradeClick(STRIPE_PRICES.basic_monthly, 'Basic Plan')}
+                          disabled={checkoutLoading}
+                        >
+                          {isUpgrade ? 'Upgrade' : isDowngrade ? 'Downgrade' : 'Get Started'}
+                        </Button>
+                      ) : plan.plan_code === 'pro' ? (
+                        <Button
+                          className="w-full"
+                          onClick={() => handleUpgradeClick(STRIPE_PRICES.pro_monthly, 'Pro Plan')}
                           disabled={checkoutLoading}
                         >
                           {isUpgrade ? 'Upgrade' : isDowngrade ? 'Downgrade' : 'Get Started'}
