@@ -3,7 +3,6 @@
 export const dynamic = 'force-dynamic';
 
 import {
-  FormEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -12,17 +11,17 @@ import {
 
 import { useSession } from "@supabase/auth-helpers-react";
 import { useSearchParams } from "next/navigation";
-import { CreditCard, CheckCircle2, XCircle, Clock, Sparkles, Zap } from "lucide-react";
+import { CreditCard, CheckCircle2, XCircle, Clock, Sparkles, Zap, Check } from "lucide-react";
 
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { UsageChip } from "@/components/billing/UsageChip";
+import { PLAN_CONFIGS, getVisiblePlans } from "@/lib/billing/plans";
+import type { PlanCode } from "@/lib/billing/types";
+import { formatPrice } from "@/lib/billing/types";
 
 const PLAN_SUMMARY: Record<string, string> = {
   free: "Perfect for exploring LexyHub features with basic limits.",
@@ -47,11 +46,10 @@ function formatAmount(cents?: number | null): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
 }
 
-type BillingPreferences = {
-  plan: "spark" | "scale" | "apex";
-  billingEmail: string;
-  autoRenew: boolean;
-  paymentMethod: string;
+// Stripe price IDs for checkout
+const STRIPE_PRICES: Record<string, string> = {
+  'basic_monthly': 'price_1SQOdz3enLCiqy1O4KF74msU',
+  'basic_annual': 'price_1SQPWO3enLCiqy1Oll2Lhd54', // Founders Deal
 };
 
 export default function BillingPage(): JSX.Element {
@@ -59,18 +57,14 @@ export default function BillingPage(): JSX.Element {
   const session = useSession();
   const userId = session?.user?.id ?? null;
   const searchParams = useSearchParams();
-  const [billing, setBilling] = useState<BillingPreferences>({
-    plan: "spark",
-    billingEmail: "",
-    autoRenew: true,
-    paymentMethod: "",
-  });
   const [invoiceHistory, setInvoiceHistory] = useState<InvoiceHistoryRow[]>([]);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>("unknown");
   const [periodEnd, setPeriodEnd] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [currentPlan, setCurrentPlan] = useState<string>("free");
+  const [currentPlan, setCurrentPlan] = useState<PlanCode>("free");
+  const [autoRenew, setAutoRenew] = useState<boolean>(true);
+  const [stripeSubscriptionId, setStripeSubscriptionId] = useState<string | null>(null);
   const [usage, setUsage] = useState<{
     searches: { used: number; limit: number };
     ai_opportunities: { used: number; limit: number };
@@ -80,11 +74,11 @@ export default function BillingPage(): JSX.Element {
     ai_opportunities: { used: 0, limit: 2 },
     niches: { used: 0, limit: 1 },
   });
-  const activePlanSummary = useMemo(() => PLAN_SUMMARY[billing.plan], [billing.plan]);
+  const activePlanSummary = useMemo(() => PLAN_SUMMARY[currentPlan] || "Manage your subscription and usage.", [currentPlan]);
+  const visiblePlans = useMemo(() => getVisiblePlans(), []);
 
   const loadData = useCallback(async () => {
     if (!userId) {
-      setBilling({ plan: "spark", billingEmail: "", autoRenew: true, paymentMethod: "" });
       setInvoiceHistory([]);
       setSubscriptionStatus("unknown");
       setPeriodEnd(null);
@@ -102,22 +96,11 @@ export default function BillingPage(): JSX.Element {
 
       // Set current plan from profile
       const profilePlan = json.profile?.plan ?? "free";
-      setCurrentPlan(profilePlan);
+      setCurrentPlan(profilePlan as PlanCode);
 
-      setBilling((state) => {
-        const nextPlan = (json.profile?.plan ?? json.subscription?.plan ?? state.plan) as BillingPreferences["plan"];
-        const normalizedPlan: BillingPreferences["plan"] =
-          nextPlan === "spark" || nextPlan === "scale" || nextPlan === "apex" ? nextPlan : state.plan;
-
-        const settings = (json.profile?.settings ?? {}) as { payment_method_label?: string };
-
-        return {
-          plan: normalizedPlan,
-          billingEmail: json.subscription?.metadata?.billing_email ?? state.billingEmail ?? "",
-          autoRenew: !(json.subscription?.cancel_at_period_end ?? false),
-          paymentMethod: settings.payment_method_label ?? state.paymentMethod ?? "",
-        };
-      });
+      // Set subscription details
+      setAutoRenew(!(json.subscription?.cancel_at_period_end ?? false));
+      setStripeSubscriptionId(json.subscription?.stripe_subscription_id ?? null);
 
       setInvoiceHistory(
         (json.invoices ?? []).map(
@@ -213,69 +196,37 @@ export default function BillingPage(): JSX.Element {
     }
   };
 
-  const handleBillingSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleManageBilling = async () => {
     if (!userId) {
       toast({
-        title: "Subscription unavailable",
-        description: "You must be signed in to manage billing preferences.",
+        title: "Authentication required",
+        description: "Please sign in to manage your billing.",
         variant: "destructive",
       });
       return;
     }
-    try {
-      const response = await fetch(`/api/billing/subscription?userId=${encodeURIComponent(userId)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(billing),
-      });
-      const json = await response.json();
-      if (!response.ok) {
-        throw new Error(json.error ?? "Failed to update billing");
-      }
-      toast({
-        title: "Subscription updated",
-        description: "Your billing preferences have been saved.",
-        variant: "success",
-      });
-      await loadData();
-    } catch (error) {
-      toast({
-        title: "Update failed",
-        description: error instanceof Error ? error.message : String(error),
-        variant: "destructive",
-      });
-    }
-  };
 
-  const handleCancelPlan = async () => {
-    if (!userId) {
-      toast({
-        title: "Cancellation unavailable",
-        description: "You must be signed in to manage your plan.",
-        variant: "destructive",
-      });
-      return;
-    }
     try {
-      const response = await fetch(`/api/billing/subscription?userId=${encodeURIComponent(userId)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...billing, autoRenew: false }),
+      const response = await fetch('/api/billing/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
       });
-      const json = await response.json();
+
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error(json.error ?? "Failed to schedule cancellation");
+        throw new Error(data.error ?? 'Failed to access billing portal');
       }
-      toast({
-        title: "Cancellation scheduled",
-        description: "Your plan will remain active until the current cycle ends.",
-        variant: "warning",
-      });
-      await loadData();
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No portal URL returned');
+      }
     } catch (error) {
       toast({
-        title: "Cancellation failed",
+        title: "Portal unavailable",
         description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
@@ -286,8 +237,9 @@ export default function BillingPage(): JSX.Element {
   const StatusIcon = statusIcon;
 
   // Check if user should see upgrade CTAs
-  const showUpgradeCTA = currentPlan === "free" || currentPlan === "spark";
+  const showUpgradeCTA = currentPlan === "free" || currentPlan === "basic";
   const showFoundersDeal = searchParams?.get("upgrade") === "founders";
+  const currentPlanConfig = PLAN_CONFIGS[currentPlan];
 
   return (
     <div className="space-y-8">
@@ -299,11 +251,11 @@ export default function BillingPage(): JSX.Element {
               <div className="space-y-1">
                 <CardTitle className="text-3xl font-bold">Billing &amp; Subscription</CardTitle>
                 <CardDescription className="text-base">
-                  Manage your subscription plan, billing preferences, and usage.
+                  Manage your subscription plan and usage.
                 </CardDescription>
               </div>
             </div>
-            <Badge variant="outline" className="text-sm">Plan: {currentPlan.toUpperCase()}</Badge>
+            <Badge variant="outline" className="text-sm">Plan: {currentPlanConfig.display_name}</Badge>
           </div>
         </CardHeader>
         <CardContent>
@@ -317,7 +269,7 @@ export default function BillingPage(): JSX.Element {
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-sm text-muted-foreground">Auto-renew</span>
-              <span className="text-sm font-medium">{billing.autoRenew ? "Enabled" : "Disabled"}</span>
+              <span className="text-sm font-medium">{autoRenew ? "Enabled" : "Disabled"}</span>
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-sm text-muted-foreground">Period end</span>
@@ -460,102 +412,98 @@ export default function BillingPage(): JSX.Element {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-muted-foreground" />
-                <CardTitle>Billing Preferences</CardTitle>
-              </div>
-              <CardDescription>Manage your subscription plan and billing preferences.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleBillingSubmit} className="space-y-6">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="plan">Plan</Label>
-                    <Select
-                      value={billing.plan}
-                      onValueChange={(value) =>
-                        setBilling((state) => ({ ...state, plan: value as BillingPreferences["plan"] }))
-                      }
-                      disabled={loading}
-                    >
-                      <SelectTrigger id="plan">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="spark">Spark</SelectItem>
-                        <SelectItem value="scale">Scale</SelectItem>
-                        <SelectItem value="apex">Apex</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+      {/* Plans Comparison Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Available Plans</CardTitle>
+          <CardDescription>
+            Compare plans and choose the one that fits your needs.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {visiblePlans.map((plan) => {
+              const isCurrentPlan = plan.plan_code === currentPlan;
+              const isDowngrade = PLAN_CONFIGS[currentPlan] && plan.sort_order < PLAN_CONFIGS[currentPlan].sort_order;
+              const isUpgrade = PLAN_CONFIGS[currentPlan] && plan.sort_order > PLAN_CONFIGS[currentPlan].sort_order;
 
-                  <div className="space-y-2">
-                    <Label htmlFor="billing-email">Billing email</Label>
-                    <Input
-                      id="billing-email"
-                      type="email"
-                      value={billing.billingEmail}
-                      onChange={(event) => setBilling((state) => ({ ...state, billingEmail: event.target.value }))}
-                      disabled={loading}
-                      placeholder="billing@company.com"
-                      autoComplete="email"
-                    />
-                  </div>
+              return (
+                <Card
+                  key={plan.plan_code}
+                  className={isCurrentPlan ? "border-blue-600 border-2" : ""}
+                >
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-xl">{plan.display_name}</CardTitle>
+                      {isCurrentPlan && (
+                        <Badge variant="default">Current</Badge>
+                      )}
+                    </div>
+                    <div className="text-2xl font-bold">
+                      {formatPrice(plan.price_monthly_cents, 'monthly')}
+                    </div>
+                    <CardDescription className="text-xs">
+                      {formatPrice(plan.price_annual_cents, 'annual')} billed annually
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <ul className="space-y-2 text-sm">
+                      {plan.features.map((feature, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="payment-method">Payment method label</Label>
-                    <Input
-                      id="payment-method"
-                      value={billing.paymentMethod}
-                      onChange={(event) => setBilling((state) => ({ ...state, paymentMethod: event.target.value }))}
-                      disabled={loading}
-                      placeholder="Corporate Amex"
-                    />
-                  </div>
-                </div>
+                    <div className="pt-4">
+                      {isCurrentPlan ? (
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          onClick={handleManageBilling}
+                          disabled={!stripeSubscriptionId}
+                        >
+                          Manage Billing
+                        </Button>
+                      ) : plan.plan_code === 'basic' ? (
+                        <Button
+                          className="w-full"
+                          onClick={() => handleUpgradeClick(STRIPE_PRICES.basic_monthly, 'Basic Plan')}
+                          disabled={checkoutLoading}
+                        >
+                          {isUpgrade ? 'Upgrade' : isDowngrade ? 'Downgrade' : 'Get Started'}
+                        </Button>
+                      ) : (
+                        <Button
+                          className="w-full"
+                          variant="outline"
+                          disabled
+                        >
+                          Coming Soon
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
-                <div className="flex items-center space-x-2">
-                  <input
-                    id="auto-renew"
-                    type="checkbox"
-                    checked={billing.autoRenew}
-                    onChange={(event) => setBilling((state) => ({ ...state, autoRenew: event.target.checked }))}
-                    disabled={loading}
-                    className="h-4 w-4 rounded border-input"
-                  />
-                  <Label htmlFor="auto-renew" className="cursor-pointer font-normal">Auto-renew plan</Label>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <Button type="submit" disabled={loading}>Save billing settings</Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleCancelPlan}
-                    disabled={loading}
-                  >
-                    Cancel at period end
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-
+      {/* Subscription Details */}
+      <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Subscription</CardTitle>
-            <CardDescription>Your subscription status and billing history.</CardDescription>
+            <CardTitle>Subscription Details</CardTitle>
+            <CardDescription>Your current subscription information.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <dl className="space-y-3 text-sm">
               <div className="flex justify-between border-b border-border pb-2">
                 <dt className="font-medium">Current plan</dt>
-                <dd className="text-muted-foreground">{billing.plan.toUpperCase()}</dd>
+                <dd className="text-muted-foreground">{currentPlanConfig.display_name}</dd>
               </div>
               <div className="flex justify-between border-b border-border pb-2">
                 <dt className="font-medium">Status</dt>
@@ -566,18 +514,35 @@ export default function BillingPage(): JSX.Element {
               </div>
               <div className="flex justify-between border-b border-border pb-2">
                 <dt className="font-medium">Auto-renew</dt>
-                <dd className="text-muted-foreground">{billing.autoRenew ? "Enabled" : "Disabled"}</dd>
+                <dd className="text-muted-foreground">{autoRenew ? "Enabled" : "Disabled"}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="font-medium">Current period end</dt>
-                <dd className="text-muted-foreground">{periodEnd ? new Date(periodEnd).toLocaleString() : "—"}</dd>
+                <dd className="text-muted-foreground">{periodEnd ? new Date(periodEnd).toLocaleDateString() : "—"}</dd>
               </div>
             </dl>
 
-            <Separator />
+            {stripeSubscriptionId && (
+              <div className="pt-4">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleManageBilling}
+                >
+                  Manage Payment & Billing
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle>Invoice History</CardTitle>
+            <CardDescription>Your recent billing invoices.</CardDescription>
+          </CardHeader>
+          <CardContent>
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold">Invoice history</h3>
               {invoiceHistory.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No invoices yet.</p>
               ) : (
