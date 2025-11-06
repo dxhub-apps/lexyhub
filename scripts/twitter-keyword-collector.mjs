@@ -24,9 +24,8 @@ if (!TWITTER_BEARER_TOKEN) {
 }
 
 // Monthly limit tracking
-const MONTHLY_LIMIT = Number(process.env.TWITTER_MONTHLY_LIMIT || 1500);
-const DAILY_BUDGET = Math.floor(MONTHLY_LIMIT / 30);
-const PER_RUN_BUDGET = Number(process.env.TWITTER_PER_RUN_BUDGET || Math.floor(DAILY_BUDGET / 48)); // 48 runs per day (every 30min)
+const MONTHLY_LIMIT = Number(process.env.TWITTER_MONTHLY_LIMIT || 100);
+const PER_RUN_BUDGET = Number(process.env.TWITTER_PER_RUN_BUDGET || 50); // Default: 50 tweets per run (2 runs/month)
 
 // Tracking configuration
 const TRACKING_ACCOUNTS = [
@@ -39,15 +38,13 @@ const TRACKING_ACCOUNTS = [
   "printify",
 ];
 
+// Reduced to 5 hashtags to fit 100 tweets/month budget (5 × 10 = 50 per run, 2 runs/month)
 const TRACKING_HASHTAGS = [
   "#etsyseller",
-  "#etsyshop",
   "#printondemand",
   "#ecommerce",
   "#smallbusiness",
   "#handmade",
-  "#shopsmall",
-  "#productdesign",
 ];
 
 const NGRAM_MIN = 2;

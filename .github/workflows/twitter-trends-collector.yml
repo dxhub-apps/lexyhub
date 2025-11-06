@@ -2,7 +2,7 @@ name: Twitter Trends Collector
 
 on:
   schedule:
-    - cron: "0 2 * * *"  # Daily at 2 AM UTC (1 run/day, 50/run = 50/day, 1,500/month)
+    - cron: "0 2 1,15 * *"  # Twice per month: 1st and 15th at 2 AM UTC (50 tweets × 2 = 100/month)
   workflow_dispatch:
     inputs:
       per_run_budget:
@@ -38,8 +38,8 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
-          TWITTER_MONTHLY_LIMIT: 1500
-          TWITTER_PER_RUN_BUDGET: ${{ github.event.inputs.per_run_budget || '31' }}
+          TWITTER_MONTHLY_LIMIT: 100
+          TWITTER_PER_RUN_BUDGET: ${{ github.event.inputs.per_run_budget || '50' }}
         run: |
           n=0
           until [ $n -ge 3 ]
