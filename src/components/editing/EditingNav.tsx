@@ -13,25 +13,25 @@ type NavItem = {
 };
 
 /**
- * Editing Suite navigation items
+ * Etsy Suite navigation items
  *
- * Defines the primary navigation structure for the editing suite.
+ * Defines the primary navigation structure for the Etsy Suite.
  * Each item includes:
  * - href: Route path
  * - label: Display name
  * - description: Short descriptor for context
  */
 const NAV_ITEMS: readonly NavItem[] = [
-  { href: "/editing", label: "Overview", description: "Feature tour" },
-  { href: "/editing/listing-intelligence", label: "Listing intelligence", description: "Scorecards" },
-  { href: "/editing/competitor-analysis", label: "Competitor analysis", description: "Benchmark" },
-  { href: "/editing/tag-optimizer", label: "Tag optimizer", description: "Search lift" },
+  { href: "/editing", label: "Overview", description: "All tools" },
+  { href: "/editing/listing-intelligence", label: "Listing Intelligence", description: "Quality scores" },
+  { href: "/editing/competitor-analysis", label: "Competitor Analysis", description: "Market insights" },
+  { href: "/editing/tag-optimizer", label: "Tag Optimizer", description: "Better tags" },
 ] as const;
 
 /**
  * EditingNav Component
  *
- * Client-side navigation for the editing suite that tracks the current route
+ * Client-side navigation for the Etsy Suite that tracks the current route
  * and highlights the active tab. Uses Next.js usePathname hook for routing.
  *
  * Features:
@@ -48,7 +48,7 @@ export function EditingNav(): JSX.Element {
   const pathname = usePathname();
 
   return (
-    <nav className="editing-nav" role="navigation" aria-label="Editing suite navigation">
+    <nav className="editing-nav" role="navigation" aria-label="Etsy suite navigation">
       {NAV_ITEMS.map((item) => {
         const isActive = pathname === item.href;
 

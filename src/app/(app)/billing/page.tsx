@@ -26,10 +26,8 @@ import { formatPrice } from "@/lib/billing/types";
 const PLAN_SUMMARY: Record<string, string> = {
   free: "Perfect for exploring LexyHub features with basic limits.",
   basic: "Essential tools for growing sellers with increased capacity.",
-  pro: "Unlimited access to all features for serious entrepreneurs.",
-  spark: "Essential tools for growing sellers with increased capacity.",
-  scale: "Unlimited access to all features for serious entrepreneurs.",
-  apex: "Unlimited access to all features for serious entrepreneurs.",
+  pro: "Advanced features and higher limits for professional sellers.",
+  growth: "Unlimited access to all features for serious entrepreneurs.",
 };
 
 type InvoiceHistoryRow = {
