@@ -1,0 +1,106 @@
+name: DataForSEO K4K Ingestion
+
+on:
+  schedule:
+    # Daily at 3 AM UTC (off-peak hours)
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      batch_max_seeds:
+        description: "Maximum number of seeds to process (1-50000)"
+        required: false
+        default: "5000"
+      dry_run:
+        description: "Dry run mode (estimate only, no API calls)"
+        required: false
+        type: boolean
+        default: false
+      language_code:
+        description: "Override default language code (e.g., en, es, fr)"
+        required: false
+        default: ""
+      location_code:
+        description: "Override default location code (e.g., 2840 for USA)"
+        required: false
+        default: ""
+      log_level:
+        description: "Log level"
+        required: false
+        type: choice
+        options:
+          - info
+          - debug
+          - warn
+          - error
+        default: info
+
+permissions:
+  contents: read
+
+jobs:
+  ingest:
+    name: Ingest DataForSEO Keywords For Keywords
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run DataForSEO K4K ingestion
+        env:
+          # DataForSEO credentials
+          DATAFORSEO_LOGIN: ${{ secrets.DATAFORSEO_LOGIN }}
+          DATAFORSEO_PASSWORD: ${{ secrets.DATAFORSEO_PASSWORD }}
+
+          # Database connection (Supabase)
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+          # Business logic defaults
+          LEXYHUB_MARKET: "google"
+          DEFAULT_LANGUAGE_CODE: ${{ github.event.inputs.language_code || 'en' }}
+          DEFAULT_LOCATION_CODE: ${{ github.event.inputs.location_code || '2840' }}
+
+          # K4K task parameters
+          K4K_MAX_TERMS_PER_TASK: "20"
+          K4K_DEVICE: "desktop"
+          K4K_SEARCH_PARTNERS: "false"
+          K4K_INCLUDE_ADULT: "false"
+
+          # Batch and concurrency
+          BATCH_MAX_SEEDS: ${{ github.event.inputs.batch_max_seeds || '5000' }}
+          CONCURRENCY_TASK_POST: "20"
+          CONCURRENCY_TASK_GET: "20"
+
+          # Polling
+          POLL_INTERVAL_MS: "4000"
+          POLL_TIMEOUT_MS: "900000"
+
+          # Execution control
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          LOG_LEVEL: ${{ github.event.inputs.log_level || 'info' }}
+        run: npm run jobs:dataforseo-k4k
+
+      - name: Report success
+        if: success()
+        run: |
+          echo "✅ DataForSEO K4K ingestion completed successfully"
+          echo "Check logs above for run summary"
+
+      - name: Report failure
+        if: failure()
+        run: |
+          echo "❌ DataForSEO K4K ingestion failed"
+          echo "Check logs above for error details"
+          exit 1
