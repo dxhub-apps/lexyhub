@@ -405,11 +405,11 @@ async function main() {
     // Check if feature is enabled
     const { data: featureFlag } = await db
       .from("feature_flags")
-      .select("enabled")
-      .eq("flag_name", "twitter_collection")
+      .select("is_enabled")
+      .eq("key", "twitter_collection")
       .maybeSingle();
 
-    if (!featureFlag || !featureFlag.enabled) {
+    if (!featureFlag || !featureFlag.is_enabled) {
       console.log("twitter_collection:disabled by feature flag");
       return;
     }

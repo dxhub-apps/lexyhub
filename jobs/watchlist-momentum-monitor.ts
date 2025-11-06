@@ -23,11 +23,11 @@ async function main() {
     // Check if feature is enabled
     const { data: featureFlag } = await supabase
       .from("feature_flags")
-      .select("enabled")
-      .eq("flag_name", "watchlist_alerts")
+      .select("is_enabled")
+      .eq("key", "watchlist_alerts")
       .maybeSingle();
 
-    if (!featureFlag || !featureFlag.enabled) {
+    if (!featureFlag || !featureFlag.is_enabled) {
       console.log("[INFO] Watchlist alerts disabled by feature flag");
       return;
     }

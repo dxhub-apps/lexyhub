@@ -450,11 +450,11 @@ async function main() {
     // Check if feature is enabled
     const { data: featureFlag } = await db
       .from("feature_flags")
-      .select("enabled")
-      .eq("flag_name", "pinterest_collection")
+      .select("is_enabled")
+      .eq("key", "pinterest_collection")
       .maybeSingle();
 
-    if (!featureFlag || !featureFlag.enabled) {
+    if (!featureFlag || !featureFlag.is_enabled) {
       console.log("pinterest_collection:disabled by feature flag");
       return;
     }
