@@ -451,7 +451,7 @@ async function main(): Promise<void> {
 
   logger.info(summary, "RUN_SUMMARY");
 
-  logJobExecution("dataforseo-k4k", "completed", durationMs, summary);
+  logJobExecution("dataforseo-k4k", "completed", durationMs, summary as Record<string, unknown>);
 
   // Determine exit code
   if (pollResult.failed.length > 0 || pollResult.timedOut.length > 0) {
