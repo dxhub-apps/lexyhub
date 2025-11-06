@@ -10,7 +10,14 @@ export async function middleware(request: NextRequest) {
   const response = NextResponse.next({ request: { headers: request.headers } });
   const { pathname, searchParams } = request.nextUrl;
 
-  // Affiliate click capture (before auth checks so it works for logged-out visitors)
+  const supabase = createMiddlewareClient({ req: request, res: response });
+
+  // Use getUser() first for secure authentication validation
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Affiliate click capture (before other redirects so it works for logged-out visitors)
   const ref = searchParams.get("ref");
   if (ref) {
     // Set 90-day cookie
@@ -32,14 +39,20 @@ export async function middleware(request: NextRequest) {
         utm: Object.fromEntries(searchParams),
       }),
     }).catch(() => {}); // Silently ignore errors
+
+    // Redirect non-logged-in users to signup page
+    // This ensures affiliate links always send new users to signup
+    // Existing users are not counted as referrals
+    if (!user && pathname !== "/signup") {
+      const signupUrl = new URL("/signup", request.url);
+      // Preserve all original query params including ref
+      for (const [key, value] of searchParams.entries()) {
+        signupUrl.searchParams.set(key, value);
+      }
+      return NextResponse.redirect(signupUrl);
+    }
+    // If user is already logged in, don't redirect - referral won't be counted
   }
-
-  const supabase = createMiddlewareClient({ req: request, res: response });
-
-  // Use getUser() first for secure authentication validation
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   // Only get session after user is validated
   const {
