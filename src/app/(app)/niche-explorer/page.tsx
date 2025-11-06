@@ -9,9 +9,6 @@ import {
   BarChart3,
   Target,
   Sparkles,
-  Plus,
-  Download,
-  FileText,
   Loader2,
   Globe,
   Activity,
@@ -141,27 +138,6 @@ export default function NicheExplorerPage(): JSX.Element {
     return analysis.keywords.filter((kw) => kw.freshness === "stable");
   }, [analysis, filterMode]);
 
-  const toggleKeywordSelection = (term: string) => {
-    setSelectedKeywords((prev) =>
-      prev.includes(term) ? prev.filter((t) => t !== term) : [...prev, term]
-    );
-  };
-
-  const addToWatchlist = async () => {
-    if (selectedKeywords.length === 0) {
-      toast({
-        title: "No keywords selected",
-        description: "Select keywords to add to your watchlist",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    toast({
-      title: "Feature coming soon",
-      description: `Will add ${selectedKeywords.length} keywords to watchlist`,
-    });
-  };
 
   const getMomentumColor = (momentum: string): string => {
     if (momentum === "expanding") return "text-green-600";
@@ -331,20 +307,6 @@ export default function NicheExplorerPage(): JSX.Element {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b bg-muted/50">
-                      <th className="px-4 py-3 text-left text-sm font-medium">
-                        <input
-                          type="checkbox"
-                          checked={selectedKeywords.length === filteredKeywords.length && filteredKeywords.length > 0}
-                          onChange={() => {
-                            if (selectedKeywords.length === filteredKeywords.length) {
-                              setSelectedKeywords([]);
-                            } else {
-                              setSelectedKeywords(filteredKeywords.map((kw) => kw.term));
-                            }
-                          }}
-                          className="rounded"
-                        />
-                      </th>
                       <th className="px-4 py-3 text-left text-sm font-medium">Keyword</th>
                       <th className="px-4 py-3 text-left text-sm font-medium">Demand</th>
                       <th className="px-4 py-3 text-left text-sm font-medium">Competition</th>
@@ -356,14 +318,6 @@ export default function NicheExplorerPage(): JSX.Element {
                   <tbody>
                     {filteredKeywords.slice(0, 20).map((keyword, index) => (
                       <tr key={index} className="border-b last:border-0 hover:bg-muted/50">
-                        <td className="px-4 py-3">
-                          <input
-                            type="checkbox"
-                            checked={selectedKeywords.includes(keyword.term)}
-                            onChange={() => toggleKeywordSelection(keyword.term)}
-                            className="rounded"
-                          />
-                        </td>
                         <td className="px-4 py-3">
                           <Link
                             href={`/keywords/${encodeURIComponent(keyword.term)}`}
@@ -556,34 +510,26 @@ export default function NicheExplorerPage(): JSX.Element {
             </CardContent>
           </Card>
 
-          {/* 8. Action Controls */}
+          {/* 8. Next Steps */}
           <Card>
             <CardHeader>
-              <CardTitle>Take Action</CardTitle>
+              <CardTitle>Next Steps</CardTitle>
               <CardDescription>
-                {selectedKeywords.length > 0
-                  ? `${selectedKeywords.length} keyword${selectedKeywords.length !== 1 ? 's' : ''} selected`
-                  : "Select keywords from the table above to enable actions"}
+                Explore more keyword opportunities and optimize your listings
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-3">
-                <Button onClick={addToWatchlist} disabled={selectedKeywords.length === 0}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add to Watchlist ({selectedKeywords.length})
-                </Button>
-                <Button variant="outline" disabled={selectedKeywords.length === 0}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  Generate Content Brief
-                </Button>
-                <Button variant="outline" disabled>
-                  <Download className="mr-2 h-4 w-4" />
-                  Export Analysis
-                </Button>
                 <Button variant="outline" asChild>
                   <Link href="/keywords">
                     <Search className="mr-2 h-4 w-4" />
                     Keyword Explorer
+                  </Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link href="/editing">
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Optimize Listings
                   </Link>
                 </Button>
               </div>

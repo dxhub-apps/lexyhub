@@ -129,7 +129,7 @@ Only return the JSON array, no other text.`
         relationshipStrength: Math.max(0, Math.min(100, kw.relationshipStrength || 50)),
         relationshipType: RELATIONSHIP_TYPES.includes(kw.relationshipType)
           ? kw.relationshipType
-          : RELATIONSHIP_TYPES[Math.floor(Math.random() * RELATIONSHIP_TYPES.length)],
+          : RELATIONSHIP_TYPES[index % RELATIONSHIP_TYPES.length],
         demand: Math.max(0, Math.min(100, kw.demand || 50)),
         competition: Math.max(0, Math.min(100, kw.competition || 50)),
         momentum: Math.max(0, Math.min(100, kw.momentum || 50)),
@@ -185,13 +185,17 @@ function generateFallbackKeywords(baseKeyword: string, limit: number): RelatedKe
     `${baseKeyword} deals`,
   ];
 
+  const demandScores = [70, 65, 75, 55, 60, 68, 58, 72, 62, 67];
+  const competitionScores = [50, 55, 60, 45, 52, 58, 48, 62, 54, 56];
+  const momentumScores = [55, 50, 60, 45, 52, 58, 48, 62, 54, 56];
+
   return variations.slice(0, limit).map((term, index) => ({
     term,
     relationshipStrength: Math.max(40, 90 - index * 5),
     relationshipType: RELATIONSHIP_TYPES[index % RELATIONSHIP_TYPES.length],
-    demand: Math.floor(Math.random() * 40) + 40,
-    competition: Math.floor(Math.random() * 40) + 30,
-    momentum: Math.floor(Math.random() * 40) + 30,
+    demand: demandScores[index % demandScores.length],
+    competition: competitionScores[index % competitionScores.length],
+    momentum: momentumScores[index % momentumScores.length],
     insight: `Related search term that users commonly explore when researching ${baseKeyword}.`,
   }));
 }

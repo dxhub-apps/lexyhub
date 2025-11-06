@@ -37,16 +37,16 @@ export function KeywordTrendChart({
       const date = new Date(today);
       date.setDate(date.getDate() - i);
 
-      // Simulate realistic trends with some variance
+      // Simulate realistic trends with deterministic variance pattern
       const progress = (days - i) / days;
-      const variance = (Math.sin(i * 0.5) * 5) + (Math.random() * 3 - 1.5);
+      const cyclicVariance = Math.sin(i * 0.5) * 3; // Deterministic sine wave pattern
 
       data.push({
         date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        demand: Math.max(0, Math.min(100, demandScore - (trendScore * (1 - progress) * 0.5) + variance)),
-        competition: Math.max(0, Math.min(100, competitionScore + (progress * 5) + variance * 0.5)),
-        momentum: Math.max(0, Math.min(100, trendScore * progress + variance)),
-        engagement: Math.max(0, Math.min(100, engagementScore * (0.8 + progress * 0.2) + variance)),
+        demand: Math.max(0, Math.min(100, demandScore - (trendScore * (1 - progress) * 0.5) + cyclicVariance)),
+        competition: Math.max(0, Math.min(100, competitionScore + (progress * 5) + cyclicVariance * 0.5)),
+        momentum: Math.max(0, Math.min(100, trendScore * progress + cyclicVariance)),
+        engagement: Math.max(0, Math.min(100, engagementScore * (0.8 + progress * 0.2) + cyclicVariance)),
       });
     }
 

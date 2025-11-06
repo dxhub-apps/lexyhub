@@ -114,44 +114,6 @@ export default function InsightsPage() {
           </ul>
         </CardContent>
       </Card>
-
-      {/* Metrics Coming Soon */}
-      <Card className="border-dashed">
-        <CardHeader>
-          <CardTitle>Advanced Analytics Coming Soon</CardTitle>
-          <CardDescription>
-            We&apos;re building more powerful insights features
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold">Trending Categories</h4>
-              <p className="text-xs text-muted-foreground">
-                Identify which product categories are gaining momentum in real-time
-              </p>
-            </div>
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold">Purchase Intent Signals</h4>
-              <p className="text-xs text-muted-foreground">
-                Understand buyer intent levels across your tracked keywords
-              </p>
-            </div>
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold">Competitive Analysis</h4>
-              <p className="text-xs text-muted-foreground">
-                Compare your opportunities against market competition metrics
-              </p>
-            </div>
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold">Seasonal Trends</h4>
-              <p className="text-xs text-muted-foreground">
-                Discover seasonal patterns to time your product launches perfectly
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
