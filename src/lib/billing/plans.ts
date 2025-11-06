@@ -100,10 +100,26 @@ export const PLAN_CONFIGS: Record<PlanCode, PlanLimits> = {
 };
 
 /**
- * Extension Free+ boost multipliers
+ * Extension trial configuration
  */
-export const EXTENSION_FREE_PLUS_MULTIPLIER = 2.5;
-export const EXTENSION_FREE_PLUS_DURATION_DAYS = 30;
+export const EXTENSION_TRIAL_DURATION_DAYS = 14;
+export const EXTENSION_TRIAL_PLAN = 'pro';
+
+/**
+ * Referral rewards configuration
+ */
+export const REFERRAL_REWARDS = {
+  BASIC: {
+    referrals_required: 1,
+    plan: 'basic' as const,
+    duration_months: 3,
+  },
+  PRO: {
+    referrals_required: 3,
+    plan: 'pro' as const,
+    duration_months: 3,
+  },
+};
 
 /**
  * Usage warning thresholds (percentages)

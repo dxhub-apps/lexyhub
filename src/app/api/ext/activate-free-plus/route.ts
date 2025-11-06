@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getSupabaseServerClient } from "@/lib/supabase-server";
-import { EXTENSION_FREE_PLUS_DURATION_DAYS } from "@/lib/billing/plans";
+
+const EXTENSION_TRIAL_DURATION_DAYS = 14;
 
 /**
- * POST /api/ext/activate-free-plus
- * Activate Free+ extension boost for a user
+ * POST /api/ext/activate-trial
+ * Activate 14-day Pro trial for users who sign up via Chrome extension
  *
  * Body:
  * {
@@ -15,6 +16,7 @@ import { EXTENSION_FREE_PLUS_DURATION_DAYS } from "@/lib/billing/plans";
  * Response:
  * {
  *   activated: boolean,
+ *   plan: 'pro',
  *   expiresAt: string,
  *   daysRemaining: number
  * }
@@ -43,23 +45,30 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Get user profile
     const { data: profile } = await supabase
       .from("user_profiles")
-      .select("plan, extension_free_plus_expires_at")
+      .select("plan, extension_trial_expires_at, extension_trial_activated_at")
       .eq("user_id", userId)
       .maybeSingle();
 
-    // Only activate for free users
-    if (profile?.plan !== 'free') {
+    // Check if user already has a paid subscription
+    const { data: subscription } = await supabase
+      .from("billing_subscriptions")
+      .select("status, plan")
+      .eq("user_id", userId)
+      .in("status", ["active", "trialing"])
+      .maybeSingle();
+
+    if (subscription) {
       return NextResponse.json({
         activated: false,
-        message: "Free+ boost is only available for Free plan users",
-        currentPlan: profile?.plan,
+        message: `You already have an active ${subscription.plan} subscription`,
+        currentPlan: subscription.plan,
       });
     }
 
     // Check if already activated and not expired
     const now = new Date();
-    const existingExpiry = profile?.extension_free_plus_expires_at
-      ? new Date(profile.extension_free_plus_expires_at)
+    const existingExpiry = profile?.extension_trial_expires_at
+      ? new Date(profile.extension_trial_expires_at)
       : null;
 
     if (existingExpiry && existingExpiry > now) {
@@ -71,27 +80,39 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({
         activated: true,
         alreadyActive: true,
+        plan: 'pro',
         expiresAt: existingExpiry.toISOString(),
         daysRemaining,
       });
     }
 
-    // Activate Free+ boost
+    // Check if trial was already used (can only activate once)
+    if (profile?.extension_trial_activated_at) {
+      return NextResponse.json({
+        activated: false,
+        message: "Extension trial can only be activated once per account",
+        previouslyActivatedAt: profile.extension_trial_activated_at,
+      });
+    }
+
+    // Activate 14-day Pro trial
+    const activatedAt = new Date();
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + EXTENSION_FREE_PLUS_DURATION_DAYS);
+    expiresAt.setDate(expiresAt.getDate() + EXTENSION_TRIAL_DURATION_DAYS);
 
     const { error } = await supabase
       .from("user_profiles")
       .update({
-        extension_free_plus_expires_at: expiresAt.toISOString(),
+        extension_trial_activated_at: activatedAt.toISOString(),
+        extension_trial_expires_at: expiresAt.toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq("user_id", userId);
 
     if (error) {
-      console.error("Failed to activate Free+ boost:", error);
+      console.error("Failed to activate extension trial:", error);
       return NextResponse.json(
-        { error: "Failed to activate Free+ boost" },
+        { error: "Failed to activate extension trial" },
         { status: 500 }
       );
     }
@@ -99,9 +120,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({
       activated: true,
       alreadyActive: false,
+      plan: 'pro',
       expiresAt: expiresAt.toISOString(),
-      daysRemaining: EXTENSION_FREE_PLUS_DURATION_DAYS,
-      message: `Free+ boost activated! You now have 2.5x higher limits for ${EXTENSION_FREE_PLUS_DURATION_DAYS} days.`,
+      daysRemaining: EXTENSION_TRIAL_DURATION_DAYS,
+      message: `🎉 Pro trial activated! You have full Pro access for ${EXTENSION_TRIAL_DURATION_DAYS} days.`,
     });
 
   } catch (error) {
@@ -117,8 +139,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 }
 
 /**
- * GET /api/ext/activate-free-plus
- * Check Free+ boost status for a user
+ * GET /api/ext/activate-trial
+ * Check extension trial status for a user
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const supabase = getSupabaseServerClient();
@@ -141,7 +163,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("plan, extension_free_plus_expires_at")
+    .select("plan, extension_trial_expires_at, extension_trial_activated_at")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -153,8 +175,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   const now = new Date();
-  const expiresAt = profile.extension_free_plus_expires_at
-    ? new Date(profile.extension_free_plus_expires_at)
+  const expiresAt = profile.extension_trial_expires_at
+    ? new Date(profile.extension_trial_expires_at)
     : null;
 
   const isActive = expiresAt && expiresAt > now;
@@ -164,9 +186,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json({
     isActive,
+    plan: isActive ? 'pro' : profile.plan,
     expiresAt: expiresAt?.toISOString() || null,
     daysRemaining,
-    plan: profile.plan,
+    activatedAt: profile.extension_trial_activated_at,
+    wasUsed: !!profile.extension_trial_activated_at,
   });
 }
 
