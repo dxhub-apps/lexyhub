@@ -1,0 +1,45 @@
+name: Social Metrics Aggregator
+
+on:
+  schedule:
+    - cron: "0 * * * *"  # Every hour
+  workflow_dispatch:
+    inputs:
+      lookback_hours:
+        description: "Hours to look back for aggregation (default: 24)"
+        required: false
+        default: "24"
+
+permissions:
+  contents: read
+
+jobs:
+  aggregate:
+    name: Aggregate social metrics from all platforms
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run social metrics aggregation
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          LOOKBACK_HOURS: ${{ github.event.inputs.lookback_hours || '24' }}
+        run: npm run jobs:social-aggregator
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "Social metrics aggregation failed. Check logs for details."

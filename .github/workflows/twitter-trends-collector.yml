@@ -1,0 +1,56 @@
+name: Twitter Trends Collector
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"  # Every 30 minutes (48 runs/day, ~31/run = 1,488/month)
+  workflow_dispatch:
+    inputs:
+      per_run_budget:
+        description: "Tweets to collect this run (default: 31)"
+        required: false
+        default: "31"
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    name: Collect Twitter keyword trends
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Twitter collector (with retry)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
+          TWITTER_MONTHLY_LIMIT: 1500
+          TWITTER_PER_RUN_BUDGET: ${{ github.event.inputs.per_run_budget || '31' }}
+        run: |
+          n=0
+          until [ $n -ge 3 ]
+          do
+            echo "attempt=$((n+1))"
+            node scripts/twitter-keyword-collector.mjs && break
+            n=$((n+1))
+            sleep $((3 * n))
+          done
+          [ $n -lt 3 ]
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "Twitter trends collection failed. Check logs for details."

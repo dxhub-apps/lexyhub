@@ -1,0 +1,180 @@
+# Social Platforms Configuration
+# Controls all social media keyword collection platforms
+
+platforms:
+  reddit:
+    enabled: true
+    priority: high
+    frequency: "*/3 * * * *"  # Every 3 hours
+    workflow: reddit-discovery.yml
+    config_file: config/reddit.yml
+    include_comments: true
+    features:
+      - ngram_extraction
+      - sentiment_analysis
+      - subreddit_tracking
+      - domain_filtering
+
+  twitter:
+    enabled: true
+    priority: medium
+    frequency: "*/30 * * * *"  # Every 30 minutes
+    workflow: twitter-trends-collector.yml
+    monthly_limit: 1500
+    daily_budget: 50
+    per_run_budget: 31
+    tracking:
+      accounts:
+        - EtsySellers
+        - Shopify
+        - ProductHunt
+        - trendingetsy
+        - redbubble
+        - printful
+        - printify
+      hashtags:
+        - "#etsyseller"
+        - "#etsyshop"
+        - "#printondemand"
+        - "#ecommerce"
+        - "#smallbusiness"
+        - "#handmade"
+        - "#shopsmall"
+        - "#productdesign"
+    features:
+      - hashtag_tracking
+      - account_monitoring
+      - sentiment_analysis
+      - engagement_scoring
+
+  pinterest:
+    enabled: true
+    priority: high  # Highest purchase intent
+    frequency: "15 */2 * * *"  # Every 2 hours
+    workflow: pinterest-trends-collector.yml
+    daily_limit: 200
+    per_run_budget: 17
+    categories:
+      - diy_and_crafts
+      - home_decor
+      - weddings
+      - gifts
+      - fashion
+      - art
+      - food_and_drink
+      - beauty
+    search_queries:
+      - handmade gifts
+      - personalized
+      - custom design
+      - print on demand
+      - etsy products
+      - trending products
+      - small business
+    features:
+      - category_search
+      - seasonal_detection
+      - save_tracking  # Strong purchase intent
+      - board_analysis
+      - pin_engagement
+
+  tiktok:
+    enabled: false  # DISABLED - Ready for future activation
+    priority: low
+    frequency: "45 */3 * * *"  # Every 3 hours
+    workflow: tiktok-trends-collector.yml
+    method: web_scraping  # or 'api' when approved
+    features:
+      - hashtag_trending
+      - viral_detection
+    activation_checklist:
+      - Apply for TikTok API access
+      - Get approved (can take weeks)
+      - Add TIKTOK_CLIENT_KEY secret
+      - Set feature flag to true in database
+      - Remove 'if: false' from workflow
+
+  google_trends:
+    enabled: true
+    priority: high
+    frequency: "30 */2 * * *"  # Every 2 hours
+    workflow: google-trends-collector.yml
+    max_keywords: 100
+    geo: US
+    time_range: "now 7-d"  # Last 7 days
+    features:
+      - interest_over_time
+      - related_queries
+      - momentum_calculation
+      - geographic_data
+
+# Aggregation Settings
+aggregation:
+  enabled: true
+  frequency: "0 * * * *"  # Every hour
+  workflow: social-metrics-aggregator.yml
+  lookback_hours: 24
+  platform_weights:
+    reddit: 0.35      # High signal for long-tail keywords
+    twitter: 0.20     # Fast-moving trends
+    pinterest: 0.40   # Highest purchase intent
+    tiktok: 0.05      # Emerging/viral trends
+  scoring:
+    multi_platform_bonus: 1.2  # Boost if keyword appears on multiple platforms
+    min_platforms_required: 2  # Minimum platforms for high confidence
+
+# Hourly Refresh
+hourly_refresh:
+  enabled: true
+  frequency: "0 * * * *"  # Every hour
+  workflow: hourly-keyword-refresh.yml
+  max_keywords: 500
+  lookback_days: 7
+  prioritization:
+    watched_keywords_percentage: 50  # 50% budget for watched keywords
+    active_keywords_percentage: 50   # 50% for recently active
+
+# Watchlist Monitoring
+watchlist_alerts:
+  enabled: true
+  frequency:
+    business_hours: "*/15 9-18 * * 1-5"  # Every 15 min, Mon-Fri 9 AM-6 PM UTC
+    off_peak: "0 * * * *"  # Hourly off-peak
+  workflow: watchlist-momentum-monitor.yml
+  thresholds:
+    surge_momentum: 15.0   # Alert when momentum > 15%
+    cooling_momentum: -10.0  # Alert when momentum < -10%
+  deduplication_window_hours: 24  # Don't send duplicate alerts within 24h
+
+# Data Quality
+quality_settings:
+  stale_data_days: 7
+  min_confidence_score: 0.6
+  require_multiple_sources: true
+  sentiment_required: false  # Optional sentiment analysis
+
+# Feature Flags (mirrored in database)
+feature_flags:
+  reddit_collection: true
+  twitter_collection: true
+  pinterest_collection: true
+  tiktok_collection: false  # DISABLED
+  google_trends_collection: true
+  hourly_keyword_refresh: true
+  watchlist_alerts: true
+  social_aggregation: true
+  amazon_pa_api: false  # For future when revenue supports it
+
+# Cost Management
+cost_management:
+  monthly_budget_usd: 10  # $5-10 for OpenAI fallback only
+  services:
+    reddit: 0  # Free
+    twitter: 0  # Free tier (1,500/month)
+    pinterest: 0  # Free tier (200/day)
+    tiktok: 0  # Free web scraping (or disabled)
+    google_trends: 0  # Free
+    openai: 10  # Minimal for AI inference fallback
+  alerts:
+    approaching_limit_threshold: 0.9  # Alert at 90% usage
+    notify_email: false  # Set to email address if desired

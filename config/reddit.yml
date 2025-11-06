@@ -1,7 +1,38 @@
 subreddits:
+  # E-commerce Platforms
   - EtsySellers
   - Etsy
+  - Shopify
+  - ecommerce
+  - dropship
+
+  # Print on Demand & Manufacturing
   - PrintOnDemand
+  - redbubble
+  - MerchPrintOnDemand
+
+  # Product Discovery & Trends
+  - ProductHunting
+  - shutupandtakemymoney
+  - BuyItForLife
+  - DidntKnowIWantedThat
+
+  # Entrepreneurship & Small Business
+  - EntrepreneurRideAlong
+  - SmallBusiness
+  - startups
+  - juststart
+
+  # Craft & Handmade
+  - crafts
+  - somethingimade
+  - handmade
+
 queries:
   - etsy seo
   - gift ideas
+  - trending products
+  - best sellers
+  - print on demand
+  - product ideas
+  - evergreen niches

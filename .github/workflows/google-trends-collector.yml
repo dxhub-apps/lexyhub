@@ -1,0 +1,47 @@
+name: Google Trends Collector
+
+on:
+  schedule:
+    - cron: "30 */2 * * *"  # Every 2 hours at :30
+  workflow_dispatch:
+    inputs:
+      max_keywords:
+        description: "Maximum keywords to collect (default: 100)"
+        required: false
+        default: "100"
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    name: Collect Google Trends data
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Google Trends collector
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          MAX_KEYWORDS: ${{ github.event.inputs.max_keywords || '100' }}
+          GEO: "US"
+          TIME_RANGE: "now 7-d"
+        run: node scripts/google-trends-collector.mjs
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "Google Trends collection failed. Check logs for details."
