@@ -285,7 +285,50 @@ export async function callLexyBrainRaw(
     }
 
     // Parse response from llama.cpp server
-    const data: LlamaCppCompletionResponse = await response.json();
+    // Read as text first, then parse as JSON to handle parsing errors better
+    const responseText = await response.text().catch(() => {
+      throw new LexyBrainClientError(
+        "Failed to read LexyBrain response body",
+        response.status
+      );
+    });
+
+    let data: LlamaCppCompletionResponse;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      logger.error(
+        {
+          type: "lexybrain_invalid_json",
+          status: response.status,
+          latency_ms: latencyMs,
+          raw_text_preview: responseText.substring(0, 500),
+          parse_error: parseError instanceof Error ? parseError.message : String(parseError),
+        },
+        "LexyBrain returned non-JSON response"
+      );
+
+      const error = new LexyBrainClientError(
+        `LexyBrain returned invalid JSON response: ${responseText.substring(0, 200)}`,
+        response.status,
+        responseText
+      );
+
+      Sentry.captureException(error, {
+        tags: {
+          feature: "lexybrain",
+          component: "client",
+          status_code: response.status,
+        },
+        extra: {
+          raw_response: responseText.substring(0, 1000),
+          parse_error: parseError instanceof Error ? parseError.message : String(parseError),
+          latency_ms: latencyMs,
+        },
+      });
+
+      throw error;
+    }
 
     logger.debug(
       {

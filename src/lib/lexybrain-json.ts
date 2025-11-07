@@ -167,6 +167,21 @@ export async function generateLexyBrainJson(
         "LexyBrain generation attempt failed"
       );
 
+      // Don't retry on timeout errors - they take too long and will hit Vercel's limit
+      // Only retry on parsing/validation errors which might be model output issues
+      if (error instanceof LexyBrainTimeoutError) {
+        logger.warn(
+          {
+            type: "lexybrain_timeout_no_retry",
+            insight_type: type,
+            user_id: userId,
+            timeout_ms: error.timeoutMs,
+          },
+          "Not retrying on timeout error to avoid Vercel timeout"
+        );
+        break;
+      }
+
       // If this is not the last attempt, continue to retry
       if (attempt < maxRetries) {
         continue;
