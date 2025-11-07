@@ -76,7 +76,7 @@ async function getAllUsers(): Promise<string[]> {
     throw new Error("Supabase client not initialized");
   }
 
-  const { data, error } = await supabase.from('user_profiles').select('user_id').eq('is_active', true);
+  const { data, error } = await supabase.from('user_profiles').select('user_id');
 
   if (error) {
     log.error({ error }, 'Failed to fetch all users');
@@ -102,8 +102,7 @@ async function getUsersByPlanCodes(planCodes: string[]): Promise<string[]> {
   const { data, error } = await supabase
     .from('user_profiles')
     .select('user_id')
-    .in('plan', planCodes)
-    .eq('is_active', true);
+    .in('plan', planCodes);
 
   if (error) {
     log.error({ error, plan_codes: planCodes }, 'Failed to fetch users by plan');

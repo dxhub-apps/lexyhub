@@ -23,6 +23,8 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/components/ui/use-toast';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 
 type Notification = {
   id: string;
@@ -48,6 +50,7 @@ type Notification = {
 
 export default function EditNotificationPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const params = useParams();
   const notificationId = params.id as string;
 
@@ -69,8 +72,8 @@ export default function EditNotificationPage() {
   const [planCodes, setPlanCodes] = useState('');
   const [userIds, setUserIds] = useState('');
 
-  const [scheduleStartAt, setScheduleStartAt] = useState('');
-  const [scheduleEndAt, setScheduleEndAt] = useState('');
+  const [scheduleStartAt, setScheduleStartAt] = useState<Date | undefined>(undefined);
+  const [scheduleEndAt, setScheduleEndAt] = useState<Date | undefined>(undefined);
 
   const [showBanner, setShowBanner] = useState(false);
   const [createInapp, setCreateInapp] = useState(true);
@@ -106,14 +109,12 @@ export default function EditNotificationPage() {
             setUserIds(notif.audience_filter.user_ids.join(', '));
           }
 
-          // Convert ISO timestamps to datetime-local format
+          // Set schedule dates
           if (notif.schedule_start_at) {
-            const startDate = new Date(notif.schedule_start_at);
-            setScheduleStartAt(formatDateTimeLocal(startDate));
+            setScheduleStartAt(new Date(notif.schedule_start_at));
           }
           if (notif.schedule_end_at) {
-            const endDate = new Date(notif.schedule_end_at);
-            setScheduleEndAt(formatDateTimeLocal(endDate));
+            setScheduleEndAt(new Date(notif.schedule_end_at));
           }
 
           setShowBanner(notif.show_banner || false);
@@ -138,15 +139,6 @@ export default function EditNotificationPage() {
     }
   }, [notificationId, router]);
 
-  function formatDateTimeLocal(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setIsSaving(true);
@@ -160,9 +152,9 @@ export default function EditNotificationPage() {
         audienceFilter.user_ids = userIds.split(',').map(s => s.trim());
       }
 
-      // Convert datetime-local to ISO string
-      const scheduleStartAtISO = scheduleStartAt ? new Date(scheduleStartAt).toISOString() : undefined;
-      const scheduleEndAtISO = scheduleEndAt ? new Date(scheduleEndAt).toISOString() : undefined;
+      // Convert Date to ISO string
+      const scheduleStartAtISO = scheduleStartAt ? scheduleStartAt.toISOString() : undefined;
+      const scheduleEndAtISO = scheduleEndAt ? scheduleEndAt.toISOString() : undefined;
 
       const payload = {
         kind: showBanner && createInapp && sendEmail ? 'mixed' as const :
@@ -441,11 +433,10 @@ export default function EditNotificationPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="scheduleStartAt">Start Date & Time</Label>
-                    <Input
-                      id="scheduleStartAt"
-                      type="datetime-local"
-                      value={scheduleStartAt}
-                      onChange={(e) => setScheduleStartAt(e.target.value)}
+                    <DateTimePicker
+                      date={scheduleStartAt}
+                      setDate={setScheduleStartAt}
+                      placeholder="Pick start date and time"
                       disabled={!isEditable}
                     />
                     <p className="text-sm text-muted-foreground">
@@ -455,11 +446,10 @@ export default function EditNotificationPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="scheduleEndAt">End Date & Time</Label>
-                    <Input
-                      id="scheduleEndAt"
-                      type="datetime-local"
-                      value={scheduleEndAt}
-                      onChange={(e) => setScheduleEndAt(e.target.value)}
+                    <DateTimePicker
+                      date={scheduleEndAt}
+                      setDate={setScheduleEndAt}
+                      placeholder="Pick end date and time"
                       disabled={!isEditable}
                     />
                     <p className="text-sm text-muted-foreground">
