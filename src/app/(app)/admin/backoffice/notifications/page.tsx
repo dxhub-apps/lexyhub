@@ -164,7 +164,8 @@ export default function NotificationsListPage() {
       });
 
       if (response.ok) {
-        fetchNotifications();
+        // Remove the notification from the UI immediately
+        setNotifications(prev => prev.filter(n => n.id !== id));
       } else {
         alert('Failed to delete notification');
       }
