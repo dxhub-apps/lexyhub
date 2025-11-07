@@ -194,10 +194,10 @@ function getDefaultEntitlements(planCode: string): PlanEntitlements {
 // =====================================================
 
 /**
- * Use quota for LexyBrain operations (atomic)
+ * Consume quota for LexyBrain operations (atomic)
  * Throws LexyBrainQuotaExceededError if quota is exceeded
  */
-export async function useLexyBrainQuota(
+export async function consumeLexyBrainQuota(
   userId: string,
   key: LexyBrainQuotaKey,
   amount: number = 1

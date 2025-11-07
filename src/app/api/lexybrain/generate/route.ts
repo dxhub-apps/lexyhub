@@ -16,7 +16,7 @@ import { logger } from "@/lib/logger";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 import { isLexyBrainEnabled, getLexyBrainTtl, getLexyBrainDailyCostCap, getEstimatedCost } from "@/lib/lexybrain-config";
 import { generateLexyBrainJson } from "@/lib/lexybrain-json";
-import { getQuotaKeyForType, useLexyBrainQuota, isDailyCostCapReached, LexyBrainQuotaExceededError } from "@/lib/lexybrain-quota";
+import { getQuotaKeyForType, consumeLexyBrainQuota, isDailyCostCapReached, LexyBrainQuotaExceededError } from "@/lib/lexybrain-quota";
 import type { LexyBrainOutputType } from "@/lib/lexybrain-schemas";
 import type { LexyBrainContext } from "@/lib/lexybrain-prompt";
 
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const quotaKey = getQuotaKeyForType(type);
 
     try {
-      await useLexyBrainQuota(userId, quotaKey, 1);
+      await consumeLexyBrainQuota(userId, quotaKey, 1);
     } catch (error) {
       if (error instanceof LexyBrainQuotaExceededError) {
         logger.warn(
