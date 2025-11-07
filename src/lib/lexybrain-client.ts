@@ -4,14 +4,15 @@
  * Handles direct communication with the RunPod-hosted llama.cpp HTTP server.
  *
  * ARCHITECTURE:
- * - LexyBrain is deployed as an HTTP llama.cpp server on RunPod
- * - Base URL format: https://<endpoint-id>-<hash>.runpod.run
- * - Authentication: X-LEXYBRAIN-KEY header with shared secret
- * - Endpoint: /completion
+ * - LexyBrain is deployed as a load balancing RunPod Serverless endpoint
+ * - Base URL format: https://<endpoint-id>.api.runpod.ai
+ * - Authentication: REQUIRED "Authorization: Bearer <RUNPOD_API_KEY>" header
+ *   (validated by RunPod load balancer before traffic reaches worker)
+ * - Optional: X-LEXYBRAIN-KEY header (only enforced if configured in container)
+ * - Endpoint: /completion (llama.cpp HTTP server)
  *
  * DO NOT use:
  * - api.runpod.ai/v2/... URLs (those are for job-based APIs)
- * - Authorization: Bearer ... (that's for RunPod API, not llama.cpp)
  * - /run, /runsync, /status endpoints (not part of llama.cpp HTTP server)
  */
 
@@ -131,17 +132,18 @@ export async function callLexyBrainRaw(
   const sloConfig = getLexyBrainSloConfig();
   const timeoutMs = options.timeoutMs || sloConfig.maxLatencyMs;
 
-  // Validate URL format - must be runpod.run, NOT api.runpod.ai
+  // Validate URL format - must NOT use v2 API endpoints
   if (baseUrl.includes('api.runpod.ai/v2/')) {
     const error = new LexyBrainClientError(
-      `LEXYBRAIN_MODEL_URL is incorrect. Expected: https://<endpoint-id>-<hash>.runpod.run, Got: ${baseUrl}. ` +
-      `The URL should point to the HTTP llama.cpp server, not the RunPod v2 API.`
+      `LEXYBRAIN_MODEL_URL is incorrect. Expected: https://<endpoint-id>.api.runpod.ai (load balancing) ` +
+      `or https://<endpoint-id>-<hash>.runpod.run (direct), Got: ${baseUrl}. ` +
+      `The URL should point to the HTTP llama.cpp server, not the RunPod v2 job API.`
     );
     logger.error(
       {
         type: "lexybrain_config_error",
         provided_url: baseUrl,
-        expected_format: "https://<endpoint-id>-<hash>.runpod.run",
+        expected_format: "https://<endpoint-id>.api.runpod.ai or https://<endpoint-id>-<hash>.runpod.run",
       },
       "LexyBrain URL configuration error"
     );
@@ -184,12 +186,14 @@ export async function callLexyBrainRaw(
     const timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
 
     // Make request to llama.cpp HTTP server
-    // CRITICAL: Use X-LEXYBRAIN-KEY header, NOT Authorization: Bearer
+    // CRITICAL: Load balancing endpoints require Authorization: Bearer header
+    // This is validated by RunPod before traffic reaches the worker
     const response = await fetch(fullUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-LEXYBRAIN-KEY": lexyKey, // Shared secret header
+        "Authorization": `Bearer ${lexyKey}`, // REQUIRED: RunPod API key for load balancer
+        "X-LEXYBRAIN-KEY": lexyKey, // OPTIONAL: Additional app-level authentication
       },
       body: JSON.stringify(payload),
       signal: abortController.signal,
@@ -215,13 +219,14 @@ export async function callLexyBrainRaw(
             request_url: fullUrl,
             base_url: baseUrl,
           },
-          "LexyBrain unauthorized - verify BASE_URL is the HTTP runpod.run endpoint and X-LEXYBRAIN-KEY matches RunPod configuration"
+          "LexyBrain unauthorized - verify Authorization: Bearer header uses correct RunPod API key"
         );
 
         const error = new LexyBrainClientError(
           `LexyBrain unauthorized (${response.status}). ` +
-          `Verify: (1) LEXYBRAIN_MODEL_URL is https://<endpoint>-<hash>.runpod.run, ` +
-          `(2) X-LEXYBRAIN-KEY header matches RunPod's required header configuration.`,
+          `Verify: (1) LEXYBRAIN_MODEL_URL is correct (https://<endpoint>.api.runpod.ai for load balancing), ` +
+          `(2) LEXYBRAIN_KEY contains the valid RunPod API key for Authorization: Bearer header. ` +
+          `Note: Load balancing endpoints require Authorization header validated by RunPod before traffic reaches worker.`,
           response.status,
           errorBody
         );

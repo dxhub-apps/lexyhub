@@ -3,6 +3,9 @@
  *
  * Tests the actual RunPod authentication with minimal payload
  * Helps diagnose 401 errors
+ *
+ * Tests the llama.cpp /completion endpoint with Authorization: Bearer header
+ * (required for load balancing endpoints)
  */
 
 import { NextResponse } from "next/server";
@@ -24,17 +27,14 @@ export async function GET(): Promise<NextResponse> {
   const modelUrl = env.LEXYBRAIN_MODEL_URL.trim();
   const apiKey = env.LEXYBRAIN_KEY.trim();
 
-  // Build full URL
-  let fullUrl = modelUrl;
-  if (!modelUrl.endsWith('/run') && !modelUrl.endsWith('/runsync')) {
-    fullUrl = `${modelUrl}/run`;
-  }
+  // Build full URL for llama.cpp /completion endpoint
+  const fullUrl = `${modelUrl}/completion`;
 
-  // Test with minimal payload (exactly like your working curl)
+  // Test with minimal llama.cpp completion payload
   const testPayload = {
-    input: {
-      prompt: "Hello"
-    }
+    prompt: "Hello",
+    n_predict: 10,
+    temperature: 0.0,
   };
 
   try {
@@ -43,8 +43,9 @@ export async function GET(): Promise<NextResponse> {
     const response = await fetch(fullUrl, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`, // REQUIRED for load balancing endpoints
+        "X-LEXYBRAIN-KEY": apiKey, // OPTIONAL app-level auth
       },
       body: JSON.stringify(testPayload),
     });
@@ -61,7 +62,13 @@ export async function GET(): Promise<NextResponse> {
       requestUrl: fullUrl,
       requestHeaders: {
         authorization: `Bearer ${apiKey.slice(0, 4)}...${apiKey.slice(-4)}`,
+        xLexyBrainKey: `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}`,
         contentType: "application/json",
+      },
+      requestPayload: {
+        prompt: testPayload.prompt,
+        n_predict: testPayload.n_predict,
+        temperature: testPayload.temperature,
       },
       responseBody: responseText,
       diagnostics: {
@@ -70,6 +77,8 @@ export async function GET(): Promise<NextResponse> {
         apiKeySuffix: apiKey.slice(-4),
         apiKeyHasWhitespace: apiKey !== apiKey.trim(),
         urlHasWhitespace: modelUrl !== modelUrl.trim(),
+        endpointType: "llama.cpp /completion (load balancing)",
+        authNote: "Authorization: Bearer header is REQUIRED for load balancing endpoints",
       },
     });
   } catch (error) {
@@ -77,6 +86,9 @@ export async function GET(): Promise<NextResponse> {
       success: false,
       error: error instanceof Error ? error.message : String(error),
       requestUrl: fullUrl,
+      diagnostics: {
+        note: "Failed to connect to LexyBrain endpoint",
+      },
     }, { status: 500 });
   }
 }

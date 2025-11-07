@@ -51,24 +51,25 @@ export async function GET(): Promise<NextResponse> {
     // URL analysis
     urlAnalysis: {
       isRunPodRun: status.modelUrl?.includes('.runpod.run') || false,
+      isApiRunPodAi: status.modelUrl?.includes('.api.runpod.ai') || false,
       isApiV2: status.modelUrl?.includes('api.runpod.ai/v2/') || false,
-      expectedFormat: "https://<endpoint-id>-<hash>.runpod.run (llama.cpp HTTP server)",
+      expectedFormat: "https://<endpoint-id>.api.runpod.ai (load balancing) or https://<endpoint-id>-<hash>.runpod.run (direct)",
       actualUrl: status.modelUrl || "NOT SET",
       computedRequestUrl: status.modelUrl ? `${status.modelUrl}/completion` : "NOT SET",
       hasWhitespace: status.modelUrl ? status.modelUrl !== status.modelUrl.trim() : false,
       issue: !status.modelUrl
         ? "❌ URL not set"
         : status.modelUrl.includes('api.runpod.ai/v2/')
-        ? "❌ WRONG: Using RunPod job API URL. Must use llama.cpp HTTP server URL: https://<endpoint>-<hash>.runpod.run"
-        : status.modelUrl.includes('.runpod.run')
+        ? "❌ WRONG: Using RunPod job API URL. Must use llama.cpp HTTP server URL"
+        : status.modelUrl.includes('.api.runpod.ai') || status.modelUrl.includes('.runpod.run')
         ? "✅ OK: Correct llama.cpp HTTP server URL format"
-        : "⚠️ WARNING: URL format unexpected - should be https://<endpoint>-<hash>.runpod.run"
+        : "⚠️ WARNING: URL format unexpected"
     },
-    // API key analysis (shared secret, not RunPod API key)
+    // API key analysis (RunPod API key for Authorization: Bearer header)
     apiKeyAnalysis: env.LEXYBRAIN_KEY ? {
       hasWhitespace: env.LEXYBRAIN_KEY !== env.LEXYBRAIN_KEY.trim(),
       length: env.LEXYBRAIN_KEY.trim().length,
-      note: "This is the shared secret for X-LEXYBRAIN-KEY header, NOT a RunPod API key",
+      note: "This is the RunPod API key for Authorization: Bearer header (REQUIRED for load balancing endpoints)",
       issue: env.LEXYBRAIN_KEY.trim().length === 0
         ? "❌ Key is empty"
         : env.LEXYBRAIN_KEY !== env.LEXYBRAIN_KEY.trim()
