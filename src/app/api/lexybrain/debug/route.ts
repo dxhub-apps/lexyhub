@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import { getLexyBrainStatus } from "@/lib/lexybrain-config";
 import { env } from "@/lib/env";
+import { testLexyBrainConnection } from "@/lib/lexybrain-client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,10 +15,29 @@ export const dynamic = "force-dynamic";
 export async function GET(): Promise<NextResponse> {
   const status = getLexyBrainStatus();
 
-  // Mask the API key for security (show only last 4 chars)
-  const maskedKey = env.LEXYBRAIN_KEY
-    ? `***${env.LEXYBRAIN_KEY.slice(-4)}`
-    : "NOT SET";
+  // Mask the API key for security (show only first 4 and last 4 chars)
+  let maskedKey = "NOT SET";
+  if (env.LEXYBRAIN_KEY) {
+    const key = env.LEXYBRAIN_KEY.trim();
+    if (key.length > 8) {
+      maskedKey = `${key.slice(0, 4)}...${key.slice(-4)} (length: ${key.length})`;
+    } else {
+      maskedKey = `****** (length: ${key.length})`;
+    }
+  }
+
+  // Test connection (only if enabled)
+  let connectionTest = null;
+  if (status.enabled) {
+    try {
+      connectionTest = await testLexyBrainConnection();
+    } catch (error) {
+      connectionTest = {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
 
   return NextResponse.json({
     enabled: status.enabled,
@@ -25,23 +45,37 @@ export async function GET(): Promise<NextResponse> {
     modelUrlWithRun: status.modelUrl ? `${status.modelUrl}/run` : null,
     modelVersion: status.modelVersion,
     hasApiKey: status.hasApiKey,
-    apiKeyLastFourChars: maskedKey,
+    apiKeyMasked: maskedKey,
     dailyCostCap: status.dailyCostCap,
     maxLatencyMs: status.maxLatencyMs,
     // URL analysis
     urlAnalysis: {
-      endsWithRun: status.modelUrl?.endsWith('/run') || false,
-      endsWithRunsync: status.modelUrl?.endsWith('/runsync') || false,
-      expectedFormat: "https://api.runpod.ai/v2/YOUR_ENDPOINT_ID (without /run suffix)",
+      isRunPodRun: status.modelUrl?.includes('.runpod.run') || false,
+      isApiV2: status.modelUrl?.includes('api.runpod.ai/v2/') || false,
+      expectedFormat: "https://<endpoint-id>-<hash>.runpod.run (llama.cpp HTTP server)",
       actualUrl: status.modelUrl || "NOT SET",
-      computedRequestUrl: status.modelUrl ? `${status.modelUrl}/run` : "NOT SET",
-      issue: status.modelUrl?.endsWith('/run')
-        ? "⚠️ WARNING: URL ends with /run - this will cause double /run when making requests!"
-        : status.modelUrl?.endsWith('/runsync')
-        ? "⚠️ WARNING: URL ends with /runsync - code will append /run resulting in /runsync/run"
-        : status.modelUrl
-        ? "✅ OK: URL format looks correct"
-        : "❌ URL not set"
-    }
+      computedRequestUrl: status.modelUrl ? `${status.modelUrl}/completion` : "NOT SET",
+      hasWhitespace: status.modelUrl ? status.modelUrl !== status.modelUrl.trim() : false,
+      issue: !status.modelUrl
+        ? "❌ URL not set"
+        : status.modelUrl.includes('api.runpod.ai/v2/')
+        ? "❌ WRONG: Using RunPod job API URL. Must use llama.cpp HTTP server URL: https://<endpoint>-<hash>.runpod.run"
+        : status.modelUrl.includes('.runpod.run')
+        ? "✅ OK: Correct llama.cpp HTTP server URL format"
+        : "⚠️ WARNING: URL format unexpected - should be https://<endpoint>-<hash>.runpod.run"
+    },
+    // API key analysis (shared secret, not RunPod API key)
+    apiKeyAnalysis: env.LEXYBRAIN_KEY ? {
+      hasWhitespace: env.LEXYBRAIN_KEY !== env.LEXYBRAIN_KEY.trim(),
+      length: env.LEXYBRAIN_KEY.trim().length,
+      note: "This is the shared secret for X-LEXYBRAIN-KEY header, NOT a RunPod API key",
+      issue: env.LEXYBRAIN_KEY.trim().length === 0
+        ? "❌ Key is empty"
+        : env.LEXYBRAIN_KEY !== env.LEXYBRAIN_KEY.trim()
+        ? "⚠️ WARNING: Key has leading/trailing whitespace"
+        : "✅ OK: Key is set and trimmed"
+    } : null,
+    // Connection test
+    connectionTest,
   });
 }

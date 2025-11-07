@@ -35,7 +35,8 @@ export function getLexyBrainModelUrl(): string {
       "LEXYBRAIN_MODEL_URL is not configured. Please set this environment variable."
     );
   }
-  return env.LEXYBRAIN_MODEL_URL;
+  // Trim whitespace that might have been accidentally added in env vars
+  return env.LEXYBRAIN_MODEL_URL.trim();
 }
 
 /**
@@ -48,7 +49,8 @@ export function getLexyBrainKey(): string {
       "LEXYBRAIN_KEY is not configured. Please set this environment variable."
     );
   }
-  return env.LEXYBRAIN_KEY;
+  // Trim whitespace that might have been accidentally added in env vars
+  return env.LEXYBRAIN_KEY.trim();
 }
 
 /**
