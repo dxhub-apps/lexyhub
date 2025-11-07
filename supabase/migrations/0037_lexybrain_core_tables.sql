@@ -51,6 +51,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS ai_insights_updated_at_trigger ON public.ai_insights;
+
 CREATE TRIGGER ai_insights_updated_at_trigger
   BEFORE UPDATE ON public.ai_insights
   FOR EACH ROW
@@ -60,6 +62,8 @@ CREATE TRIGGER ai_insights_updated_at_trigger
 ALTER TABLE public.ai_insights ENABLE ROW LEVEL SECURITY;
 
 -- Users can only see their own insights (or anonymous insights)
+DROP POLICY IF EXISTS ai_insights_user_policy ON public.ai_insights;
+
 CREATE POLICY ai_insights_user_policy ON public.ai_insights
   FOR SELECT
   USING (
@@ -94,6 +98,8 @@ CREATE INDEX IF NOT EXISTS ai_usage_events_cache_hit_idx ON public.ai_usage_even
 ALTER TABLE public.ai_usage_events ENABLE ROW LEVEL SECURITY;
 
 -- Users can only see their own usage events
+DROP POLICY IF EXISTS ai_usage_events_user_policy ON public.ai_usage_events;
+
 CREATE POLICY ai_usage_events_user_policy ON public.ai_usage_events
   FOR SELECT
   USING (user_id = auth.uid());
