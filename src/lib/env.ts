@@ -32,6 +32,7 @@ const envSchema = z.object({
   LEXYBRAIN_MODEL_VERSION: z.string().optional(),
   LEXYBRAIN_DAILY_COST_CAP: z.string().optional(),
   LEXYBRAIN_MAX_LATENCY_MS: z.string().optional(),
+  LEXYBRAIN_NOTIFICATIONS_ENABLED: z.string().optional(),
 });
 
 type Env = z.infer<typeof envSchema>;
@@ -67,6 +68,7 @@ function readEnv(): Env {
     LEXYBRAIN_MODEL_VERSION: process.env.LEXYBRAIN_MODEL_VERSION,
     LEXYBRAIN_DAILY_COST_CAP: process.env.LEXYBRAIN_DAILY_COST_CAP,
     LEXYBRAIN_MAX_LATENCY_MS: process.env.LEXYBRAIN_MAX_LATENCY_MS,
+    LEXYBRAIN_NOTIFICATIONS_ENABLED: process.env.LEXYBRAIN_NOTIFICATIONS_ENABLED,
   });
 }
 

@@ -121,6 +121,9 @@ LEXYBRAIN_DAILY_COST_CAP=10000
 
 # Max latency in milliseconds (optional, default: 15000 = 15s)
 LEXYBRAIN_MAX_LATENCY_MS=15000
+
+# Enable notifications for high-severity RiskSentinel alerts (optional, default: false)
+LEXYBRAIN_NOTIFICATIONS_ENABLED=true
 ```
 
 ### Vercel Environment Variables
@@ -511,7 +514,70 @@ curl https://your-app.vercel.app/api/admin/lexybrain/metrics \
   -H "Authorization: Bearer admin-jwt-token"
 ```
 
-## 8. Production Checklist
+## 8. Notifications (Optional)
+
+LexyBrain can automatically notify users when RiskSentinel detects high-severity risks.
+
+### How It Works
+
+When a RiskSentinel analysis returns alerts with `severity: "high"`:
+1. A notification is created in the `notifications` table
+2. A delivery record is created for the user in `notification_delivery`
+3. User sees the notification in-app (and optionally via email)
+
+### Enable Notifications
+
+```bash
+# Add to environment variables
+LEXYBRAIN_NOTIFICATIONS_ENABLED=true
+```
+
+### User Notification Preferences
+
+Users can control their AI notification preferences:
+
+```sql
+-- Check user's AI notification preferences
+SELECT * FROM user_notification_prefs
+WHERE user_id = 'your-user-uuid' AND category = 'ai';
+
+-- Users can disable AI notifications
+UPDATE user_notification_prefs
+SET inapp_enabled = false, email_enabled = false
+WHERE user_id = 'your-user-uuid' AND category = 'ai';
+```
+
+### Test Notifications
+
+```bash
+# Generate RiskSentinel output with high-severity alerts
+curl https://your-app.vercel.app/api/lexybrain/generate \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-jwt-token" \
+  -d '{
+    "type": "risk",
+    "market": "etsy",
+    "niche_terms": ["oversaturated product"]
+  }'
+
+# Check if notification was created
+curl https://your-app.vercel.app/api/notifications/feed \
+  -H "Authorization: Bearer your-jwt-token"
+```
+
+### Disable Notifications
+
+To disable notifications system-wide:
+
+```bash
+# Remove or set to false
+LEXYBRAIN_NOTIFICATIONS_ENABLED=false
+```
+
+Or delete the environment variable entirely.
+
+## 9. Production Checklist
 
 Before launching to production:
 
@@ -526,6 +592,8 @@ Before launching to production:
 - [ ] Quotas working for non-admin users
 - [ ] UI components rendering correctly
 - [ ] Documentation accessible to users
+- [ ] Notifications enabled/disabled as desired (LEXYBRAIN_NOTIFICATIONS_ENABLED)
+- [ ] User notification preferences working correctly
 
 ## Next Steps
 

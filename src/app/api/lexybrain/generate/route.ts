@@ -233,7 +233,33 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       "LexyBrain generation successful"
     );
 
-    // 15. Return Result
+    // 15. Create Notification for High-Severity RiskSentinel Alerts
+    if (type === "risk") {
+      // Import notification helper dynamically to avoid circular dependencies
+      const { createRiskSentinelNotification } = await import("@/lib/lexybrain-notifications");
+
+      // Type-cast output as RiskSentinel
+      const riskOutput = result.output as { alerts: Array<{ term: string; issue: string; severity: "low" | "medium" | "high"; evidence: string; action: string }> };
+
+      // Create notification (fire and forget - don't block response)
+      createRiskSentinelNotification(
+        userId,
+        market,
+        normalizedNicheTerms,
+        riskOutput.alerts
+      ).catch((error) => {
+        logger.warn(
+          {
+            type: "lexybrain_notification_failed",
+            user_id: userId,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          "Failed to create RiskSentinel notification"
+        );
+      });
+    }
+
+    // 16. Return Result
     return NextResponse.json(result.output);
   } catch (error) {
     const latencyMs = Date.now() - startTime;

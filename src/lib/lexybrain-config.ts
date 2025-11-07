@@ -109,6 +109,19 @@ export function isLexyBrainGraphEnabled(): boolean {
   return isLexyBrainEnabled();
 }
 
+/**
+ * Check if LexyBrain notifications are enabled
+ * Returns true when:
+ * - LexyBrain is enabled
+ * - LEXYBRAIN_NOTIFICATIONS_ENABLED === "true"
+ */
+export function isLexyBrainNotificationsEnabled(): boolean {
+  return (
+    isLexyBrainEnabled() &&
+    env.LEXYBRAIN_NOTIFICATIONS_ENABLED === "true"
+  );
+}
+
 // =====================================================
 // TTL Configuration (Cache Expiration)
 // =====================================================
