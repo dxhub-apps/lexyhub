@@ -256,7 +256,8 @@ INSERT INTO public.plan_entitlements (
   ('free', 10, 10, 1, 20, 2, 2, '{"ai_calls_multiplier": 2}'::jsonb),
   ('basic', 100, 100, 10, 200, 20, 20, '{}'::jsonb),
   ('pro', 500, 500, 50, 2000, 100, 200, '{}'::jsonb),
-  ('growth', -1, -1, -1, -1, -1, -1, '{}'::jsonb)
+  ('growth', -1, -1, -1, -1, -1, -1, '{}'::jsonb),
+  ('admin', -1, -1, -1, -1, -1, -1, '{}'::jsonb)
 ON CONFLICT (plan_code) DO UPDATE SET
   ai_calls_per_month = EXCLUDED.ai_calls_per_month,
   briefs_per_month = EXCLUDED.briefs_per_month,

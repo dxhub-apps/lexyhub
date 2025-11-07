@@ -184,6 +184,16 @@ function getDefaultEntitlements(planCode: string): PlanEntitlements {
       sims_per_month: -1,
       extension_boost: {},
     },
+    admin: {
+      plan_code: "admin",
+      searches_per_month: -1,
+      ai_opportunities_per_month: -1,
+      niches_max: -1,
+      ai_calls_per_month: -1,
+      briefs_per_month: -1,
+      sims_per_month: -1,
+      extension_boost: {},
+    },
   };
 
   return defaults[planCode] || defaults["free"];
