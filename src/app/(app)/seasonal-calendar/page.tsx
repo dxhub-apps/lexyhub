@@ -6,7 +6,7 @@ import { EventDetailsModal } from "@/components/calendar/EventDetailsModal";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Calendar, Globe, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Calendar, Globe, ChevronLeft, ChevronRight, TrendingUp, Clock, Sparkles } from "lucide-react";
 
 const EVENTS_PER_PAGE = 10;
 
@@ -110,9 +110,29 @@ export default function SeasonalCalendarPage() {
   // Get all upcoming events sorted chronologically
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const upcomingEvents = events
-    .filter((event) => new Date(event.end_date) >= today)
-    .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+
+  // Categorize events
+  const activeEvents = events.filter((event) => {
+    const startDate = new Date(event.start_date);
+    const endDate = new Date(event.end_date);
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+    return startDate <= today && endDate >= today;
+  }).sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+
+  const upcomingSoonEvents = events.filter((event) => {
+    const startDate = new Date(event.start_date);
+    startDate.setHours(0, 0, 0, 0);
+    const daysUntilStart = Math.ceil((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return daysUntilStart > 0 && daysUntilStart <= 30;
+  }).sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+
+  const futureEvents = events.filter((event) => {
+    const startDate = new Date(event.start_date);
+    startDate.setHours(0, 0, 0, 0);
+    const daysUntilStart = Math.ceil((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return daysUntilStart > 30;
+  }).sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
 
   const pastEvents = events
     .filter((event) => new Date(event.end_date) < today)
@@ -121,28 +141,85 @@ export default function SeasonalCalendarPage() {
   return (
     <div className="container mx-auto py-8 space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Commerce Calendar</h1>
-        <p className="text-muted-foreground">
-          Track seasonal shopping events and trending keywords throughout the year
-        </p>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+            Commerce Calendar
+          </h1>
+          <p className="text-lg text-muted-foreground max-w-3xl">
+            Track seasonal shopping events and trending keywords throughout the year to optimize your product strategy
+          </p>
+        </div>
+
+        {/* Quick Stats */}
+        {!loading && !error && events.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="p-4 border-success/30 bg-success/5">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-success/20">
+                  <Sparkles className="h-5 w-5 text-success" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-success">{activeEvents.length}</p>
+                  <p className="text-xs text-muted-foreground">Active Now</p>
+                </div>
+              </div>
+            </Card>
+            <Card className="p-4 border-primary/20 bg-primary/5">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Clock className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{upcomingSoonEvents.length}</p>
+                  <p className="text-xs text-muted-foreground">Next 30 Days</p>
+                </div>
+              </div>
+            </Card>
+            <Card className="p-4 border-border">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-muted">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{futureEvents.length}</p>
+                  <p className="text-xs text-muted-foreground">Future Events</p>
+                </div>
+              </div>
+            </Card>
+            <Card className="p-4 border-border">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-muted">
+                  <Calendar className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{events.length}</p>
+                  <p className="text-xs text-muted-foreground">Total Events</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
 
       {/* Navigation Controls */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Button onClick={handlePreviousMonth} variant="outline" size="sm">
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Previous
           </Button>
-          <Button onClick={handleToday} variant="outline" size="sm">
+          <Button onClick={handleToday} variant="default" size="sm">
+            <Calendar className="h-4 w-4 mr-1" />
             Today
           </Button>
           <Button onClick={handleNextMonth} variant="outline" size="sm">
-            <ChevronRight className="h-4 w-4" />
+            Next
+            <ChevronRight className="h-4 w-4 ml-1" />
           </Button>
         </div>
-        <div className="text-sm text-muted-foreground">
-          {events.length} seasonal {events.length === 1 ? "event" : "events"}
+        <div className="text-sm font-medium">
+          {currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
         </div>
       </div>
 
@@ -261,14 +338,21 @@ export default function SeasonalCalendarPage() {
             </div>
           )}
 
-          {/* Upcoming Events List */}
+          {/* Categorized Events Lists */}
           {events.length > 0 && (
-            <div className="space-y-6">
-              {upcomingEvents.length > 0 && (
-                <div>
-                  <h2 className="text-2xl font-semibold mb-4">Upcoming Events</h2>
+            <div className="space-y-8">
+              {/* Active Events */}
+              {activeEvents.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-success" />
+                    <h2 className="text-2xl font-semibold">Active Now</h2>
+                    <Badge variant="secondary" className="bg-success/20 text-success border-success/30">
+                      {activeEvents.length}
+                    </Badge>
+                  </div>
                   <div className="grid gap-4">
-                    {upcomingEvents.map((event) => (
+                    {activeEvents.map((event) => (
                       <EventCard
                         key={event.id}
                         event={event}
@@ -276,23 +360,85 @@ export default function SeasonalCalendarPage() {
                           setSelectedEvent(event);
                           setModalOpen(true);
                         }}
+                        status="active"
                       />
                     ))}
                   </div>
                 </div>
               )}
 
-              {upcomingEvents.length === 0 && pastEvents.length === 0 && (
-                <Card className="p-8 text-center">
+              {/* Upcoming Soon Events */}
+              {upcomingSoonEvents.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-primary" />
+                    <h2 className="text-2xl font-semibold">Upcoming Soon</h2>
+                    <Badge variant="secondary">
+                      {upcomingSoonEvents.length}
+                    </Badge>
+                  </div>
+                  <div className="grid gap-4">
+                    {upcomingSoonEvents.map((event) => (
+                      <EventCard
+                        key={event.id}
+                        event={event}
+                        onClick={() => {
+                          setSelectedEvent(event);
+                          setModalOpen(true);
+                        }}
+                        status="upcoming"
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Future Events */}
+              {futureEvents.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    <h2 className="text-2xl font-semibold">Future Events</h2>
+                    <Badge variant="outline">
+                      {futureEvents.length}
+                    </Badge>
+                  </div>
+                  <div className="grid gap-4">
+                    {futureEvents.map((event) => (
+                      <EventCard
+                        key={event.id}
+                        event={event}
+                        onClick={() => {
+                          setSelectedEvent(event);
+                          setModalOpen(true);
+                        }}
+                        status="future"
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* No Active or Upcoming Events */}
+              {activeEvents.length === 0 && upcomingSoonEvents.length === 0 && futureEvents.length === 0 && pastEvents.length === 0 && (
+                <Card className="p-8 text-center border-dashed">
+                  <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                   <p className="text-muted-foreground">
                     No events to display. All seasonal periods may be in the past.
                   </p>
                 </Card>
               )}
 
+              {/* Past Events */}
               {pastEvents.length > 0 && (
-                <div>
-                  <h2 className="text-2xl font-semibold mb-4">Past Events</h2>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-muted-foreground" />
+                    <h2 className="text-2xl font-semibold">Past Events</h2>
+                    <Badge variant="outline" className="text-muted-foreground">
+                      {pastEvents.length}
+                    </Badge>
+                  </div>
                   <div className="grid gap-4">
                     {pastEvents.map((event) => (
                       <EventCard
@@ -302,7 +448,7 @@ export default function SeasonalCalendarPage() {
                           setSelectedEvent(event);
                           setModalOpen(true);
                         }}
-                        isPast
+                        status="past"
                       />
                     ))}
                   </div>
@@ -326,12 +472,15 @@ export default function SeasonalCalendarPage() {
 interface EventCardProps {
   event: CalendarEvent;
   onClick: () => void;
-  isPast?: boolean;
+  status?: "active" | "upcoming" | "future" | "past";
 }
 
-function EventCard({ event, onClick, isPast = false }: EventCardProps) {
+function EventCard({ event, onClick, status = "future" }: EventCardProps) {
   const startDate = new Date(event.start_date);
   const endDate = new Date(event.end_date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   const dateFormat: Intl.DateTimeFormatOptions = {
     month: "short",
     day: "numeric",
@@ -342,47 +491,97 @@ function EventCard({ event, onClick, isPast = false }: EventCardProps) {
     (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
   ) + 1;
 
+  // Calculate days until or since event
+  const daysUntilStart = Math.ceil((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const daysUntilEnd = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  // Get status-specific styles
+  const getStatusStyles = () => {
+    switch (status) {
+      case "active":
+        return {
+          cardClass: "border-success/50 bg-gradient-to-br from-success/10 to-success/5 shadow-sm shadow-success/10",
+          badgeClass: "bg-success/20 text-success border-success/30",
+          statusLabel: "Active",
+          statusIcon: <Sparkles className="h-3 w-3" />,
+        };
+      case "upcoming":
+        return {
+          cardClass: "border-primary/30 bg-primary/5",
+          badgeClass: "bg-primary/20 border-primary/30",
+          statusLabel: `In ${daysUntilStart} days`,
+          statusIcon: <Clock className="h-3 w-3" />,
+        };
+      case "future":
+        return {
+          cardClass: "border-border bg-card",
+          badgeClass: "bg-muted border-border",
+          statusLabel: `In ${daysUntilStart} days`,
+          statusIcon: <TrendingUp className="h-3 w-3" />,
+        };
+      case "past":
+        return {
+          cardClass: "border-border bg-muted/30 opacity-70",
+          badgeClass: "bg-muted text-muted-foreground border-border",
+          statusLabel: "Past",
+          statusIcon: <Calendar className="h-3 w-3" />,
+        };
+    }
+  };
+
+  const styles = getStatusStyles();
+
   return (
     <Card
-      className={`p-6 cursor-pointer transition-all hover:shadow-lg hover:border-accent ${
-        isPast ? "opacity-60" : ""
-      }`}
+      className={`p-6 cursor-pointer transition-all hover:shadow-lg hover:scale-[1.01] ${styles.cardClass}`}
       onClick={onClick}
     >
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2">
-            <h3 className="text-xl font-semibold">{event.name}</h3>
-            <Badge
-              variant="secondary"
-              className={isPast ? "bg-muted" : "bg-accent/20 border-accent"}
-            >
-              Weight: {event.weight}
-            </Badge>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start gap-3 mb-3">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-xl font-semibold mb-2 truncate">{event.name}</h3>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary" className={styles.badgeClass}>
+                  {styles.statusIcon}
+                  <span className="ml-1">{styles.statusLabel}</span>
+                </Badge>
+                <Badge variant="outline" className="text-xs">
+                  Weight: {event.weight}
+                </Badge>
+                {event.country_code && (
+                  <Badge variant="outline" className="text-xs">
+                    <Globe className="h-3 w-3 mr-1" />
+                    {event.country_code}
+                  </Badge>
+                )}
+              </div>
+            </div>
           </div>
+
           <div className="space-y-2 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
+              <Calendar className="h-4 w-4 flex-shrink-0" />
               <span>
                 {startDate.toLocaleDateString("en-US", dateFormat)} -{" "}
                 {endDate.toLocaleDateString("en-US", dateFormat)}
               </span>
               <span className="text-xs">({durationDays} days)</span>
             </div>
-            {event.country_code && (
-              <div className="flex items-center gap-2">
-                <Globe className="h-4 w-4" />
-                <span>{event.country_code}</span>
-              </div>
-            )}
           </div>
+
           {event.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-3">
-              {event.tags.map((tag) => (
+            <div className="flex flex-wrap gap-1.5 mt-4">
+              {event.tags.slice(0, 5).map((tag) => (
                 <Badge key={tag} variant="outline" className="text-xs">
                   {tag}
                 </Badge>
               ))}
+              {event.tags.length > 5 && (
+                <Badge variant="outline" className="text-xs text-muted-foreground">
+                  +{event.tags.length - 5} more
+                </Badge>
+              )}
             </div>
           )}
         </div>
