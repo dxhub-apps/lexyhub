@@ -25,6 +25,13 @@ const envSchema = z.object({
   BROWSER_EXTENSION_ALLOW_USER_TELEMETRY_DEFAULT: z
     .union([z.string(), z.boolean()])
     .optional(),
+  // LexyBrain AI configuration
+  LEXYBRAIN_ENABLE: z.string().optional(),
+  LEXYBRAIN_MODEL_URL: z.string().url().optional(),
+  LEXYBRAIN_KEY: z.string().optional(),
+  LEXYBRAIN_MODEL_VERSION: z.string().optional(),
+  LEXYBRAIN_DAILY_COST_CAP: z.string().optional(),
+  LEXYBRAIN_MAX_LATENCY_MS: z.string().optional(),
 });
 
 type Env = z.infer<typeof envSchema>;
@@ -54,6 +61,12 @@ function readEnv(): Env {
     BROWSER_EXTENSION_API_BASE_URL: process.env.BROWSER_EXTENSION_API_BASE_URL,
     BROWSER_EXTENSION_ALLOW_USER_TELEMETRY_DEFAULT:
       process.env.BROWSER_EXTENSION_ALLOW_USER_TELEMETRY_DEFAULT,
+    LEXYBRAIN_ENABLE: process.env.LEXYBRAIN_ENABLE,
+    LEXYBRAIN_MODEL_URL: process.env.LEXYBRAIN_MODEL_URL,
+    LEXYBRAIN_KEY: process.env.LEXYBRAIN_KEY,
+    LEXYBRAIN_MODEL_VERSION: process.env.LEXYBRAIN_MODEL_VERSION,
+    LEXYBRAIN_DAILY_COST_CAP: process.env.LEXYBRAIN_DAILY_COST_CAP,
+    LEXYBRAIN_MAX_LATENCY_MS: process.env.LEXYBRAIN_MAX_LATENCY_MS,
   });
 }
 
