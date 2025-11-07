@@ -24,6 +24,16 @@ import {
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
+// Helper function to format date for datetime-local input
+function formatDateTimeLocal(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 export default function NewNotificationPage() {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
@@ -42,8 +52,13 @@ export default function NewNotificationPage() {
   const [planCodes, setPlanCodes] = useState('');
   const [userIds, setUserIds] = useState('');
 
-  const [scheduleStartAt, setScheduleStartAt] = useState('');
-  const [scheduleEndAt, setScheduleEndAt] = useState('');
+  // Initialize with current date/time and end time 2 hours from now
+  const [scheduleStartAt, setScheduleStartAt] = useState(() => formatDateTimeLocal(new Date()));
+  const [scheduleEndAt, setScheduleEndAt] = useState(() => {
+    const endDate = new Date();
+    endDate.setHours(endDate.getHours() + 2);
+    return formatDateTimeLocal(endDate);
+  });
 
   const [showBanner, setShowBanner] = useState(false);
   const [createInapp, setCreateInapp] = useState(true);
@@ -319,7 +334,7 @@ export default function NewNotificationPage() {
                       onChange={(e) => setScheduleStartAt(e.target.value)}
                     />
                     <p className="text-sm text-muted-foreground">
-                      Leave empty to start immediately
+                      Defaults to now. Clear to start immediately. Use arrows to adjust time.
                     </p>
                   </div>
 
@@ -332,7 +347,7 @@ export default function NewNotificationPage() {
                       onChange={(e) => setScheduleEndAt(e.target.value)}
                     />
                     <p className="text-sm text-muted-foreground">
-                      Leave empty for no end date
+                      Defaults to 2 hours from now. Clear for no end date.
                     </p>
                   </div>
                 </div>

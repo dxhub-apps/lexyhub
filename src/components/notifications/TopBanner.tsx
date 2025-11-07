@@ -58,21 +58,32 @@ export function TopBanner() {
   const [isVisible, setIsVisible] = useState(true);
 
   const fetchBanner = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.log('[TopBanner] No user ID, skipping banner fetch');
+      return;
+    }
 
     try {
+      console.log('[TopBanner] Fetching active banner for user:', user.id);
       const response = await fetch(`/api/notifications/active?userId=${user.id}`);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('[TopBanner] Banner data received:', data);
+
         if (data.banner) {
           setBanner(data.banner);
           setIsVisible(true);
+          console.log('[TopBanner] Banner set:', data.banner.title);
         } else {
           setBanner(null);
+          console.log('[TopBanner] No active banner');
         }
+      } else {
+        console.error('[TopBanner] Failed to fetch banner, status:', response.status);
       }
     } catch (error) {
-      console.error('Failed to fetch active banner:', error);
+      console.error('[TopBanner] Error fetching active banner:', error);
     }
   }, [user?.id]);
 
