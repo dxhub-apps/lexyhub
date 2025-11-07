@@ -123,8 +123,24 @@ export async function callLexyBrainRaw(
     const abortController = new AbortController();
     const timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
 
+    // Build the full endpoint URL
+    // Handle both cases: URL with or without /run or /runsync suffix
+    let fullUrl = modelUrl;
+    if (!modelUrl.endsWith('/run') && !modelUrl.endsWith('/runsync')) {
+      fullUrl = `${modelUrl}/run`;
+    }
+
+    logger.debug(
+      {
+        type: "lexybrain_request_url",
+        model_url: modelUrl,
+        full_url: fullUrl,
+      },
+      "Using RunPod endpoint URL"
+    );
+
     // Make request to RunPod endpoint
-    const response = await fetch(`${modelUrl}/run`, {
+    const response = await fetch(fullUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -149,6 +165,7 @@ export async function callLexyBrainRaw(
           status_text: response.statusText,
           error_body: errorBody,
           latency_ms: latencyMs,
+          request_url: fullUrl,
         },
         "LexyBrain RunPod request failed"
       );
@@ -168,6 +185,7 @@ export async function callLexyBrainRaw(
         extra: {
           response_body: errorBody,
           model_url: modelUrl,
+          request_url: fullUrl,
           latency_ms: latencyMs,
         },
       });
