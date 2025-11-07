@@ -281,13 +281,23 @@ time curl https://your-app.vercel.app/api/lexybrain/generate \
 
 ## 6. Troubleshooting
 
+> **Quick Fix**: If experiencing multiple errors, use the automated fix script:
+> ```bash
+> # Verify database state
+> psql $DATABASE_URL < scripts/verify-lexybrain-db.sql
+>
+> # Apply all fixes at once
+> psql $DATABASE_URL < scripts/fix-lexybrain-errors.sql
+> ```
+> See `scripts/README.md` for detailed information.
+
 ### Error: "401 Unauthorized" from RunPod
 
 **Cause**: Invalid or missing `LEXYBRAIN_KEY` environment variable.
 
 **Fix**:
 1. Verify your RunPod API key is correct
-2. Check environment variables are set in deployment
+2. Check environment variables are set in deployment (see `.env.example` for all required variables)
 3. Re-deploy after adding/updating variables
 
 ```bash
@@ -298,26 +308,58 @@ curl https://api.runpod.ai/v2/your-endpoint-id/run \
   -d '{"input": {"prompt": "Hello"}}'
 ```
 
+**Environment variables checklist**:
+```bash
+LEXYBRAIN_ENABLE=true
+LEXYBRAIN_MODEL_URL=https://api.runpod.ai/v2/your-endpoint-id/run
+LEXYBRAIN_KEY=runpod_your_api_key_here
+LEXYBRAIN_MODEL_VERSION=llama-3-8b-instruct
+```
+
 ### Error: "column ai_usage_events.ts does not exist"
 
 **Cause**: Migration 0037 hasn't been run yet.
 
-**Fix**:
-```bash
-# Run the migration
-supabase db push
+**Fix Options**:
 
-# Or manually apply
+**Option 1 - Recommended**: Run the full migration
+```bash
+supabase db push
+```
+
+**Option 2**: Apply only migration 0037
+```bash
 psql $DATABASE_URL < supabase/migrations/0037_lexybrain_core_tables.sql
+```
+
+**Option 3**: Use the quick fix script (fixes all 3 errors at once)
+```bash
+psql $DATABASE_URL < scripts/fix-lexybrain-errors.sql
+```
+
+**To verify the fix**:
+```bash
+psql $DATABASE_URL < scripts/verify-lexybrain-db.sql
 ```
 
 ### Error: "Failed to lookup plan entitlements" for admin user
 
 **Cause**: Admin plan not seeded in `plan_entitlements` table.
 
-**Fix**:
+**Fix Options**:
+
+**Option 1 - Recommended**: Run the full migration (includes seeding)
+```bash
+supabase db push
+```
+
+**Option 2**: Use the quick fix script
+```bash
+psql $DATABASE_URL < scripts/fix-lexybrain-errors.sql
+```
+
+**Option 3**: Manual SQL
 ```sql
--- Manually insert admin plan
 INSERT INTO plan_entitlements (
   plan_code,
   searches_per_month,
