@@ -50,8 +50,8 @@ export function Sidebar({
   };
 
   const groups: Array<{ title: string; items: SidebarNavItem[] }> = [
-    { title: "Core", items: navItems.slice(0, 5) as SidebarNavItem[] },
-    { title: "Operations", items: navItems.slice(5) as SidebarNavItem[] },
+    { title: "Core", items: navItems.slice(0, 6) as SidebarNavItem[] },
+    { title: "Operations", items: navItems.slice(6) as SidebarNavItem[] },
   ].filter((group) => group.items.length > 0);
 
   return (

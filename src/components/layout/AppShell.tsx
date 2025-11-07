@@ -11,6 +11,7 @@ import {
   PenTool,
   Shield,
   Calendar,
+  Brain,
 } from "lucide-react";
 
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
@@ -37,6 +38,12 @@ const NAV_ITEMS: readonly SidebarNavItem[] = [
     label: "Keywords",
     description: "AI search",
     icon: <Search className="h-5 w-5" />,
+  },
+  {
+    href: "/insights",
+    label: "Insights",
+    description: "LexyBrain AI",
+    icon: <Brain className="h-5 w-5" />,
   },
   {
     href: "/seasonal-calendar",
