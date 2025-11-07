@@ -57,6 +57,11 @@ export async function getNotificationFeed(
   const offset = (page - 1) * limit;
 
   // Build query to get notifications with delivery state for this user
+  // We need to handle two cases:
+  // 1. Targeted notifications: notifications with delivery records for this user
+  // 2. Broadcast notifications: notifications with audience_scope='all' (even without delivery records)
+  //
+  // Use LEFT JOIN to get delivery records, then filter in-memory
   let query = supabase
     .from('notifications')
     .select(
@@ -67,8 +72,7 @@ export async function getNotificationFeed(
       { count: 'exact' }
     )
     .eq('status', 'live')
-    .eq('create_inapp', true)
-    .eq('notification_delivery.user_id', userId);
+    .eq('create_inapp', true);
 
   // Check schedule
   const now = new Date().toISOString();
@@ -93,14 +97,32 @@ export async function getNotificationFeed(
     throw new Error(`Failed to fetch notification feed: ${error.message}`);
   }
 
-  // Transform data to include delivery as a property
-  let notifications = (data || []).map((item: any) => {
-    const { notification_delivery, ...notification } = item;
-    return {
-      ...notification,
-      delivery: notification_delivery && notification_delivery.length > 0 ? notification_delivery[0] : undefined,
-    };
-  });
+  // Transform and filter notifications
+  // We need to show:
+  // 1. Notifications with a delivery record for this user
+  // 2. Broadcast notifications (audience_scope='all') even without delivery records
+  let notifications = (data || [])
+    .map((item: any) => {
+      const { notification_delivery, ...notification } = item;
+
+      // Find the delivery record for this specific user
+      const userDelivery = notification_delivery?.find((d: any) => d.user_id === userId);
+
+      return {
+        ...notification,
+        delivery: userDelivery || undefined,
+      };
+    })
+    .filter((n) => {
+      // Include if there's a delivery record for this user
+      if (n.delivery) return true;
+
+      // Include if it's a broadcast notification (audience_scope='all')
+      if (n.audience_scope === 'all') return true;
+
+      // Otherwise exclude (targeted to other users)
+      return false;
+    });
 
   // Apply unread filter in-memory if requested
   if (params.unread) {
