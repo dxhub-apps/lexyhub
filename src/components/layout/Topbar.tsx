@@ -26,11 +26,6 @@ export function Topbar({
   sidebarCollapsed,
   activeNavItem,
 }: TopbarProps): JSX.Element {
-  const environmentLabel = useMemo(
-    () => process.env.NEXT_PUBLIC_ENVIRONMENT ?? process.env.NODE_ENV ?? "production",
-    [],
-  );
-
   const handleToggle = () => {
     if (isMobile) {
       onToggleNav();
@@ -74,11 +69,22 @@ export function Topbar({
 
         {/* Right section */}
         <div className="flex items-center gap-2">
+          {/* LexyBrain Status Indicator */}
+          <div className="flex items-center gap-2 px-2">
+            <div className="relative flex items-center justify-center">
+              <div className="absolute h-3 w-3 rounded-full bg-green-500 opacity-75 animate-ping" />
+              <div className="relative h-2 w-2 rounded-full bg-green-500" />
+            </div>
+            <span className="text-xs text-muted-foreground hidden sm:inline">LexyBrain</span>
+          </div>
+
+          <Separator orientation="vertical" className="h-6" />
+
           <NotificationBell />
 
           <Separator orientation="vertical" className="h-6" />
 
-          <UserMenu environmentLabel={environmentLabel} />
+          <UserMenu />
         </div>
       </div>
     </header>

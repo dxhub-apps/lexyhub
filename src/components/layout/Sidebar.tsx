@@ -49,9 +49,13 @@ export function Sidebar({
     return pathname.startsWith(href);
   };
 
+  // Separate admin items from regular navigation
+  const adminItems = navItems.filter((item) => item.href.startsWith("/admin"));
+  const regularItems = navItems.filter((item) => !item.href.startsWith("/admin"));
+
   const groups: Array<{ title: string; items: SidebarNavItem[] }> = [
-    { title: "Core", items: navItems.slice(0, 6) as SidebarNavItem[] },
-    { title: "Operations", items: navItems.slice(6) as SidebarNavItem[] },
+    { title: "Navigation", items: regularItems as SidebarNavItem[] },
+    ...(adminItems.length > 0 ? [{ title: "Admin", items: adminItems as SidebarNavItem[] }] : []),
   ].filter((group) => group.items.length > 0);
 
   return (
