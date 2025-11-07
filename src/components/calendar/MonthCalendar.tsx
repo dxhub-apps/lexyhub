@@ -112,19 +112,19 @@ export function MonthCalendar({
 
   return (
     <TooltipProvider>
-      <Card className="overflow-hidden">
-        <div className="p-4 border-b bg-muted/30">
-          <h3 className="text-lg font-semibold">
+      <Card className="overflow-hidden shadow-sm">
+        <div className="p-5 border-b bg-gradient-to-br from-muted/40 to-muted/20">
+          <h3 className="text-xl font-bold">
             {MONTH_NAMES[month]} {year}
           </h3>
         </div>
         <div className="p-4">
           {/* Days of week header */}
-          <div className="grid grid-cols-7 gap-2 mb-2">
+          <div className="grid grid-cols-7 gap-2 mb-3">
             {DAYS_OF_WEEK.map((day) => (
               <div
                 key={day}
-                className="text-center text-sm font-medium text-muted-foreground"
+                className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide"
               >
                 {day}
               </div>
@@ -164,6 +164,17 @@ interface CalendarDayProps {
 function CalendarDay({ dayData, isToday, onEventClick, onDayClick }: CalendarDayProps) {
   const hasEvents = dayData.events.length > 0;
 
+  // Check if any events are active today
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const hasActiveEvents = dayData.events.some((event) => {
+    const startDate = new Date(event.start_date);
+    const endDate = new Date(event.end_date);
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+    return startDate <= today && endDate >= today;
+  });
+
   const handleDayClick = () => {
     if (hasEvents) {
       onDayClick?.(dayData.date, dayData.events);
@@ -200,8 +211,9 @@ function CalendarDay({ dayData, isToday, onEventClick, onDayClick }: CalendarDay
         dayData.isCurrentMonth
           ? "bg-background"
           : "bg-muted/20 text-muted-foreground",
-        isToday && "ring-2 ring-primary bg-primary/5",
-        hasEvents && dayData.isCurrentMonth && "border-accent/50 bg-accent/5 cursor-pointer hover:bg-accent/10 hover:border-accent hover:shadow-sm",
+        isToday && "ring-2 ring-primary bg-primary/10 font-bold",
+        hasEvents && dayData.isCurrentMonth && hasActiveEvents && "border-success/60 bg-gradient-to-br from-success/15 to-success/5 cursor-pointer hover:from-success/20 hover:to-success/10 hover:border-success hover:shadow-md hover:shadow-success/20",
+        hasEvents && dayData.isCurrentMonth && !hasActiveEvents && "border-primary/40 bg-primary/5 cursor-pointer hover:bg-primary/10 hover:border-primary/60 hover:shadow-sm",
         !hasEvents && "hover:bg-muted/30"
       )}
     >
@@ -210,7 +222,8 @@ function CalendarDay({ dayData, isToday, onEventClick, onDayClick }: CalendarDay
           className={cn(
             "text-sm font-semibold mb-1",
             isToday && "text-primary",
-            hasEvents && "text-accent-foreground"
+            hasEvents && hasActiveEvents && dayData.isCurrentMonth && "text-success",
+            hasEvents && !hasActiveEvents && dayData.isCurrentMonth && "text-primary"
           )}
         >
           {dayData.day}
@@ -223,12 +236,17 @@ function CalendarDay({ dayData, isToday, onEventClick, onDayClick }: CalendarDay
                   key={index}
                   className={cn(
                     "w-2 h-2 rounded-full",
-                    "bg-accent border border-accent-foreground/20"
+                    hasActiveEvents
+                      ? "bg-success border border-success/30 shadow-sm shadow-success/30"
+                      : "bg-primary/60 border border-primary/20"
                   )}
                 />
               ))}
               {dayData.events.length > 3 && (
-                <div className="text-[10px] text-accent-foreground font-medium ml-0.5">
+                <div className={cn(
+                  "text-[10px] font-medium ml-0.5",
+                  hasActiveEvents ? "text-success" : "text-primary"
+                )}>
                   +{dayData.events.length - 3}
                 </div>
               )}
