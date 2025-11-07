@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { LexyBrainActionMenu } from "@/components/lexybrain/LexyBrainActionMenu";
 
 // UX refactor goals, no feature loss:
 // - Single reducer manages state
@@ -97,6 +98,7 @@ const DEFAULT_SOURCES = Object.keys(SOURCE_DETAILS);
 const DEFAULT_PLAN: PlanTier = "growth";
 const PAGE_SIZE = 25;
 const LS_KEY = "lexyhub.keywords.filters.v1";
+const LS_QUERY_KEY = "lexyhub.keywords.query.v1";
 
 // ---------------------------------------------------------
 // Utils
@@ -255,9 +257,10 @@ export default function KeywordsPage(): JSX.Element {
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<number | null>(null);
 
-  // Load filters from storage once
+  // Load filters and query from storage once
   useEffect(() => {
     try {
+      // Load filters
       const raw = localStorage.getItem(LS_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Filters;
@@ -268,6 +271,12 @@ export default function KeywordsPage(): JSX.Element {
         };
         dispatch({ type: "LOAD_FILTERS", v: normalized });
       }
+
+      // Load last search query
+      const savedQuery = localStorage.getItem(LS_QUERY_KEY);
+      if (savedQuery) {
+        dispatch({ type: "SET_QUERY", v: savedQuery });
+      }
     } catch {}
   }, []);
 
@@ -277,6 +286,15 @@ export default function KeywordsPage(): JSX.Element {
       localStorage.setItem(LS_KEY, JSON.stringify(state.filters));
     } catch {}
   }, [state.filters]);
+
+  // Persist query
+  useEffect(() => {
+    try {
+      if (state.query) {
+        localStorage.setItem(LS_QUERY_KEY, state.query);
+      }
+    } catch {}
+  }, [state.query]);
 
   // Visible results with tag filter
   const tagTokens = useMemo(() => parseTagTokens(state.filters.tags), [state.filters.tags]);
@@ -898,14 +916,21 @@ export default function KeywordsPage(): JSX.Element {
                             <Badge variant="secondary">{SOURCE_DETAILS[k.source]?.title ?? k.source}</Badge>
                           </td>
                           <td className="px-4 py-3 text-sm">
-                            <div className="flex gap-2">
-                              <Button variant="ghost" size="sm" onClick={() => handleWatchlist(k)}>
-                                <Star className="mr-1 h-3 w-3" />
-                                Watch
-                              </Button>
-                              <Button variant="ghost" size="sm" onClick={() => handleOptimize(k)}>
-                                Optimize
-                              </Button>
+                            <div className="flex flex-col gap-2">
+                              <div className="flex gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => handleWatchlist(k)}>
+                                  <Star className="mr-1 h-3 w-3" />
+                                  Watch
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => handleOptimize(k)}>
+                                  Optimize
+                                </Button>
+                              </div>
+                              <LexyBrainActionMenu
+                                keyword={k.term}
+                                market={k.market}
+                                size="sm"
+                              />
                             </div>
                           </td>
                         </tr>

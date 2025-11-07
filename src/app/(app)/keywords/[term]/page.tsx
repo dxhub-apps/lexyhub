@@ -28,6 +28,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { LexyBrainActionMenu } from "@/components/lexybrain/LexyBrainActionMenu";
 
 type KeywordDetails = {
   id?: string;
@@ -88,18 +89,14 @@ export default function KeywordDetailsPage(): JSX.Element {
     setError(null);
 
     try {
-      // Search for this specific keyword
-      const response = await fetch("/api/keywords/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: term,
-          market: "us",
-          limit: 1,
-          plan: "growth",
-          sources: ["synthetic", "amazon"]
-        }),
-      });
+      // Fetch this specific keyword using optimized endpoint
+      const response = await fetch(
+        `/api/keywords/${encodeURIComponent(term)}?market=us`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
 
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
@@ -108,12 +105,8 @@ export default function KeywordDetailsPage(): JSX.Element {
 
       const data = await response.json();
 
-      if (data.results && data.results.length > 0) {
-        // Find exact match or closest match
-        const exactMatch = data.results.find((r: any) =>
-          r.term.toLowerCase() === term.toLowerCase()
-        );
-        setKeyword(exactMatch || data.results[0]);
+      if (data.keyword) {
+        setKeyword(data.keyword);
       } else {
         setError("Keyword not found");
       }
@@ -590,6 +583,23 @@ export default function KeywordDetailsPage(): JSX.Element {
               </Link>
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* LexyBrain Analysis */}
+      <Card>
+        <CardHeader>
+          <CardTitle>AI-Powered Analysis</CardTitle>
+          <CardDescription>
+            Use LexyBrain to get deep market insights and strategic recommendations
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <LexyBrainActionMenu
+            keyword={term}
+            market={keyword.market}
+            variant="button"
+          />
         </CardContent>
       </Card>
     </div>

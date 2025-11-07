@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CompetitionScore } from "@/components/watchlists/CompetitionScore";
+import { LexyBrainActionMenu } from "@/components/lexybrain/LexyBrainActionMenu";
 
 type WatchlistItem = {
   id: string;
@@ -277,6 +278,16 @@ export default function WatchlistsPage(): JSX.Element {
                               </div>
                             )}
                           </div>
+                        </div>
+                      )}
+
+                      {item.type === "keyword" && (
+                        <div className="pt-2">
+                          <LexyBrainActionMenu
+                            keyword={item.label}
+                            market={item.context?.toLowerCase() || "us"}
+                            size="sm"
+                          />
                         </div>
                       )}
                     </div>
