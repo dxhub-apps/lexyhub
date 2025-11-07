@@ -50,33 +50,30 @@ export async function GET(): Promise<NextResponse> {
     maxLatencyMs: status.maxLatencyMs,
     // URL analysis
     urlAnalysis: {
-      endsWithRun: status.modelUrl?.endsWith('/run') || false,
-      endsWithRunsync: status.modelUrl?.endsWith('/runsync') || false,
-      expectedFormat: "https://api.runpod.ai/v2/YOUR_ENDPOINT_ID (with or without /run suffix)",
+      isRunPodRun: status.modelUrl?.includes('.runpod.run') || false,
+      isApiV2: status.modelUrl?.includes('api.runpod.ai/v2/') || false,
+      expectedFormat: "https://<endpoint-id>-<hash>.runpod.run (llama.cpp HTTP server)",
       actualUrl: status.modelUrl || "NOT SET",
-      computedRequestUrl: status.modelUrl ?
-        (status.modelUrl.endsWith('/run') || status.modelUrl.endsWith('/runsync')
-          ? status.modelUrl
-          : `${status.modelUrl}/run`)
-        : "NOT SET",
+      computedRequestUrl: status.modelUrl ? `${status.modelUrl}/completion` : "NOT SET",
       hasWhitespace: status.modelUrl ? status.modelUrl !== status.modelUrl.trim() : false,
-      issue: status.modelUrl?.endsWith('/run')
-        ? "✅ OK: URL ends with /run - will use as-is"
-        : status.modelUrl?.endsWith('/runsync')
-        ? "⚠️ INFO: URL ends with /runsync - will use as-is (not typical)"
-        : status.modelUrl
-        ? "✅ OK: URL without suffix - code will append /run"
-        : "❌ URL not set"
+      issue: !status.modelUrl
+        ? "❌ URL not set"
+        : status.modelUrl.includes('api.runpod.ai/v2/')
+        ? "❌ WRONG: Using RunPod job API URL. Must use llama.cpp HTTP server URL: https://<endpoint>-<hash>.runpod.run"
+        : status.modelUrl.includes('.runpod.run')
+        ? "✅ OK: Correct llama.cpp HTTP server URL format"
+        : "⚠️ WARNING: URL format unexpected - should be https://<endpoint>-<hash>.runpod.run"
     },
-    // API key analysis
+    // API key analysis (shared secret, not RunPod API key)
     apiKeyAnalysis: env.LEXYBRAIN_KEY ? {
       hasWhitespace: env.LEXYBRAIN_KEY !== env.LEXYBRAIN_KEY.trim(),
-      startsWithRunpod: env.LEXYBRAIN_KEY.trim().startsWith('runpod_'),
-      startsWithRpa: env.LEXYBRAIN_KEY.trim().startsWith('rpa_'),
       length: env.LEXYBRAIN_KEY.trim().length,
-      issue: !env.LEXYBRAIN_KEY.trim().startsWith('runpod_') && !env.LEXYBRAIN_KEY.trim().startsWith('rpa_')
-        ? "⚠️ WARNING: API key doesn't start with 'runpod_' or 'rpa_' - might be invalid format"
-        : "✅ OK: API key format looks correct"
+      note: "This is the shared secret for X-LEXYBRAIN-KEY header, NOT a RunPod API key",
+      issue: env.LEXYBRAIN_KEY.trim().length === 0
+        ? "❌ Key is empty"
+        : env.LEXYBRAIN_KEY !== env.LEXYBRAIN_KEY.trim()
+        ? "⚠️ WARNING: Key has leading/trailing whitespace"
+        : "✅ OK: Key is set and trimmed"
     } : null,
     // Connection test
     connectionTest,

@@ -1,12 +1,18 @@
 /**
- * LexyBrain Client - Low-Level RunPod Communication
+ * LexyBrain Client - HTTP llama.cpp Server Communication
  *
- * Handles direct communication with the RunPod-hosted Llama-3-8B endpoint.
- * This module is responsible for:
- * - HTTP requests to the model endpoint
- * - Authentication with RunPod
- * - Error handling and retries
- * - Timeout management
+ * Handles direct communication with the RunPod-hosted llama.cpp HTTP server.
+ *
+ * ARCHITECTURE:
+ * - LexyBrain is deployed as an HTTP llama.cpp server on RunPod
+ * - Base URL format: https://<endpoint-id>-<hash>.runpod.run
+ * - Authentication: X-LEXYBRAIN-KEY header with shared secret
+ * - Endpoint: /completion
+ *
+ * DO NOT use:
+ * - api.runpod.ai/v2/... URLs (those are for job-based APIs)
+ * - Authorization: Bearer ... (that's for RunPod API, not llama.cpp)
+ * - /run, /runsync, /status endpoints (not part of llama.cpp HTTP server)
  */
 
 import * as Sentry from "@sentry/nextjs";
@@ -23,21 +29,52 @@ import { logger } from "./logger";
 // Types
 // =====================================================
 
-export interface RunPodRequest {
-  input: {
-    prompt: string;
-    max_tokens?: number;
-    temperature?: number;
-    top_p?: number;
-    stop?: string[];
-  };
+/**
+ * llama.cpp HTTP server completion request
+ * See: https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md
+ */
+export interface LlamaCppCompletionRequest {
+  prompt: string;
+  n_predict?: number; // max tokens to generate
+  temperature?: number;
+  top_p?: number;
+  stop?: string[];
+  stream?: boolean;
 }
 
-export interface RunPodResponse {
-  id: string;
-  status: string;
-  output?: string | string[];
-  error?: string;
+/**
+ * llama.cpp HTTP server completion response
+ */
+export interface LlamaCppCompletionResponse {
+  content?: string; // Main response field
+  generated_text?: string; // Alternative field
+  stop?: boolean;
+  model?: string;
+  tokens_predicted?: number;
+  tokens_evaluated?: number;
+  generation_settings?: {
+    n_ctx?: number;
+    model?: string;
+    seed?: number;
+    temperature?: number;
+    top_p?: number;
+  };
+  prompt?: string;
+  truncated?: boolean;
+  stopped_eos?: boolean;
+  stopped_word?: boolean;
+  stopped_limit?: boolean;
+  stopping_word?: string;
+  timings?: {
+    prompt_n?: number;
+    prompt_ms?: number;
+    prompt_per_token_ms?: number;
+    prompt_per_second?: number;
+    predicted_n?: number;
+    predicted_ms?: number;
+    predicted_per_token_ms?: number;
+    predicted_per_second?: number;
+  };
 }
 
 export class LexyBrainClientError extends Error {
@@ -63,7 +100,7 @@ export class LexyBrainTimeoutError extends Error {
 // =====================================================
 
 /**
- * Call the LexyBrain RunPod endpoint with a prompt
+ * Call the LexyBrain llama.cpp HTTP server with a prompt
  * Returns the raw text output from the model
  *
  * @throws {LexyBrainClientError} If LexyBrain is disabled or request fails
@@ -89,31 +126,54 @@ export async function callLexyBrainRaw(
     throw error;
   }
 
-  const modelUrl = getLexyBrainModelUrl();
-  const apiKey = getLexyBrainKey();
+  const baseUrl = getLexyBrainModelUrl();
+  const lexyKey = getLexyBrainKey();
   const sloConfig = getLexyBrainSloConfig();
   const timeoutMs = options.timeoutMs || sloConfig.maxLatencyMs;
 
-  // Build request payload
-  const payload: RunPodRequest = {
-    input: {
-      prompt,
-      max_tokens: options.maxTokens || 2048,
-      temperature: options.temperature !== undefined ? options.temperature : 0.3,
-      top_p: options.topP || 0.9,
-      stop: ["</s>", "<|endoftext|>"],
-    },
+  // Validate URL format - must be runpod.run, NOT api.runpod.ai
+  if (baseUrl.includes('api.runpod.ai/v2/')) {
+    const error = new LexyBrainClientError(
+      `LEXYBRAIN_MODEL_URL is incorrect. Expected: https://<endpoint-id>-<hash>.runpod.run, Got: ${baseUrl}. ` +
+      `The URL should point to the HTTP llama.cpp server, not the RunPod v2 API.`
+    );
+    logger.error(
+      {
+        type: "lexybrain_config_error",
+        provided_url: baseUrl,
+        expected_format: "https://<endpoint-id>-<hash>.runpod.run",
+      },
+      "LexyBrain URL configuration error"
+    );
+    Sentry.captureException(error, {
+      tags: { feature: "lexybrain", component: "client" },
+    });
+    throw error;
+  }
+
+  // Build request payload for llama.cpp HTTP server
+  const payload: LlamaCppCompletionRequest = {
+    prompt,
+    n_predict: options.maxTokens || 2048,
+    temperature: options.temperature !== undefined ? options.temperature : 0.3,
+    top_p: options.topP || 0.9,
+    stop: ["</s>", "<|endoftext|>", "\n\n###"],
+    stream: false,
   };
+
+  // Build full URL - llama.cpp uses /completion endpoint
+  const fullUrl = `${baseUrl}/completion`;
 
   logger.debug(
     {
       type: "lexybrain_request",
-      model_url: modelUrl,
+      base_url: baseUrl,
+      full_url: fullUrl,
       prompt_length: prompt.length,
-      max_tokens: payload.input.max_tokens,
-      temperature: payload.input.temperature,
+      n_predict: payload.n_predict,
+      temperature: payload.temperature,
     },
-    "Calling LexyBrain RunPod endpoint"
+    "Calling LexyBrain llama.cpp HTTP server"
   );
 
   const startTime = Date.now();
@@ -123,28 +183,13 @@ export async function callLexyBrainRaw(
     const abortController = new AbortController();
     const timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
 
-    // Build the full endpoint URL
-    // Handle both cases: URL with or without /run or /runsync suffix
-    let fullUrl = modelUrl;
-    if (!modelUrl.endsWith('/run') && !modelUrl.endsWith('/runsync')) {
-      fullUrl = `${modelUrl}/run`;
-    }
-
-    logger.debug(
-      {
-        type: "lexybrain_request_url",
-        model_url: modelUrl,
-        full_url: fullUrl,
-      },
-      "Using RunPod endpoint URL"
-    );
-
-    // Make request to RunPod endpoint
+    // Make request to llama.cpp HTTP server
+    // CRITICAL: Use X-LEXYBRAIN-KEY header, NOT Authorization: Bearer
     const response = await fetch(fullUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        "X-LEXYBRAIN-KEY": lexyKey, // Shared secret header
       },
       body: JSON.stringify(payload),
       signal: abortController.signal,
@@ -158,6 +203,47 @@ export async function callLexyBrainRaw(
     if (!response.ok) {
       const errorBody = await response.text().catch(() => "Unable to read error response");
 
+      // Special handling for auth errors
+      if (response.status === 401 || response.status === 403) {
+        logger.error(
+          {
+            type: "lexybrain_auth_error",
+            status: response.status,
+            status_text: response.statusText,
+            error_body: errorBody,
+            latency_ms: latencyMs,
+            request_url: fullUrl,
+            base_url: baseUrl,
+          },
+          "LexyBrain unauthorized - verify BASE_URL is the HTTP runpod.run endpoint and X-LEXYBRAIN-KEY matches RunPod configuration"
+        );
+
+        const error = new LexyBrainClientError(
+          `LexyBrain unauthorized (${response.status}). ` +
+          `Verify: (1) LEXYBRAIN_MODEL_URL is https://<endpoint>-<hash>.runpod.run, ` +
+          `(2) X-LEXYBRAIN-KEY header matches RunPod's required header configuration.`,
+          response.status,
+          errorBody
+        );
+
+        Sentry.captureException(error, {
+          tags: {
+            feature: "lexybrain",
+            component: "client",
+            status_code: response.status,
+          },
+          extra: {
+            response_body: errorBody,
+            base_url: baseUrl,
+            request_url: fullUrl,
+            latency_ms: latencyMs,
+          },
+        });
+
+        throw error;
+      }
+
+      // Other errors
       logger.error(
         {
           type: "lexybrain_error",
@@ -167,11 +253,11 @@ export async function callLexyBrainRaw(
           latency_ms: latencyMs,
           request_url: fullUrl,
         },
-        "LexyBrain RunPod request failed"
+        "LexyBrain HTTP request failed"
       );
 
       const error = new LexyBrainClientError(
-        `RunPod request failed: ${response.status} ${response.statusText}`,
+        `LexyBrain request failed: ${response.status} ${response.statusText}`,
         response.status,
         errorBody
       );
@@ -184,7 +270,7 @@ export async function callLexyBrainRaw(
         },
         extra: {
           response_body: errorBody,
-          model_url: modelUrl,
+          base_url: baseUrl,
           request_url: fullUrl,
           latency_ms: latencyMs,
         },
@@ -193,57 +279,40 @@ export async function callLexyBrainRaw(
       throw error;
     }
 
-    // Parse response
-    const data: RunPodResponse = await response.json();
+    // Parse response from llama.cpp server
+    const data: LlamaCppCompletionResponse = await response.json();
 
     logger.debug(
       {
         type: "lexybrain_response",
-        response_id: data.id,
-        status: data.status,
-        has_output: !!data.output,
+        has_content: !!data.content,
+        has_generated_text: !!data.generated_text,
+        tokens_predicted: data.tokens_predicted,
         latency_ms: latencyMs,
       },
-      "LexyBrain RunPod response received"
+      "LexyBrain llama.cpp response received"
     );
 
-    // Check for errors in response
-    if (data.error) {
+    // Extract output text - llama.cpp uses 'content' field
+    const outputText =
+      data.content ??
+      data.generated_text ??
+      "";
+
+    if (!outputText || typeof outputText !== "string") {
+      const error = new LexyBrainClientError(
+        "LexyBrain response missing content field or invalid format",
+        undefined,
+        data
+      );
+
       logger.error(
         {
-          type: "lexybrain_error",
-          error: data.error,
+          type: "lexybrain_invalid_response",
+          response_keys: Object.keys(data),
           latency_ms: latencyMs,
         },
-        "LexyBrain returned error"
-      );
-
-      const error = new LexyBrainClientError(
-        `RunPod returned error: ${data.error}`,
-        undefined,
-        data
-      );
-
-      Sentry.captureException(error, {
-        tags: { feature: "lexybrain", component: "client" },
-        extra: { response_data: data, latency_ms: latencyMs },
-      });
-
-      throw error;
-    }
-
-    // Extract output text
-    let outputText: string;
-
-    if (typeof data.output === "string") {
-      outputText = data.output;
-    } else if (Array.isArray(data.output) && data.output.length > 0) {
-      outputText = data.output[0];
-    } else {
-      const error = new LexyBrainClientError(
-        "RunPod response missing output field",
-        undefined,
-        data
+        "LexyBrain returned invalid response format"
       );
 
       Sentry.captureException(error, {
@@ -260,6 +329,8 @@ export async function callLexyBrainRaw(
         output_length: outputText.length,
         latency_ms: latencyMs,
         model_version: getLexyBrainModelVersion(),
+        tokens_predicted: data.tokens_predicted,
+        tokens_evaluated: data.tokens_evaluated,
       },
       "LexyBrain call completed successfully"
     );
@@ -304,7 +375,7 @@ export async function callLexyBrainRaw(
       );
 
       const networkError = new LexyBrainClientError(
-        `Network error calling RunPod: ${error.message}`,
+        `Network error calling LexyBrain: ${error.message}`,
         undefined,
         error
       );
@@ -333,7 +404,7 @@ export async function callLexyBrainRaw(
     );
 
     const unknownError = new LexyBrainClientError(
-      `Unknown error calling RunPod: ${error instanceof Error ? error.message : String(error)}`,
+      `Unknown error calling LexyBrain: ${error instanceof Error ? error.message : String(error)}`,
       undefined,
       error
     );
@@ -363,7 +434,7 @@ export async function testLexyBrainConnection(): Promise<{
   const startTime = Date.now();
 
   try {
-    const testPrompt = 'Return this exact JSON: {"status": "ok"}';
+    const testPrompt = 'You are LexyBrain. Return exactly {"status": "ok"}';
     const output = await callLexyBrainRaw(testPrompt, {
       maxTokens: 50,
       temperature: 0,
@@ -373,7 +444,7 @@ export async function testLexyBrainConnection(): Promise<{
     const latencyMs = Date.now() - startTime;
 
     logger.info(
-      { type: "lexybrain_test", latency_ms: latencyMs },
+      { type: "lexybrain_test", latency_ms: latencyMs, output_preview: output.substring(0, 100) },
       "LexyBrain connection test successful"
     );
 

@@ -104,11 +104,13 @@ Add these to your `.env.local` (development) and deployment platform (Vercel, et
 # Feature flag (set to "true" to enable)
 LEXYBRAIN_ENABLE=true
 
-# RunPod endpoint URL (with or without /run suffix - both formats work)
-LEXYBRAIN_MODEL_URL=https://api.runpod.ai/v2/your-endpoint-id
+# LexyBrain HTTP endpoint URL (llama.cpp server)
+# Format: https://<endpoint-id>-<hash>.runpod.run
+LEXYBRAIN_MODEL_URL=https://your-endpoint-id-hash.runpod.run
 
-# RunPod API key (starts with "runpod_" or "rpa_")
-LEXYBRAIN_KEY=runpod_xxxxxxxxxxxxxxxxxxxxxxxx
+# LexyBrain shared secret (X-LEXYBRAIN-KEY header)
+# This is configured in RunPod's "Required Request Headers"
+LEXYBRAIN_KEY=your-shared-secret-here
 
 # Model version identifier (for logging/analytics)
 LEXYBRAIN_MODEL_VERSION=llama-3-8b-instruct
@@ -311,15 +313,25 @@ curl https://api.runpod.ai/v2/your-endpoint-id/run \
 **Environment variables checklist**:
 ```bash
 LEXYBRAIN_ENABLE=true
-LEXYBRAIN_MODEL_URL=https://api.runpod.ai/v2/your-endpoint-id  # Note: with or without /run suffix works
-LEXYBRAIN_KEY=runpod_your_api_key_here
+# CRITICAL: Use the HTTP llama.cpp server URL, NOT api.runpod.ai/v2/...
+LEXYBRAIN_MODEL_URL=https://your-endpoint-id-hash.runpod.run
+LEXYBRAIN_KEY=your-shared-secret-here
 LEXYBRAIN_MODEL_VERSION=llama-3-8b-instruct
 ```
 
-**Common URL issues**:
-- ✅ `https://api.runpod.ai/v2/c01emmd6h9te8e` (correct)
-- ✅ `https://api.runpod.ai/v2/c01emmd6h9te8e/run` (also works - code handles both)
-- ❌ `https://api.runpod.ai/v2/c01emmd6h9te8e/run/run` (wrong - double /run)
+**IMPORTANT - URL Format**:
+LexyBrain is deployed as an **HTTP llama.cpp server**, not a job-based API.
+
+- ✅ **CORRECT**: `https://c01emmd6h9te8e-abc123.runpod.run` (llama.cpp HTTP server)
+- ❌ **WRONG**: `https://api.runpod.ai/v2/c01emmd6h9te8e` (RunPod job API - not used)
+- ❌ **WRONG**: `https://api.runpod.ai/v2/c01emmd6h9te8e/run` (RunPod job API - not used)
+
+The code will automatically append `/completion` to make requests.
+
+**Authentication**:
+- Uses `X-LEXYBRAIN-KEY` header with shared secret
+- NOT `Authorization: Bearer <runpod-api-key>`
+- The shared secret must match what's configured in RunPod's "Required Request Headers"
 
 **Debug endpoint**:
 Check your actual configuration at:
