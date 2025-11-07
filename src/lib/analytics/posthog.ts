@@ -1,17 +1,28 @@
 import posthog from "posthog-js";
 
+let isInitialized = false;
+
 export function initPostHog() {
-  if (typeof window !== "undefined") {
+  if (typeof window !== "undefined" && !isInitialized) {
     const apiKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
     const apiHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://app.posthog.com";
 
-    if (apiKey) {
+    if (!apiKey) {
+      console.warn(
+        "⚠️ PostHog: NEXT_PUBLIC_POSTHOG_KEY is not set. Analytics will not be tracked.\n" +
+        "To enable PostHog, add NEXT_PUBLIC_POSTHOG_KEY to your .env.local file."
+      );
+      return null;
+    }
+
+    try {
       posthog.init(apiKey, {
         api_host: apiHost,
 
         // Enable debug mode in development
         loaded: (posthog) => {
           if (process.env.NODE_ENV === "development") {
+            console.log("✅ PostHog initialized successfully");
             posthog.debug();
           }
         },
@@ -54,10 +65,34 @@ export function initPostHog() {
           return sanitized;
         },
       });
+
+      isInitialized = true;
+      console.log("✅ PostHog analytics enabled");
+    } catch (error) {
+      console.error("❌ PostHog initialization failed:", error);
+      return null;
     }
   }
 
   return posthog;
 }
 
+/**
+ * Get the PostHog instance (safe to use after initialization)
+ */
+export function getPostHog() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  return isInitialized ? posthog : null;
+}
+
+/**
+ * Check if PostHog is initialized and ready to use
+ */
+export function isPostHogReady(): boolean {
+  return isInitialized && typeof window !== "undefined";
+}
+
+// Export for backward compatibility, but prefer using getPostHog()
 export { posthog };

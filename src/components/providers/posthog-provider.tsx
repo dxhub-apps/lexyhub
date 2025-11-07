@@ -2,7 +2,7 @@
 
 import { useEffect, Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { initPostHog, posthog } from "@/lib/analytics/posthog";
+import { initPostHog, getPostHog, isPostHogReady } from "@/lib/analytics/posthog";
 
 function PostHogPageView() {
   const pathname = usePathname();
@@ -10,14 +10,17 @@ function PostHogPageView() {
 
   useEffect(() => {
     // Track pageviews on route change
-    if (pathname && posthog) {
-      let url = window.origin + pathname;
-      if (searchParams && searchParams.toString()) {
-        url = url + `?${searchParams.toString()}`;
+    if (pathname && isPostHogReady()) {
+      const posthog = getPostHog();
+      if (posthog) {
+        let url = window.origin + pathname;
+        if (searchParams && searchParams.toString()) {
+          url = url + `?${searchParams.toString()}`;
+        }
+        posthog.capture("$pageview", {
+          $current_url: url,
+        });
       }
-      posthog.capture("$pageview", {
-        $current_url: url,
-      });
     }
   }, [pathname, searchParams]);
 
