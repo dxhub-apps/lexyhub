@@ -104,10 +104,10 @@ Add these to your `.env.local` (development) and deployment platform (Vercel, et
 # Feature flag (set to "true" to enable)
 LEXYBRAIN_ENABLE=true
 
-# RunPod endpoint URL
+# RunPod endpoint URL (with or without /run suffix - both formats work)
 LEXYBRAIN_MODEL_URL=https://api.runpod.ai/v2/your-endpoint-id
 
-# RunPod API key
+# RunPod API key (starts with "runpod_" or "rpa_")
 LEXYBRAIN_KEY=runpod_xxxxxxxxxxxxxxxxxxxxxxxx
 
 # Model version identifier (for logging/analytics)
@@ -311,9 +311,20 @@ curl https://api.runpod.ai/v2/your-endpoint-id/run \
 **Environment variables checklist**:
 ```bash
 LEXYBRAIN_ENABLE=true
-LEXYBRAIN_MODEL_URL=https://api.runpod.ai/v2/your-endpoint-id/run
+LEXYBRAIN_MODEL_URL=https://api.runpod.ai/v2/your-endpoint-id  # Note: with or without /run suffix works
 LEXYBRAIN_KEY=runpod_your_api_key_here
 LEXYBRAIN_MODEL_VERSION=llama-3-8b-instruct
+```
+
+**Common URL issues**:
+- ✅ `https://api.runpod.ai/v2/c01emmd6h9te8e` (correct)
+- ✅ `https://api.runpod.ai/v2/c01emmd6h9te8e/run` (also works - code handles both)
+- ❌ `https://api.runpod.ai/v2/c01emmd6h9te8e/run/run` (wrong - double /run)
+
+**Debug endpoint**:
+Check your actual configuration at:
+```bash
+curl https://your-app.vercel.app/api/lexybrain/debug
 ```
 
 ### Error: "column ai_usage_events.ts does not exist"
