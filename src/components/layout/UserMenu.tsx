@@ -43,17 +43,13 @@ function normalizeAvatarUrl(value: string | null | undefined): string {
   return AVATAR_URL;
 }
 
-type UserMenuProps = {
-  environmentLabel: string;
-};
-
 type ProfileData = {
   fullName: string;
   email: string;
   avatarUrl: string;
 };
 
-export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
+export function UserMenu(): JSX.Element {
   const router = useRouter();
   const session = useSession();
   const supabase = useSupabaseClient();
@@ -179,9 +175,6 @@ export function UserMenu({ environmentLabel }: UserMenuProps): JSX.Element {
                 {profileEmail}
               </p>
             )}
-            <p className="text-xs leading-none text-muted-foreground font-mono">
-              {environmentLabel}
-            </p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
