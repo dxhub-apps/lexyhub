@@ -89,6 +89,36 @@ CREATE TABLE IF NOT EXISTS public.ai_usage_events (
   ts timestamptz NOT NULL DEFAULT now()
 );
 
+-- Handle column name migration (created_at -> ts)
+DO $$
+BEGIN
+  -- Check if 'created_at' exists but 'ts' does not
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+    AND table_name = 'ai_usage_events'
+    AND column_name = 'created_at'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+    AND table_name = 'ai_usage_events'
+    AND column_name = 'ts'
+  ) THEN
+    -- Rename created_at to ts
+    ALTER TABLE public.ai_usage_events RENAME COLUMN created_at TO ts;
+  END IF;
+
+  -- Ensure ts column exists (if table was created manually without it)
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+    AND table_name = 'ai_usage_events'
+    AND column_name = 'ts'
+  ) THEN
+    ALTER TABLE public.ai_usage_events ADD COLUMN ts timestamptz NOT NULL DEFAULT now();
+  END IF;
+END $$;
+
 -- Index for analytics queries
 CREATE INDEX IF NOT EXISTS ai_usage_events_user_id_ts_idx ON public.ai_usage_events (user_id, ts DESC);
 CREATE INDEX IF NOT EXISTS ai_usage_events_type_ts_idx ON public.ai_usage_events (type, ts DESC);
