@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { FileSearch, Users, Tag, LayoutGrid } from "lucide-react";
 
 /**
  * Navigation item configuration
@@ -10,6 +11,7 @@ type NavItem = {
   href: string;
   label: string;
   description: string;
+  icon: React.ReactNode;
 };
 
 /**
@@ -20,12 +22,13 @@ type NavItem = {
  * - href: Route path
  * - label: Display name
  * - description: Short descriptor for context
+ * - icon: Visual indicator for the tool
  */
 const NAV_ITEMS: readonly NavItem[] = [
-  { href: "/editing", label: "Overview", description: "All tools" },
-  { href: "/editing/listing-intelligence", label: "Listing Intelligence", description: "Quality scores" },
-  { href: "/editing/competitor-analysis", label: "Competitor Analysis", description: "Market insights" },
-  { href: "/editing/tag-optimizer", label: "Tag Optimizer", description: "Better tags" },
+  { href: "/editing", label: "Overview", description: "All tools", icon: <LayoutGrid className="h-4 w-4" /> },
+  { href: "/editing/listing-intelligence", label: "Listing Intelligence", description: "Quality scores", icon: <FileSearch className="h-4 w-4" /> },
+  { href: "/editing/competitor-analysis", label: "Competitor Analysis", description: "Market insights", icon: <Users className="h-4 w-4" /> },
+  { href: "/editing/tag-optimizer", label: "Tag Optimizer", description: "Better tags", icon: <Tag className="h-4 w-4" /> },
 ] as const;
 
 /**
@@ -37,7 +40,7 @@ const NAV_ITEMS: readonly NavItem[] = [
  * Features:
  * - Active state tracking via pathname comparison
  * - Accessible navigation with semantic HTML
- * - Two-line layout with label and description
+ * - Icon + label layout with description
  * - Responsive design via CSS classes
  *
  * Styling: Uses `.editing-nav*` classes from globals.css
@@ -59,10 +62,15 @@ export function EditingNav(): JSX.Element {
             className={`editing-nav-item${isActive ? " editing-nav-item--active" : ""}`}
             aria-current={isActive ? "page" : undefined}
           >
-            <span className="flex flex-col">
-              <span className="editing-nav-item-label">{item.label}</span>
-              <span className="editing-nav-item-description">{item.description}</span>
-            </span>
+            <div className="flex items-center gap-3">
+              <div className={isActive ? "text-foreground" : "text-muted-foreground"}>
+                {item.icon}
+              </div>
+              <div className="flex flex-col">
+                <span className="editing-nav-item-label">{item.label}</span>
+                <span className="editing-nav-item-description">{item.description}</span>
+              </div>
+            </div>
           </Link>
         );
       })}

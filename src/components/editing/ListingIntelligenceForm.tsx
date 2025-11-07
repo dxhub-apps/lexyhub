@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import { ChevronDown, ChevronUp, Loader2, ExternalLink, AlertCircle } from "lucide-react";
 
 import { useToast } from "@/components/ui/use-toast";
 import type { ListingIntelligenceReport } from "@/lib/listings/intelligence";
@@ -61,6 +62,7 @@ export function ListingIntelligenceForm(): JSX.Element {
   const loading = loadingMode !== null;
   const [result, setResult] = useState<ListingIntelligenceResponse | null>(null);
   const [ingestedListing, setIngestedListing] = useState<NormalizedEtsyListing | null>(null);
+  const [showOptionalFields, setShowOptionalFields] = useState(false);
   const { toast } = useToast();
 
   const keywordLeaders = useMemo(() => {
@@ -196,67 +198,114 @@ export function ListingIntelligenceForm(): JSX.Element {
         </p>
       </header>
       <form onSubmit={handleSubmit} className="form-grid" autoComplete="off">
-        <label>
-          Etsy listing URL
+        {/* Quick URL Input */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2">
+            <ExternalLink className="h-4 w-4 text-primary" />
+            <span className="font-semibold">Etsy listing URL</span>
+            <span className="text-xs text-muted-foreground">(optional)</span>
+          </label>
           <input
             type="url"
             value={listingUrl}
             onChange={(event) => setListingUrl(event.target.value)}
             placeholder="https://www.etsy.com/listing/123456789/example"
+            className="w-full"
           />
-        </label>
-        <label>
-          Title
-          <input value={form.title} onChange={handleChange("title")} placeholder="Custom birth flower necklace" />
-        </label>
-        <label>
-          Tags
-          <textarea
-            rows={3}
-            value={form.tags}
-            onChange={handleChange("tags")}
-            placeholder="gift for mom, minimalist jewelry, birth flower"
-          />
-        </label>
-        <label>
-          Materials
-          <input value={form.materials} onChange={handleChange("materials")} placeholder="14k gold fill, freshwater pearl" />
-        </label>
-        <label>
-          Categories
-          <input value={form.categories} onChange={handleChange("categories")} placeholder="Jewelry, Necklaces" />
-        </label>
-        <label>
-          Description
-          <textarea
-            rows={6}
-            value={form.description}
-            onChange={handleChange("description")}
-            placeholder="Share the story, materials, and sizing guidance for this listing."
-          />
-        </label>
-        <label>
-          Price (USD)
-          <input type="number" min="0" step="0.01" value={form.price} onChange={handleChange("price")} placeholder="48.00" />
-        </label>
-        <label>
-          Reviews
-          <input type="number" min="0" value={form.reviews} onChange={handleChange("reviews")} placeholder="120" />
-        </label>
-        <label>
-          Rating
-          <input type="number" min="0" max="5" step="0.01" value={form.rating} onChange={handleChange("rating")} placeholder="4.9" />
-        </label>
-        <label>
-          Sales volume
-          <input type="number" min="0" value={form.salesVolume} onChange={handleChange("salesVolume")} placeholder="320" />
-        </label>
+          <p className="text-xs text-muted-foreground flex items-start gap-1">
+            <AlertCircle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+            <span>Paste an Etsy URL to automatically fetch listing data, or fill out the fields below manually</span>
+          </p>
+        </div>
+
+        <div className="border-t border-border my-4" />
+
+        {/* Required Fields */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Required Information</h3>
+
+          <label>
+            <span className="font-medium">Title</span>
+            <input value={form.title} onChange={handleChange("title")} placeholder="Custom birth flower necklace" />
+          </label>
+
+          <label>
+            <span className="font-medium">Description</span>
+            <textarea
+              rows={6}
+              value={form.description}
+              onChange={handleChange("description")}
+              placeholder="Share the story, materials, and sizing guidance for this listing."
+            />
+          </label>
+        </div>
+
+        {/* Optional Fields - Collapsible */}
+        <div className="border-t border-border my-4" />
+
+        <button
+          type="button"
+          onClick={() => setShowOptionalFields(!showOptionalFields)}
+          className="flex items-center justify-between w-full p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
+        >
+          <span className="text-sm font-semibold uppercase tracking-wide">Optional Fields</span>
+          {showOptionalFields ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+
+        {showOptionalFields && (
+          <div className="space-y-4 animate-in">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label>
+                <span className="font-medium">Tags</span>
+                <textarea
+                  rows={3}
+                  value={form.tags}
+                  onChange={handleChange("tags")}
+                  placeholder="gift for mom, minimalist jewelry, birth flower"
+                />
+              </label>
+
+              <label>
+                <span className="font-medium">Materials</span>
+                <input value={form.materials} onChange={handleChange("materials")} placeholder="14k gold fill, freshwater pearl" />
+              </label>
+
+              <label>
+                <span className="font-medium">Categories</span>
+                <input value={form.categories} onChange={handleChange("categories")} placeholder="Jewelry, Necklaces" />
+              </label>
+
+              <label>
+                <span className="font-medium">Price (USD)</span>
+                <input type="number" min="0" step="0.01" value={form.price} onChange={handleChange("price")} placeholder="48.00" />
+              </label>
+
+              <label>
+                <span className="font-medium">Reviews</span>
+                <input type="number" min="0" value={form.reviews} onChange={handleChange("reviews")} placeholder="120" />
+              </label>
+
+              <label>
+                <span className="font-medium">Rating</span>
+                <input type="number" min="0" max="5" step="0.01" value={form.rating} onChange={handleChange("rating")} placeholder="4.9" />
+              </label>
+
+              <label>
+                <span className="font-medium">Sales volume</span>
+                <input type="number" min="0" value={form.salesVolume} onChange={handleChange("salesVolume")} placeholder="320" />
+              </label>
+            </div>
+          </div>
+        )}
+
         <div className="form-actions">
-          <button type="submit" disabled={loading}>
+          <button type="submit" disabled={loading} className="flex items-center gap-2">
+            {loadingMode === "form" && <Loader2 className="h-4 w-4 animate-spin" />}
             {loadingMode === "form" ? "Scoring…" : "Run analysis"}
           </button>
-          <button type="button" onClick={analyzeBestSeller} disabled={loading}>
-            {loadingMode === "best-sellers" ? "Fetching best seller…" : "Analyze Etsy best seller"}
+          <button type="button" onClick={analyzeBestSeller} disabled={loading} className="flex items-center gap-2">
+            {loadingMode === "best-sellers" && <Loader2 className="h-4 w-4 animate-spin" />}
+            {loadingMode === "best-sellers" ? "Fetching…" : "Analyze Etsy best seller"}
           </button>
           <button type="button" onClick={resetForm} disabled={loading}>
             Clear
