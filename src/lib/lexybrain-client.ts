@@ -156,7 +156,7 @@ export async function callLexyBrainRaw(
   // Build request payload for llama.cpp HTTP server
   const payload: LlamaCppCompletionRequest = {
     prompt,
-    n_predict: options.maxTokens || 2048,
+    n_predict: options.maxTokens || 256, // Modest default for fast responses (can be overridden per request)
     temperature: options.temperature !== undefined ? options.temperature : 0.3,
     top_p: options.topP || 0.9,
     stop: ["</s>", "<|endoftext|>", "\n\n###"],
