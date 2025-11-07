@@ -1,4 +1,4 @@
-// src/app/api/keywords/[term]/route.ts
+// src/app/api/keywords/by-term/[term]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 
@@ -23,7 +23,7 @@ type KeywordRow = {
 };
 
 /**
- * GET /api/keywords/[term]?market=us
+ * GET /api/keywords/by-term/[term]?market=us
  * Fetch a single keyword by term and market
  */
 export async function GET(

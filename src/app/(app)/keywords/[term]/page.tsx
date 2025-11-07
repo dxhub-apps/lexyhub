@@ -91,7 +91,7 @@ export default function KeywordDetailsPage(): JSX.Element {
     try {
       // Fetch this specific keyword using optimized endpoint
       const response = await fetch(
-        `/api/keywords/${encodeURIComponent(term)}?market=us`,
+        `/api/keywords/by-term/${encodeURIComponent(term)}?market=us`,
         {
           method: "GET",
           headers: { "Content-Type": "application/json" },
