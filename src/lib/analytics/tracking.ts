@@ -5,7 +5,7 @@
  * Integrates with PostHog and Sentry for comprehensive analytics and error tracking.
  */
 
-import { posthog } from "./posthog";
+import { getPostHog, isPostHogReady } from "./posthog";
 import * as Sentry from "@sentry/nextjs";
 
 /**
@@ -74,7 +74,8 @@ export function trackAnalyticsEvent(
   if (typeof window === "undefined") return;
 
   try {
-    if (posthog) {
+    const posthog = getPostHog();
+    if (posthog && isPostHogReady()) {
       posthog.capture(eventName, properties);
     }
 
@@ -109,7 +110,8 @@ export function identifyAnalyticsUser(
 
   try {
     // PostHog identification
-    if (posthog) {
+    const posthog = getPostHog();
+    if (posthog && isPostHogReady()) {
       posthog.identify(userId, traits);
     }
 
@@ -132,7 +134,8 @@ export function resetAnalyticsUser() {
   if (typeof window === "undefined") return;
 
   try {
-    if (posthog) {
+    const posthog = getPostHog();
+    if (posthog && isPostHogReady()) {
       posthog.reset();
     }
 
@@ -196,7 +199,8 @@ export function setAnalyticsUserProperties(properties: Record<string, any>) {
   if (typeof window === "undefined") return;
 
   try {
-    if (posthog) {
+    const posthog = getPostHog();
+    if (posthog && isPostHogReady()) {
       posthog.setPersonProperties(properties);
     }
   } catch (error) {
@@ -262,7 +266,8 @@ export function groupAnalyticsUser(
   if (typeof window === "undefined") return;
 
   try {
-    if (posthog) {
+    const posthog = getPostHog();
+    if (posthog && isPostHogReady()) {
       posthog.group(groupType, groupId, properties);
     }
   } catch (error) {

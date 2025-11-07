@@ -99,8 +99,8 @@ export async function getNotificationFeed(
 
   // Transform and filter notifications
   // We need to show:
-  // 1. Notifications with a delivery record for this user
-  // 2. Broadcast notifications (audience_scope='all') even without delivery records
+  // 1. Notifications with a delivery record for this user (not dismissed)
+  // 2. Broadcast notifications (audience_scope='all') that haven't been dismissed
   let notifications = (data || [])
     .map((item: any) => {
       const { notification_delivery, ...notification } = item;
@@ -114,6 +114,9 @@ export async function getNotificationFeed(
       };
     })
     .filter((n) => {
+      // Exclude if user has dismissed this notification
+      if (n.delivery?.state === 'dismissed') return false;
+
       // Include if there's a delivery record for this user
       if (n.delivery) return true;
 
@@ -150,6 +153,7 @@ export async function getNotificationFeed(
 
 /**
  * Get unread notification count for a user
+ * Includes both targeted notifications with delivery records and broadcast notifications without
  */
 export async function getUnreadCount(userId: string): Promise<number> {
   const supabase = getSupabaseServerClient();
@@ -157,16 +161,54 @@ export async function getUnreadCount(userId: string): Promise<number> {
     throw new Error("Supabase client not initialized");
   }
 
-  const { data, error } = await supabase.rpc('get_unread_notification_count', {
-    p_user_id: userId,
-  });
+  // Get all active in-app notifications
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from('notifications')
+    .select(`
+      *,
+      notification_delivery!left (*)
+    `)
+    .eq('status', 'live')
+    .eq('create_inapp', true)
+    .or(`schedule_start_at.is.null,schedule_start_at.lte.${now}`)
+    .or(`schedule_end_at.is.null,schedule_end_at.gt.${now}`);
 
   if (error) {
-    log.error({ error, user_id: userId }, 'Failed to fetch unread count');
+    log.error({ error, user_id: userId }, 'Failed to fetch notifications for unread count');
     return 0;
   }
 
-  return data || 0;
+  if (!data) {
+    return 0;
+  }
+
+  // Count unread notifications
+  let unreadCount = 0;
+
+  for (const item of data) {
+    const notification = item as any;
+    const deliveryRecords = notification.notification_delivery || [];
+
+    // Find delivery record for this user
+    const userDelivery = deliveryRecords.find((d: any) => d.user_id === userId);
+
+    // Skip if dismissed
+    if (userDelivery?.state === 'dismissed') {
+      continue;
+    }
+
+    // For broadcast notifications or notifications with delivery records
+    if (notification.audience_scope === 'all' || userDelivery) {
+      // Unread if: no delivery record OR delivery state is null/pending
+      if (!userDelivery || !userDelivery.state || userDelivery.state === 'pending') {
+        unreadCount++;
+      }
+    }
+  }
+
+  return unreadCount;
 }
 
 /**

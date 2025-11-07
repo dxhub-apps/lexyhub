@@ -23,12 +23,19 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/components/ui/use-toast';
-import { DateTimePicker } from '@/components/ui/date-time-picker';
+
+// Helper function to format date for datetime-local input
+function formatDateTimeLocal(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
 
 export default function NewNotificationPage() {
   const router = useRouter();
-  const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
 
   // Form state
@@ -45,8 +52,13 @@ export default function NewNotificationPage() {
   const [planCodes, setPlanCodes] = useState('');
   const [userIds, setUserIds] = useState('');
 
-  const [scheduleStartAt, setScheduleStartAt] = useState<Date | undefined>(undefined);
-  const [scheduleEndAt, setScheduleEndAt] = useState<Date | undefined>(undefined);
+  // Initialize with current date/time and end time 2 hours from now
+  const [scheduleStartAt, setScheduleStartAt] = useState(() => formatDateTimeLocal(new Date()));
+  const [scheduleEndAt, setScheduleEndAt] = useState(() => {
+    const endDate = new Date();
+    endDate.setHours(endDate.getHours() + 2);
+    return formatDateTimeLocal(endDate);
+  });
 
   const [showBanner, setShowBanner] = useState(false);
   const [createInapp, setCreateInapp] = useState(true);
@@ -66,9 +78,9 @@ export default function NewNotificationPage() {
         audienceFilter.user_ids = userIds.split(',').map(s => s.trim());
       }
 
-      // Convert Date to ISO string
-      const scheduleStartAtISO = scheduleStartAt ? scheduleStartAt.toISOString() : undefined;
-      const scheduleEndAtISO = scheduleEndAt ? scheduleEndAt.toISOString() : undefined;
+      // Convert datetime-local to ISO string
+      const scheduleStartAtISO = scheduleStartAt ? new Date(scheduleStartAt).toISOString() : undefined;
+      const scheduleEndAtISO = scheduleEndAt ? new Date(scheduleEndAt).toISOString() : undefined;
 
       const payload = {
         kind: showBanner && createInapp && sendEmail ? 'mixed' as const :
@@ -99,22 +111,10 @@ export default function NewNotificationPage() {
       });
 
       if (response.ok) {
-        const result = await response.json();
-        toast({
-          title: "Notification created as draft",
-          description: "Go back to the notifications list and click the Publish button to make it visible to users.",
-        });
-        // Wait a moment for the toast to be visible before navigating
-        setTimeout(() => {
-          router.push('/admin/backoffice/notifications');
-        }, 1500);
+        router.push('/admin/backoffice/notifications');
       } else {
         const error = await response.json();
-        toast({
-          title: "Failed to create notification",
-          description: error.error || 'Unknown error',
-          variant: "destructive",
-        });
+        alert(`Failed to create notification: ${error.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Failed to create notification:', error);
@@ -327,25 +327,27 @@ export default function NewNotificationPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="scheduleStartAt">Start Date & Time</Label>
-                    <DateTimePicker
-                      date={scheduleStartAt}
-                      setDate={setScheduleStartAt}
-                      placeholder="Pick start date and time"
+                    <Input
+                      id="scheduleStartAt"
+                      type="datetime-local"
+                      value={scheduleStartAt}
+                      onChange={(e) => setScheduleStartAt(e.target.value)}
                     />
                     <p className="text-sm text-muted-foreground">
-                      Leave empty to start immediately
+                      Defaults to now. Clear to start immediately. Use arrows to adjust time.
                     </p>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="scheduleEndAt">End Date & Time</Label>
-                    <DateTimePicker
-                      date={scheduleEndAt}
-                      setDate={setScheduleEndAt}
-                      placeholder="Pick end date and time"
+                    <Input
+                      id="scheduleEndAt"
+                      type="datetime-local"
+                      value={scheduleEndAt}
+                      onChange={(e) => setScheduleEndAt(e.target.value)}
                     />
                     <p className="text-sm text-muted-foreground">
-                      Leave empty for no end date
+                      Defaults to 2 hours from now. Clear for no end date.
                     </p>
                   </div>
                 </div>

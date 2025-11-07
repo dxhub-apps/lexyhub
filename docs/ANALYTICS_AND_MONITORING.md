@@ -448,6 +448,92 @@ Use the predefined event names from `AnalyticsEvents`:
 
 See `src/lib/analytics/tracking.ts` for the complete list.
 
+## Troubleshooting
+
+### Monitoring Not Working
+
+If your Sentry or PostHog dashboards are not receiving data:
+
+1. **Check Configuration**
+   - Visit `/admin/monitoring` to see the status of both services
+   - Verify environment variables are set correctly in `.env.local`
+   - Restart your development server after changing environment variables
+
+2. **Console Warnings**
+   - Check your browser console and terminal for warning messages
+   - You should see initialization messages when configured properly:
+     - `✅ Sentry client initialized successfully`
+     - `✅ PostHog initialized successfully`
+
+3. **Environment Variables**
+   - Ensure variables start with `NEXT_PUBLIC_` for client-side access
+   - Sentry DSN format: `https://[key]@[org].ingest.sentry.io/[project-id]`
+   - PostHog key format: starts with `phc_`
+
+4. **Test Events**
+   - Go to `/admin/monitoring` and use the "Send Test Event" buttons
+   - Check your dashboards within 1-2 minutes
+   - Test events are tagged with `test: true` for easy filtering
+
+### Common Issues
+
+#### "PostHog is not initialized"
+
+This means the PostHog library couldn't initialize. Check:
+- `NEXT_PUBLIC_POSTHOG_KEY` is set correctly
+- The key starts with `phc_`
+- You've restarted your dev server
+
+#### "Sentry not capturing errors in development"
+
+By default, Sentry captures all errors in development if the DSN is set. If you're not seeing errors:
+- Check the DSN is correct
+- Verify the project exists in your Sentry dashboard
+- Test with the monitoring page: `/admin/monitoring`
+
+#### Events Not Showing in Production
+
+In production, some events are sampled:
+- Performance transactions: 10% sample rate
+- Session replays: 10% sample rate
+- Errors: 100% capture rate
+
+To see more events in production, adjust sample rates in the Sentry config files.
+
+### Debugging Tips
+
+1. **Enable Debug Mode in Development**
+   Both services automatically enable debug mode in development and log to the console.
+
+2. **Check Network Requests**
+   - Open browser DevTools → Network tab
+   - Filter for requests to `sentry.io` or `posthog.com`
+   - Verify requests are being sent with status 200
+
+3. **Verify Initialization**
+   ```typescript
+   // In browser console
+   window.__SENTRY__ // Should be defined if Sentry is loaded
+
+   // Check PostHog
+   import { isPostHogReady } from '@/lib/analytics/posthog'
+   console.log(isPostHogReady()) // Should return true
+   ```
+
+## Monitoring Status Page
+
+Visit `/admin/monitoring` to:
+- Check configuration status of both services
+- Send test events to verify connectivity
+- View setup instructions
+- Validate environment variables
+
+This page provides:
+- ✅ Real-time configuration status
+- 🧪 Test event buttons for both services
+- 📝 Quick setup guide with copy-paste examples
+- ⚙️ Environment variable validation
+
 ## Support
 
 For issues or questions:
@@ -455,3 +541,4 @@ For issues or questions:
 - **Sentry**: [docs.sentry.io](https://docs.sentry.io)
 - **PostHog**: [posthog.com/docs](https://posthog.com/docs)
 - **Internal**: Check `src/lib/analytics/` and `src/lib/logger.ts`
+- **Monitoring Status**: Visit `/admin/monitoring` for diagnostics
