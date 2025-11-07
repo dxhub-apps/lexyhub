@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useState } from "react";
+import { Plus, Trash2, Loader2, AlertCircle } from "lucide-react";
 
 import { useToast } from "@/components/ui/use-toast";
 import type { CompetitorInsight } from "@/lib/insights/competitors";
@@ -116,53 +117,151 @@ export function CompetitorAnalysisForm(): JSX.Element {
         <p>Map a keyword or shop niche to the top competitor traits—pricing, reviews, phrasing, and saturation levels.</p>
       </header>
       <form onSubmit={handleSubmit} className="form-grid" autoComplete="off">
-        <label>
-          Keyword or shop name
-          <input required value={query} onChange={(event) => setQuery(event.target.value)} placeholder="boho wall art" />
-        </label>
-        {competitors.map((competitor, index) => (
-          <fieldset key={index} className="competitor-fieldset">
-            <legend>Listing #{index + 1}</legend>
-            <label>
-              Title
-              <input required value={competitor.title} onChange={handleChange(index, "title")} placeholder="Personalized boho wall art" />
-            </label>
-            <label>
-              Price (USD)
-              <input type="number" min="0" step="0.01" value={competitor.price} onChange={handleChange(index, "price")} placeholder="36.00" />
-            </label>
-            <label>
-              Reviews
-              <input type="number" min="0" value={competitor.reviews} onChange={handleChange(index, "reviews")} placeholder="540" />
-            </label>
-            <label>
-              Rating
-              <input type="number" min="0" max="5" step="0.01" value={competitor.rating} onChange={handleChange(index, "rating")} placeholder="4.8" />
-            </label>
-            <label>
-              Estimated sales
-              <input type="number" min="0" value={competitor.salesVolume} onChange={handleChange(index, "salesVolume")} placeholder="1200" />
-            </label>
-            <label>
-              Tags
-              <textarea rows={3} value={competitor.tags} onChange={handleChange(index, "tags")} placeholder="boho decor, neutral wall art" />
-            </label>
-            <label>
-              Image count
-              <input type="number" min="0" value={competitor.imageCount} onChange={handleChange(index, "imageCount")} placeholder="8" />
-            </label>
-            <button type="button" className="competitor-remove" onClick={() => removeCompetitor(index)} disabled={competitors.length === 1 || loading}>
-              Remove listing
-            </button>
-          </fieldset>
-        ))}
-        <div className="competitor-actions">
-          <button type="button" onClick={addCompetitor} disabled={loading}>
-            Add another competitor
+        {/* Main Query */}
+        <div className="space-y-2">
+          <label>
+            <span className="font-semibold flex items-center gap-2">
+              Keyword or shop name
+              <span className="text-destructive">*</span>
+            </span>
+            <input
+              required
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="boho wall art"
+              className="w-full"
+            />
+          </label>
+          <p className="text-xs text-muted-foreground flex items-start gap-1">
+            <AlertCircle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+            <span>Enter the niche or keyword you want to analyze competitor listings for</span>
+          </p>
+        </div>
+
+        <div className="border-t border-border my-4" />
+
+        {/* Competitor Listings */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Competitor Listings ({competitors.length})
+          </h3>
+
+          {competitors.map((competitor, index) => (
+            <fieldset key={index} className="competitor-fieldset bg-muted/20 rounded-lg p-6 space-y-4 relative">
+              <div className="flex items-center justify-between mb-3">
+                <legend className="text-base font-bold">Listing #{index + 1}</legend>
+                {competitors.length > 1 && (
+                  <button
+                    type="button"
+                    className="competitor-remove flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-destructive/10 transition-colors"
+                    onClick={() => removeCompetitor(index)}
+                    disabled={loading}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span>Remove</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="md:col-span-2">
+                  <span className="font-medium flex items-center gap-1">
+                    Title
+                    <span className="text-destructive">*</span>
+                  </span>
+                  <input
+                    required
+                    value={competitor.title}
+                    onChange={handleChange(index, "title")}
+                    placeholder="Personalized boho wall art"
+                  />
+                </label>
+
+                <label>
+                  <span className="font-medium">Price (USD)</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={competitor.price}
+                    onChange={handleChange(index, "price")}
+                    placeholder="36.00"
+                  />
+                </label>
+
+                <label>
+                  <span className="font-medium">Reviews</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={competitor.reviews}
+                    onChange={handleChange(index, "reviews")}
+                    placeholder="540"
+                  />
+                </label>
+
+                <label>
+                  <span className="font-medium">Rating</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="5"
+                    step="0.01"
+                    value={competitor.rating}
+                    onChange={handleChange(index, "rating")}
+                    placeholder="4.8"
+                  />
+                </label>
+
+                <label>
+                  <span className="font-medium">Estimated sales</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={competitor.salesVolume}
+                    onChange={handleChange(index, "salesVolume")}
+                    placeholder="1200"
+                  />
+                </label>
+
+                <label>
+                  <span className="font-medium">Image count</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={competitor.imageCount}
+                    onChange={handleChange(index, "imageCount")}
+                    placeholder="8"
+                  />
+                </label>
+
+                <label className="md:col-span-2">
+                  <span className="font-medium">Tags</span>
+                  <textarea
+                    rows={3}
+                    value={competitor.tags}
+                    onChange={handleChange(index, "tags")}
+                    placeholder="boho decor, neutral wall art"
+                  />
+                </label>
+              </div>
+            </fieldset>
+          ))}
+
+          <button
+            type="button"
+            onClick={addCompetitor}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 p-4 border-2 border-dashed border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Plus className="h-5 w-5" />
+            <span className="font-medium">Add another competitor</span>
           </button>
         </div>
+
         <div className="form-actions">
-          <button type="submit" disabled={loading}>
+          <button type="submit" disabled={loading} className="flex items-center gap-2">
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             {loading ? "Analyzing…" : "Run benchmark"}
           </button>
           <button type="button" onClick={() => setCompetitors([{ ...EMPTY_ENTRY }])} disabled={loading}>

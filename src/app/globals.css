@@ -371,3 +371,272 @@ select {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ==================================================
+   Editing Suite Styles
+   ================================================== */
+
+/* Layout */
+.editing-layout {
+  @apply space-y-6;
+}
+
+.editing-hero {
+  @apply bg-card border border-border rounded-lg p-6 md:p-8;
+}
+
+.editing-hero h1 {
+  @apply text-3xl font-bold mb-2;
+}
+
+.editing-hero p {
+  @apply text-muted-foreground max-w-3xl;
+}
+
+.editing-content {
+  @apply space-y-6;
+}
+
+.editing-tool {
+  @apply space-y-6;
+}
+
+/* Navigation */
+.editing-nav {
+  @apply flex gap-2 overflow-x-auto scrollbar-hide border-b border-border pb-1 -mb-px;
+}
+
+.editing-nav-item {
+  @apply flex items-center gap-2 px-4 py-3 rounded-t-lg border-b-2 border-transparent;
+  @apply text-sm font-medium text-muted-foreground transition-all;
+  @apply hover:text-foreground hover:bg-muted/50;
+  @apply whitespace-nowrap;
+}
+
+.editing-nav-item--active {
+  @apply text-foreground border-foreground bg-muted/30;
+}
+
+.editing-nav-item-label {
+  @apply font-medium;
+}
+
+.editing-nav-item-description {
+  @apply text-xs text-muted-foreground;
+}
+
+/* Surface cards */
+.surface-card {
+  @apply bg-card border border-border rounded-lg shadow-sm;
+}
+
+/* Form cards */
+.form-card {
+  @apply p-6 md:p-8 space-y-6;
+}
+
+.form-card header {
+  @apply space-y-2 pb-6 border-b border-border;
+}
+
+.form-card header h2 {
+  @apply text-2xl font-bold;
+}
+
+.form-card header p {
+  @apply text-muted-foreground;
+}
+
+/* Form grid */
+.form-grid {
+  @apply space-y-4;
+}
+
+.form-grid label {
+  @apply flex flex-col gap-2;
+}
+
+.form-grid fieldset {
+  @apply border border-border rounded-lg p-4 space-y-3;
+}
+
+.form-grid legend {
+  @apply font-semibold text-sm px-2;
+}
+
+/* Form actions */
+.form-actions {
+  @apply flex flex-wrap gap-3 pt-4;
+}
+
+.form-actions button[type="submit"] {
+  @apply bg-primary text-primary-foreground px-6 py-2.5 rounded-md font-medium;
+  @apply hover:bg-primary/90 transition-colors;
+  @apply disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.form-actions button[type="button"] {
+  @apply bg-secondary text-secondary-foreground px-6 py-2.5 rounded-md font-medium;
+  @apply hover:bg-secondary/80 transition-colors;
+  @apply disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+/* Competitor specific */
+.competitor-fieldset {
+  @apply relative;
+}
+
+.competitor-remove {
+  @apply text-sm text-destructive hover:text-destructive/80 transition-colors;
+}
+
+.competitor-actions {
+  @apply pt-2;
+}
+
+.competitor-actions button {
+  @apply bg-secondary text-secondary-foreground px-4 py-2 rounded-md text-sm font-medium;
+  @apply hover:bg-secondary/80 transition-colors;
+}
+
+/* Analysis results */
+.analysis-result {
+  @apply space-y-6 pt-6 border-t border-border;
+}
+
+.analysis-context {
+  @apply bg-muted/30 border border-border rounded-lg p-4 space-y-3;
+}
+
+.analysis-context h3 {
+  @apply font-semibold text-sm uppercase tracking-wide text-muted-foreground;
+}
+
+.analysis-context dl {
+  @apply grid grid-cols-1 sm:grid-cols-2 gap-3;
+}
+
+.analysis-context dl > div {
+  @apply space-y-1;
+}
+
+.analysis-context dt {
+  @apply text-xs font-medium text-muted-foreground uppercase tracking-wide;
+}
+
+.analysis-context dd {
+  @apply text-sm font-medium;
+}
+
+/* Score cards */
+.analysis-scorecard {
+  @apply bg-gradient-to-br from-muted/30 to-muted/10 border border-border rounded-lg p-6 space-y-4;
+}
+
+.analysis-scorecard h3 {
+  @apply text-lg font-bold mb-4;
+}
+
+.analysis-scorecard dl {
+  @apply grid grid-cols-2 md:grid-cols-3 gap-4;
+}
+
+.analysis-scorecard dl > div {
+  @apply space-y-1;
+}
+
+.analysis-scorecard dt {
+  @apply text-xs font-medium text-muted-foreground uppercase tracking-wide;
+}
+
+.analysis-scorecard dd {
+  @apply text-2xl font-bold tabular-nums;
+}
+
+.analysis-pill {
+  @apply inline-block px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary;
+}
+
+.analysis-highlight {
+  @apply text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/60;
+}
+
+/* Keywords section */
+.analysis-keywords {
+  @apply bg-card border border-border rounded-lg p-6 space-y-4;
+}
+
+.analysis-keywords h3 {
+  @apply text-lg font-bold;
+}
+
+.analysis-keywords ul {
+  @apply space-y-2;
+}
+
+.analysis-keywords li {
+  @apply flex items-center justify-between gap-4 px-3 py-2 bg-muted/30 rounded-md;
+}
+
+.analysis-keywords li strong {
+  @apply font-medium;
+}
+
+.analysis-keywords li span {
+  @apply text-sm text-muted-foreground tabular-nums;
+}
+
+/* Attributes section */
+.analysis-attributes {
+  @apply bg-card border border-border rounded-lg p-6 space-y-4;
+}
+
+.analysis-attributes h3 {
+  @apply text-lg font-bold;
+}
+
+.analysis-attributes ul {
+  @apply grid grid-cols-1 sm:grid-cols-2 gap-2;
+}
+
+.analysis-attributes li {
+  @apply px-3 py-2 bg-muted/30 rounded-md text-sm;
+}
+
+/* Quick fixes section */
+.analysis-fixes {
+  @apply bg-card border border-border rounded-lg p-6 space-y-4;
+}
+
+.analysis-fixes h3 {
+  @apply text-lg font-bold;
+}
+
+.analysis-fixes ul {
+  @apply space-y-3;
+}
+
+.analysis-fixes li {
+  @apply space-y-1 px-4 py-3 bg-muted/30 rounded-md border-l-4 border-primary;
+}
+
+.analysis-fixes li strong {
+  @apply block font-medium;
+}
+
+.analysis-fixes li span {
+  @apply block text-sm text-muted-foreground;
+}
+
+/* Narrative section */
+.analysis-narrative {
+  @apply bg-gradient-to-br from-primary/5 to-transparent border border-border rounded-lg p-6 space-y-4;
+}
+
+.analysis-narrative h3 {
+  @apply text-lg font-bold;
+}
+
+.analysis-narrative p {
+  @apply text-muted-foreground leading-relaxed;
+}

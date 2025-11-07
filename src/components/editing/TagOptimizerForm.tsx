@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useState } from "react";
+import { Loader2, AlertCircle, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 
 import { useToast } from "@/components/ui/use-toast";
 import type { TagOptimizerResult } from "@/lib/tags/optimizer";
@@ -72,6 +73,26 @@ export function TagOptimizerForm(): JSX.Element {
     setResult(null);
   };
 
+  const getStatusIcon = (status: "excellent" | "good" | "caution" | "risky") => {
+    switch (status) {
+      case "excellent":
+      case "good":
+        return <CheckCircle2 className="h-4 w-4 text-success" />;
+      case "caution":
+        return <AlertTriangle className="h-4 w-4 text-warning" />;
+      case "risky":
+        return <XCircle className="h-4 w-4 text-destructive" />;
+      default:
+        return <AlertCircle className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
+
+  const getHealthScoreColor = (score: number) => {
+    if (score >= 0.8) return "text-success";
+    if (score >= 0.6) return "text-warning";
+    return "text-destructive";
+  };
+
   return (
     <section className="surface-card form-card">
       <header>
@@ -79,22 +100,46 @@ export function TagOptimizerForm(): JSX.Element {
         <p>Audit duplicated or low-demand tags, then unlock higher-performing substitutions backed by Lexy keyword intelligence.</p>
       </header>
       <form onSubmit={handleSubmit} className="form-grid" autoComplete="off">
-        <label>
-          Listing ID (optional)
-          <input value={listingId} onChange={(event) => setListingId(event.target.value)} placeholder="UUID from synced listing" />
-        </label>
-        <label>
-          Tags
-          <textarea
-            rows={6}
-            required
-            value={tags}
-            onChange={handleTagsChange}
-            placeholder="Use commas or new lines between tags"
-          />
-        </label>
+        <div className="space-y-4">
+          <label>
+            <span className="font-medium flex items-center gap-2">
+              Listing ID
+              <span className="text-xs text-muted-foreground font-normal">(optional)</span>
+            </span>
+            <input
+              value={listingId}
+              onChange={(event) => setListingId(event.target.value)}
+              placeholder="UUID from synced listing"
+            />
+            <p className="text-xs text-muted-foreground mt-1 flex items-start gap-1">
+              <AlertCircle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+              <span>Link to a synced listing for enhanced tag context and recommendations</span>
+            </p>
+          </label>
+
+          <label>
+            <span className="font-medium flex items-center gap-2">
+              Tags
+              <span className="text-destructive">*</span>
+            </span>
+            <textarea
+              rows={8}
+              required
+              value={tags}
+              onChange={handleTagsChange}
+              placeholder="handmade jewelry, boho necklace, gift for her, minimalist design"
+              className="font-mono text-sm"
+            />
+            <p className="text-xs text-muted-foreground mt-1 flex items-start gap-1">
+              <AlertCircle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+              <span>Separate tags with commas or new lines. Paste up to 13 tags for analysis.</span>
+            </p>
+          </label>
+        </div>
+
         <div className="form-actions">
-          <button type="submit" disabled={loading}>
+          <button type="submit" disabled={loading} className="flex items-center gap-2">
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             {loading ? "Scoring…" : "Score tag health"}
           </button>
           <button type="button" onClick={resetForm} disabled={loading}>
@@ -109,33 +154,49 @@ export function TagOptimizerForm(): JSX.Element {
             <dl>
               <div>
                 <dt>Health score</dt>
-                <dd>{(result.healthScore * 100).toFixed(0)}%</dd>
+                <dd className={getHealthScoreColor(result.healthScore)}>
+                  {(result.healthScore * 100).toFixed(0)}%
+                </dd>
               </div>
               <div>
                 <dt>Duplicates</dt>
-                <dd>{result.duplicates.length}</dd>
+                <dd className={result.duplicates.length > 0 ? "text-destructive" : ""}>
+                  {result.duplicates.length}
+                </dd>
               </div>
               <div>
                 <dt>Low volume tags</dt>
-                <dd>{result.lowVolumeTags.length}</dd>
+                <dd className={result.lowVolumeTags.length > 0 ? "text-warning" : ""}>
+                  {result.lowVolumeTags.length}
+                </dd>
               </div>
             </dl>
           </section>
           <section className="analysis-attributes">
             <h3>Diagnostics</h3>
             {result.diagnostics.length ? (
-              <ul>
+              <ul className="space-y-3">
                 {result.diagnostics.map((diagnostic) => (
-                  <li key={diagnostic.tag}>
-                    <strong>{diagnostic.tag}</strong>
-                    <span>{diagnostic.message}</span>
-                    <span className={`analysis-pill analysis-pill--${diagnostic.status}`}>{diagnostic.status}</span>
-                    {diagnostic.suggestion ? <em>Try: {diagnostic.suggestion}</em> : null}
+                  <li key={diagnostic.tag} className="flex flex-col gap-2 p-4 bg-muted/30 rounded-md border-l-4" style={{
+                    borderLeftColor: diagnostic.status === "excellent" || diagnostic.status === "good" ? "hsl(var(--success))" :
+                                   diagnostic.status === "caution" ? "hsl(var(--warning))" : "hsl(var(--destructive))"
+                  }}>
+                    <div className="flex items-center justify-between gap-3">
+                      <strong className="font-mono text-sm">{diagnostic.tag}</strong>
+                      <span className="flex items-center gap-1.5">
+                        {getStatusIcon(diagnostic.status)}
+                        <span className="text-xs font-medium uppercase tracking-wide">{diagnostic.status}</span>
+                      </span>
+                    </div>
+                    <span className="text-sm text-muted-foreground">{diagnostic.message}</span>
+                    {diagnostic.suggestion ? (
+                      <span className="text-sm text-primary font-medium">→ Try: {diagnostic.suggestion}</span>
+                    ) : null}
                   </li>
                 ))}
               </ul>
             ) : (
-              <p>No diagnostics were generated.</p>
+              <p className="text-muted-foreground">No diagnostics were generated.</p>
             )}
           </section>
           <section className="analysis-fixes">
@@ -144,20 +205,29 @@ export function TagOptimizerForm(): JSX.Element {
               <ul>
                 {result.recommendations.add.map((tag) => (
                   <li key={`add-${tag}`}>
-                    <strong>Add</strong>
-                    <span>{tag}</span>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
+                      <strong>Add</strong>
+                    </div>
+                    <span className="font-mono text-sm">{tag}</span>
                   </li>
                 ))}
                 {result.recommendations.replace.map((entry) => (
                   <li key={`${entry.from}-${entry.to}`}>
-                    <strong>Replace {entry.from}</strong>
-                    <span>{entry.to}</span>
-                    <em>{entry.reason}</em>
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-warning flex-shrink-0" />
+                      <strong>Replace <span className="font-mono">{entry.from}</span></strong>
+                    </div>
+                    <span className="font-mono text-sm">{entry.to}</span>
+                    <span className="text-xs text-muted-foreground">{entry.reason}</span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p>Your tag mix is already optimized.</p>
+              <div className="flex items-center gap-2 text-success">
+                <CheckCircle2 className="h-5 w-5" />
+                <p className="font-medium">Your tag mix is already optimized.</p>
+              </div>
             )}
           </section>
         </div>
