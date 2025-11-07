@@ -23,9 +23,12 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/components/ui/use-toast';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 
 export default function NewNotificationPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
 
   // Form state
@@ -42,8 +45,8 @@ export default function NewNotificationPage() {
   const [planCodes, setPlanCodes] = useState('');
   const [userIds, setUserIds] = useState('');
 
-  const [scheduleStartAt, setScheduleStartAt] = useState('');
-  const [scheduleEndAt, setScheduleEndAt] = useState('');
+  const [scheduleStartAt, setScheduleStartAt] = useState<Date | undefined>(undefined);
+  const [scheduleEndAt, setScheduleEndAt] = useState<Date | undefined>(undefined);
 
   const [showBanner, setShowBanner] = useState(false);
   const [createInapp, setCreateInapp] = useState(true);
@@ -63,9 +66,9 @@ export default function NewNotificationPage() {
         audienceFilter.user_ids = userIds.split(',').map(s => s.trim());
       }
 
-      // Convert datetime-local to ISO string
-      const scheduleStartAtISO = scheduleStartAt ? new Date(scheduleStartAt).toISOString() : undefined;
-      const scheduleEndAtISO = scheduleEndAt ? new Date(scheduleEndAt).toISOString() : undefined;
+      // Convert Date to ISO string
+      const scheduleStartAtISO = scheduleStartAt ? scheduleStartAt.toISOString() : undefined;
+      const scheduleEndAtISO = scheduleEndAt ? scheduleEndAt.toISOString() : undefined;
 
       const payload = {
         kind: showBanner && createInapp && sendEmail ? 'mixed' as const :
@@ -96,10 +99,22 @@ export default function NewNotificationPage() {
       });
 
       if (response.ok) {
-        router.push('/admin/backoffice/notifications');
+        const result = await response.json();
+        toast({
+          title: "Notification created as draft",
+          description: "Go back to the notifications list and click the Publish button to make it visible to users.",
+        });
+        // Wait a moment for the toast to be visible before navigating
+        setTimeout(() => {
+          router.push('/admin/backoffice/notifications');
+        }, 1500);
       } else {
         const error = await response.json();
-        alert(`Failed to create notification: ${error.error || 'Unknown error'}`);
+        toast({
+          title: "Failed to create notification",
+          description: error.error || 'Unknown error',
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Failed to create notification:', error);
@@ -312,11 +327,10 @@ export default function NewNotificationPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="scheduleStartAt">Start Date & Time</Label>
-                    <Input
-                      id="scheduleStartAt"
-                      type="datetime-local"
-                      value={scheduleStartAt}
-                      onChange={(e) => setScheduleStartAt(e.target.value)}
+                    <DateTimePicker
+                      date={scheduleStartAt}
+                      setDate={setScheduleStartAt}
+                      placeholder="Pick start date and time"
                     />
                     <p className="text-sm text-muted-foreground">
                       Leave empty to start immediately
@@ -325,11 +339,10 @@ export default function NewNotificationPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="scheduleEndAt">End Date & Time</Label>
-                    <Input
-                      id="scheduleEndAt"
-                      type="datetime-local"
-                      value={scheduleEndAt}
-                      onChange={(e) => setScheduleEndAt(e.target.value)}
+                    <DateTimePicker
+                      date={scheduleEndAt}
+                      setDate={setScheduleEndAt}
+                      placeholder="Pick end date and time"
                     />
                     <p className="text-sm text-muted-foreground">
                       Leave empty for no end date
