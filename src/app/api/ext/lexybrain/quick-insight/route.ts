@@ -96,11 +96,47 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    // Check quota before generating
-    const quotaKey = type === "market_brief" ? "ai_brief" : "ai_calls";
-    const quotaCheck = await consumeLexyBrainQuota(context.userId, quotaKey, 0);
+    // Build context
+    const context_data: any = {
+      market: market.toLowerCase().trim(),
+      niche_terms: keywords.map(k => k.trim())
+    };
 
-    if (!quotaCheck.allowed) {
+    if (type === "ad_insight") {
+      context_data.budget = budget;
+    }
+
+    // Check cache first (same logic as main API)
+    const crypto = await import("crypto");
+    const inputHash = crypto
+      .createHash("sha256")
+      .update(JSON.stringify({ type, context: context_data }))
+      .digest("hex");
+
+    // Import cache check utility
+    const { getSupabaseServerClient } = await import("@/lib/supabase-server");
+    const supabase = getSupabaseServerClient();
+
+    let cachedResult = null;
+    if (supabase) {
+      const { data } = await supabase
+        .from("ai_insights")
+        .select("output_json")
+        .eq("type", type)
+        .eq("input_hash", inputHash)
+        .gt("expires_at", new Date().toISOString())
+        .single();
+
+      if (data) {
+        cachedResult = data.output_json;
+      }
+    }
+
+    // Check quota before generating (only if not cached)
+    const quotaKey = type === "market_brief" ? "ai_brief" : "ai_calls";
+    const quotaCheck = await consumeLexyBrainQuota(context.userId, quotaKey, cachedResult ? 0 : 1);
+
+    if (!quotaCheck.allowed && !cachedResult) {
       return NextResponse.json(
         {
           error: "Quota exceeded",
@@ -112,32 +148,34 @@ export async function POST(request: Request): Promise<NextResponse> {
       );
     }
 
-    // Build context
-    const context_data: any = {
-      market: market.toLowerCase().trim(),
-      niche_terms: keywords.map(k => k.trim())
-    };
+    let insightData;
+    let isCached = false;
 
-    if (type === "ad_insight") {
-      context_data.budget = budget;
+    if (cachedResult) {
+      // Use cached result
+      insightData = cachedResult;
+      isCached = true;
+    } else {
+      // Generate AI insight
+      const insight = await generateLexyBrainJson({
+        type,
+        context: context_data,
+        userId: context.userId
+        // promptConfig is optional, omit for default
+      });
+
+      insightData = insight.output;
+      isCached = false;
     }
-
-    // Generate AI insight
-    const insight = await generateLexyBrainJson({
-      type,
-      context: context_data,
-      userId: context.userId,
-      promptConfig: null // Use default config for extensions
-    });
 
     // Return compact response for extension
     return NextResponse.json({
       success: true,
       type,
-      data: insight,
-      cached: insight._cached || false,
+      data: insightData,
+      cached: isCached,
       quota: {
-        used: quotaCheck.used + 1,
+        used: quotaCheck.used,
         limit: quotaCheck.limit
       }
     });
