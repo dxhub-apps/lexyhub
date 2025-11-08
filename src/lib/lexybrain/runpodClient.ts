@@ -118,7 +118,9 @@ export async function callLexyBrainRunpod(
     throw new RunPodClientError("LexyBrain is not configured (missing RUNPOD_API_KEY)");
   }
 
-  const timeoutMs = options?.timeoutMs || 25000; // Default 25s (allows retries within Vercel 60s limit)
+  // Default 55s timeout - gives RunPod enough time to complete (~50s) while staying within Vercel's 60s limit
+  const DEFAULT_TIMEOUT_MS = Number(process.env.LEXYBRAIN_RUNPOD_TIMEOUT_MS || "55000");
+  const timeoutMs = options?.timeoutMs || DEFAULT_TIMEOUT_MS;
   const url = `https://api.runpod.ai/v2/${ENDPOINT_ID}/runsync`;
   const requestBody = { input };
 
