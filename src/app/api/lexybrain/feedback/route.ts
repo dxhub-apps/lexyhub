@@ -84,15 +84,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       "Processing feedback submission"
     );
 
-    // 3. Verify response exists and belongs to user
-    // This prevents users from submitting feedback for other users' responses
+    // 3. Verify response exists
     const { data: responseData, error: responseError } = await supabase
       .from("lexybrain_responses")
-      .select(`
-        id,
-        request_id,
-        lexybrain_requests!inner(user_id)
-      `)
+      .select("id, request_id")
       .eq("id", responseId)
       .maybeSingle();
 
@@ -111,8 +106,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Type guard for the nested query result
-    const requestData = responseData.lexybrain_requests as { user_id: string } | null;
+    // 4. Verify ownership by checking the associated request
+    const { data: requestData, error: requestError } = await supabase
+      .from("lexybrain_requests")
+      .select("user_id")
+      .eq("id", responseData.request_id)
+      .maybeSingle();
+
+    if (requestError) {
+      logger.error(
+        {
+          type: "lexybrain_feedback_request_lookup_failed",
+          user_id: user.id,
+          request_id: responseData.request_id,
+          error: requestError.message,
+        },
+        "Failed to lookup request for ownership verification"
+      );
+      return NextResponse.json(
+        { error: "verification_failed", message: "Failed to verify response ownership" },
+        { status: 500 }
+      );
+    }
 
     // Verify ownership (if request has a user_id, it must match)
     if (requestData?.user_id && requestData.user_id !== user.id) {
@@ -131,7 +146,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 4. Check for existing feedback from this user
+    // 5. Check for existing feedback from this user
     const { data: existingFeedback } = await supabase
       .from("lexybrain_feedback")
       .select("id")
@@ -139,7 +154,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .eq("user_id", user.id)
       .maybeSingle();
 
-    // 5. Submit or update feedback
+    // 6. Submit or update feedback
     const feedbackId = await logLexyBrainFeedback({
       responseId,
       userId: user.id,
