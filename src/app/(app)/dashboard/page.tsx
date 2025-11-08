@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { NotificationCard } from "@/components/notifications/NotificationCard";
 
 type UsageSummary = {
   plan: string;
@@ -206,6 +207,9 @@ export default function DashboardPage(): JSX.Element {
           </div>
         </CardHeader>
       </Card>
+
+      {/* Notification Card */}
+      <NotificationCard />
 
       {/* Usage KPI Cards */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
