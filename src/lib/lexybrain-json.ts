@@ -3,17 +3,19 @@
  *
  * High-level interface for generating validated JSON outputs from LexyBrain.
  * Combines prompt building, LLM calls, parsing, and validation.
+ *
+ * MIGRATION NOTE: Now uses RunPod Serverless Queue via runpodClient
  */
 
 import * as Sentry from "@sentry/nextjs";
 import { logger } from "./logger";
 import { getSupabaseServerClient } from "./supabase-server";
 import {
-  callLexyBrainRaw,
+  callLexyBrainRunpod,
   extractJsonFromOutput,
-  LexyBrainClientError,
-  LexyBrainTimeoutError,
-} from "./lexybrain-client";
+  RunPodClientError,
+  RunPodTimeoutError,
+} from "./lexybrain/runpodClient";
 import {
   buildLexyBrainPrompt,
   type LexyBrainContext,
@@ -24,7 +26,18 @@ import {
   type LexyBrainOutput,
   type LexyBrainOutputType,
 } from "./lexybrain-schemas";
-import { getLexyBrainModelVersion } from "./lexybrain-config";
+import { getLexyBrainModelVersion, isUsingServerlessQueue } from "./lexybrain-config";
+import {
+  logLexyBrainRequest,
+  logLexyBrainResponse,
+} from "./lexybrain/trainingLogger";
+
+// Legacy client imports (for fallback during migration)
+import {
+  callLexyBrainRaw,
+  LexyBrainClientError,
+  LexyBrainTimeoutError,
+} from "./lexybrain-client";
 
 // =====================================================
 // Types
@@ -46,6 +59,8 @@ export interface GenerateLexyBrainJsonResult {
     outputTokens: number;
     modelVersion: string;
     retryCount: number;
+    requestId?: string | null; // For training data tracking
+    responseId?: string | null; // For training data tracking
   };
 }
 
@@ -84,6 +99,7 @@ export async function generateLexyBrainJson(
   let retryCount = 0;
   let lastError: Error | null = null;
   let rawOutput: string | null = null;
+  let trainingRequestId: string | null = null;
 
   // Attempt generation with retries
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -112,10 +128,58 @@ export async function generateLexyBrainJson(
         "Generating LexyBrain JSON"
       );
 
-      // Call LLM
-      rawOutput = await callLexyBrainRaw(prompt, {
-        temperature: isRetry ? 0.1 : 0.3, // More deterministic on retry
-      });
+      // Log request to training data (async, non-blocking)
+      // Only log on first attempt to avoid duplicate training data
+      if (attempt === 0) {
+        logLexyBrainRequest({
+          userId,
+          prompt,
+          context,
+          insightType: type,
+          market: context.market,
+          nicheTerms: context.niche_terms,
+        }).then((requestId) => {
+          trainingRequestId = requestId;
+        }).catch((err) => {
+          logger.warn(
+            {
+              type: "training_logger_request_async_failed",
+              error: err instanceof Error ? err.message : String(err),
+            },
+            "Failed to log training request (non-blocking)"
+          );
+        });
+      }
+
+      // Call LLM - use new RunPod Serverless Queue if configured, else fall back to legacy
+      if (isUsingServerlessQueue()) {
+        logger.debug(
+          { type: "lexybrain_using_serverless", user_id: userId },
+          "Using RunPod Serverless Queue"
+        );
+
+        const response = await callLexyBrainRunpod(
+          {
+            prompt,
+            temperature: isRetry ? 0.1 : 0.3, // More deterministic on retry
+            max_tokens: 512, // Default max tokens
+          },
+          {
+            timeoutMs: 55000, // 55 seconds (under Vercel 60s limit)
+          }
+        );
+
+        rawOutput = response.content;
+      } else {
+        logger.debug(
+          { type: "lexybrain_using_legacy", user_id: userId },
+          "Using legacy Load Balancer (deprecated)"
+        );
+
+        rawOutput = await callLexyBrainRaw(prompt, {
+          temperature: isRetry ? 0.1 : 0.3, // More deterministic on retry
+        });
+      }
 
       // Extract and parse JSON
       const jsonText = extractJsonFromOutput(rawOutput);
@@ -141,6 +205,30 @@ export async function generateLexyBrainJson(
         "LexyBrain JSON generation successful"
       );
 
+      // Log response to training data (async, non-blocking)
+      let trainingResponseId: string | null = null;
+      if (trainingRequestId) {
+        logLexyBrainResponse({
+          requestId: trainingRequestId,
+          modelName: getLexyBrainModelVersion(),
+          output: validatedOutput,
+          latencyMs,
+          success: true,
+          tokensIn: promptTokens,
+          tokensOut: outputTokens,
+        }).then((responseId) => {
+          trainingResponseId = responseId;
+        }).catch((err) => {
+          logger.warn(
+            {
+              type: "training_logger_response_async_failed",
+              error: err instanceof Error ? err.message : String(err),
+            },
+            "Failed to log training response (non-blocking)"
+          );
+        });
+      }
+
       return {
         output: validatedOutput,
         metadata: {
@@ -149,6 +237,8 @@ export async function generateLexyBrainJson(
           outputTokens,
           modelVersion: getLexyBrainModelVersion(),
           retryCount,
+          requestId: trainingRequestId,
+          responseId: trainingResponseId,
         },
       };
     } catch (error) {
@@ -169,7 +259,7 @@ export async function generateLexyBrainJson(
 
       // Don't retry on timeout errors - they take too long and will hit Vercel's limit
       // Only retry on parsing/validation errors which might be model output issues
-      if (error instanceof LexyBrainTimeoutError) {
+      if (error instanceof LexyBrainTimeoutError || error instanceof RunPodTimeoutError) {
         logger.warn(
           {
             type: "lexybrain_timeout_no_retry",
@@ -225,9 +315,9 @@ export async function generateLexyBrainJson(
   });
 
   // Throw appropriate error
-  if (lastError instanceof LexyBrainClientError) {
+  if (lastError instanceof LexyBrainClientError || lastError instanceof RunPodClientError) {
     throw lastError;
-  } else if (lastError instanceof LexyBrainTimeoutError) {
+  } else if (lastError instanceof LexyBrainTimeoutError || lastError instanceof RunPodTimeoutError) {
     throw lastError;
   } else if (lastError instanceof SyntaxError) {
     throw new LexyBrainValidationError(

@@ -259,8 +259,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
     }
 
-    // 16. Return Result
-    return NextResponse.json(result.output);
+    // 16. Return Result with Metadata
+    return NextResponse.json({
+      ...result.output,
+      _metadata: {
+        responseId: result.metadata.responseId,
+        requestId: result.metadata.requestId,
+        latencyMs: result.metadata.latencyMs,
+        modelVersion: result.metadata.modelVersion,
+      },
+    });
   } catch (error) {
     const latencyMs = Date.now() - startTime;
 

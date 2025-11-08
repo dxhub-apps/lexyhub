@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { useLexyBrainGenerate } from "@/lib/lexybrain/hooks";
 import type { LexyBrainOutputType } from "@/lib/lexybrain-schemas";
+import { FeedbackButtonsWithLabel } from "./FeedbackButtons";
 
 type LexyBrainActionMenuProps = {
   keyword: string;
@@ -40,7 +41,7 @@ export function LexyBrainActionMenu({
 }: LexyBrainActionMenuProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [activeModule, setActiveModule] = useState<LexyBrainOutputType | null>(null);
-  const { generate, loading, error, data, reset } = useLexyBrainGenerate();
+  const { generate, loading, error, data, metadata, reset } = useLexyBrainGenerate();
 
   const handleModuleClick = async (moduleType: LexyBrainOutputType) => {
     setActiveModule(moduleType);
@@ -115,6 +116,7 @@ export function LexyBrainActionMenu({
           loading={loading}
           error={error}
           data={data}
+          metadata={metadata}
           keyword={keyword}
         />
       </>
@@ -169,6 +171,7 @@ export function LexyBrainActionMenu({
         loading={loading}
         error={error}
         data={data}
+        metadata={metadata}
         keyword={keyword}
       />
     </>
@@ -182,6 +185,12 @@ type ResultDialogProps = {
   loading: boolean;
   error: string | null;
   data: any;
+  metadata?: {
+    responseId?: string | null;
+    requestId?: string | null;
+    latencyMs?: number;
+    modelVersion?: string;
+  };
   keyword: string;
 };
 
@@ -192,6 +201,7 @@ function ResultDialog({
   loading,
   error,
   data,
+  metadata,
   keyword,
 }: ResultDialogProps) {
   const getModuleName = () => {
@@ -241,10 +251,10 @@ function ResultDialog({
 
           {data && !loading && (
             <>
-              {moduleType === "market_brief" && <MarketBriefDisplay data={data} />}
-              {moduleType === "radar" && <RadarDisplay data={data} />}
-              {moduleType === "ad_insight" && <AdInsightDisplay data={data} />}
-              {moduleType === "risk" && <RiskDisplay data={data} />}
+              {moduleType === "market_brief" && <MarketBriefDisplay data={data} responseId={metadata?.responseId} />}
+              {moduleType === "radar" && <RadarDisplay data={data} responseId={metadata?.responseId} />}
+              {moduleType === "ad_insight" && <AdInsightDisplay data={data} responseId={metadata?.responseId} />}
+              {moduleType === "risk" && <RiskDisplay data={data} responseId={metadata?.responseId} />}
             </>
           )}
         </div>
@@ -257,13 +267,18 @@ function ResultDialog({
 // Result Display Components
 // =====================================================
 
-function MarketBriefDisplay({ data }: { data: any }) {
+function MarketBriefDisplay({ data, responseId }: { data: any; responseId?: string | null }) {
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>{data.niche}</CardTitle>
-          <Badge variant="secondary">Confidence: {Math.round((data.confidence || 0) * 100)}%</Badge>
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle>{data.niche}</CardTitle>
+              <Badge variant="secondary">Confidence: {Math.round((data.confidence || 0) * 100)}%</Badge>
+            </div>
+            <FeedbackButtonsWithLabel responseId={responseId} />
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -315,32 +330,43 @@ function MarketBriefDisplay({ data }: { data: any }) {
   );
 }
 
-function RadarDisplay({ data }: { data: any }) {
+function RadarDisplay({ data, responseId }: { data: any; responseId?: string | null }) {
   return (
-    <div className="space-y-2">
-      {data.items &&
-        data.items.map((item: any, i: number) => (
-          <Card key={i}>
-            <CardContent className="pt-6">
-              <h4 className="font-semibold mb-3">{item.term}</h4>
-              <div className="grid grid-cols-5 gap-2 mb-2">
-                <ScoreBadge label="Demand" value={item.scores.demand} />
-                <ScoreBadge label="Momentum" value={item.scores.momentum} />
-                <ScoreBadge label="Competition" value={item.scores.competition} inverse />
-                <ScoreBadge label="Novelty" value={item.scores.novelty} />
-                <ScoreBadge label="Profit" value={item.scores.profit} />
-              </div>
-              <p className="text-sm text-muted-foreground">{item.comment}</p>
-            </CardContent>
-          </Card>
-        ))}
+    <div className="space-y-4">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-semibold text-muted-foreground">Opportunity Scores</h3>
+        <FeedbackButtonsWithLabel responseId={responseId} />
+      </div>
+      <div className="space-y-2">
+        {data.items &&
+          data.items.map((item: any, i: number) => (
+            <Card key={i}>
+              <CardContent className="pt-6">
+                <h4 className="font-semibold mb-3">{item.term}</h4>
+                <div className="grid grid-cols-5 gap-2 mb-2">
+                  <ScoreBadge label="Demand" value={item.scores.demand} />
+                  <ScoreBadge label="Momentum" value={item.scores.momentum} />
+                  <ScoreBadge label="Competition" value={item.scores.competition} inverse />
+                  <ScoreBadge label="Novelty" value={item.scores.novelty} />
+                  <ScoreBadge label="Profit" value={item.scores.profit} />
+                </div>
+                <p className="text-sm text-muted-foreground">{item.comment}</p>
+              </CardContent>
+            </Card>
+          ))}
+      </div>
     </div>
   );
 }
 
-function AdInsightDisplay({ data }: { data: any }) {
+function AdInsightDisplay({ data, responseId }: { data: any; responseId?: string | null }) {
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-muted-foreground">Budget Recommendations</h3>
+        <FeedbackButtonsWithLabel responseId={responseId} />
+      </div>
+
       {data.budget_split &&
         data.budget_split.map((item: any, i: number) => (
           <Card key={i}>
@@ -371,7 +397,7 @@ function AdInsightDisplay({ data }: { data: any }) {
   );
 }
 
-function RiskDisplay({ data }: { data: any }) {
+function RiskDisplay({ data, responseId }: { data: any; responseId?: string | null }) {
   const severityColors = {
     low: "text-yellow-600 bg-yellow-50 dark:bg-yellow-950",
     medium: "text-orange-600 bg-orange-50 dark:bg-orange-950",
@@ -379,33 +405,40 @@ function RiskDisplay({ data }: { data: any }) {
   };
 
   return (
-    <div className="space-y-2">
-      {data.alerts && data.alerts.length === 0 && (
-        <Alert>
-          <AlertDescription>No significant risks detected. Your market looks healthy!</AlertDescription>
-        </Alert>
-      )}
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-muted-foreground">Risk Assessment</h3>
+        <FeedbackButtonsWithLabel responseId={responseId} />
+      </div>
 
-      {data.alerts &&
-        data.alerts.map((alert: any, i: number) => (
-          <Card key={i} className={severityColors[alert.severity as keyof typeof severityColors]}>
-            <CardContent className="pt-6">
-              <div className="flex justify-between items-start mb-2">
-                <h4 className="font-semibold">{alert.term}</h4>
-                <Badge variant="outline" className="uppercase">
-                  {alert.severity}
-                </Badge>
-              </div>
-              <p className="text-sm font-medium mb-2">{alert.issue}</p>
-              <p className="text-sm text-muted-foreground mb-2">
-                <strong>Evidence:</strong> {alert.evidence}
-              </p>
-              <p className="text-sm">
-                <strong>Action:</strong> {alert.action}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="space-y-2">
+        {data.alerts && data.alerts.length === 0 && (
+          <Alert>
+            <AlertDescription>No significant risks detected. Your market looks healthy!</AlertDescription>
+          </Alert>
+        )}
+
+        {data.alerts &&
+          data.alerts.map((alert: any, i: number) => (
+            <Card key={i} className={severityColors[alert.severity as keyof typeof severityColors]}>
+              <CardContent className="pt-6">
+                <div className="flex justify-between items-start mb-2">
+                  <h4 className="font-semibold">{alert.term}</h4>
+                  <Badge variant="outline" className="uppercase">
+                    {alert.severity}
+                  </Badge>
+                </div>
+                <p className="text-sm font-medium mb-2">{alert.issue}</p>
+                <p className="text-sm text-muted-foreground mb-2">
+                  <strong>Evidence:</strong> {alert.evidence}
+                </p>
+                <p className="text-sm">
+                  <strong>Action:</strong> {alert.action}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+      </div>
     </div>
   );
 }
