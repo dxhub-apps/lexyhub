@@ -38,7 +38,7 @@ export async function GET() {
   };
 
   let apiTestCapture = {
-    endpoint: "/e/",
+    endpoint: "/i/v0/e/",
     tested: false,
     valid: false,
     error: null as string | null,
@@ -86,18 +86,21 @@ export async function GET() {
     }
 
     // Test 2: Capture endpoint (client-side, what the browser uses)
+    // This is the EXACT endpoint path the browser PostHog.js uses
     try {
       const payload = {
         api_key: apiKey,
         event: "$test_event_capture",
+        distinct_id: "diagnostic-test-capture",
         properties: {
-          distinct_id: "diagnostic-test-capture",
           $lib: "posthog-diagnostic",
+          test_source: "api_diagnostic",
         },
         timestamp: new Date().toISOString(),
       };
 
-      const testResponse = await fetch(`${apiHost}/e/`, {
+      // Use the full path that posthog-js client library uses
+      const testResponse = await fetch(`${apiHost}/i/v0/e/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -105,16 +108,26 @@ export async function GET() {
         body: JSON.stringify(payload),
       });
 
+      let errorDetails = null;
+      if (!testResponse.ok) {
+        try {
+          const responseText = await testResponse.text();
+          errorDetails = `HTTP ${testResponse.status}: ${testResponse.statusText} - ${responseText}`;
+        } catch {
+          errorDetails = `HTTP ${testResponse.status}: ${testResponse.statusText}`;
+        }
+      }
+
       apiTestCapture = {
-        endpoint: "/e/",
+        endpoint: "/i/v0/e/",
         tested: true,
         valid: testResponse.ok,
-        error: testResponse.ok ? null : `HTTP ${testResponse.status}: ${testResponse.statusText}`,
+        error: errorDetails,
         statusCode: testResponse.status,
       };
     } catch (error) {
       apiTestCapture = {
-        endpoint: "/e/",
+        endpoint: "/i/v0/e/",
         tested: true,
         valid: false,
         error: error instanceof Error ? error.message : "Unknown error",
