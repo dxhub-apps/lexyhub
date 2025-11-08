@@ -42,7 +42,7 @@ export function ReferralRewardsCard({
   const [copied, setCopied] = useState(false);
 
   const handleCopyLink = () => {
-    const referralLink = `${window.location.origin}?ref=${referralCode}`;
+    const referralLink = `${window.location.origin}/?ref=${referralCode}`;
     navigator.clipboard.writeText(referralLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -147,7 +147,7 @@ export function ReferralRewardsCard({
           <label className="mb-2 block text-sm font-medium">Your Referral Link:</label>
           <div className="flex gap-2">
             <div className="flex-1 rounded-md border bg-muted px-3 py-2 text-sm">
-              {window.location.origin}?ref={referralCode}
+              {window.location.origin}/?ref={referralCode}
             </div>
             <Button
               variant="outline"
