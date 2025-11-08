@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callLexyBrainRunpod, testRunPodConnection } from "@/lib/lexybrain/runpodClient";
 
+// Force Node.js runtime (not Edge) for proper fetch behavior
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 /**
  * Simple test endpoint to verify RunPod integration
  *

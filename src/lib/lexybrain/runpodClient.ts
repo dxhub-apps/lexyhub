@@ -125,6 +125,7 @@ export async function callLexyBrainRunpod(
   // Log request details for debugging
   console.log(`[RunPod] Initiating request to ${url}`);
   console.log(`[RunPod] Endpoint ID: ${ENDPOINT_ID}`);
+  console.log(`[RunPod] Full request body:`, JSON.stringify(requestBody, null, 2));
   console.log(`[RunPod] Request body structure:`, {
     hasPrompt: !!input.prompt,
     hasSystem: !!input.system,
