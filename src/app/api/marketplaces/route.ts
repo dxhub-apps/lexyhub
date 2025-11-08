@@ -6,14 +6,21 @@
  */
 
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const supabase = await createClient();
+    const supabase = getSupabaseServerClient();
+
+    if (!supabase) {
+      return NextResponse.json(
+        { error: "Supabase client unavailable" },
+        { status: 503 }
+      );
+    }
 
     // Fetch marketplace providers (excluding synthetic/manual providers)
     const { data: providers, error } = await supabase
