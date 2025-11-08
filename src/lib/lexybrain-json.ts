@@ -12,9 +12,9 @@ import { logger } from "./logger";
 import { getSupabaseServerClient } from "./supabase-server";
 import {
   callLexyBrainRunpod,
-  extractJsonFromOutput,
   type LexyBrainRequest,
 } from "./lexybrain/runpodClient";
+import { extractJsonFromOutput } from "./lexybrain/utils";
 import {
   buildLexyBrainPrompt,
   type LexyBrainContext,
