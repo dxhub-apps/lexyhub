@@ -412,6 +412,54 @@ export async function callLexyBrainRunpod(
       }
     }
 
+    // Check if the worker is echoing back the prompt instead of returning a completion
+    // This indicates a worker configuration bug
+    if (content && typeof content === "string") {
+      const promptMarkers = [
+        "=== SYSTEM INSTRUCTIONS ===",
+        "=== TASK ===",
+        "You are LexyBrain",
+        "OUTPUT SCHEMA",
+      ];
+
+      const isPromptEcho = promptMarkers.some(marker => content.includes(marker));
+
+      if (isPromptEcho) {
+        const error = new RunPodClientError(
+          "RunPod worker is echoing the input prompt instead of returning model completion. " +
+          "This indicates a worker configuration bug. The worker must call llama.cpp and return " +
+          "the generated completion, not the input prompt.",
+          undefined,
+          { content_preview: content.substring(0, 500) }
+        );
+
+        logger.error(
+          {
+            type: "runpod_prompt_echo_bug",
+            latency_ms: latencyMs,
+            content_preview: content.substring(0, 300),
+            content_length: content.length,
+          },
+          "RunPod worker returning prompt instead of completion - worker bug detected"
+        );
+
+        Sentry.captureException(error, {
+          tags: {
+            feature: "lexybrain",
+            component: "runpod-client",
+            error_type: "worker_prompt_echo"
+          },
+          extra: {
+            content_preview: content.substring(0, 1000),
+            latency_ms: latencyMs,
+            endpoint_id: getRunPodEndpointId(),
+          },
+        });
+
+        throw error;
+      }
+    }
+
     if (!content || typeof content !== "string") {
       const error = new RunPodClientError(
         "RunPod output missing or invalid content field",
