@@ -3,26 +3,34 @@
  *
  * Configuration:
  * - NEXT_PUBLIC_POSTHOG_KEY: Project API key (starts with 'phc_')
- * - NEXT_PUBLIC_POSTHOG_HOST: Ingestion endpoint
- *   * US: https://us.i.posthog.com
- *   * EU: https://eu.i.posthog.com
+ * - NEXT_PUBLIC_POSTHOG_HOST: Ingestion endpoint (https://eu.i.posthog.com)
  *
- * Get your project key from: https://app.posthog.com/project/settings (US)
- *                        or: https://eu.posthog.com/project/settings (EU)
+ * IMPORTANT: This uses a single, locked PostHog client.
+ * No fallback logic, no host switching, no retries.
  */
 import posthog from "posthog-js";
 
 let isInitialized = false;
 let isInitializing = false;
 
+// Prevent multiple initializations or config mutations
+const INIT_LOCK = { locked: false };
+
 export function initPostHog() {
   if (typeof window === "undefined") {
     return null;
   }
 
-  if (isInitialized || isInitializing) {
+  // Prevent duplicate initialization
+  if (isInitialized || isInitializing || INIT_LOCK.locked) {
+    if (process.env.NODE_ENV === "development") {
+      console.log("PostHog: Already initialized, using existing instance");
+    }
     return posthog;
   }
+
+  // Lock to prevent race conditions
+  INIT_LOCK.locked = true;
 
   const apiKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   const apiHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
@@ -49,9 +57,9 @@ export function initPostHog() {
     console.error(
       "❌ PostHog: NEXT_PUBLIC_POSTHOG_HOST is not set. Analytics will not be tracked.\n" +
       "To enable PostHog, add NEXT_PUBLIC_POSTHOG_HOST to your .env.local file.\n" +
-      "   For EU instance: NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com\n" +
-      "   For US instance: NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com"
+      "   Expected: NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com"
     );
+    INIT_LOCK.locked = false;
     return null;
   }
 
@@ -63,8 +71,9 @@ export function initPostHog() {
     console.error(
       "❌ PostHog: Invalid API key format. PostHog project keys should start with 'phc_'.\n" +
       "You may be using a personal API key instead of a project key.\n" +
-      "Get your project key from: https://app.posthog.com/project/settings"
+      "Get your project key from: https://eu.posthog.com/project/settings"
     );
+    INIT_LOCK.locked = false;
     return null;
   }
 
@@ -82,41 +91,41 @@ export function initPostHog() {
       "❌ PostHog: Invalid host format. Host must start with http:// or https://\n" +
       `   Current value: ${apiHost}`
     );
+    INIT_LOCK.locked = false;
     return null;
   }
 
+  // Verify we're using EU instance
+  if (!apiHost.includes("eu.i.posthog.com")) {
+    console.warn(
+      "⚠️ PostHog: Expected EU instance (https://eu.i.posthog.com)\n" +
+      `   Current value: ${apiHost}\n` +
+      "   Continuing with provided host..."
+    );
+  }
+
   const normalizedHost = normalizeHost(apiHost);
-  const hostMeta = analyzeHost(normalizedHost);
 
   isInitializing = true;
 
-  if (hostMeta.isEuHost || hostMeta.isUsHost) {
-    console.log(
-      `ℹ️ PostHog: Initializing with ${hostMeta.label} instance\n` +
-      `   API Host: ${hostMeta.host}\n` +
-      `   API Key: ${trimmedApiKey.substring(0, 12)}...${trimmedApiKey.substring(trimmedApiKey.length - 4)}\n` +
-      "   Ensure your API key is from this PostHog instance."
-    );
-  } else {
-    console.log(
-      `ℹ️ PostHog: Initializing with custom PostHog host ${hostMeta.host}`
-    );
-  }
+  console.log(
+    `ℹ️ PostHog: Initializing with locked configuration\n` +
+    `   API Host: ${normalizedHost}\n` +
+    `   API Key: ${trimmedApiKey.substring(0, 12)}...${trimmedApiKey.substring(trimmedApiKey.length - 4)}`
+  );
 
   try {
     posthog.init(
       trimmedApiKey,
-      createPostHogOptions({
-        meta: hostMeta,
-        trimmedApiKey,
-      })
+      createPostHogOptions(normalizedHost, trimmedApiKey)
     );
 
     isInitialized = true;
-    console.log("✅ PostHog analytics enabled");
+    console.log("✅ PostHog analytics enabled (single client, no fallback)");
   } catch (error) {
     console.error("❌ PostHog initialization failed:", error);
     isInitializing = false;
+    INIT_LOCK.locked = false;
     return null;
   }
 
@@ -124,47 +133,13 @@ export function initPostHog() {
   return posthog;
 }
 
-type HostMetadata = {
-  host: string;
-  isEuHost: boolean;
-  isUsHost: boolean;
-  label: "EU" | "US" | "custom";
-};
-
 function normalizeHost(host: string): string {
   return host.replace(/\/+$/, "");
 }
 
-function analyzeHost(rawHost: string): HostMetadata {
-  const host = normalizeHost(rawHost);
-  const isEuHost = host.includes("eu.") && host.includes("posthog.com");
-  const isUsHost =
-    (host.includes("app.posthog.com") || host.includes("us.")) && host.includes("posthog.com");
-
-  let label: HostMetadata["label"] = "custom";
-  if (isEuHost) {
-    label = "EU";
-  } else if (isUsHost) {
-    label = "US";
-  }
-
-  return { host, isEuHost, isUsHost, label };
-}
-
-type CreatePostHogOptionsParams = {
-  meta: HostMetadata;
-  trimmedApiKey: string;
-};
-
-function createPostHogOptions({
-  meta,
-  trimmedApiKey,
-}: CreatePostHogOptionsParams) {
-  const regionLabel = meta.label === "EU" ? "EU" : meta.label === "US" ? "US" : "custom";
-  const keyPreview = `${trimmedApiKey.substring(0, 8)}...${trimmedApiKey.substring(trimmedApiKey.length - 4)}`;
-
+function createPostHogOptions(apiHost: string, apiKey: string) {
   return {
-    api_host: meta.host,
+    api_host: apiHost,
 
     // Enable debug mode in development
     loaded: (client) => {
@@ -197,52 +172,30 @@ function createPostHogOptions({
     opt_out_capturing_by_default: false,
     respect_dnt: true,
 
-    // Error handling for failed requests
+    // Error handling for failed requests - NO RETRIES, NO FALLBACK
     on_request_error: (error: any) => {
       const status = error?.status ?? error?.statusCode;
 
       if (status === 401) {
         console.error(
-          "❌ PostHog: Authentication failed (401 Unauthorized)\n" +
-            "   \n" +
-            "   Your configuration appears correct, but PostHog is rejecting the API key.\n" +
-            "   \n" +
-            "   Current configuration:\n" +
-            `   - Host: ${meta.host} (${regionLabel} instance)\n` +
-            `   - Key: ${keyPreview} (format is correct)\n` +
-            "   \n" +
-            "   Common causes:\n" +
-            "   1. The API key is from a DIFFERENT PostHog instance\n" +
-            `      → Your host is set to ${regionLabel} instance\n` +
-            `      → Verify your key is from: ${regionLabel === 'EU' ? 'https://eu.posthog.com' : regionLabel === 'US' ? 'https://app.posthog.com' : meta.host}\n` +
-            "      → Check: Project Settings → Project API Key\n" +
-            "   \n" +
-            "   2. STALE VERCEL DEPLOYMENT (most common!)\n" +
-            "      → Environment variables updated but old build is cached\n" +
-            "      → Fix: Redeploy in Vercel to pick up new variables\n" +
-            "      → Or: Settings → Clear Build Cache → Redeploy\n" +
-            "   \n" +
-            "   3. INVALID/REVOKED KEY\n" +
-            "      → The key may have been revoked or project deleted\n" +
-            "      → Try creating a NEW project API key in PostHog\n" +
-            "   \n" +
-            "   To debug:\n" +
-            "   1. Visit /api/debug/posthog to test your API key\n" +
-            "   2. Add <PostHogDebugger /> component to your page\n" +
-            "   3. Check if server-side key matches client-side key"
+          "❌ PostHog: 401 Unauthorized\n" +
+            `   Host: ${apiHost}\n` +
+            `   Key: ${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}\n` +
+            "\n" +
+            "   Possible causes:\n" +
+            "   1. API key doesn't match the host instance\n" +
+            "   2. Stale Vercel build cache - redeploy to pick up new env vars\n" +
+            "   3. Invalid or revoked API key\n" +
+            "\n" +
+            "   Debug at: /api/debug/posthog"
         );
       } else if (status === 403) {
         console.error(
-          "❌ PostHog: Access forbidden (403)\n" +
-            "   Your API key doesn't have permission to send events.\n" +
-            "   Ensure you're using a project key, not a personal API key.\n" +
-            `   Get your project key from: ${regionLabel === 'EU' ? 'https://eu.posthog.com' : 'https://app.posthog.com'}/project/settings`
+          "❌ PostHog: 403 Forbidden - Check your API key permissions"
         );
       } else if (status === 400) {
         console.error(
-          "❌ PostHog: Bad request (400)\n" +
-            "   The request format is invalid. This might indicate a configuration issue.\n" +
-            `   Current host: ${meta.host}`
+          "❌ PostHog: 400 Bad Request - Invalid request format"
         );
       }
     },

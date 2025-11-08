@@ -162,8 +162,7 @@ function generateTroubleshooting(config: any, batchTest: any, captureTest: any):
   if (!config.hasHost) {
     steps.push("❌ NEXT_PUBLIC_POSTHOG_HOST is not set in environment variables");
     steps.push("→ Add NEXT_PUBLIC_POSTHOG_HOST to your Vercel environment variables");
-    steps.push("   For EU instance: NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com");
-    steps.push("   For US instance: NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com");
+    steps.push("   Required: NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com");
     return steps;
   }
 
@@ -200,12 +199,12 @@ function generateTroubleshooting(config: any, batchTest: any, captureTest: any):
       steps.push("The /e/ endpoint rejects your API key (401 Unauthorized).");
       steps.push("");
       steps.push("Possible causes:");
-      steps.push("1. API KEY FROM WRONG POSTHOG INSTANCE");
-      steps.push(`   You're using: ${config.host}`);
-      steps.push(`   Your key might be from: ${config.isEuHost ? 'US instance (app.posthog.com)' : 'EU instance (eu.posthog.com)'}`);
-      steps.push(`   → Log into: ${config.isEuHost ? 'https://eu.posthog.com' : 'https://app.posthog.com'}`);
+      steps.push("1. INCORRECT API KEY");
+      steps.push(`   Expected host: https://eu.i.posthog.com`);
+      steps.push(`   Current host: ${config.host}`);
+      steps.push(`   → Log into: https://eu.posthog.com`);
       steps.push("   → Verify this is YOUR project");
-      steps.push("   → If not, switch to the other instance");
+      steps.push("   → Get the correct EU project API key");
       steps.push("");
       steps.push("2. CORRUPTED OR INVALID API KEY");
       steps.push("   → Generate a BRAND NEW project API key in PostHog");
@@ -239,11 +238,11 @@ function generateTroubleshooting(config: any, batchTest: any, captureTest: any):
     steps.push("3. Network/firewall blocking PostHog");
     steps.push("");
     steps.push("Steps to fix:");
-    steps.push(`1. Log into PostHog: ${config.isEuHost ? 'https://eu.posthog.com' : 'https://app.posthog.com'}`);
+    steps.push(`1. Log into PostHog EU: https://eu.posthog.com`);
     steps.push("2. Go to: Project Settings → Project API Key");
     steps.push("3. Copy the EXACT key (don't modify it)");
     steps.push("4. In Vercel: Update NEXT_PUBLIC_POSTHOG_KEY");
-    steps.push("5. Verify NEXT_PUBLIC_POSTHOG_HOST matches your PostHog instance");
+    steps.push("5. Ensure NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com");
     steps.push("6. Redeploy with cleared cache");
   }
 
