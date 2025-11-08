@@ -2,12 +2,11 @@ name: Supabase migrations
 
 on:
   push:
+    branches:
+      - main
     paths:
       - "supabase/**"
       - ".github/workflows/supabase-migrations.yml"
-  pull_request:
-    paths:
-      - "supabase/**"
 
 jobs:
   migrations:
@@ -41,9 +40,16 @@ jobs:
       - name: Supabase lint
         run: supabase db lint
 
-      - name: Run migrations
+      - name: Check pending migrations (dry run)
+        run: |
+          echo "Checking for pending migrations..."
+          supabase db push --db-url "$SUPABASE_DB_URL" --dry-run || true
+
+      - name: Run migrations (migrate up only)
         id: run_migrations
-        run: supabase db push --db-url "$SUPABASE_DB_URL"
+        run: |
+          echo "Applying pending migrations (forward only - no rollbacks)..."
+          supabase db push --db-url "$SUPABASE_DB_URL"
         continue-on-error: true
 
       - name: Record migration run
