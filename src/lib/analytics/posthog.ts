@@ -151,13 +151,20 @@ function normalizeHost(host: string): string {
 }
 
 function createPostHogOptions(apiHost: string, apiKey: string) {
-  return {
+  const options = {
     api_host: apiHost,
+    token: apiKey, // Explicitly include token in options
 
     // Enable debug mode in development
     loaded: (client) => {
+      console.log("✅ PostHog initialized successfully");
+      console.log("🔍 PostHog loaded callback - config:", {
+        token: client.config?.token,
+        api_host: client.config?.api_host,
+        has_token: !!client.config?.token
+      });
+
       if (process.env.NODE_ENV === "development") {
-        console.log("✅ PostHog initialized successfully");
         client.debug();
       }
     },
@@ -229,6 +236,9 @@ function createPostHogOptions(apiHost: string, apiKey: string) {
       return sanitized;
     },
   } as Parameters<typeof posthog.init>[1];
+
+  console.log("🔍 DEBUG: Creating PostHog options with token:", apiKey.substring(0, 12) + "...");
+  return options;
 }
 
 /**
