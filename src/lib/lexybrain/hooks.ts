@@ -23,6 +23,12 @@ export interface GenerateInsightResponse {
   data?: any;
   error?: string;
   cached?: boolean;
+  metadata?: {
+    responseId?: string | null;
+    requestId?: string | null;
+    latencyMs?: number;
+    modelVersion?: string;
+  };
 }
 
 export interface GraphRequest {
@@ -63,11 +69,13 @@ export function useLexyBrainGenerate() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<any>(null);
+  const [metadata, setMetadata] = useState<GenerateInsightResponse["metadata"]>(undefined);
 
   const generate = async (request: GenerateInsightRequest): Promise<GenerateInsightResponse> => {
     setLoading(true);
     setError(null);
     setData(null);
+    setMetadata(undefined);
 
     try {
       const response = await fetch("/api/lexybrain/generate", {
@@ -91,8 +99,19 @@ export function useLexyBrainGenerate() {
         return { success: false, error: errorMessage };
       }
 
-      setData(result);
-      return { success: true, data: result };
+      // Extract metadata if present (for training data tracking)
+      const responseMetadata = result._metadata || result.metadata;
+      setMetadata(responseMetadata);
+
+      // Remove metadata from result before setting data (keep it separate)
+      const { _metadata, metadata: _, ...dataOnly } = result;
+      setData(dataOnly);
+
+      return {
+        success: true,
+        data: dataOnly,
+        metadata: responseMetadata,
+      };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Network error";
       setError(errorMessage);
@@ -106,9 +125,10 @@ export function useLexyBrainGenerate() {
     setLoading(false);
     setError(null);
     setData(null);
+    setMetadata(undefined);
   };
 
-  return { generate, loading, error, data, reset };
+  return { generate, loading, error, data, metadata, reset };
 }
 
 // =====================================================
