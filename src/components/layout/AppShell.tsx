@@ -17,7 +17,6 @@ import {
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { Topbar } from "./Topbar";
 import { Sidebar, type SidebarNavItem } from "./Sidebar";
-import { TopBanner } from "@/components/notifications/TopBanner";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS: readonly SidebarNavItem[] = [
@@ -183,11 +182,7 @@ export function AppShell({ children, isAdmin }: AppShellProps) {
             activeNavItem={activeNavItem}
           />
 
-          <div className="pt-16">
-            <TopBanner />
-          </div>
-
-          <main className="flex-1">
+          <main className="flex-1 pt-16">
             <div className="app-container">{children}</div>
           </main>
         </div>
