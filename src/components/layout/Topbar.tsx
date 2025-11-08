@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { UserMenu } from "./UserMenu";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { WatchlistIndicator } from "@/components/watchlist/WatchlistIndicator";
 import type { SidebarNavItem } from "./Sidebar";
 
 type TopbarProps = {
@@ -77,6 +78,10 @@ export function Topbar({
             </div>
             <span className="text-xs text-muted-foreground hidden sm:inline">LexyBrain</span>
           </div>
+
+          <Separator orientation="vertical" className="h-6" />
+
+          <WatchlistIndicator />
 
           <Separator orientation="vertical" className="h-6" />
 
