@@ -37,12 +37,32 @@ export function initPostHog() {
       return null;
     }
 
+    // Trim the API key to remove any accidental whitespace
+    const trimmedApiKey = apiKey.trim();
+
     // Validate API key format
-    if (!apiKey.startsWith("phc_")) {
+    if (!trimmedApiKey.startsWith("phc_")) {
       console.error(
         "❌ PostHog: Invalid API key format. PostHog project keys should start with 'phc_'.\n" +
         "You may be using a personal API key instead of a project key.\n" +
         "Get your project key from: https://app.posthog.com/project/settings"
+      );
+      return null;
+    }
+
+    // Check for common configuration mistakes
+    if (trimmedApiKey !== apiKey) {
+      console.warn(
+        "⚠️ PostHog: API key had leading/trailing whitespace that was trimmed.\n" +
+        "   Please update your environment variable to remove the whitespace."
+      );
+    }
+
+    // Validate host format
+    if (!apiHost.startsWith("http://") && !apiHost.startsWith("https://")) {
+      console.error(
+        "❌ PostHog: Invalid host format. Host must start with http:// or https://\n" +
+        `   Current value: ${apiHost}`
       );
       return null;
     }
@@ -55,13 +75,13 @@ export function initPostHog() {
       console.log(
         `ℹ️ PostHog: Initializing with ${isEuHost ? "EU" : "US"} instance\n` +
         `   API Host: ${apiHost}\n` +
-        `   API Key: ${apiKey.substring(0, 12)}...\n` +
+        `   API Key: ${trimmedApiKey.substring(0, 12)}...\n` +
         "   Ensure your API key is from this PostHog instance."
       );
     }
 
     try {
-      posthog.init(apiKey, {
+      posthog.init(trimmedApiKey, {
         api_host: apiHost,
 
         // Enable debug mode in development
@@ -105,23 +125,28 @@ export function initPostHog() {
               "   Your configuration appears correct, but PostHog is rejecting the API key.\n" +
               "   \n" +
               "   Current configuration:\n" +
-              `   - Host: ${apiHost} (${isEuHost ? 'EU' : 'US'} instance)\n` +
-              `   - Key: ${apiKey.substring(0, 8)}... (format is correct)\n` +
+              `   - Host: ${apiHost} (${isEuHost ? 'EU' : isUsHost ? 'US' : 'Unknown'} instance)\n` +
+              `   - Key: ${trimmedApiKey.substring(0, 8)}...${trimmedApiKey.substring(trimmedApiKey.length - 4)} (format is correct)\n` +
               "   \n" +
               "   Common causes:\n" +
               "   1. The API key is from a DIFFERENT PostHog instance\n" +
-              `      → Check if your key is from the ${isEuHost ? 'US' : 'EU'} instance instead\n` +
-              "   2. The API key has been revoked or the project deleted\n" +
-              "   3. You copied the wrong key (e.g., personal API key renamed to start with 'phc_')\n" +
+              `      → Your host is set to ${isEuHost ? 'EU' : isUsHost ? 'US' : 'custom'} instance\n` +
+              `      → Verify your key is from: ${isEuHost ? 'https://eu.posthog.com' : isUsHost ? 'https://app.posthog.com' : apiHost}\n` +
+              "      → Check: Project Settings → Project API Key\n" +
               "   \n" +
-              "   To fix:\n" +
-              `   1. Log into: ${isEuHost ? 'https://eu.posthog.com' : 'https://app.posthog.com'}\n` +
-              "   2. Go to: Project Settings → Project API Key\n" +
-              "   3. Copy the EXACT key shown (starts with 'phc_')\n" +
-              "   4. Update NEXT_PUBLIC_POSTHOG_KEY in your environment variables\n" +
-              "   5. Redeploy your application\n" +
+              "   2. STALE VERCEL DEPLOYMENT (most common!)\n" +
+              "      → Environment variables updated but old build is cached\n" +
+              "      → Fix: Redeploy in Vercel to pick up new variables\n" +
+              "      → Or: Settings → Clear Build Cache → Redeploy\n" +
               "   \n" +
-              "   If the key is definitely correct, try creating a NEW project key."
+              "   3. INVALID/REVOKED KEY\n" +
+              "      → The key may have been revoked or project deleted\n" +
+              "      → Try creating a NEW project API key in PostHog\n" +
+              "   \n" +
+              "   To debug:\n" +
+              "   1. Visit /api/debug/posthog to test your API key\n" +
+              "   2. Add <PostHogDebugger /> component to your page\n" +
+              "   3. Check if server-side key matches client-side key"
             );
           } else if (err?.status === 403 || err?.statusCode === 403) {
             console.error(
