@@ -1,9 +1,6 @@
-[project]
-api_url = "https://api.supabase.com"
+# Supabase local development configuration
+# See: https://supabase.com/docs/guides/cli/config
+
+# A string used to distinguish different Supabase projects on the same host.
+# Defaults to the working directory name when running supabase init.
 project_id = "lexyhub"
-
-[db]
-extensions = ["pgvector"]
-
-[functions]
-ignore = []
