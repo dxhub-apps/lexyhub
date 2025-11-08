@@ -2,7 +2,7 @@
 
 ## Summary
 
-Fixed critical issues preventing Sentry and PostHog from working correctly. Both services were failing silently due to missing environment variables and initialization problems.
+Fixed critical issues preventing Sentry and PostHog from working correctly. Both services were failing silently due to missing environment variables and initialization problems. Added comprehensive error handling for PostHog 401 authentication errors with detailed diagnostics.
 
 ## Problems Fixed
 
@@ -68,6 +68,23 @@ Fixed critical issues preventing Sentry and PostHog from working correctly. Both
 
 **Files Changed**:
 - `src/lib/analytics/tracking.ts`
+
+### 6. PostHog 401 Authentication Errors
+**Issue**: PostHog would initialize but fail silently with 401 (Unauthorized) errors when sending events, providing no helpful feedback to developers.
+
+**Fix**:
+- Added API key format validation (must start with 'phc_')
+- Added host detection (US vs EU) with informational logging
+- Added `on_request_error` callback to catch 401/403 errors
+- Provides detailed error messages explaining:
+  - Invalid or expired API keys
+  - Instance mismatch (US key with EU host or vice versa)
+  - Wrong key type (personal API key instead of project key)
+- Shows clear solutions and links to get the correct key
+
+**Files Changed**:
+- `src/lib/analytics/posthog.ts`
+- `docs/ANALYTICS_AND_MONITORING.md`
 
 ## New Features
 

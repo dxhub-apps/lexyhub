@@ -484,6 +484,40 @@ This means the PostHog library couldn't initialize. Check:
 - The key starts with `phc_`
 - You've restarted your dev server
 
+#### PostHog 401 (Unauthorized) Errors
+
+If you see 401 errors in the browser console when PostHog tries to send events:
+
+```
+POST https://eu.i.posthog.com/i/v0/e/ 401 (Unauthorized)
+```
+
+This means your PostHog API key is invalid or misconfigured. Common causes:
+
+1. **Wrong API key**: The key in `NEXT_PUBLIC_POSTHOG_KEY` is invalid or expired
+2. **Instance mismatch**: Using a key from one PostHog instance (US/EU) with a different host
+   - Example: EU key with US host (`https://app.posthog.com`)
+   - Example: US key with EU host (`https://eu.posthog.com`)
+3. **Wrong key type**: Using a personal API key instead of a project key
+   - Project keys start with `phc_`
+   - Personal API keys start with `phx_` (these don't work for client-side tracking)
+
+**Solutions**:
+
+1. Get your **project key** (not personal key) from PostHog:
+   - For US: https://app.posthog.com/project/settings
+   - For EU: https://eu.posthog.com/project/settings
+2. Ensure `NEXT_PUBLIC_POSTHOG_KEY` starts with `phc_`
+3. Match your host to your instance:
+   ```bash
+   # For US instance
+   NEXT_PUBLIC_POSTHOG_HOST=https://app.posthog.com
+
+   # For EU instance
+   NEXT_PUBLIC_POSTHOG_HOST=https://eu.posthog.com
+   ```
+4. Restart your development server after changing environment variables
+
 #### "Sentry not capturing errors in development"
 
 By default, Sentry captures all errors in development if the DSN is set. If you're not seeing errors:
