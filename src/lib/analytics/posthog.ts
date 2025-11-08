@@ -35,35 +35,15 @@ export function initPostHog() {
       return null;
     }
 
-    // Fix common host configuration mistake
-    // The api_host should be the base domain (e.g., https://eu.posthog.com)
-    // NOT the ingestion endpoint (e.g., https://eu.i.posthog.com)
-    if (apiHost.includes(".i.posthog.com")) {
-      const correctedHost = apiHost.replace(".i.posthog.com", ".posthog.com");
-      console.warn(
-        "⚠️ PostHog: Incorrect host configuration detected!\n" +
-        `   You set: ${apiHost}\n` +
-        `   Correcting to: ${correctedHost}\n` +
-        "   \n" +
-        "   The api_host should be the BASE domain (e.g., https://eu.posthog.com),\n" +
-        "   NOT the ingestion endpoint (e.g., https://eu.i.posthog.com).\n" +
-        "   The SDK automatically constructs the ingestion endpoint.\n" +
-        "   \n" +
-        "   Please update NEXT_PUBLIC_POSTHOG_HOST in your environment variables:\n" +
-        `   NEXT_PUBLIC_POSTHOG_HOST=${correctedHost}`
-      );
-      apiHost = correctedHost;
-    }
-
-    // Detect host/key mismatch
-    const isEuHost = apiHost.includes("eu.posthog.com");
-    const isUsHost = apiHost.includes("app.posthog.com") || apiHost.includes("us.posthog.com");
+    // Detect PostHog instance (US or EU)
+    const isEuHost = apiHost.includes("eu.") && apiHost.includes("posthog.com");
+    const isUsHost = (apiHost.includes("app.posthog.com") || apiHost.includes("us.")) && apiHost.includes("posthog.com");
 
     if (isEuHost || isUsHost) {
       console.log(
         `ℹ️ PostHog: Initializing with ${isEuHost ? "EU" : "US"} instance\n` +
-        `   Base host: ${apiHost}\n` +
-        `   Ingestion endpoint: ${apiHost.replace("://", "://eu.i.").replace("://app.", "://us.i.")}\n` +
+        `   API Host: ${apiHost}\n` +
+        `   API Key: ${apiKey.substring(0, 12)}...\n` +
         "   Ensure your API key is from this PostHog instance."
       );
     }
@@ -110,22 +90,26 @@ export function initPostHog() {
             console.error(
               "❌ PostHog: Authentication failed (401 Unauthorized)\n" +
               "   \n" +
-              "   This usually means:\n" +
-              "   1. Your API key is invalid or expired\n" +
-              "   2. You're using a key from a different PostHog instance (US vs EU)\n" +
-              "   3. You're using a personal API key instead of a project key\n" +
+              "   Your configuration appears correct, but PostHog is rejecting the API key.\n" +
               "   \n" +
               "   Current configuration:\n" +
-              `   - Host: ${apiHost}\n` +
-              `   - Key: ${apiKey.substring(0, 8)}...\n` +
+              `   - Host: ${apiHost} (${isEuHost ? 'EU' : 'US'} instance)\n` +
+              `   - Key: ${apiKey.substring(0, 8)}... (format is correct)\n` +
               "   \n" +
-              "   Solutions:\n" +
-              "   1. Verify your API key is correct and from the matching instance\n" +
-              `   2. Get your project key from: ${isEuHost ? 'https://eu.posthog.com' : 'https://app.posthog.com'}/project/settings\n` +
-              "   3. Ensure NEXT_PUBLIC_POSTHOG_KEY starts with 'phc_'\n" +
-              `   4. Ensure NEXT_PUBLIC_POSTHOG_HOST is: ${isEuHost ? 'https://eu.posthog.com' : 'https://app.posthog.com'}\n` +
+              "   Common causes:\n" +
+              "   1. The API key is from a DIFFERENT PostHog instance\n" +
+              `      → Check if your key is from the ${isEuHost ? 'US' : 'EU'} instance instead\n` +
+              "   2. The API key has been revoked or the project deleted\n" +
+              "   3. You copied the wrong key (e.g., personal API key renamed to start with 'phc_')\n" +
               "   \n" +
-              "   After updating, redeploy your application or restart your dev server."
+              "   To fix:\n" +
+              `   1. Log into: ${isEuHost ? 'https://eu.posthog.com' : 'https://app.posthog.com'}\n` +
+              "   2. Go to: Project Settings → Project API Key\n" +
+              "   3. Copy the EXACT key shown (starts with 'phc_')\n" +
+              "   4. Update NEXT_PUBLIC_POSTHOG_KEY in your environment variables\n" +
+              "   5. Redeploy your application\n" +
+              "   \n" +
+              "   If the key is definitely correct, try creating a NEW project key."
             );
           } else if (err?.status === 403 || err?.statusCode === 403) {
             console.error(
