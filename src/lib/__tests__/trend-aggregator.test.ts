@@ -60,6 +60,12 @@ describe("aggregateTrendSignals", () => {
       "eco mug",
     ]);
 
+    expect(records[0]).toMatchObject({
+      recorded_on: "2024-01-01",
+      trend_score: expect.any(Number),
+      expected_growth_30d: expect.any(Number),
+    });
+
     const ecoMomentum = momentumByTerm.get("eco mug");
     const solarMomentum = momentumByTerm.get("solar lamp");
 

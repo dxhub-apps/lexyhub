@@ -10,10 +10,10 @@ export type TrendSignal = {
 export type TrendSeriesRecord = {
   term: string;
   source: TrendSignal["source"];
-  recordedOn: string;
-  trendScore: number;
+  recorded_on: string;
+  trend_score: number;
   velocity: number;
-  expectedGrowth30d: number;
+  expected_growth_30d: number;
   extras?: Record<string, unknown>;
 };
 
