@@ -183,7 +183,33 @@ export async function generateLexyBrainJson(
 
       // Extract and parse JSON
       const jsonText = extractJsonFromOutput(rawOutput);
+
+      // Debug logging to diagnose validation failures
+      logger.debug(
+        {
+          type: "lexybrain_json_extraction",
+          insight_type: type,
+          user_id: userId,
+          raw_output_preview: rawOutput.substring(0, 500),
+          raw_output_length: rawOutput.length,
+          extracted_json_preview: jsonText.substring(0, 500),
+          extracted_json_length: jsonText.length,
+        },
+        "Extracted JSON from model output"
+      );
+
       const parsedData = JSON.parse(jsonText);
+
+      logger.debug(
+        {
+          type: "lexybrain_json_parsed",
+          insight_type: type,
+          user_id: userId,
+          parsed_keys: Object.keys(parsedData),
+          parsed_data_preview: JSON.stringify(parsedData).substring(0, 500),
+        },
+        "Parsed JSON data"
+      );
 
       // Validate against schema
       const validatedOutput = validateLexyBrainOutput(type, parsedData);

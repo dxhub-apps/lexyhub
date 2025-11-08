@@ -329,6 +329,7 @@ export async function callLexyBrainRunpod(
         status: data.status,
         has_output: !!data.output,
         has_error: !!data.error,
+        output_keys: data.output ? Object.keys(data.output) : [],
         latency_ms: latencyMs,
       },
       "RunPod response received"
@@ -388,7 +389,28 @@ export async function callLexyBrainRunpod(
     // Validate content in output
     // Support both "content" and "echo" fields for compatibility
     // (RunPod worker may return "echo" field instead of "content")
-    const content = data.output.content || (data.output as any).echo;
+    let content = data.output.content || (data.output as any).echo;
+
+    // Handle case where echo field contains a JSON-encoded llama.cpp response
+    // instead of the raw completion text
+    if (content && typeof content === "string") {
+      try {
+        // Try to parse as JSON in case it's a nested structure
+        const possibleJson = JSON.parse(content);
+        if (possibleJson && typeof possibleJson === 'object' && 'content' in possibleJson) {
+          logger.info(
+            {
+              type: "runpod_nested_json_detected",
+              latency_ms: latencyMs,
+            },
+            "Detected nested JSON in echo field, extracting content"
+          );
+          content = possibleJson.content;
+        }
+      } catch {
+        // Not JSON, use as-is (this is the normal case)
+      }
+    }
 
     if (!content || typeof content !== "string") {
       const error = new RunPodClientError(
@@ -416,18 +438,30 @@ export async function callLexyBrainRunpod(
 
     // If using "echo" field, log a warning and normalize to "content"
     if (!data.output.content && (data.output as any).echo) {
+      const originalEcho = (data.output as any).echo;
+      const echoPreview = typeof originalEcho === 'string'
+        ? originalEcho.substring(0, 200)
+        : String(originalEcho).substring(0, 200);
+
       logger.warn(
         {
           type: "runpod_echo_fallback",
           latency_ms: latencyMs,
+          echo_preview: echoPreview,
+          echo_length: typeof originalEcho === 'string'
+            ? originalEcho.length
+            : String(originalEcho).length,
+          content_preview: content.substring(0, 200),
+          content_length: content.length,
         },
         "RunPod returned 'echo' field instead of 'content' - using as fallback"
       );
 
-      // Normalize the output to expected format
+      // Normalize the output to expected format with the extracted content
+      // (content may have been extracted from nested JSON above)
       data.output = {
         ...data.output,
-        content: (data.output as any).echo,
+        content: content,
       };
     }
 
@@ -606,20 +640,33 @@ export function extractJsonFromOutput(output: string): string {
   // Strategy 2: Find all potential JSON structures using balanced bracket matching
   const jsonCandidates = findBalancedJsonStructures(output);
 
-  // Try to parse each candidate, return the first valid one that's substantial
+  // Try to parse each candidate and collect valid ones with their sizes
+  const validCandidates: Array<{ json: string; size: number; keyCount: number }> = [];
   for (const candidate of jsonCandidates) {
     try {
       const parsed = JSON.parse(candidate);
       // Ensure it's a substantial object/array, not just {}
       if (typeof parsed === 'object' && parsed !== null) {
-        if (Array.isArray(parsed) ? parsed.length > 0 : Object.keys(parsed).length > 0) {
-          return candidate;
+        const keyCount = Array.isArray(parsed) ? parsed.length : Object.keys(parsed).length;
+        if (keyCount > 0) {
+          validCandidates.push({
+            json: candidate,
+            size: candidate.length,
+            keyCount: keyCount,
+          });
         }
       }
     } catch {
-      // Try next candidate
+      // Invalid JSON, skip
       continue;
     }
+  }
+
+  // Return the largest valid JSON structure (by character count)
+  // This helps avoid returning schema examples or small context objects
+  if (validCandidates.length > 0) {
+    validCandidates.sort((a, b) => b.size - a.size);
+    return validCandidates[0].json;
   }
 
   // Strategy 3: More aggressive - find content between first { and last }
