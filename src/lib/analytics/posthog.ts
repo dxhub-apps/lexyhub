@@ -153,11 +153,12 @@ function createPostHogOptions(apiHost: string, apiKey: string) {
     capture_pageview: true,
     capture_pageleave: true,
 
-    // Session recording
-    session_recording: {
-      maskAllInputs: true,
-      maskTextSelector: '[data-private]',
-    },
+    // Session recording - TEMPORARILY DISABLED for debugging
+    disable_session_recording: true,
+    // session_recording: {
+    //   maskAllInputs: true,
+    //   maskTextSelector: '[data-private]',
+    // },
 
     // Autocapture settings
     autocapture: {
