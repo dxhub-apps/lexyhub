@@ -205,7 +205,7 @@ Centralized configuration and feature flags.
 
 **Key Functions**:
 - `isLexyBrainEnabled(): boolean` - Check if feature is enabled
-- `getLexyBrainModelUrl(): string` - Get RunPod endpoint URL
+- `getLexyBrainModelUrl(): string` - Get RunPod endpoint URL (throws if disabled or missing)
 - `getLexyBrainKey(): string` - Get API key
 - `getLexyBrainTtl(type): number` - Get cache TTL for insight type
 - `getLexyBrainDailyCostCap(): number | null` - Get daily cost cap
