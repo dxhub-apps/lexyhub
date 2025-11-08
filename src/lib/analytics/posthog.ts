@@ -121,7 +121,20 @@ export function initPostHog() {
     );
 
     isInitialized = true;
+
+    // DEBUG: Verify the key was stored
     console.log("✅ PostHog analytics enabled (single client, no fallback)");
+    console.log("🔍 DEBUG: PostHog config after init:", {
+      token: posthog.config?.token,
+      api_host: posthog.config?.api_host,
+      token_matches: posthog.config?.token === trimmedApiKey
+    });
+
+    if (posthog.config?.token !== trimmedApiKey) {
+      console.error("❌ CRITICAL: PostHog token mismatch after init!");
+      console.error("   Expected:", trimmedApiKey);
+      console.error("   Got:", posthog.config?.token);
+    }
   } catch (error) {
     console.error("❌ PostHog initialization failed:", error);
     isInitializing = false;
@@ -138,13 +151,20 @@ function normalizeHost(host: string): string {
 }
 
 function createPostHogOptions(apiHost: string, apiKey: string) {
-  return {
+  const options = {
     api_host: apiHost,
+    token: apiKey, // Explicitly include token in options
 
     // Enable debug mode in development
     loaded: (client) => {
+      console.log("✅ PostHog initialized successfully");
+      console.log("🔍 PostHog loaded callback - config:", {
+        token: client.config?.token,
+        api_host: client.config?.api_host,
+        has_token: !!client.config?.token
+      });
+
       if (process.env.NODE_ENV === "development") {
-        console.log("✅ PostHog initialized successfully");
         client.debug();
       }
     },
@@ -216,6 +236,9 @@ function createPostHogOptions(apiHost: string, apiKey: string) {
       return sanitized;
     },
   } as Parameters<typeof posthog.init>[1];
+
+  console.log("🔍 DEBUG: Creating PostHog options with token:", apiKey.substring(0, 12) + "...");
+  return options;
 }
 
 /**
