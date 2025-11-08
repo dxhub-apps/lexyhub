@@ -108,7 +108,7 @@ export function getLexyBrainDailyCostCap(): number | null {
  * Get SLO configuration for latency monitoring
  */
 export function getLexyBrainSloConfig(): { maxLatencyMs: number } {
-  const defaultMaxLatency = 55000; // 55 seconds default (allows for cold starts while staying under Vercel's 60s limit)
+  const defaultMaxLatency = 25000; // 25 seconds default (allows for retries within Vercel's 60s limit)
 
   if (!env.LEXYBRAIN_MAX_LATENCY_MS) {
     return { maxLatencyMs: defaultMaxLatency };

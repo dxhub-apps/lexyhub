@@ -157,7 +157,7 @@ export async function generateLexyBrainJson(
           max_tokens: 512, // Default max tokens
         },
         {
-          timeoutMs: 55000, // 55 seconds (under Vercel 60s limit)
+          timeoutMs: 25000, // 25 seconds (allows retries within Vercel 60s limit)
         }
       );
 

@@ -56,7 +56,7 @@ export async function callLexyBrainRunpod(
     throw new RunPodClientError("LexyBrain is not configured (missing RUNPOD_API_KEY)");
   }
 
-  const timeoutMs = options?.timeoutMs || 55000; // Default 55s (under Vercel 60s limit)
+  const timeoutMs = options?.timeoutMs || 25000; // Default 25s (allows retries within Vercel 60s limit)
 
   // Create abort controller for timeout
   const abortController = new AbortController();
