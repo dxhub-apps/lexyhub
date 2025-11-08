@@ -11,6 +11,19 @@ POST https://eu.i.posthog.com/i/v0/e/?ip=0&_=... 401 (Unauthorized)
 
 Even though you've set the correct `NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_POSTHOG_HOST` in Vercel.
 
+## Automatic host fallback
+
+We now ship an automatic recovery path directly in the client. When PostHog responds with a `401` the app will:
+
+1. Log the full diagnostic message (same as before).
+2. **Automatically retry** using the opposite PostHog region (`https://us.i.posthog.com` ↔ `https://eu.i.posthog.com`).
+3. Surface a yellow console warning:
+   ```
+   ⚠️ PostHog fallback host active. Update NEXT_PUBLIC_POSTHOG_HOST to https://<new-host>
+   ```
+
+If you see that warning it means the fallback succeeded and events are flowing again, but you still need to update your environment variable to the new host so that future deploys skip the retry.
+
 ## Root Causes (Ranked by Likelihood)
 
 ### 1. STALE VERCEL DEPLOYMENT (Most Common - 80%)
