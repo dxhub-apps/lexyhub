@@ -27,6 +27,10 @@ const envSchema = z.object({
     .optional(),
   // LexyBrain AI configuration
   LEXYBRAIN_ENABLE: z.string().optional(),
+  // New RunPod Serverless Queue configuration
+  RUNPOD_API_KEY: z.string().optional(),
+  LEXYBRAIN_RUNPOD_ENDPOINT_ID: z.string().optional(),
+  // Legacy Load Balancer configuration (deprecated)
   LEXYBRAIN_MODEL_URL: z.string().url().optional(),
   LEXYBRAIN_KEY: z.string().optional(),
   LEXYBRAIN_MODEL_VERSION: z.string().optional(),
@@ -63,6 +67,8 @@ function readEnv(): Env {
     BROWSER_EXTENSION_ALLOW_USER_TELEMETRY_DEFAULT:
       process.env.BROWSER_EXTENSION_ALLOW_USER_TELEMETRY_DEFAULT,
     LEXYBRAIN_ENABLE: process.env.LEXYBRAIN_ENABLE,
+    RUNPOD_API_KEY: process.env.RUNPOD_API_KEY,
+    LEXYBRAIN_RUNPOD_ENDPOINT_ID: process.env.LEXYBRAIN_RUNPOD_ENDPOINT_ID,
     LEXYBRAIN_MODEL_URL: process.env.LEXYBRAIN_MODEL_URL,
     LEXYBRAIN_KEY: process.env.LEXYBRAIN_KEY,
     LEXYBRAIN_MODEL_VERSION: process.env.LEXYBRAIN_MODEL_VERSION,

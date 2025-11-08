@@ -3,6 +3,10 @@
  *
  * Provides centralized configuration and feature flag management for LexyBrain.
  * All LexyBrain functionality should check isLexyBrainEnabled() before executing.
+ *
+ * MIGRATION NOTE:
+ * - New: Uses RunPod Serverless Queue (RUNPOD_API_KEY, LEXYBRAIN_RUNPOD_ENDPOINT_ID)
+ * - Old: Used Load Balancer (LEXYBRAIN_MODEL_URL, LEXYBRAIN_KEY) - DEPRECATED
  */
 
 import { env } from "./env";
@@ -15,24 +19,36 @@ import { env } from "./env";
  * Check if LexyBrain is enabled
  * Returns true when:
  * - LEXYBRAIN_ENABLE === "true"
- * - LEXYBRAIN_MODEL_URL and LEXYBRAIN_KEY exist
+ * - RUNPOD_API_KEY exists (new serverless queue)
+ * - OR legacy LEXYBRAIN_MODEL_URL and LEXYBRAIN_KEY exist (deprecated)
  */
 export function isLexyBrainEnabled(): boolean {
-  return (
-    env.LEXYBRAIN_ENABLE === "true" &&
-    !!env.LEXYBRAIN_MODEL_URL &&
-    !!env.LEXYBRAIN_KEY
-  );
+  const isEnabled = env.LEXYBRAIN_ENABLE === "true";
+
+  // Check new serverless queue configuration
+  const hasNewConfig = !!env.RUNPOD_API_KEY;
+
+  // Check legacy load balancer configuration (deprecated)
+  const hasLegacyConfig = !!env.LEXYBRAIN_MODEL_URL && !!env.LEXYBRAIN_KEY;
+
+  return isEnabled && (hasNewConfig || hasLegacyConfig);
 }
 
 /**
- * Get the RunPod model endpoint URL
- * Throws if LexyBrain is not enabled or URL is missing
+ * Check if using new RunPod Serverless Queue configuration
+ */
+export function isUsingServerlessQueue(): boolean {
+  return !!env.RUNPOD_API_KEY;
+}
+
+/**
+ * Get the RunPod model endpoint URL (DEPRECATED - for legacy load balancer only)
+ * @deprecated Use RunPod Serverless Queue instead
  */
 export function getLexyBrainModelUrl(): string {
   if (!env.LEXYBRAIN_MODEL_URL) {
     throw new Error(
-      "LEXYBRAIN_MODEL_URL is not configured. Please set this environment variable."
+      "LEXYBRAIN_MODEL_URL is not configured. Please set this environment variable or migrate to RUNPOD_API_KEY."
     );
   }
   // Trim whitespace that might have been accidentally added in env vars
@@ -40,13 +56,13 @@ export function getLexyBrainModelUrl(): string {
 }
 
 /**
- * Get the LexyBrain API key for RunPod authentication
- * Throws if LexyBrain is not enabled or key is missing
+ * Get the LexyBrain API key for RunPod authentication (DEPRECATED - for legacy load balancer only)
+ * @deprecated Use RUNPOD_API_KEY instead
  */
 export function getLexyBrainKey(): string {
   if (!env.LEXYBRAIN_KEY) {
     throw new Error(
-      "LEXYBRAIN_KEY is not configured. Please set this environment variable."
+      "LEXYBRAIN_KEY is not configured. Please set this environment variable or migrate to RUNPOD_API_KEY."
     );
   }
   // Trim whitespace that might have been accidentally added in env vars
@@ -176,17 +192,21 @@ export function getEstimatedCost(
  */
 export function getLexyBrainStatus(): {
   enabled: boolean;
+  usingServerlessQueue: boolean;
   modelUrl: string | null;
   modelVersion: string;
   hasApiKey: boolean;
+  hasRunPodApiKey: boolean;
   dailyCostCap: number | null;
   maxLatencyMs: number;
 } {
   return {
     enabled: isLexyBrainEnabled(),
+    usingServerlessQueue: isUsingServerlessQueue(),
     modelUrl: env.LEXYBRAIN_MODEL_URL || null,
     modelVersion: getLexyBrainModelVersion(),
-    hasApiKey: !!env.LEXYBRAIN_KEY,
+    hasApiKey: !!env.LEXYBRAIN_KEY, // Legacy
+    hasRunPodApiKey: !!env.RUNPOD_API_KEY, // New
     dailyCostCap: getLexyBrainDailyCostCap(),
     maxLatencyMs: getLexyBrainSloConfig().maxLatencyMs,
   };
@@ -202,22 +222,32 @@ export function getLexyBrainStatus(): {
  */
 export function validateLexyBrainConfig(): void {
   if (env.LEXYBRAIN_ENABLE === "true") {
-    if (!env.LEXYBRAIN_MODEL_URL) {
+    const hasNewConfig = !!env.RUNPOD_API_KEY;
+    const hasLegacyConfig = !!env.LEXYBRAIN_MODEL_URL && !!env.LEXYBRAIN_KEY;
+
+    if (!hasNewConfig && !hasLegacyConfig) {
       throw new Error(
-        "LexyBrain is enabled but LEXYBRAIN_MODEL_URL is not set"
+        "LexyBrain is enabled but neither new (RUNPOD_API_KEY) nor legacy (LEXYBRAIN_MODEL_URL, LEXYBRAIN_KEY) configuration is set. " +
+        "Please configure RUNPOD_API_KEY for RunPod Serverless Queue."
       );
     }
 
-    if (!env.LEXYBRAIN_KEY) {
-      throw new Error("LexyBrain is enabled but LEXYBRAIN_KEY is not set");
+    // Validate legacy config if present
+    if (hasLegacyConfig && env.LEXYBRAIN_MODEL_URL) {
+      try {
+        new URL(env.LEXYBRAIN_MODEL_URL);
+      } catch {
+        throw new Error(
+          `LEXYBRAIN_MODEL_URL is not a valid URL: ${env.LEXYBRAIN_MODEL_URL}`
+        );
+      }
     }
 
-    // Validate URL format
-    try {
-      new URL(env.LEXYBRAIN_MODEL_URL);
-    } catch {
-      throw new Error(
-        `LEXYBRAIN_MODEL_URL is not a valid URL: ${env.LEXYBRAIN_MODEL_URL}`
+    // Warn if using legacy config
+    if (hasLegacyConfig && !hasNewConfig) {
+      console.warn(
+        "⚠️  LexyBrain: Using deprecated Load Balancer configuration (LEXYBRAIN_MODEL_URL, LEXYBRAIN_KEY). " +
+        "Please migrate to RunPod Serverless Queue by setting RUNPOD_API_KEY and LEXYBRAIN_RUNPOD_ENDPOINT_ID."
       );
     }
   }
