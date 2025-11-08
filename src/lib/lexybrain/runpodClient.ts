@@ -43,6 +43,11 @@ export type LexyBrainWorkerOutput = {
   error_type?: string;
 };
 
+function normalizeCompletion(raw: string): string {
+  // Worker currently may wrap JSON in backticks; strip simple markdown artifacts.
+  return raw.trim().replace(/^`+|`+$/g, "");
+}
+
 export async function callLexyBrainRunpod(
   input: LexyBrainRequest,
   options?: { timeoutMs?: number }
@@ -106,6 +111,9 @@ export async function callLexyBrainRunpod(
     if (!data.output.completion) {
       throw new RunPodClientError("LexyBrain worker returned no completion");
     }
+
+    // normalize completion for consumers
+    data.output.completion = normalizeCompletion(data.output.completion);
 
     return data.output;
   } catch (error: unknown) {
