@@ -450,6 +450,14 @@ See `src/lib/analytics/tracking.ts` for the complete list.
 
 ## Troubleshooting
 
+### Build-Time PostHog Validation
+
+Every production build (CI/Vercel) now runs `scripts/validate-posthog-config.mjs` before executing `next build`. The validator posts a synthetic event to the configured PostHog ingestion endpoint and fails fast if it receives a 4xx/5xx response, preventing broken analytics deployments.
+
+- Force a manual check locally with `POSTHOG_VALIDATE=true npm run build`.
+- Skip it for local development without PostHog via `SKIP_POSTHOG_VALIDATION=1 npm run build`.
+- When it fails, copy the console output—it includes the attempted host, key preview, and recommended fixes (redeploy, refresh credentials, etc.).
+
 ### Monitoring Not Working
 
 If your Sentry or PostHog dashboards are not receiving data:

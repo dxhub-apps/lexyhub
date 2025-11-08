@@ -23,6 +23,17 @@ If you see 401 errors, you must fix the root cause. There is no automatic recove
 
 ## Root Causes (Ranked by Likelihood)
 
+### ✅ New: Build-Time PostHog Validation
+
+We now run `scripts/validate-posthog-config.mjs` before every production build (CI/Vercel deployments). This script sends a test event to the configured PostHog host using your project key and **fails the build immediately** if it receives a 401, 403, or any other unexpected response.
+
+**What this means for you:**
+- Broken PostHog credentials will be caught during deployment instead of in production.
+- If your build fails with `PostHog validation failed`, follow the troubleshooting steps printed by the script or re-run locally with `POSTHOG_VALIDATE=true npm run build`.
+- To skip the check locally, set `SKIP_POSTHOG_VALIDATION=1` (useful when developing without PostHog).
+
+Once this script passes, the deployed bundle is guaranteed to use a key/host pair that PostHog accepts—no more mystery 401s.
+
 ### 1. STALE VERCEL DEPLOYMENT (Most Common - 80%)
 
 **The Problem:**
