@@ -589,14 +589,99 @@ export async function testRunPodConnection(): Promise<{
  * Handles cases where the model includes extra text around the JSON
  */
 export function extractJsonFromOutput(output: string): string {
-  // Try to find JSON object or array in the output
-  const jsonMatch =
-    output.match(/\{[\s\S]*\}/) || output.match(/\[[\s\S]*\]/);
+  // Strategy 1: Try to extract from markdown code blocks
+  const codeBlockMatch = output.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+  if (codeBlockMatch) {
+    const extracted = codeBlockMatch[1].trim();
+    if (extracted && (extracted.startsWith('{') || extracted.startsWith('['))) {
+      try {
+        JSON.parse(extracted);
+        return extracted;
+      } catch {
+        // Continue to other strategies
+      }
+    }
+  }
 
-  if (jsonMatch) {
-    return jsonMatch[0];
+  // Strategy 2: Find all potential JSON structures using balanced bracket matching
+  const jsonCandidates = findBalancedJsonStructures(output);
+
+  // Try to parse each candidate, return the first valid one that's substantial
+  for (const candidate of jsonCandidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      // Ensure it's a substantial object/array, not just {}
+      if (typeof parsed === 'object' && parsed !== null) {
+        if (Array.isArray(parsed) ? parsed.length > 0 : Object.keys(parsed).length > 0) {
+          return candidate;
+        }
+      }
+    } catch {
+      // Try next candidate
+      continue;
+    }
+  }
+
+  // Strategy 3: More aggressive - find content between first { and last }
+  // This is the original behavior as a final fallback
+  const fallbackMatch = output.match(/\{[\s\S]*\}/) || output.match(/\[[\s\S]*\]/);
+  if (fallbackMatch) {
+    return fallbackMatch[0];
   }
 
   // If no JSON found, return the full output
   return output;
+}
+
+/**
+ * Find all balanced JSON structures (objects and arrays) in text
+ * Uses character-by-character parsing to handle nested structures properly
+ */
+function findBalancedJsonStructures(text: string): string[] {
+  const candidates: string[] = [];
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+
+    if (char === '{' || char === '[') {
+      const closingChar = char === '{' ? '}' : ']';
+      let depth = 1;
+      let inString = false;
+      let escaped = false;
+
+      for (let j = i + 1; j < text.length; j++) {
+        const currentChar = text[j];
+
+        // Handle string boundaries and escaping
+        if (currentChar === '\\' && !escaped) {
+          escaped = true;
+          continue;
+        }
+
+        if (currentChar === '"' && !escaped) {
+          inString = !inString;
+        }
+
+        escaped = false;
+
+        // Only count brackets outside of strings
+        if (!inString) {
+          if (currentChar === char) {
+            depth++;
+          } else if (currentChar === closingChar) {
+            depth--;
+
+            if (depth === 0) {
+              // Found a balanced structure
+              const candidate = text.substring(i, j + 1);
+              candidates.push(candidate);
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return candidates;
 }
