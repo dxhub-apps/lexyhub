@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Settings, Shield, CheckSquare, Flag, Bell, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { Settings, Shield, CheckSquare, Flag, Bell, AlertTriangle, CheckCircle, XCircle, Brain } from "lucide-react";
 
 import type { CrawlerStatus, HealthMetric } from "@/lib/backoffice/status";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -246,6 +246,12 @@ export default function BackofficeOverviewPage(): JSX.Element {
                 <Link href="/admin/feature-flags">
                   <Flag className="mr-2 h-4 w-4" />
                   Feature Flags
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/admin/backoffice/lexybrain">
+                  <Brain className="mr-2 h-4 w-4" />
+                  LexyBrain Prompts
                 </Link>
               </Button>
             </div>
