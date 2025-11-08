@@ -1,669 +1,100 @@
-/**
- * RunPod Serverless Queue Client for LexyBrain
- *
- * Handles communication with RunPod Serverless Queue endpoint for LexyBrain inference.
- *
- * ARCHITECTURE:
- * - Uses RunPod Serverless Queue API (v2/runsync)
- * - Endpoint ID: 826ys3jox3ev2n (configurable via env)
- * - Authentication: Authorization: Bearer <RUNPOD_API_KEY>
- * - Request format: { "input": { ... } }
- * - Response format: { "status": "COMPLETED", "output": { ... } }
- *
- * MIGRATION FROM LOAD BALANCER:
- * - Old: Direct llama.cpp HTTP server via load balancer (/completion)
- * - New: RunPod Serverless Queue with worker handler (/runsync)
- */
+// lib/lexybrain/runpodClient.ts
+"use server";
 
-import * as Sentry from "@sentry/nextjs";
-import { logger } from "@/lib/logger";
+const ENDPOINT_ID =
+  process.env.LEXYBRAIN_RUNPOD_ENDPOINT_ID || "826ys3jox3ev2n";
+const RUNPOD_API_KEY = process.env.RUNPOD_API_KEY;
 
-// =====================================================
-// Types
-// =====================================================
+if (!RUNPOD_API_KEY) {
+  // Fail fast in non-dev to avoid silent misconfig
+  if (process.env.NODE_ENV !== "development") {
+    throw new Error("RUNPOD_API_KEY is not set");
+  }
+}
 
-/**
- * LexyBrain request input structure
- */
-export interface LexyBrainRequest {
+export type LexyBrainRequest = {
   prompt: string;
+  system?: string;
   max_tokens?: number;
   temperature?: number;
   top_p?: number;
-  stop?: string[];
-}
+  // structured context you pass from the app
+  context?: Record<string, any>;
+};
 
-/**
- * LexyBrain response output structure
- */
-export interface LexyBrainResponse {
-  content: string;
-  tokens_predicted?: number;
-  tokens_evaluated?: number;
-  model?: string;
-  timings?: {
-    prompt_ms?: number;
-    predicted_ms?: number;
-    total_ms?: number;
+export type LexyBrainWorkerOutput = {
+  model: string;
+  completion: string;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
   };
-}
-
-/**
- * RunPod API error response
- */
-export interface RunPodErrorResponse {
-  error: string;
-  message?: string;
-}
-
-/**
- * RunPod API success response
- */
-export interface RunPodSuccessResponse {
-  id: string;
-  status: "COMPLETED" | "FAILED" | "IN_QUEUE" | "IN_PROGRESS";
-  output?: LexyBrainResponse;
+  meta?: {
+    latency_ms?: number;
+    temperature?: number;
+    top_p?: number;
+    max_tokens?: number;
+  };
+  // error shape if worker fails internally
   error?: string;
-}
+  error_type?: string;
+};
 
-export class RunPodClientError extends Error {
-  constructor(
-    message: string,
-    public statusCode?: number,
-    public responseBody?: unknown
-  ) {
-    super(message);
-    this.name = "RunPodClientError";
-  }
-}
-
-export class RunPodTimeoutError extends Error {
-  constructor(message: string, public timeoutMs: number) {
-    super(message);
-    this.name = "RunPodTimeoutError";
-  }
-}
-
-// =====================================================
-// Configuration
-// =====================================================
-
-/**
- * Get RunPod API key from environment
- */
-function getRunPodApiKey(): string {
-  const apiKey = process.env.RUNPOD_API_KEY;
-  if (!apiKey) {
-    throw new RunPodClientError(
-      "RUNPOD_API_KEY environment variable is not set. " +
-      "Please configure your RunPod API key for serverless queue access."
-    );
-  }
-  return apiKey.trim();
-}
-
-/**
- * Get RunPod endpoint ID from environment
- * Defaults to 826ys3jox3ev2n if not specified
- */
-function getRunPodEndpointId(): string {
-  const endpointId = process.env.LEXYBRAIN_RUNPOD_ENDPOINT_ID;
-  if (!endpointId) {
-    // Default to the specified endpoint
-    return "826ys3jox3ev2n";
-  }
-  return endpointId.trim();
-}
-
-/**
- * Check if RunPod Serverless Queue is enabled
- */
-export function isRunPodEnabled(): boolean {
-  try {
-    getRunPodApiKey();
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-// =====================================================
-// Core Client Function
-// =====================================================
-
-/**
- * Call LexyBrain via RunPod Serverless Queue
- *
- * This function sends inference requests to the RunPod Serverless Queue worker.
- * The worker handles the llama.cpp interaction and returns structured responses.
- *
- * @param input - LexyBrain request parameters
- * @param options - Additional options (timeout, etc.)
- * @returns LexyBrain response with generated content
- * @throws {RunPodClientError} If request fails or response is invalid
- * @throws {RunPodTimeoutError} If request exceeds timeout
- */
 export async function callLexyBrainRunpod(
-  input: LexyBrainRequest,
-  options: {
-    timeoutMs?: number;
-  } = {}
-): Promise<LexyBrainResponse> {
-  // Get configuration
-  const apiKey = getRunPodApiKey();
-  const endpointId = getRunPodEndpointId();
-  const timeoutMs = options.timeoutMs || 55000; // Default 55s (under Vercel 60s limit)
+  input: LexyBrainRequest
+): Promise<LexyBrainWorkerOutput> {
+  if (!RUNPOD_API_KEY) {
+    throw new Error("LexyBrain is not configured (missing RUNPOD_API_KEY)");
+  }
 
-  // Build RunPod API URL
-  const url = `https://api.runpod.ai/v2/${endpointId}/runsync`;
-
-  // Build request payload
-  const payload = {
-    input: {
-      prompt: input.prompt,
-      max_tokens: input.max_tokens || 256,
-      temperature: input.temperature !== undefined ? input.temperature : 0.3,
-      top_p: input.top_p || 0.9,
-      stop: input.stop || ["</s>", "<|endoftext|>", "\n\n###"],
-    },
-  };
-
-  logger.debug(
+  const res = await fetch(
+    `https://api.runpod.ai/v2/${ENDPOINT_ID}/runsync`,
     {
-      type: "runpod_request",
-      endpoint_id: endpointId,
-      url,
-      prompt_length: input.prompt.length,
-      max_tokens: payload.input.max_tokens,
-      temperature: payload.input.temperature,
-    },
-    "Calling RunPod Serverless Queue for LexyBrain"
-  );
-
-  const startTime = Date.now();
-
-  try {
-    // Create abort controller for timeout
-    const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
-
-    // Make request to RunPod Serverless Queue
-    const response = await fetch(url, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
+        Authorization: `Bearer ${RUNPOD_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
-      signal: abortController.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    const latencyMs = Date.now() - startTime;
-
-    // Handle non-2xx responses
-    if (!response.ok) {
-      const errorBody = await response.text().catch(() => "Unable to read error response");
-
-      // Special handling for auth errors
-      if (response.status === 401 || response.status === 403) {
-        logger.error(
-          {
-            type: "runpod_auth_error",
-            status: response.status,
-            status_text: response.statusText,
-            error_body: errorBody,
-            latency_ms: latencyMs,
-            endpoint_id: endpointId,
-          },
-          "RunPod authentication failed - verify RUNPOD_API_KEY"
-        );
-
-        const error = new RunPodClientError(
-          `RunPod authentication failed (${response.status}). ` +
-          `Verify RUNPOD_API_KEY is correct and has access to endpoint ${endpointId}.`,
-          response.status,
-          errorBody
-        );
-
-        Sentry.captureException(error, {
-          tags: {
-            feature: "lexybrain",
-            component: "runpod-client",
-            status_code: response.status,
-          },
-          extra: {
-            response_body: errorBody,
-            endpoint_id: endpointId,
-            latency_ms: latencyMs,
-          },
-        });
-
-        throw error;
-      }
-
-      // Other errors
-      logger.error(
-        {
-          type: "runpod_error",
-          status: response.status,
-          status_text: response.statusText,
-          error_body: errorBody,
-          latency_ms: latencyMs,
-          endpoint_id: endpointId,
-        },
-        "RunPod request failed"
-      );
-
-      const error = new RunPodClientError(
-        `RunPod request failed: ${response.status} ${response.statusText}`,
-        response.status,
-        errorBody
-      );
-
-      Sentry.captureException(error, {
-        tags: {
-          feature: "lexybrain",
-          component: "runpod-client",
-          status_code: response.status,
-        },
-        extra: {
-          response_body: errorBody,
-          endpoint_id: endpointId,
-          latency_ms: latencyMs,
-        },
-      });
-
-      throw error;
+      body: JSON.stringify({ input }),
+      // 30s hard cap; adjust if needed
+      cache: "no-store",
     }
+  );
 
-    // Parse response
-    const responseText = await response.text().catch(() => {
-      throw new RunPodClientError(
-        "Failed to read RunPod response body",
-        response.status
-      );
-    });
-
-    let data: RunPodSuccessResponse;
-    try {
-      data = JSON.parse(responseText);
-    } catch (parseError) {
-      logger.error(
-        {
-          type: "runpod_invalid_json",
-          status: response.status,
-          latency_ms: latencyMs,
-          raw_text_preview: responseText.substring(0, 500),
-          parse_error: parseError instanceof Error ? parseError.message : String(parseError),
-        },
-        "RunPod returned non-JSON response"
-      );
-
-      const error = new RunPodClientError(
-        `RunPod returned invalid JSON response: ${responseText.substring(0, 200)}`,
-        response.status,
-        responseText
-      );
-
-      Sentry.captureException(error, {
-        tags: {
-          feature: "lexybrain",
-          component: "runpod-client",
-          status_code: response.status,
-        },
-        extra: {
-          raw_response: responseText.substring(0, 1000),
-          parse_error: parseError instanceof Error ? parseError.message : String(parseError),
-          latency_ms: latencyMs,
-        },
-      });
-
-      throw error;
-    }
-
-    logger.debug(
-      {
-        type: "runpod_response",
-        status: data.status,
-        has_output: !!data.output,
-        has_error: !!data.error,
-        output_keys: data.output ? Object.keys(data.output) : [],
-        latency_ms: latencyMs,
-      },
-      "RunPod response received"
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(
+      `LexyBrain RunPod error: HTTP ${res.status} ${text || ""}`.trim()
     );
-
-    // Check response status
-    if (data.status !== "COMPLETED") {
-      const error = new RunPodClientError(
-        `RunPod worker did not complete successfully. Status: ${data.status}${data.error ? `, Error: ${data.error}` : ""}`,
-        undefined,
-        data
-      );
-
-      logger.error(
-        {
-          type: "runpod_incomplete",
-          status: data.status,
-          error: data.error,
-          latency_ms: latencyMs,
-        },
-        "RunPod worker did not complete"
-      );
-
-      Sentry.captureException(error, {
-        tags: { feature: "lexybrain", component: "runpod-client" },
-        extra: { response_data: data, latency_ms: latencyMs },
-      });
-
-      throw error;
-    }
-
-    // Validate output
-    if (!data.output) {
-      const error = new RunPodClientError(
-        "RunPod response missing output field",
-        undefined,
-        data
-      );
-
-      logger.error(
-        {
-          type: "runpod_missing_output",
-          status: data.status,
-          latency_ms: latencyMs,
-        },
-        "RunPod response missing output"
-      );
-
-      Sentry.captureException(error, {
-        tags: { feature: "lexybrain", component: "runpod-client" },
-        extra: { response_data: data, latency_ms: latencyMs },
-      });
-
-      throw error;
-    }
-
-    // Validate content in output
-    // Support both "content" and "echo" fields for compatibility
-    // (RunPod worker may return "echo" field instead of "content")
-    let content = data.output.content || (data.output as any).echo;
-
-    // Handle case where echo field contains a JSON-encoded llama.cpp response
-    // instead of the raw completion text
-    if (content && typeof content === "string") {
-      try {
-        // Try to parse as JSON in case it's a nested structure
-        const possibleJson = JSON.parse(content);
-        if (possibleJson && typeof possibleJson === 'object' && 'content' in possibleJson) {
-          logger.info(
-            {
-              type: "runpod_nested_json_detected",
-              latency_ms: latencyMs,
-            },
-            "Detected nested JSON in echo field, extracting content"
-          );
-          content = possibleJson.content;
-        }
-      } catch {
-        // Not JSON, use as-is (this is the normal case)
-      }
-    }
-
-    // Check if the worker is echoing back the prompt instead of returning a completion
-    // This indicates a worker configuration bug
-    if (content && typeof content === "string") {
-      const promptMarkers = [
-        "=== SYSTEM INSTRUCTIONS ===",
-        "=== TASK ===",
-        "You are LexyBrain",
-        "OUTPUT SCHEMA",
-      ];
-
-      const isPromptEcho = promptMarkers.some(marker => content.includes(marker));
-
-      if (isPromptEcho) {
-        const error = new RunPodClientError(
-          "RunPod worker is echoing the input prompt instead of returning model completion. " +
-          "This indicates a worker configuration bug. The worker must call llama.cpp and return " +
-          "the generated completion, not the input prompt.",
-          undefined,
-          { content_preview: content.substring(0, 500) }
-        );
-
-        logger.error(
-          {
-            type: "runpod_prompt_echo_bug",
-            latency_ms: latencyMs,
-            content_preview: content.substring(0, 300),
-            content_length: content.length,
-          },
-          "RunPod worker returning prompt instead of completion - worker bug detected"
-        );
-
-        Sentry.captureException(error, {
-          tags: {
-            feature: "lexybrain",
-            component: "runpod-client",
-            error_type: "worker_prompt_echo"
-          },
-          extra: {
-            content_preview: content.substring(0, 1000),
-            latency_ms: latencyMs,
-            endpoint_id: getRunPodEndpointId(),
-          },
-        });
-
-        throw error;
-      }
-    }
-
-    if (!content || typeof content !== "string") {
-      const error = new RunPodClientError(
-        "RunPod output missing or invalid content field",
-        undefined,
-        data.output
-      );
-
-      logger.error(
-        {
-          type: "runpod_invalid_output",
-          output_keys: Object.keys(data.output),
-          latency_ms: latencyMs,
-        },
-        "RunPod output invalid"
-      );
-
-      Sentry.captureException(error, {
-        tags: { feature: "lexybrain", component: "runpod-client" },
-        extra: { output_data: data.output, latency_ms: latencyMs },
-      });
-
-      throw error;
-    }
-
-    // If using "echo" field, log a warning and normalize to "content"
-    if (!data.output.content && (data.output as any).echo) {
-      const originalEcho = (data.output as any).echo;
-      const echoPreview = typeof originalEcho === 'string'
-        ? originalEcho.substring(0, 200)
-        : String(originalEcho).substring(0, 200);
-
-      logger.warn(
-        {
-          type: "runpod_echo_fallback",
-          latency_ms: latencyMs,
-          echo_preview: echoPreview,
-          echo_length: typeof originalEcho === 'string'
-            ? originalEcho.length
-            : String(originalEcho).length,
-          content_preview: content.substring(0, 200),
-          content_length: content.length,
-        },
-        "RunPod returned 'echo' field instead of 'content' - using as fallback"
-      );
-
-      // Normalize the output to expected format with the extracted content
-      // (content may have been extracted from nested JSON above)
-      data.output = {
-        ...data.output,
-        content: content,
-      };
-    }
-
-    logger.info(
-      {
-        type: "runpod_success",
-        output_length: data.output.content.length,
-        latency_ms: latencyMs,
-        tokens_predicted: data.output.tokens_predicted,
-        tokens_evaluated: data.output.tokens_evaluated,
-      },
-      "RunPod call completed successfully"
-    );
-
-    return data.output;
-  } catch (error: unknown) {
-    const latencyMs = Date.now() - startTime;
-
-    // Handle timeout errors
-    if (error instanceof Error && error.name === "AbortError") {
-      logger.error(
-        {
-          type: "runpod_timeout",
-          timeout_ms: timeoutMs,
-          latency_ms: latencyMs,
-          endpoint_id: endpointId,
-        },
-        "RunPod request timed out"
-      );
-
-      const timeoutError = new RunPodTimeoutError(
-        `RunPod request timed out after ${timeoutMs}ms`,
-        timeoutMs
-      );
-
-      Sentry.captureException(timeoutError, {
-        tags: { feature: "lexybrain", component: "runpod-client" },
-        extra: { timeout_ms: timeoutMs, latency_ms: latencyMs, endpoint_id: endpointId },
-      });
-
-      throw timeoutError;
-    }
-
-    // Handle network errors
-    if (error instanceof Error && error.message.includes("fetch")) {
-      logger.error(
-        {
-          type: "runpod_network_error",
-          error: error.message,
-          latency_ms: latencyMs,
-          endpoint_id: endpointId,
-        },
-        "RunPod network error"
-      );
-
-      const networkError = new RunPodClientError(
-        `Network error calling RunPod: ${error.message}`,
-        undefined,
-        error
-      );
-
-      Sentry.captureException(networkError, {
-        tags: { feature: "lexybrain", component: "runpod-client" },
-        extra: { original_error: error, latency_ms: latencyMs, endpoint_id: endpointId },
-      });
-
-      throw networkError;
-    }
-
-    // Re-throw if already a RunPodClientError
-    if (error instanceof RunPodClientError || error instanceof RunPodTimeoutError) {
-      throw error;
-    }
-
-    // Unknown error
-    logger.error(
-      {
-        type: "runpod_unknown_error",
-        error: error instanceof Error ? error.message : String(error),
-        latency_ms: latencyMs,
-        endpoint_id: endpointId,
-      },
-      "Unknown RunPod error"
-    );
-
-    const unknownError = new RunPodClientError(
-      `Unknown error calling RunPod: ${error instanceof Error ? error.message : String(error)}`,
-      undefined,
-      error
-    );
-
-    Sentry.captureException(unknownError, {
-      tags: { feature: "lexybrain", component: "runpod-client" },
-      extra: { original_error: error, latency_ms: latencyMs, endpoint_id: endpointId },
-    });
-
-    throw unknownError;
   }
-}
 
-// =====================================================
-// Utility Functions
-// =====================================================
+  const data = (await res.json()) as {
+    status?: string;
+    output?: LexyBrainWorkerOutput;
+  };
 
-/**
- * Test the RunPod connection with a simple prompt
- * Useful for health checks and debugging
- */
-export async function testRunPodConnection(): Promise<{
-  success: boolean;
-  latencyMs: number;
-  error?: string;
-}> {
-  const startTime = Date.now();
-
-  try {
-    const testPrompt = 'You are LexyBrain. Return exactly {"status": "ok"}';
-    const output = await callLexyBrainRunpod(
-      {
-        prompt: testPrompt,
-        max_tokens: 50,
-        temperature: 0,
-      },
-      {
-        timeoutMs: 10000, // 10 second timeout for tests
-      }
+  if (data.status !== "COMPLETED") {
+    throw new Error(
+      `LexyBrain RunPod incomplete status: ${data.status || "unknown"}`
     );
-
-    const latencyMs = Date.now() - startTime;
-
-    logger.info(
-      { type: "runpod_test", latency_ms: latencyMs, output_preview: output.content.substring(0, 100) },
-      "RunPod connection test successful"
-    );
-
-    return { success: true, latencyMs };
-  } catch (error) {
-    const latencyMs = Date.now() - startTime;
-
-    logger.error(
-      {
-        type: "runpod_test_failed",
-        error: error instanceof Error ? error.message : String(error),
-        latency_ms: latencyMs,
-      },
-      "RunPod connection test failed"
-    );
-
-    return {
-      success: false,
-      latencyMs,
-      error: error instanceof Error ? error.message : String(error),
-    };
   }
+
+  if (!data.output) {
+    throw new Error("LexyBrain RunPod response missing 'output'");
+  }
+
+  if (data.output.error) {
+    throw new Error(
+      `LexyBrain worker error: ${data.output.error} (${data.output.error_type || "Unknown"})`
+    );
+  }
+
+  if (!data.output.completion) {
+    throw new Error("LexyBrain worker returned no completion");
+  }
+
+  return data.output;
 }
 
 /**

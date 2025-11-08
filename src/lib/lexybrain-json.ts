@@ -13,8 +13,7 @@ import { getSupabaseServerClient } from "./supabase-server";
 import {
   callLexyBrainRunpod,
   extractJsonFromOutput,
-  RunPodClientError,
-  RunPodTimeoutError,
+  type LexyBrainRequest,
 } from "./lexybrain/runpodClient";
 import {
   buildLexyBrainPrompt,
@@ -26,18 +25,11 @@ import {
   type LexyBrainOutput,
   type LexyBrainOutputType,
 } from "./lexybrain-schemas";
-import { getLexyBrainModelVersion, isUsingServerlessQueue } from "./lexybrain-config";
+import { getLexyBrainModelVersion } from "./lexybrain-config";
 import {
   logLexyBrainRequest,
   logLexyBrainResponse,
 } from "./lexybrain/trainingLogger";
-
-// Legacy client imports (for fallback during migration)
-import {
-  callLexyBrainRaw,
-  LexyBrainClientError,
-  LexyBrainTimeoutError,
-} from "./lexybrain-client";
 
 // =====================================================
 // Types
@@ -151,35 +143,19 @@ export async function generateLexyBrainJson(
         });
       }
 
-      // Call LLM - use new RunPod Serverless Queue if configured, else fall back to legacy
-      if (isUsingServerlessQueue()) {
-        logger.debug(
-          { type: "lexybrain_using_serverless", user_id: userId },
-          "Using RunPod Serverless Queue"
-        );
+      // Call LLM via RunPod Serverless Queue
+      logger.debug(
+        { type: "lexybrain_generate_call", user_id: userId },
+        "Calling LexyBrain RunPod Serverless"
+      );
 
-        const response = await callLexyBrainRunpod(
-          {
-            prompt,
-            temperature: isRetry ? 0.1 : 0.3, // More deterministic on retry
-            max_tokens: 512, // Default max tokens
-          },
-          {
-            timeoutMs: 55000, // 55 seconds (under Vercel 60s limit)
-          }
-        );
+      const response = await callLexyBrainRunpod({
+        prompt,
+        temperature: isRetry ? 0.1 : 0.3, // More deterministic on retry
+        max_tokens: 512, // Default max tokens
+      });
 
-        rawOutput = response.content;
-      } else {
-        logger.debug(
-          { type: "lexybrain_using_legacy", user_id: userId },
-          "Using legacy Load Balancer (deprecated)"
-        );
-
-        rawOutput = await callLexyBrainRaw(prompt, {
-          temperature: isRetry ? 0.1 : 0.3, // More deterministic on retry
-        });
-      }
+      rawOutput = response.completion;
 
       // Extract and parse JSON
       const jsonText = extractJsonFromOutput(rawOutput);
