@@ -12,6 +12,8 @@ import { logger } from "./logger";
 import { getSupabaseServerClient } from "./supabase-server";
 import {
   callLexyBrainRunpod,
+  RunPodClientError,
+  RunPodTimeoutError,
   type LexyBrainRequest,
 } from "./lexybrain/runpodClient";
 import { extractJsonFromOutput } from "./lexybrain/utils";
@@ -149,11 +151,16 @@ export async function generateLexyBrainJson(
         "Calling LexyBrain RunPod Serverless"
       );
 
-      const response = await callLexyBrainRunpod({
-        prompt,
-        temperature: isRetry ? 0.1 : 0.3, // More deterministic on retry
-        max_tokens: 512, // Default max tokens
-      });
+      const response = await callLexyBrainRunpod(
+        {
+          prompt,
+          temperature: isRetry ? 0.1 : 0.3, // More deterministic on retry
+          max_tokens: 512, // Default max tokens
+        },
+        {
+          timeoutMs: 55000, // 55 seconds (under Vercel 60s limit)
+        }
+      );
 
       rawOutput = response.completion;
 
@@ -261,7 +268,7 @@ export async function generateLexyBrainJson(
 
       // Don't retry on timeout errors - they take too long and will hit Vercel's limit
       // Only retry on parsing/validation errors which might be model output issues
-      if (error instanceof LexyBrainTimeoutError || error instanceof RunPodTimeoutError) {
+      if (error instanceof RunPodTimeoutError) {
         logger.warn(
           {
             type: "lexybrain_timeout_no_retry",

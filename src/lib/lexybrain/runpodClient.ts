@@ -1,6 +1,21 @@
 // lib/lexybrain/runpodClient.ts
 "use server";
 
+// Error classes
+export class RunPodClientError extends Error {
+  constructor(message: string, public statusCode?: number) {
+    super(message);
+    this.name = "RunPodClientError";
+  }
+}
+
+export class RunPodTimeoutError extends Error {
+  constructor(message: string, public timeoutMs: number) {
+    super(message);
+    this.name = "RunPodTimeoutError";
+  }
+}
+
 const ENDPOINT_ID =
   process.env.LEXYBRAIN_RUNPOD_ENDPOINT_ID || "826ys3jox3ev2n";
 const RUNPOD_API_KEY = process.env.RUNPOD_API_KEY;
@@ -42,57 +57,89 @@ export type LexyBrainWorkerOutput = {
 };
 
 export async function callLexyBrainRunpod(
-  input: LexyBrainRequest
+  input: LexyBrainRequest,
+  options?: { timeoutMs?: number }
 ): Promise<LexyBrainWorkerOutput> {
   if (!RUNPOD_API_KEY) {
-    throw new Error("LexyBrain is not configured (missing RUNPOD_API_KEY)");
+    throw new RunPodClientError("LexyBrain is not configured (missing RUNPOD_API_KEY)");
   }
 
-  const res = await fetch(
-    `https://api.runpod.ai/v2/${ENDPOINT_ID}/runsync`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${RUNPOD_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ input }),
-      // 30s hard cap; adjust if needed
-      cache: "no-store",
+  const timeoutMs = options?.timeoutMs || 55000; // Default 55s (under Vercel 60s limit)
+
+  // Create abort controller for timeout
+  const abortController = new AbortController();
+  const timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(
+      `https://api.runpod.ai/v2/${ENDPOINT_ID}/runsync`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${RUNPOD_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ input }),
+        cache: "no-store",
+        signal: abortController.signal,
+      }
+    );
+
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new RunPodClientError(
+        `LexyBrain RunPod error: HTTP ${res.status} ${text || ""}`.trim(),
+        res.status
+      );
     }
-  );
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(
-      `LexyBrain RunPod error: HTTP ${res.status} ${text || ""}`.trim()
+    const data = (await res.json()) as {
+      status?: string;
+      output?: LexyBrainWorkerOutput;
+    };
+
+    if (data.status !== "COMPLETED") {
+      throw new RunPodClientError(
+        `LexyBrain RunPod incomplete status: ${data.status || "unknown"}`
+      );
+    }
+
+    if (!data.output) {
+      throw new RunPodClientError("LexyBrain RunPod response missing 'output'");
+    }
+
+    if (data.output.error) {
+      throw new RunPodClientError(
+        `LexyBrain worker error: ${data.output.error} (${data.output.error_type || "Unknown"})`
+      );
+    }
+
+    if (!data.output.completion) {
+      throw new RunPodClientError("LexyBrain worker returned no completion");
+    }
+
+    return data.output;
+  } catch (error: unknown) {
+    clearTimeout(timeoutId);
+
+    // Handle timeout errors
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new RunPodTimeoutError(
+        `LexyBrain RunPod request timed out after ${timeoutMs}ms`,
+        timeoutMs
+      );
+    }
+
+    // Re-throw if already our error type
+    if (error instanceof RunPodClientError || error instanceof RunPodTimeoutError) {
+      throw error;
+    }
+
+    // Wrap unknown errors
+    throw new RunPodClientError(
+      `LexyBrain RunPod error: ${error instanceof Error ? error.message : String(error)}`
     );
   }
-
-  const data = (await res.json()) as {
-    status?: string;
-    output?: LexyBrainWorkerOutput;
-  };
-
-  if (data.status !== "COMPLETED") {
-    throw new Error(
-      `LexyBrain RunPod incomplete status: ${data.status || "unknown"}`
-    );
-  }
-
-  if (!data.output) {
-    throw new Error("LexyBrain RunPod response missing 'output'");
-  }
-
-  if (data.output.error) {
-    throw new Error(
-      `LexyBrain worker error: ${data.output.error} (${data.output.error_type || "Unknown"})`
-    );
-  }
-
-  if (!data.output.completion) {
-    throw new Error("LexyBrain worker returned no completion");
-  }
-
-  return data.output;
 }
