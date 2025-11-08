@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RunPod API Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-top: 0;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+        textarea, input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        button {
+            background: #0070f3;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #0051cc;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .response {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            border-left: 4px solid #0070f3;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .response.error {
+            border-left-color: #ff0000;
+            background: #fff5f5;
+        }
+        .response.success {
+            border-left-color: #00c851;
+            background: #f0fff4;
+        }
+        .loading {
+            display: inline-block;
+            margin-left: 10px;
+        }
+        .metadata {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+            font-size: 12px;
+            color: #666;
+        }
+        .method-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .method-btn {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        .method-btn.active {
+            background: #0070f3;
+            color: white;
+            border-color: #0070f3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 RunPod API Test</h1>
+        <p>Test the RunPod integration by sending a message and receiving a response.</p>
+
+        <div class="method-selector">
+            <button class="method-btn active" onclick="setMethod('GET')">GET</button>
+            <button class="method-btn" onclick="setMethod('POST')">POST</button>
+        </div>
+
+        <div class="input-group">
+            <label for="message">Message:</label>
+            <textarea id="message" placeholder="Enter your message here...">What is the capital of France? Please answer in one sentence.</textarea>
+        </div>
+
+        <div class="input-group" id="advanced-options" style="display: none;">
+            <label for="system">System Prompt (optional):</label>
+            <textarea id="system" placeholder="You are a helpful assistant...">You are a helpful assistant. Provide clear, concise responses.</textarea>
+        </div>
+
+        <button onclick="toggleAdvanced()">Toggle Advanced Options</button>
+        <button onclick="testAPI()" id="sendBtn">Send Test Request</button>
+
+        <div id="response"></div>
+    </div>
+
+    <script>
+        let currentMethod = 'GET';
+
+        function setMethod(method) {
+            currentMethod = method;
+            document.querySelectorAll('.method-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+
+        function toggleAdvanced() {
+            const advanced = document.getElementById('advanced-options');
+            advanced.style.display = advanced.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function testAPI() {
+            const message = document.getElementById('message').value;
+            const system = document.getElementById('system').value;
+            const responseDiv = document.getElementById('response');
+            const sendBtn = document.getElementById('sendBtn');
+
+            if (!message.trim()) {
+                alert('Please enter a message');
+                return;
+            }
+
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Sending...';
+            responseDiv.innerHTML = '<div class="response">⏳ Sending request to RunPod...</div>';
+
+            const startTime = Date.now();
+
+            try {
+                let response;
+
+                if (currentMethod === 'GET') {
+                    const params = new URLSearchParams({ message });
+                    response = await fetch(`/api/test-runpod?${params}`);
+                } else {
+                    response = await fetch('/api/test-runpod', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            message,
+                            system: system || undefined,
+                        }),
+                    });
+                }
+
+                const data = await response.json();
+                const totalDuration = Date.now() - startTime;
+
+                if (data.success) {
+                    responseDiv.innerHTML = `
+                        <div class="response success">
+                            <strong>✅ Success!</strong>
+                            <div style="margin-top: 15px; font-size: 16px;">
+                                <strong>Response:</strong><br>
+                                ${escapeHtml(data.response.completion)}
+                            </div>
+                            <div class="metadata">
+                                <strong>Request:</strong> ${escapeHtml(data.request.message)}<br>
+                                <strong>RunPod Duration:</strong> ${data.response.duration_ms}ms<br>
+                                <strong>Total Duration:</strong> ${totalDuration}ms<br>
+                                <strong>Timestamp:</strong> ${data.request.timestamp}
+                            </div>
+                            <details style="margin-top: 15px;">
+                                <summary style="cursor: pointer; font-weight: 600;">Raw Response</summary>
+                                <pre style="margin-top: 10px; font-size: 12px;">${JSON.stringify(data, null, 2)}</pre>
+                            </details>
+                        </div>
+                    `;
+                } else {
+                    responseDiv.innerHTML = `
+                        <div class="response error">
+                            <strong>❌ Error</strong>
+                            <div style="margin-top: 15px;">
+                                <strong>Type:</strong> ${escapeHtml(data.error.type)}<br>
+                                <strong>Message:</strong> ${escapeHtml(data.error.message)}
+                            </div>
+                            <details style="margin-top: 15px;">
+                                <summary style="cursor: pointer; font-weight: 600;">Error Details</summary>
+                                <pre style="margin-top: 10px; font-size: 12px;">${JSON.stringify(data, null, 2)}</pre>
+                            </details>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                responseDiv.innerHTML = `
+                    <div class="response error">
+                        <strong>❌ Network Error</strong>
+                        <div style="margin-top: 15px;">
+                            ${escapeHtml(error.message)}
+                        </div>
+                    </div>
+                `;
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send Test Request';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Allow Enter key to submit (Ctrl+Enter for newlines in textarea)
+        document.getElementById('message').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                testAPI();
+            }
+        });
+    </script>
+</body>
+</html>
