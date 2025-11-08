@@ -10,7 +10,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useLexyBrainGenerate } from "@/lib/lexybrain/hooks";
+import { useMarketplaces } from "@/lib/hooks/useMarketplaces";
 import type { LexyBrainOutputType } from "@/lib/lexybrain-schemas";
 import { FeedbackButtonsWithLabel } from "./FeedbackButtons";
 
@@ -21,6 +29,7 @@ export function InsightGenerator() {
   const [activeTab, setActiveTab] = useState<LexyBrainOutputType>("market_brief");
 
   const { generate, loading, error, data, metadata, reset } = useLexyBrainGenerate();
+  const { marketplaces, loading: loadingMarketplaces, error: marketplacesError } = useMarketplaces();
 
   const handleGenerate = async () => {
     const terms = nicheTerms
@@ -87,12 +96,25 @@ export function InsightGenerator() {
             <div className="mt-6 space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="market">Marketplace</Label>
-                <Input
-                  id="market"
-                  value={market}
-                  onChange={(e) => setMarket(e.target.value)}
-                  placeholder="e.g., etsy, amazon"
-                />
+                {marketplacesError && (
+                  <Alert variant="destructive" className="mb-2">
+                    <AlertDescription className="text-xs">
+                      Failed to load marketplaces: {marketplacesError}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                <Select value={market} onValueChange={setMarket} disabled={loadingMarketplaces}>
+                  <SelectTrigger id="market">
+                    <SelectValue placeholder={loadingMarketplaces ? "Loading marketplaces..." : "Select a marketplace"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {marketplaces.map((marketplace) => (
+                      <SelectItem key={marketplace.id} value={marketplace.id}>
+                        {marketplace.display_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">

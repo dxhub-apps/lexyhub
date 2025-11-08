@@ -386,7 +386,11 @@ export async function callLexyBrainRunpod(
     }
 
     // Validate content in output
-    if (!data.output.content || typeof data.output.content !== "string") {
+    // Support both "content" and "echo" fields for compatibility
+    // (RunPod worker may return "echo" field instead of "content")
+    const content = data.output.content || (data.output as any).echo;
+
+    if (!content || typeof content !== "string") {
       const error = new RunPodClientError(
         "RunPod output missing or invalid content field",
         undefined,
@@ -408,6 +412,23 @@ export async function callLexyBrainRunpod(
       });
 
       throw error;
+    }
+
+    // If using "echo" field, log a warning and normalize to "content"
+    if (!data.output.content && (data.output as any).echo) {
+      logger.warn(
+        {
+          type: "runpod_echo_fallback",
+          latency_ms: latencyMs,
+        },
+        "RunPod returned 'echo' field instead of 'content' - using as fallback"
+      );
+
+      // Normalize the output to expected format
+      data.output = {
+        ...data.output,
+        content: (data.output as any).echo,
+      };
     }
 
     logger.info(
