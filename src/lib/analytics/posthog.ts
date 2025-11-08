@@ -194,18 +194,6 @@ function createPostHogOptions(apiHost: string, apiKey: string) {
     opt_out_capturing_by_default: false,
     respect_dnt: true,
 
-    // Intercept requests to debug what's being sent
-    before_send: (data: any) => {
-      console.log("📤 PostHog request payload:", {
-        has_api_key: !!data?.api_key,
-        api_key_length: data?.api_key?.length,
-        api_key_preview: data?.api_key ? `${data.api_key.substring(0, 8)}...${data.api_key.substring(data.api_key.length - 4)}` : "NOT SET",
-        event: data?.event,
-        timestamp: data?.timestamp
-      });
-      return data;
-    },
-
     // Error handling for failed requests - NO RETRIES, NO FALLBACK
     on_request_error: (error: any) => {
       const status = error?.status ?? error?.statusCode;
