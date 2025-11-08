@@ -2,14 +2,22 @@ import * as Sentry from "@sentry/nextjs";
 
 const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
-// Warn if Sentry is not configured
-if (!SENTRY_DSN) {
+// Log Sentry configuration status
+console.group("🔍 Sentry Client Configuration");
+console.log("Environment:", process.env.NODE_ENV);
+console.log("DSN Configured:", !!SENTRY_DSN);
+if (SENTRY_DSN) {
+  console.log("DSN Preview:", SENTRY_DSN.substring(0, 40) + "...");
+} else {
   console.warn(
-    "⚠️ Sentry: NEXT_PUBLIC_SENTRY_DSN is not set. Error tracking will not be enabled.\n" +
-    "To enable Sentry, add NEXT_PUBLIC_SENTRY_DSN to your .env.local file.\n" +
-    "Get your DSN from: https://sentry.io/settings/projects/"
+    "⚠️ NEXT_PUBLIC_SENTRY_DSN is not set. Error tracking will not be enabled.\n" +
+    "To enable Sentry:\n" +
+    "1. Create .env.local file in project root\n" +
+    "2. Add: NEXT_PUBLIC_SENTRY_DSN=https://your-key@sentry.io/your-project-id\n" +
+    "3. Get your DSN from: https://sentry.io/settings/projects/"
   );
 }
+console.groupEnd();
 
 Sentry.init({
   dsn: SENTRY_DSN,
@@ -76,7 +84,17 @@ Sentry.init({
   },
 });
 
-// Log successful initialization in development
-if (SENTRY_DSN && process.env.NODE_ENV === "development") {
+// Log initialization result
+if (SENTRY_DSN) {
   console.log("✅ Sentry client initialized successfully");
+  console.log("   - Traces Sample Rate:", process.env.NODE_ENV === "production" ? "10%" : "100%");
+  console.log("   - Replays Session Sample Rate:", "10%");
+  console.log("   - Replays On Error Sample Rate:", "100%");
+
+  // Test connection with a debug message (only in development)
+  if (process.env.NODE_ENV === "development") {
+    console.log("📤 To test Sentry, visit: /api/test-sentry");
+  }
+} else {
+  console.log("❌ Sentry client is DISABLED (no DSN configured)");
 }
