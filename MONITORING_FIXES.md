@@ -74,17 +74,23 @@ Fixed critical issues preventing Sentry and PostHog from working correctly. Both
 
 **Fix**:
 - Added API key format validation (must start with 'phc_')
+- Added configuration debugging in development mode
+- Added automatic detection and correction of incorrect host format
+  - Detects if ingestion endpoint (`eu.i.posthog.com`) is used instead of base domain (`eu.posthog.com`)
+  - Automatically corrects and warns the user
 - Added host detection (US vs EU) with informational logging
-- Added `on_request_error` callback to catch 401/403 errors
+- Added comprehensive `on_request_error` callback to catch 401/403/400 errors
 - Provides detailed error messages explaining:
   - Invalid or expired API keys
   - Instance mismatch (US key with EU host or vice versa)
   - Wrong key type (personal API key instead of project key)
-- Shows clear solutions and links to get the correct key
+  - Incorrect host format (ingestion endpoint vs base domain)
+- Shows current configuration and clear solutions with links
 
 **Files Changed**:
 - `src/lib/analytics/posthog.ts`
 - `docs/ANALYTICS_AND_MONITORING.md`
+- `.env.example`
 
 ## New Features
 
