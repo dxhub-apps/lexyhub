@@ -47,8 +47,7 @@ async function main() {
           adjusted_demand_index,
           competition_score
         )
-      `)
-      .eq("alert_enabled", true);
+      `);
 
     if (watchedError) {
       throw new Error(`Failed to fetch watched keywords: ${watchedError.message}`);

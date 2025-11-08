@@ -68,11 +68,18 @@ async function main() {
 
     // Then, get recent active keywords (not already watched)
     const watchedIds = watchedKeywords?.map((k: any) => k.id) || [];
-    const { data: activeKeywords, error: activeError } = await supabase
+
+    let activeKeywordsQuery = supabase
       .from("keywords")
       .select("id, term, market, source, freshness_ts")
-      .gte("freshness_ts", lookbackDate.toISOString())
-      .not("id", "in", `(${watchedIds.join(",") || "null"})`)
+      .gte("freshness_ts", lookbackDate.toISOString());
+
+    // Only add the NOT IN filter if we have watched keywords to exclude
+    if (watchedIds.length > 0) {
+      activeKeywordsQuery = activeKeywordsQuery.not("id", "in", `(${watchedIds.join(",")})`);
+    }
+
+    const { data: activeKeywords, error: activeError } = await activeKeywordsQuery
       .order("freshness_ts", { ascending: false })
       .limit(Math.floor(MAX_KEYWORDS * 0.5));
 
