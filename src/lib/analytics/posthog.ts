@@ -17,7 +17,7 @@ let isInitialized = false;
 export function initPostHog() {
   if (typeof window !== "undefined" && !isInitialized) {
     const apiKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-    let apiHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://app.posthog.com";
+    const apiHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
 
     // Log configuration for debugging (in development)
     if (process.env.NODE_ENV === "development") {
@@ -33,6 +33,16 @@ export function initPostHog() {
       console.warn(
         "⚠️ PostHog: NEXT_PUBLIC_POSTHOG_KEY is not set. Analytics will not be tracked.\n" +
         "To enable PostHog, add NEXT_PUBLIC_POSTHOG_KEY to your .env.local file."
+      );
+      return null;
+    }
+
+    if (!apiHost) {
+      console.error(
+        "❌ PostHog: NEXT_PUBLIC_POSTHOG_HOST is not set. Analytics will not be tracked.\n" +
+        "To enable PostHog, add NEXT_PUBLIC_POSTHOG_HOST to your .env.local file.\n" +
+        "   For EU instance: NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com\n" +
+        "   For US instance: NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com"
       );
       return null;
     }
@@ -75,7 +85,7 @@ export function initPostHog() {
       console.log(
         `ℹ️ PostHog: Initializing with ${isEuHost ? "EU" : "US"} instance\n` +
         `   API Host: ${apiHost}\n` +
-        `   API Key: ${trimmedApiKey.substring(0, 12)}...\n` +
+        `   API Key: ${trimmedApiKey.substring(0, 12)}...${trimmedApiKey.substring(trimmedApiKey.length - 4)}\n` +
         "   Ensure your API key is from this PostHog instance."
       );
     }

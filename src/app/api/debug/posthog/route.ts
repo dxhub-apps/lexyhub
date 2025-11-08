@@ -13,16 +13,17 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   const apiKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-  const apiHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://app.posthog.com";
+  const apiHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
 
   // Basic configuration check
   const config = {
     hasKey: !!apiKey,
+    hasHost: !!apiHost,
     keyFormat: apiKey ? (apiKey.startsWith("phc_") ? "✅ Valid (phc_)" : "❌ Invalid format") : "❌ Not set",
     keyPreview: apiKey ? `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}` : "NOT SET",
-    host: apiHost,
-    isEuHost: apiHost.includes("eu.") && apiHost.includes("posthog.com"),
-    isUsHost: (apiHost.includes("app.posthog.com") || apiHost.includes("us.")) && apiHost.includes("posthog.com"),
+    host: apiHost || "❌ NOT SET",
+    isEuHost: apiHost ? (apiHost.includes("eu.") && apiHost.includes("posthog.com")) : false,
+    isUsHost: apiHost ? ((apiHost.includes("app.posthog.com") || apiHost.includes("us.")) && apiHost.includes("posthog.com")) : false,
     environment: process.env.NODE_ENV,
     vercelEnv: process.env.VERCEL_ENV || "not-vercel",
   };
@@ -155,6 +156,14 @@ function generateTroubleshooting(config: any, batchTest: any, captureTest: any):
   if (!config.hasKey) {
     steps.push("❌ NEXT_PUBLIC_POSTHOG_KEY is not set in environment variables");
     steps.push("→ Add NEXT_PUBLIC_POSTHOG_KEY to your Vercel environment variables");
+    return steps;
+  }
+
+  if (!config.hasHost) {
+    steps.push("❌ NEXT_PUBLIC_POSTHOG_HOST is not set in environment variables");
+    steps.push("→ Add NEXT_PUBLIC_POSTHOG_HOST to your Vercel environment variables");
+    steps.push("   For EU instance: NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com");
+    steps.push("   For US instance: NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com");
     return steps;
   }
 
