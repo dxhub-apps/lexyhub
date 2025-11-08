@@ -1,7 +1,7 @@
 // lib/lexybrain/service.ts
 "use server";
 
-import { callLexyBrainRunpod, LexyBrainRequest } from "./runpodClient";
+import { lexybrainGenerate, type LexyBrainRequest } from "@/lib/lexybrain";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 // types for app-level response
@@ -48,19 +48,16 @@ export async function generateLexyBrainInsight(args: {
 
   const requestId = requestData.id;
 
-  // 2) call worker
+  // 2) call LexyBrain HTTP endpoint
   let output;
   try {
     const input: LexyBrainRequest = {
       prompt: args.prompt,
-      system: args.system,
       max_tokens: args.maxTokens,
       temperature: args.temperature,
-      top_p: args.topP,
-      context: args.context,
     };
 
-    const res = await callLexyBrainRunpod(input);
+    const res = await lexybrainGenerate(input);
     output = res;
 
     const latency = Date.now() - startedAt;
@@ -78,7 +75,7 @@ export async function generateLexyBrainInsight(args: {
     return {
       completion: res.completion,
       model: res.model,
-      usage: res.usage,
+      usage: undefined, // New HTTP endpoint doesn't provide usage stats yet
     };
   } catch (err: any) {
     const latency = Date.now() - startedAt;

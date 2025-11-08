@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { useLexyBrainGenerate } from "@/lib/lexybrain/hooks";
 import { useMarketplaces } from "@/lib/hooks/useMarketplaces";
+import { useAILoadingMessages } from "@/lib/hooks/useAILoadingMessages";
 import type { LexyBrainOutputType } from "@/lib/lexybrain-schemas";
 import { FeedbackButtonsWithLabel } from "./FeedbackButtons";
 
@@ -30,6 +31,7 @@ export function InsightGenerator() {
 
   const { generate, loading, error, data, metadata, reset } = useLexyBrainGenerate();
   const { marketplaces, loading: loadingMarketplaces, error: marketplacesError } = useMarketplaces();
+  const { currentMessage } = useAILoadingMessages({ enabled: loading });
 
   const handleGenerate = async () => {
     const terms = nicheTerms
@@ -152,7 +154,7 @@ export function InsightGenerator() {
                 className="w-full"
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {loading ? "Generating..." : `Generate ${activeTab.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase())}`}
+                {loading ? currentMessage : `Generate ${activeTab.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase())}`}
               </Button>
             </div>
           </Tabs>
