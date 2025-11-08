@@ -79,8 +79,13 @@ This document explains how workflows interact with the LexHub application and ea
 │     └─> Calculate trend momentum                            │
 │         └─> Update: keywords.trend_momentum, keywords.extras│
 │             • momentum score                                 │
-│             • expectedGrowth30d                              │
+│             • expected_growth_30d                            │
 │             • contributors                                   │
+│         └─> Persist daily rows in trend_series table         │
+│             • recorded_on (DATE)                             │
+│             • trend_score (NUMERIC)                          │
+│             • velocity (NUMERIC)                             │
+│             • expected_growth_30d (NUMERIC)                  │
 │                                                              │
 │  5. demand-trend (separate workflow)                         │
 │     └─> Ingest metrics & score keywords                     │

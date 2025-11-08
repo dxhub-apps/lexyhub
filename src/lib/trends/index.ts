@@ -30,10 +30,10 @@ export async function aggregateTrendSignals(date: Date = new Date()): Promise<Ag
   const records: TrendSeriesRecord[] = signals.map((signal) => ({
     term: normalizeTerm(signal.term),
     source: signal.source,
-    recordedOn,
-    trendScore: Number(signal.normalizedScore.toFixed(4)),
+    recorded_on: recordedOn,
+    trend_score: Number(signal.normalizedScore.toFixed(4)),
     velocity: Number(signal.change.toFixed(4)),
-    expectedGrowth30d: calculateExpectedGrowth(signal),
+    expected_growth_30d: calculateExpectedGrowth(signal),
     extras: { rawScore: signal.score, metadata: signal.metadata },
   }));
 
@@ -44,14 +44,14 @@ export async function aggregateTrendSignals(date: Date = new Date()): Promise<Ag
     const momentum = calculateMomentum({
       term: record.term,
       source: record.source,
-      score: record.trendScore,
-      normalizedScore: record.trendScore,
+      score: record.trend_score,
+      normalizedScore: record.trend_score,
       change: record.velocity,
       metadata: record.extras,
     });
     if (existing) {
       const nextMomentum = Number(((existing.momentum + momentum) / 2).toFixed(4));
-      const nextGrowth = Number(((existing.expectedGrowth + record.expectedGrowth30d) / 2).toFixed(4));
+      const nextGrowth = Number(((existing.expectedGrowth + record.expected_growth_30d) / 2).toFixed(4));
       momentumByTerm.set(record.term, {
         momentum: nextMomentum,
         expectedGrowth: nextGrowth,
@@ -60,7 +60,7 @@ export async function aggregateTrendSignals(date: Date = new Date()): Promise<Ag
     } else {
       momentumByTerm.set(record.term, {
         momentum: Number(momentum.toFixed(4)),
-        expectedGrowth: record.expectedGrowth30d,
+        expectedGrowth: record.expected_growth_30d,
         contributors: [record.source],
       });
     }
