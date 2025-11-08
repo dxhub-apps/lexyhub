@@ -6,14 +6,14 @@
  */
 
 import { NextResponse } from "next/server";
-import { getSupabaseServerClient } from "@/lib/supabase-server";
+import { supabaseServer } from "@/lib/supabase-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const supabase = getSupabaseServerClient();
+    const supabase = supabaseServer;
 
     if (!supabase) {
       return NextResponse.json(
