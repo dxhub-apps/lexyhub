@@ -154,10 +154,10 @@ export async function generateLexyBrainJson(
         {
           prompt,
           temperature: isRetry ? 0.1 : 0.3, // More deterministic on retry
-          max_tokens: 512, // Default max tokens
+          max_tokens: 256, // Reduced to improve latency
         },
         {
-          timeoutMs: 25000, // 25 seconds (allows retries within Vercel 60s limit)
+          timeoutMs: 55000, // 55 seconds - gives RunPod time to complete (~50s) within Vercel's 60s limit
         }
       );
 
