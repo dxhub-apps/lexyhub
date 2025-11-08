@@ -43,9 +43,18 @@ export function isUsingServerlessQueue(): boolean {
 
 /**
  * Get the RunPod model endpoint URL (DEPRECATED - for legacy load balancer only)
+ * Throws when LexyBrain is disabled or the URL is missing.
+ *
+ * @throws {Error} When LexyBrain is disabled or the URL is not configured.
  * @deprecated Use RunPod Serverless Queue instead
  */
 export function getLexyBrainModelUrl(): string {
+  if (!isLexyBrainEnabled()) {
+    throw new Error(
+      "LexyBrain is not enabled. Enable LexyBrain before accessing the legacy LEXYBRAIN_MODEL_URL."
+    );
+  }
+
   if (!env.LEXYBRAIN_MODEL_URL) {
     throw new Error(
       "LEXYBRAIN_MODEL_URL is not configured. Please set this environment variable or migrate to RUNPOD_API_KEY."
