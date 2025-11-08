@@ -153,7 +153,7 @@ function normalizeHost(host: string): string {
 function createPostHogOptions(apiHost: string, apiKey: string) {
   const options = {
     api_host: apiHost,
-    token: apiKey, // Explicitly include token in options
+    // NOTE: Do NOT include 'token' in options - it's passed as the first argument to posthog.init()
 
     // Enable debug mode in development
     loaded: (client) => {
