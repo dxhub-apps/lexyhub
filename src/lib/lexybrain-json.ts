@@ -323,9 +323,9 @@ export async function generateLexyBrainJson(
   });
 
   // Throw appropriate error
-  if (lastError instanceof LexyBrainClientError || lastError instanceof RunPodClientError) {
+  if (lastError instanceof RunPodClientError) {
     throw lastError;
-  } else if (lastError instanceof LexyBrainTimeoutError || lastError instanceof RunPodTimeoutError) {
+  } else if (lastError instanceof RunPodTimeoutError) {
     throw lastError;
   } else if (lastError instanceof SyntaxError) {
     throw new LexyBrainValidationError(
