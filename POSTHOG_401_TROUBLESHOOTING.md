@@ -6,23 +6,20 @@ You're seeing this error in your browser console:
 
 ```
 POST https://eu.i.posthog.com/i/v0/e/?ip=0&_=... 401 (Unauthorized)
-❌ PostHog: Authentication failed (401 Unauthorized)
+❌ PostHog: 401 Unauthorized
 ```
 
 Even though you've set the correct `NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_POSTHOG_HOST` in Vercel.
 
-## Automatic host fallback
+## Current Configuration
 
-We now ship an automatic recovery path directly in the client. When PostHog responds with a `401` the app will:
+**We use a single, locked PostHog client:**
+- Host: `https://eu.i.posthog.com` (EU instance only)
+- **NO automatic fallback or retry logic**
+- **NO host switching**
+- Single initialization, immutable configuration
 
-1. Log the full diagnostic message (same as before).
-2. **Automatically retry** using the opposite PostHog region (`https://us.i.posthog.com` ↔ `https://eu.i.posthog.com`).
-3. Surface a yellow console warning:
-   ```
-   ⚠️ PostHog fallback host active. Update NEXT_PUBLIC_POSTHOG_HOST to https://<new-host>
-   ```
-
-If you see that warning it means the fallback succeeded and events are flowing again, but you still need to update your environment variable to the new host so that future deploys skip the retry.
+If you see 401 errors, you must fix the root cause. There is no automatic recovery.
 
 ## Root Causes (Ranked by Likelihood)
 
@@ -54,35 +51,26 @@ If you see that warning it means the fallback succeeded and events are flowing a
 
 ---
 
-### 2. KEY FROM WRONG POSTHOG INSTANCE (15%)
+### 2. INCORRECT API KEY (15%)
 
 **The Problem:**
-- Your host is set to `https://eu.i.posthog.com` (EU instance)
-- But your API key is from the US instance (or vice versa)
-- Each PostHog instance has separate projects with separate keys
+- Your API key doesn't match the EU instance
+- You may have copied the wrong key or it's from a different project
 
 **How to Fix:**
 
-**Step 1: Verify which instance your project is on**
-- Try logging into: https://eu.posthog.com
-- If you can't access your project → you're on US instance
-- Try: https://app.posthog.com
+**Step 1: Get the correct EU project API key**
+- Log into: https://eu.posthog.com
+- Go to: **Project Settings** → **Project API Key**
+- Copy the "Project API Key" (starts with `phc_`)
 
-**Step 2: Update environment variables to match**
-
-**If your project is on EU instance:**
+**Step 2: Update environment variables**
 ```bash
 NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com
 NEXT_PUBLIC_POSTHOG_KEY=phc_your_eu_key_here
 ```
 
-**If your project is on US instance:**
-```bash
-NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
-NEXT_PUBLIC_POSTHOG_KEY=phc_your_us_key_here
-```
-
-**Step 3: Redeploy** (see #1 above)
+**Step 3: Redeploy with cleared cache** (see #1 above)
 
 ---
 
@@ -90,7 +78,6 @@ NEXT_PUBLIC_POSTHOG_KEY=phc_your_us_key_here
 
 **The Problem:**
 - The API key format is correct (`phc_...`)
-- The instance matches (EU/US)
 - But PostHog still rejects it because:
   - The project was deleted
   - The API key was revoked
@@ -99,9 +86,7 @@ NEXT_PUBLIC_POSTHOG_KEY=phc_your_us_key_here
 **How to Fix:**
 
 **Step 1: Generate a NEW project API key**
-1. Log into your PostHog instance:
-   - EU: https://eu.posthog.com
-   - US: https://app.posthog.com
+1. Log into: https://eu.posthog.com
 2. Go to: **Project Settings** → **Project API Key**
 3. Look for the "Project API Key" (starts with `phc_`)
    - **NOT** "Personal API Key"
@@ -196,23 +181,15 @@ This provides:
 4. Verify:
    - Key starts with `phc_`
    - No extra spaces before/after
-   - Host is either:
-     - `https://eu.i.posthog.com` (EU instance)
-     - `https://us.i.posthog.com` (US instance)
+   - Host is: `https://eu.i.posthog.com` (EU instance only)
 
-### Step 2: Verify PostHog Instance
+### Step 2: Verify PostHog EU Instance
 
-1. Determine which instance based on host:
-   - If host is `https://eu.i.posthog.com` → EU instance
-   - If host is `https://us.i.posthog.com` → US instance
+1. Log into: https://eu.posthog.com
 
-2. Log into that instance:
-   - EU: https://eu.posthog.com
-   - US: https://app.posthog.com
+2. Go to: **Project Settings** → **Project API Key**
 
-3. Go to: **Project Settings** → **Project API Key**
-
-4. Compare the key shown with your Vercel variable
+3. Compare the key shown with your Vercel variable
    - They should match EXACTLY
 
 ### Step 3: Clear Cache and Redeploy
@@ -258,8 +235,8 @@ If the server-side test passes but browser still shows 401:
 
 **If That Doesn't Work:**
 ```bash
-# In PostHog:
-1. Log into correct instance (EU or US)
+# In PostHog EU:
+1. Log into https://eu.posthog.com
 2. Project Settings → Project API Key
 3. Copy the exact key (phc_...)
 
@@ -267,9 +244,10 @@ If the server-side test passes but browser still shows 401:
 1. Settings → Environment Variables
 2. Edit NEXT_PUBLIC_POSTHOG_KEY
 3. Paste the new key
-4. Save
-5. Clear Build Cache
-6. Redeploy
+4. Ensure NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com
+5. Save
+6. Clear Build Cache
+7. Redeploy
 ```
 
 ---
@@ -309,7 +287,7 @@ To avoid this issue in the future:
 2. **Clear build cache** when changing configuration
 3. **Use the diagnostic endpoint** to verify before deploying
 4. **Keep a backup** of your environment variables
-5. **Document which instance** (EU/US) your project uses
+5. **We use EU instance only** - no host switching or fallback
 
 ---
 
