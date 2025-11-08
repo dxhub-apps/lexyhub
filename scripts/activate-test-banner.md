@@ -5,63 +5,38 @@ The TopBanner component was not displaying notifications because there were no n
 
 ## Root Cause
 The database function `get_active_banner_for_user` only returns notifications that meet these criteria:
-- `status = 'live'`
+- `status = 'live'` ⭐ (The beta test notification has `status = 'draft'`)
 - `show_banner = true`
 - Within the scheduled time window
 - Not dismissed by the user
 
-## Solution
-A test notification migration has been created at:
-`supabase/migrations/0042_test_banner_notification.sql`
+## Quick Fix Options
 
-This migration creates a "Welcome to LexyHub!" notification that:
-- Shows to ALL users (`audience_scope = 'all'`)
-- Is immediately LIVE (`status = 'live'`)
-- Displays in the top banner (`show_banner = true`)
-- Lasts for 30 days from activation
-- Uses info severity (blue banner)
-
-## How to Activate
-
-### Option 1: Run the Migration (Recommended)
-If you have access to the Supabase dashboard or CLI:
+### ⚡ FASTEST: Run SQL Script (RECOMMENDED)
+Copy and run this in **Supabase SQL Editor**:
 
 ```bash
-# Using Supabase CLI (if installed)
-supabase db push
-
-# Or manually in Supabase SQL Editor
-# Copy the contents of supabase/migrations/0042_test_banner_notification.sql
-# and run it in the SQL Editor
+# The file is at: scripts/create-test-banner.sql
 ```
 
-### Option 2: Manual SQL Execution
-Connect to your Supabase database and run:
+This creates a live notification immediately - **no authentication needed!**
 
-```sql
-INSERT INTO notifications (
-  kind, source, category, title, body,
-  cta_text, cta_url, severity, priority,
-  audience_scope, schedule_start_at, schedule_end_at,
-  show_banner, create_inapp, send_email, status, icon
-) VALUES (
-  'banner', 'system', 'system',
-  'Welcome to LexyHub!',
-  'Thank you for using LexyHub. We are constantly improving the platform to help you succeed.',
-  'Get Started', '/dashboard', 'info', 80,
-  'all', NOW(), (NOW() + INTERVAL '30 days')::timestamptz,
-  true, true, false, 'live', '👋'
-);
+### 🔧 Option 2: Run TypeScript Script
+If you have admin access and the app is running:
+
+```bash
+# Get your admin user ID from Supabase first
+ADMIN_USER_ID=<your-admin-user-id> npx tsx scripts/create-test-banner.ts
 ```
 
-### Option 3: Activate the Beta Test Notification
-If you want to activate the existing beta test notification instead:
+### 📝 Option 3: Activate Beta Test Notification
+To activate the existing beta test notification:
 
 ```sql
 UPDATE notifications
 SET
   status = 'live',
-  audience_scope = 'all'  -- Or keep 'user_ids' and populate the user_ids array
+  audience_scope = 'all'
 WHERE title = '🎯 Beta Test Program'
   AND category = 'system';
 ```
