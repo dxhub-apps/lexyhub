@@ -63,3 +63,12 @@ GET /api/status
 The endpoint is marked as `force-dynamic` to ensure fresh data on every request. When
 trend or intent data is missing, the corresponding APIs now return `503` errors with
 guidance to configure provider keys and run the background workers against live data.
+
+## Testing the endpoint contract
+
+The integration suite (`tests/integration/api-status.test.ts`) exercises the endpoint to
+ensure the runtime diagnostics include `runtime.node`, `runtime.platform`, and
+`runtime.uptimeSeconds`, and to confirm that the API, service, and worker collections are
+materialized as arrays of status objects. The suite also guards that the environment
+variable summary enumerates the required keys so that regressions in the payload shape are
+caught automatically.
