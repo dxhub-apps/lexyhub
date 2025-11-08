@@ -4,17 +4,16 @@
  * High-level interface for generating validated JSON outputs from LexyBrain.
  * Combines prompt building, LLM calls, parsing, and validation.
  *
- * MIGRATION NOTE: Now uses RunPod Serverless Queue via runpodClient
+ * MIGRATION NOTE: Now uses direct LexyBrain HTTP endpoint via lexybrain.ts
  */
 
 import * as Sentry from "@sentry/nextjs";
 import { logger } from "./logger";
 import { getSupabaseServerClient } from "./supabase-server";
 import {
-  callLexyBrainRunpod,
+  lexybrainGenerate,
   type LexyBrainRequest,
-} from "./lexybrain/runpodClient";
-import { RunPodClientError, RunPodTimeoutError } from "./lexybrain/errors";
+} from "./lexybrain";
 import { extractJsonFromOutput } from "./lexybrain/utils";
 import {
   buildLexyBrainPrompt,
@@ -144,22 +143,17 @@ export async function generateLexyBrainJson(
         });
       }
 
-      // Call LLM via RunPod Serverless Queue
+      // Call LLM via LexyBrain HTTP endpoint
       logger.debug(
         { type: "lexybrain_generate_call", user_id: userId },
-        "Calling LexyBrain RunPod Serverless"
+        "Calling LexyBrain HTTP endpoint"
       );
 
-      const response = await callLexyBrainRunpod(
-        {
-          prompt,
-          temperature: isRetry ? 0.1 : 0.3, // More deterministic on retry
-          max_tokens: 256, // Reduced to improve latency
-        },
-        {
-          timeoutMs: 55000, // 55 seconds - gives RunPod time to complete (~50s) within Vercel's 60s limit
-        }
-      );
+      const response = await lexybrainGenerate({
+        prompt,
+        temperature: isRetry ? 0.1 : 0.3, // More deterministic on retry
+        max_tokens: 256, // Reduced to improve latency
+      });
 
       rawOutput = response.completion;
 
@@ -265,21 +259,6 @@ export async function generateLexyBrainJson(
         "LexyBrain generation attempt failed"
       );
 
-      // Don't retry on timeout errors - they take too long and will hit Vercel's limit
-      // Only retry on parsing/validation errors which might be model output issues
-      if (error instanceof RunPodTimeoutError) {
-        logger.warn(
-          {
-            type: "lexybrain_timeout_no_retry",
-            insight_type: type,
-            user_id: userId,
-            timeout_ms: error.timeoutMs,
-          },
-          "Not retrying on timeout error to avoid Vercel timeout"
-        );
-        break;
-      }
-
       // If this is not the last attempt, continue to retry
       if (attempt < maxRetries) {
         continue;
@@ -323,11 +302,7 @@ export async function generateLexyBrainJson(
   });
 
   // Throw appropriate error
-  if (lastError instanceof RunPodClientError) {
-    throw lastError;
-  } else if (lastError instanceof RunPodTimeoutError) {
-    throw lastError;
-  } else if (lastError instanceof SyntaxError) {
+  if (lastError instanceof SyntaxError) {
     throw new LexyBrainValidationError(
       `Failed to parse LexyBrain output as JSON: ${lastError.message}`,
       rawOutput || "",
