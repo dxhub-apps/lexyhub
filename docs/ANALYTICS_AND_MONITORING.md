@@ -501,6 +501,9 @@ This means your PostHog API key is invalid or misconfigured. Common causes:
 3. **Wrong key type**: Using a personal API key instead of a project key
    - Project keys start with `phc_`
    - Personal API keys start with `phx_` (these don't work for client-side tracking)
+4. **Incorrect host format**: Using the ingestion endpoint instead of the base domain
+   - ❌ Wrong: `https://eu.i.posthog.com` (ingestion endpoint)
+   - ✅ Correct: `https://eu.posthog.com` (base domain)
 
 **Solutions**:
 
@@ -508,15 +511,19 @@ This means your PostHog API key is invalid or misconfigured. Common causes:
    - For US: https://app.posthog.com/project/settings
    - For EU: https://eu.posthog.com/project/settings
 2. Ensure `NEXT_PUBLIC_POSTHOG_KEY` starts with `phc_`
-3. Match your host to your instance:
+3. **IMPORTANT**: Use the BASE domain for `NEXT_PUBLIC_POSTHOG_HOST`, NOT the ingestion endpoint:
    ```bash
    # For US instance
    NEXT_PUBLIC_POSTHOG_HOST=https://app.posthog.com
+   # NOT: https://us.i.posthog.com
 
    # For EU instance
    NEXT_PUBLIC_POSTHOG_HOST=https://eu.posthog.com
+   # NOT: https://eu.i.posthog.com
    ```
-4. Restart your development server after changing environment variables
+   The PostHog SDK automatically constructs the ingestion endpoint from the base domain.
+4. Restart your development server or redeploy your application after changing environment variables
+5. Check the browser console for detailed error messages and configuration debugging info
 
 #### "Sentry not capturing errors in development"
 
