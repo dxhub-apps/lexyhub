@@ -35,15 +35,16 @@ export function initPostHog() {
   const apiKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   const apiHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
 
-  // Log configuration for debugging (in development)
-  if (process.env.NODE_ENV === "development") {
-    console.log(
-      "🔧 PostHog Configuration:\n" +
-      `   API Key: ${apiKey ? apiKey.substring(0, 8) + "..." : "NOT SET"}\n` +
-      `   API Host: ${apiHost || "NOT SET"}\n` +
-      `   Environment: ${process.env.NODE_ENV}`
-    );
-  }
+  // ALWAYS log configuration for debugging 401 errors
+  console.log(
+    "🔧 PostHog Configuration:\n" +
+    `   API Key: ${apiKey ? apiKey.substring(0, 8) + "..." : "NOT SET"}\n` +
+    `   API Host: ${apiHost || "NOT SET"}\n` +
+    `   Environment: ${process.env.NODE_ENV}\n` +
+    `   Full Key Length: ${apiKey?.length || 0}\n` +
+    `   Key is defined: ${apiKey !== undefined}\n` +
+    `   Key is string: ${typeof apiKey === 'string'}`
+  );
 
   if (!apiKey) {
     console.warn(
@@ -197,6 +198,13 @@ function createPostHogOptions(apiHost: string, apiKey: string) {
     on_request_error: (error: any) => {
       const status = error?.status ?? error?.statusCode;
 
+      console.error("❌ PostHog request failed:", {
+        status,
+        error,
+        url: error?.url,
+        message: error?.message
+      });
+
       if (status === 401) {
         console.error(
           "❌ PostHog: 401 Unauthorized\n" +
@@ -207,6 +215,7 @@ function createPostHogOptions(apiHost: string, apiKey: string) {
             "   1. API key doesn't match the host instance\n" +
             "   2. Stale Vercel build cache - redeploy to pick up new env vars\n" +
             "   3. Invalid or revoked API key\n" +
+            "   4. Environment variables not properly set in deployment\n" +
             "\n" +
             "   Debug at: /api/debug/posthog"
         );
