@@ -121,7 +121,20 @@ export function initPostHog() {
     );
 
     isInitialized = true;
+
+    // DEBUG: Verify the key was stored
     console.log("✅ PostHog analytics enabled (single client, no fallback)");
+    console.log("🔍 DEBUG: PostHog config after init:", {
+      token: posthog.config?.token,
+      api_host: posthog.config?.api_host,
+      token_matches: posthog.config?.token === trimmedApiKey
+    });
+
+    if (posthog.config?.token !== trimmedApiKey) {
+      console.error("❌ CRITICAL: PostHog token mismatch after init!");
+      console.error("   Expected:", trimmedApiKey);
+      console.error("   Got:", posthog.config?.token);
+    }
   } catch (error) {
     console.error("❌ PostHog initialization failed:", error);
     isInitializing = false;
