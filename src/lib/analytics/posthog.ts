@@ -1,3 +1,15 @@
+/**
+ * PostHog Analytics Integration
+ *
+ * Configuration:
+ * - NEXT_PUBLIC_POSTHOG_KEY: Project API key (starts with 'phc_')
+ * - NEXT_PUBLIC_POSTHOG_HOST: Ingestion endpoint
+ *   * US: https://us.i.posthog.com
+ *   * EU: https://eu.i.posthog.com
+ *
+ * Get your project key from: https://app.posthog.com/project/settings (US)
+ *                        or: https://eu.posthog.com/project/settings (EU)
+ */
 import posthog from "posthog-js";
 
 let isInitialized = false;
@@ -35,7 +47,7 @@ export function initPostHog() {
       return null;
     }
 
-    // Detect PostHog instance (US or EU)
+    // Detect PostHog instance (US or EU) for targeted error messages
     const isEuHost = apiHost.includes("eu.") && apiHost.includes("posthog.com");
     const isUsHost = (apiHost.includes("app.posthog.com") || apiHost.includes("us.")) && apiHost.includes("posthog.com");
 
