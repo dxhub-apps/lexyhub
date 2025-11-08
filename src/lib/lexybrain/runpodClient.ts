@@ -1,20 +1,7 @@
 // lib/lexybrain/runpodClient.ts
 "use server";
 
-// Error classes
-export class RunPodClientError extends Error {
-  constructor(message: string, public statusCode?: number) {
-    super(message);
-    this.name = "RunPodClientError";
-  }
-}
-
-export class RunPodTimeoutError extends Error {
-  constructor(message: string, public timeoutMs: number) {
-    super(message);
-    this.name = "RunPodTimeoutError";
-  }
-}
+import { RunPodClientError, RunPodTimeoutError } from "./errors";
 
 const ENDPOINT_ID =
   process.env.LEXYBRAIN_RUNPOD_ENDPOINT_ID || "826ys3jox3ev2n";
