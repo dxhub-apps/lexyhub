@@ -35,43 +35,15 @@ export function initPostHog() {
       return null;
     }
 
-    // Fix common host configuration mistake
-    // The api_host should be the base domain (e.g., https://eu.posthog.com)
-    // NOT the ingestion endpoint (e.g., https://eu.i.posthog.com)
-    if (apiHost.includes(".i.posthog.com")) {
-      const correctedHost = apiHost.replace(".i.posthog.com", ".posthog.com");
-      console.warn(
-        "⚠️ PostHog: Incorrect host configuration detected!\n" +
-        `   You set: ${apiHost}\n` +
-        `   Correcting to: ${correctedHost}\n` +
-        "   \n" +
-        "   The api_host should be the BASE domain (e.g., https://eu.posthog.com),\n" +
-        "   NOT the ingestion endpoint (e.g., https://eu.i.posthog.com).\n" +
-        "   The SDK automatically constructs the ingestion endpoint.\n" +
-        "   \n" +
-        "   Please update NEXT_PUBLIC_POSTHOG_HOST in your environment variables:\n" +
-        `   NEXT_PUBLIC_POSTHOG_HOST=${correctedHost}`
-      );
-      apiHost = correctedHost;
-    }
-
-    // Detect host/key mismatch
-    const isEuHost = apiHost.includes("eu.posthog.com");
-    const isUsHost = apiHost.includes("app.posthog.com") || apiHost.includes("us.posthog.com");
+    // Detect PostHog instance (US or EU)
+    const isEuHost = apiHost.includes("eu.") && apiHost.includes("posthog.com");
+    const isUsHost = (apiHost.includes("app.posthog.com") || apiHost.includes("us.")) && apiHost.includes("posthog.com");
 
     if (isEuHost || isUsHost) {
-      // Calculate the ingestion endpoint (what PostHog SDK will actually use)
-      let ingestionEndpoint = apiHost;
-      if (isEuHost && !apiHost.includes(".i.")) {
-        ingestionEndpoint = apiHost.replace("eu.posthog.com", "eu.i.posthog.com");
-      } else if (isUsHost && !apiHost.includes(".i.")) {
-        ingestionEndpoint = apiHost.replace("app.posthog.com", "us.i.posthog.com");
-      }
-
       console.log(
         `ℹ️ PostHog: Initializing with ${isEuHost ? "EU" : "US"} instance\n` +
-        `   Base host: ${apiHost}\n` +
-        `   Ingestion endpoint: ${ingestionEndpoint}\n` +
+        `   API Host: ${apiHost}\n` +
+        `   API Key: ${apiKey.substring(0, 12)}...\n` +
         "   Ensure your API key is from this PostHog instance."
       );
     }

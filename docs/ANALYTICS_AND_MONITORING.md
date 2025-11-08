@@ -496,14 +496,11 @@ This means your PostHog API key is invalid or misconfigured. Common causes:
 
 1. **Wrong API key**: The key in `NEXT_PUBLIC_POSTHOG_KEY` is invalid or expired
 2. **Instance mismatch**: Using a key from one PostHog instance (US/EU) with a different host
-   - Example: EU key with US host (`https://app.posthog.com`)
-   - Example: US key with EU host (`https://eu.posthog.com`)
+   - Example: EU key with US host (`https://us.i.posthog.com`)
+   - Example: US key with EU host (`https://eu.i.posthog.com`)
 3. **Wrong key type**: Using a personal API key instead of a project key
    - Project keys start with `phc_`
    - Personal API keys start with `phx_` (these don't work for client-side tracking)
-4. **Incorrect host format**: Using the ingestion endpoint instead of the base domain
-   - ❌ Wrong: `https://eu.i.posthog.com` (ingestion endpoint)
-   - ✅ Correct: `https://eu.posthog.com` (base domain)
 
 **Solutions**:
 
@@ -511,19 +508,17 @@ This means your PostHog API key is invalid or misconfigured. Common causes:
    - For US: https://app.posthog.com/project/settings
    - For EU: https://eu.posthog.com/project/settings
 2. Ensure `NEXT_PUBLIC_POSTHOG_KEY` starts with `phc_`
-3. **IMPORTANT**: Use the BASE domain for `NEXT_PUBLIC_POSTHOG_HOST`, NOT the ingestion endpoint:
+3. Set the correct host for your instance:
    ```bash
    # For US instance
-   NEXT_PUBLIC_POSTHOG_HOST=https://app.posthog.com
-   # NOT: https://us.i.posthog.com
+   NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 
    # For EU instance
-   NEXT_PUBLIC_POSTHOG_HOST=https://eu.posthog.com
-   # NOT: https://eu.i.posthog.com
+   NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com
    ```
-   The PostHog SDK automatically constructs the ingestion endpoint from the base domain.
-4. Restart your development server or redeploy your application after changing environment variables
-5. Check the browser console for detailed error messages and configuration debugging info
+4. Verify the API key matches the instance (US key with US host, EU key with EU host)
+5. Restart your development server or redeploy your application after changing environment variables
+6. Check the browser console for detailed error messages and configuration debugging info
 
 #### "Sentry not capturing errors in development"
 
