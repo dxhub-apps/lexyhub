@@ -110,6 +110,9 @@ npm install resend
 RESEND_API_KEY=re_xxxxxxxxxxxxx
 RESEND_FROM_EMAIL=notifications@lexyhub.com
 
+By default, notification emails will use **LexyHub** as the sender name. You can override this by updating the
+`DEFAULT_FROM_NAME` constant in `src/lib/notifications/email.ts` if a different branding is required.
+
 # App URL for email links
 NEXT_PUBLIC_APP_URL=https://lexyhub.com
 ```

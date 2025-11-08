@@ -46,7 +46,7 @@ function getResendClient() {
 }
 
 const DEFAULT_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'notifications@lexyhub.com';
-const DEFAULT_FROM_NAME = 'Lexyhub';
+const DEFAULT_FROM_NAME = 'LexyHub';
 
 /**
  * Send a notification email
@@ -230,7 +230,7 @@ const briefReadyTemplate: EmailTemplate = {
       <a href="${context.preferences_url}" style="color: #0066ff; text-decoration: none;">Manage notification preferences</a>
     </p>
     <p style="margin: 0; color: #999;">
-      © ${new Date().getFullYear()} Lexyhub. All rights reserved.
+      © ${new Date().getFullYear()} LexyHub. All rights reserved.
     </p>
   </div>
 </body>
@@ -275,7 +275,7 @@ const keywordHighlightsTemplate: EmailTemplate = {
       <a href="${context.preferences_url}" style="color: #667eea; text-decoration: none;">Manage notification preferences</a>
     </p>
     <p style="margin: 0; color: #999;">
-      © ${new Date().getFullYear()} Lexyhub. All rights reserved.
+      © ${new Date().getFullYear()} LexyHub. All rights reserved.
     </p>
   </div>
 </body>
@@ -320,7 +320,7 @@ const watchlistDigestTemplate: EmailTemplate = {
       <a href="${context.preferences_url}" style="color: #f5576c; text-decoration: none;">Manage notification preferences</a>
     </p>
     <p style="margin: 0; color: #999;">
-      © ${new Date().getFullYear()} Lexyhub. All rights reserved.
+      © ${new Date().getFullYear()} LexyHub. All rights reserved.
     </p>
   </div>
 </body>
@@ -367,7 +367,7 @@ const billingEventTemplate: EmailTemplate = {
       Questions? Contact us at <a href="mailto:support@lexyhub.com" style="color: #0066ff; text-decoration: none;">support@lexyhub.com</a>
     </p>
     <p style="margin: 0; color: #999;">
-      © ${new Date().getFullYear()} Lexyhub. All rights reserved.
+      © ${new Date().getFullYear()} LexyHub. All rights reserved.
     </p>
   </div>
 </body>
@@ -408,7 +408,7 @@ const systemAnnouncementTemplate: EmailTemplate = {
       <a href="${context.preferences_url}" style="color: #0066ff; text-decoration: none;">Manage notification preferences</a>
     </p>
     <p style="margin: 0; color: #999;">
-      © ${new Date().getFullYear()} Lexyhub. All rights reserved.
+      © ${new Date().getFullYear()} LexyHub. All rights reserved.
     </p>
   </div>
 </body>
