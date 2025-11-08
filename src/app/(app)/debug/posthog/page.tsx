@@ -35,7 +35,7 @@ export default function PostHogDebugPage() {
     <div style={{ padding: "40px", maxWidth: "1200px", margin: "0 auto", fontFamily: "system-ui" }}>
       <h1 style={{ marginBottom: "8px" }}>PostHog Configuration Debug</h1>
       <p style={{ color: "#666", marginBottom: "32px" }}>
-        This page helps identify why you're getting 401 errors even though the API key appears correct.
+        This page helps identify why you&apos;re getting 401 errors even though the API key appears correct.
       </p>
 
       {/* Floating inspector */}
@@ -103,7 +103,7 @@ export default function PostHogDebugPage() {
             </div>
             <div style={{ marginTop: "12px", padding: "8px", background: "#fef3c7", borderRadius: "4px", fontSize: "14px" }}>
               ⚠️ These values are baked into the JavaScript bundle at BUILD time.
-              If they don't match the server, you have a stale build.
+              If they don&apos;t match the server, you have a stale build.
             </div>
           </div>
         </div>
@@ -126,7 +126,7 @@ export default function PostHogDebugPage() {
                 <strong style={{ color: "#059669" }}>✅ Server and Client keys match!</strong>
                 <p style={{ margin: "8px 0 0 0", fontSize: "14px" }}>
                   The build picked up the correct environment variables.
-                  If you're still seeing 401 errors, the issue is something else.
+                  If you&apos;re still seeing 401 errors, the issue is something else.
                 </p>
               </>
             ) : (
@@ -139,7 +139,7 @@ export default function PostHogDebugPage() {
                 <div style={{ marginTop: "12px", padding: "12px", background: "white", borderRadius: "4px" }}>
                   <strong>How to fix:</strong>
                   <ol style={{ margin: "8px 0 0 0", paddingLeft: "20px", fontSize: "14px" }}>
-                    <li>Trigger a new build in Vercel (don't just redeploy)</li>
+                    <li>Trigger a new build in Vercel (don&apos;t just redeploy)</li>
                     <li>Make a dummy code change and push to git</li>
                     <li>Or use Vercel CLI: <code>vercel --force</code></li>
                   </ol>
@@ -155,10 +155,10 @@ export default function PostHogDebugPage() {
         <h2 style={{ fontSize: "18px", marginBottom: "12px" }}>📋 What to do:</h2>
         <ol style={{ paddingLeft: "20px", lineHeight: "1.8" }}>
           <li>Check the floating inspector (top-right corner)</li>
-          <li>Look at the "API Key Comparison" above</li>
+          <li>Look at the &quot;API Key Comparison&quot; above</li>
           <li>Open browser DevTools → Console to see full key values</li>
           <li>Open browser DevTools → Network tab</li>
-          <li>Filter for "posthog" in the Network tab</li>
+          <li>Filter for &quot;posthog&quot; in the Network tab</li>
           <li>Look at a failing request to <code>/i/v0/e/</code></li>
           <li>Check the request payload - what API key is being sent?</li>
           <li>Compare it with the server key from the diagnostics above</li>

@@ -115,13 +115,13 @@ export function PostHogKeyInspector() {
           <div>
             <strong>✅ Keys Match!</strong>
             <div style={{ marginTop: "4px", fontSize: "11px" }}>
-              The bundle has the correct key. If you're still seeing 401 errors,
-              check the browser Network tab to see what's actually being sent.
+              The bundle has the correct key. If you&apos;re still seeing 401 errors,
+              check the browser Network tab to see what&apos;s actually being sent.
             </div>
           </div>
         ) : (
           <div>
-            <strong>❌ KEYS DON'T MATCH!</strong>
+            <strong>❌ KEYS DON&apos;T MATCH!</strong>
             <div style={{ marginTop: "4px", fontSize: "11px" }}>
               The JavaScript bundle has a different key than PostHog is using.
               This is likely a stale build cache issue.
