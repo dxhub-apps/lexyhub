@@ -73,10 +73,22 @@ Sentry.init({
   ],
 
   beforeSend(event, hint) {
+    // Log event being sent (only in development)
+    if (process.env.NODE_ENV === "development") {
+      console.log("📤 Sentry client: Sending event", {
+        type: event.type,
+        level: event.level,
+        message: event.message || event.exception?.values?.[0]?.value,
+      });
+    }
+
     // Filter out errors from browser extensions
     if (event.exception?.values?.[0]?.stacktrace?.frames) {
       const frames = event.exception.values[0].stacktrace.frames;
       if (frames.some(frame => frame.filename?.includes('extension://'))) {
+        if (process.env.NODE_ENV === "development") {
+          console.log("🚫 Sentry client: Filtered browser extension error");
+        }
         return null;
       }
     }

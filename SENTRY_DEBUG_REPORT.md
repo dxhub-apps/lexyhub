@@ -1,24 +1,42 @@
 # Sentry Integration Debug Report
 
 **Date:** 2025-11-08
-**Status:** ❌ NOT CONFIGURED - DSN Missing
+**Status:** ❌ NOT WORKING - Missing instrumentation.ts
 
 ## Problem Summary
 
-Sentry is not receiving events because the **NEXT_PUBLIC_SENTRY_DSN** environment variable is not configured.
+Sentry is not receiving events because the **`instrumentation.ts` file is missing**, which is required for Next.js 14+ to properly initialize Sentry on the server-side and edge runtime.
 
 ## Root Cause Analysis
 
-### What I Found
+### Critical Issues Found
+
+1. **❌ Missing `instrumentation.ts` File (PRIMARY ISSUE)**
+   - Next.js 14.2+ requires an `instrumentation.ts` file to initialize Sentry on server-side
+   - Without this file, `sentry.server.config.ts` and `sentry.edge.config.ts` are NEVER loaded
+   - This means server-side and API route errors are NOT being captured at all
+   - Client-side initialization works, but server-side is completely broken
+
+2. **❌ Missing `experimental.instrumentationHook` Config**
+   - Next.js 14.2 requires explicitly enabling the instrumentation hook
+   - Without `experimental.instrumentationHook: true` in `next.config.mjs`, the instrumentation file is ignored
+   - This is required until Next.js 15 where it becomes stable
+
+3. **❌ Missing Automatic Instrumentation Options**
+   - `autoInstrumentServerFunctions` not enabled - API routes and data fetchers not automatically instrumented
+   - `autoInstrumentMiddleware` not enabled - middleware errors not captured
+   - Missing build options means less comprehensive error tracking
+
+### What Was Already Working
 
 1. **✅ Sentry Package Installed**
    - `@sentry/nextjs` version 10.23.0 is installed
    - All required dependencies are present
 
 2. **✅ Configuration Files Present**
-   - `sentry.client.config.ts` - Client-side configuration
-   - `sentry.server.config.ts` - Server-side configuration
-   - `sentry.edge.config.ts` - Edge runtime configuration
+   - `sentry.client.config.ts` - Client-side configuration (working)
+   - `sentry.server.config.ts` - Server-side configuration (not being loaded)
+   - `sentry.edge.config.ts` - Edge runtime configuration (not being loaded)
    - All files are properly configured with correct initialization
 
 3. **✅ Integration Code Present**
@@ -28,45 +46,70 @@ Sentry is not receiving events because the **NEXT_PUBLIC_SENTRY_DSN** environmen
      - `log.error()` and `log.fatal()` send messages to Sentry
      - 20+ integration points across the application
 
-4. **❌ Environment Variable Missing**
-   - No `.env.local` file exists
-   - `NEXT_PUBLIC_SENTRY_DSN` is not set
-   - Only `.env.example` exists with placeholder values
+4. **✅ DSN Configured**
+   - `NEXT_PUBLIC_SENTRY_DSN` is set in environment
+   - Client-side Sentry could potentially work
+   - Server-side Sentry was never initialized due to missing instrumentation
 
-5. **Result: Sentry is Disabled**
-   - All three Sentry configs check for DSN presence
-   - When DSN is missing, they set `enabled: false`
-   - No events are sent when Sentry is disabled
+### The Real Problem
+
+The Sentry configs were never being loaded on the server-side because Next.js 14.2 doesn't automatically load `sentry.server.config.ts` - you MUST use the `instrumentation.ts` hook to load them. This is a breaking change from older Next.js versions.
 
 ## The Fix
 
-### Step 1: Get Your Sentry DSN
+All fixes have been applied automatically. Here's what was done:
 
-1. Go to [Sentry.io](https://sentry.io/)
-2. Create a project or select an existing one
-3. Navigate to **Settings** → **Projects** → **[Your Project]** → **Client Keys (DSN)**
-4. Copy your DSN (format: `https://[key]@[organization].ingest.sentry.io/[project-id]`)
+### Step 1: Created `instrumentation.ts` File ✅
 
-### Step 2: Configure Environment Variables
+Created `/instrumentation.ts` in the project root that loads Sentry configs based on runtime:
 
-Create a `.env.local` file in the project root:
+```typescript
+export async function register() {
+  // Initialize Sentry for Node.js server runtime
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    await import("./sentry.server.config");
+  }
 
-```bash
-# Required for Sentry to work
-NEXT_PUBLIC_SENTRY_DSN=https://your-key-here@your-org.ingest.sentry.io/your-project-id
-
-# Optional: For source map uploads (production only)
-SENTRY_ORG=your-sentry-org
-SENTRY_PROJECT=your-sentry-project
-SENTRY_AUTH_TOKEN=your-auth-token
+  // Initialize Sentry for Edge runtime
+  if (process.env.NEXT_RUNTIME === "edge") {
+    await import("./sentry.edge.config");
+  }
+}
 ```
 
-**Important Notes:**
-- The `NEXT_PUBLIC_` prefix is required for Next.js to expose it to the client
-- Source map configuration (ORG, PROJECT, AUTH_TOKEN) is only needed for production deployments
-- Never commit `.env.local` to git (it's already in `.gitignore`)
+### Step 2: Enabled Instrumentation Hook in Next.js Config ✅
 
-### Step 3: Restart Your Development Server
+Updated `next.config.mjs` to enable the experimental instrumentation hook:
+
+```javascript
+experimental: {
+  // Enable instrumentation for Sentry and other monitoring tools
+  instrumentationHook: true,
+}
+```
+
+### Step 3: Added Automatic Instrumentation Options ✅
+
+Updated `next.config.mjs` with automatic instrumentation:
+
+```javascript
+const sentryBuildOptions = {
+  // Automatically instrument the code for Sentry
+  autoInstrumentServerFunctions: true,  // Auto-instrument API routes
+  autoInstrumentMiddleware: true,        // Auto-instrument middleware
+  hideSourceMaps: true,                  // Hide source maps from public
+  disableLogger: process.env.NODE_ENV === "development",
+};
+```
+
+### Step 4: Enhanced Logging for Debugging ✅
+
+Added development-only logging to track when events are being sent:
+- Client config logs all events being sent
+- Server config logs all events being sent
+- Filtered events are logged for debugging
+
+### Step 5: Restart Your Development Server
 
 ```bash
 npm run dev
@@ -268,14 +311,25 @@ Sentry is integrated throughout the application:
 
 ## Conclusion
 
-The Sentry integration is fully implemented and configured correctly. The only missing piece is the DSN environment variable. Once you add `NEXT_PUBLIC_SENTRY_DSN` to `.env.local`, Sentry will immediately start capturing events.
+The root cause was a **missing `instrumentation.ts` file and incomplete Next.js configuration** for Sentry with Next.js 14.2+. All fixes have been applied:
 
-All the groundwork is in place:
-- ✅ Package installed
-- ✅ Configurations complete
-- ✅ Integration code present
-- ✅ Debug logging enhanced
-- ✅ Test endpoint created
-- ❌ DSN not configured (requires manual setup)
+**What Was Fixed:**
+- ✅ Created `instrumentation.ts` file
+- ✅ Enabled `experimental.instrumentationHook` in Next.js config
+- ✅ Added automatic instrumentation options
+- ✅ Enhanced debug logging
+- ✅ Test endpoint already created
 
-**Estimated time to fix:** 2-3 minutes (just add DSN to .env.local and restart)
+**What Was Already Working:**
+- ✅ Package installed (@sentry/nextjs 10.23.0)
+- ✅ Configuration files present and correct
+- ✅ Integration code throughout the app
+- ✅ DSN configured in environment
+
+**Next Steps:**
+1. Restart your development server (`npm run dev`)
+2. Watch for Sentry initialization logs in console
+3. Test with `/api/test-sentry` endpoint
+4. Verify events appear in Sentry dashboard
+
+**Estimated time to verify:** 2-3 minutes (restart and test)

@@ -85,6 +85,8 @@ const nextConfig = {
       "@vercel/analytics",
       "pino",
     ],
+    // Enable instrumentation for Sentry and other monitoring tools
+    instrumentationHook: true,
   },
 
   // Headers for security and caching
@@ -143,10 +145,32 @@ const sentryWebpackPluginOptions = {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
   authToken: process.env.SENTRY_AUTH_TOKEN,
+
+  // Automatically annotate React components for easier debugging
+  reactComponentAnnotation: {
+    enabled: true,
+  },
+
+  // Disable telemetry
+  telemetry: false,
+};
+
+// Additional Sentry build options
+const sentryBuildOptions = {
+  // Automatically instrument the code for Sentry
+  autoInstrumentServerFunctions: true,
+  autoInstrumentMiddleware: true,
+
+  // Hide source maps from public
+  hideSourceMaps: true,
+
+  // Disable Sentry during development for faster builds
+  disableLogger: process.env.NODE_ENV === "development",
 };
 
 // Make sure adding Sentry options is the last code to run before exporting
 export default withSentryConfig(
   withBundleAnalyzer(nextConfig),
-  sentryWebpackPluginOptions
+  sentryWebpackPluginOptions,
+  sentryBuildOptions
 );

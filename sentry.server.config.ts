@@ -48,6 +48,15 @@ Sentry.init({
 
   // Configure scope to include useful server-side context
   beforeSend(event, hint) {
+    // Log event being sent (only in development)
+    if (process.env.NODE_ENV === "development") {
+      console.log("📤 Sentry server: Sending event", {
+        type: event.type,
+        level: event.level,
+        message: event.message || event.exception?.values?.[0]?.value,
+      });
+    }
+
     // Add additional context for server-side errors
     if (event.request) {
       // Sanitize sensitive headers
