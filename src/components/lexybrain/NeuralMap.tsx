@@ -234,20 +234,22 @@ export function NeuralMap({
   return (
     <div className="space-y-4">
       {/* Graph Canvas */}
-      <Card>
-        <CardHeader>
+      <Card className="border-2 border-purple-200 dark:border-purple-800">
+        <CardHeader className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950 dark:to-blue-950">
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <NetworkIcon className="h-5 w-5" />
-                Neural Map: {graphData.centerTerm}
+                <NetworkIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                Neural Map: <span className="text-purple-600 dark:text-purple-400">{graphData.centerTerm}</span>
               </CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
-                {positionedNodes.length} keywords, {graphData.edges.length} connections
+                {positionedNodes.length} keywords • {graphData.edges.length} connections • AI-powered similarity
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Zoom: {Math.round(zoom * 100)}%</span>
+              <Badge variant="secondary" className="text-xs">
+                Zoom: {Math.round(zoom * 100)}%
+              </Badge>
               <Button
                 variant="outline"
                 size="sm"
@@ -256,13 +258,13 @@ export function NeuralMap({
                   setPan({ x: 0, y: 0 });
                 }}
               >
-                Reset View
+                Reset
               </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="relative border rounded-lg overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+          <div className="relative border-2 border-purple-100 dark:border-purple-900 rounded-lg overflow-hidden bg-gradient-to-br from-purple-50 via-blue-50 to-cyan-50 dark:from-slate-900 dark:via-purple-950 dark:to-blue-950">
             <svg
               id={svgId}
               width="100%"
@@ -276,7 +278,13 @@ export function NeuralMap({
               onMouseLeave={handleMouseUp}
             >
               <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
-                {/* Edges */}
+                {/* Edges with gradient */}
+                <defs>
+                  <linearGradient id="edge-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#a855f7" stopOpacity="0.3" />
+                    <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.3" />
+                  </linearGradient>
+                </defs>
                 {graphData.edges.map((edge, index) => {
                   const sourceNode = positionedNodes.find((n) => n.id === edge.source);
                   const targetNode = positionedNodes.find((n) => n.id === edge.target);
@@ -290,15 +298,23 @@ export function NeuralMap({
                       y1={sourceNode.y}
                       x2={targetNode.x}
                       y2={targetNode.y}
-                      stroke="#cbd5e1"
-                      strokeWidth={1 + edge.similarity * 2}
-                      strokeOpacity={0.3 + edge.similarity * 0.4}
-                      className="dark:stroke-slate-600"
+                      stroke="url(#edge-gradient)"
+                      strokeWidth={1 + edge.similarity * 3}
+                      strokeOpacity={0.2 + edge.similarity * 0.6}
                     />
                   );
                 })}
 
-                {/* Nodes */}
+                {/* Nodes with glow effects */}
+                <defs>
+                  <filter id="glow">
+                    <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                    <feMerge>
+                      <feMergeNode in="coloredBlur"/>
+                      <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                  </filter>
+                </defs>
                 {positionedNodes.map((node, index) => {
                   const isCenter = index === 0;
                   const isSelected = selectedNode?.id === node.id;
@@ -307,16 +323,31 @@ export function NeuralMap({
 
                   return (
                     <g key={node.id} className="cursor-pointer">
-                      {/* Node circle */}
+                      {/* Outer glow for center node */}
+                      {isCenter && (
+                        <circle
+                          cx={node.x}
+                          cy={node.y}
+                          r={size + 8}
+                          fill="none"
+                          stroke="#a855f7"
+                          strokeWidth="2"
+                          strokeOpacity="0.3"
+                          className="animate-pulse"
+                        />
+                      )}
+
+                      {/* Node circle with gradient */}
                       <circle
                         cx={node.x}
                         cy={node.y}
                         r={size}
                         fill={color}
-                        stroke={isCenter ? "#7c3aed" : isSelected ? "#0ea5e9" : "#fff"}
+                        stroke={isCenter ? "#7c3aed" : isSelected ? "#3b82f6" : "#fff"}
                         strokeWidth={isCenter ? 4 : isSelected ? 3 : 2}
-                        className="transition-all hover:r-[1.2]"
+                        className="transition-all hover:opacity-80"
                         onClick={() => handleNodeClick(node)}
+                        filter={isCenter || isSelected ? "url(#glow)" : undefined}
                       />
 
                       {/* Node label */}
@@ -326,7 +357,7 @@ export function NeuralMap({
                         textAnchor="middle"
                         fontSize={isCenter ? 14 : 12}
                         fontWeight={isCenter ? "bold" : "normal"}
-                        fill={isCenter ? "#7c3aed" : "#475569"}
+                        fill={isCenter ? "#7c3aed" : isSelected ? "#3b82f6" : "#475569"}
                         className="pointer-events-none dark:fill-slate-300"
                       >
                         {node.term.length > 20 ? `${node.term.substring(0, 20)}...` : node.term}
@@ -355,24 +386,33 @@ export function NeuralMap({
               </Button>
             </div>
 
-            {/* Legend */}
-            <div className="absolute top-4 left-4 bg-background/90 backdrop-blur-sm p-3 rounded-lg border space-y-2 text-xs">
-              <div className="font-semibold mb-2">Opportunity Score</div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-green-500" />
-                <span>High (70%+)</span>
+            {/* Legend with gradient background */}
+            <div className="absolute top-4 left-4 bg-gradient-to-br from-white/95 to-purple-50/95 dark:from-slate-900/95 dark:to-purple-950/95 backdrop-blur-sm p-3 rounded-lg border-2 border-purple-200 dark:border-purple-800 space-y-2 text-xs shadow-lg">
+              <div className="font-bold mb-2 text-purple-700 dark:text-purple-300 flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                Legend
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                <span>Medium (40-70%)</span>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-green-500 shadow-sm" />
+                  <span className="text-green-700 dark:text-green-300 font-medium">High Opportunity 70%+</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-yellow-500 shadow-sm" />
+                  <span className="text-yellow-700 dark:text-yellow-300 font-medium">Medium 40-70%</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-red-500 shadow-sm" />
+                  <span className="text-red-700 dark:text-red-300 font-medium">Low &lt;40%</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-red-500" />
-                <span>Low (&lt;40%)</span>
+              <div className="mt-3 pt-3 border-t border-purple-200 dark:border-purple-800">
+                <div className="font-semibold mb-1 text-purple-700 dark:text-purple-300">Node Size</div>
+                <span className="text-muted-foreground">Shows demand level</span>
               </div>
-              <div className="mt-3 pt-3 border-t">
-                <div className="font-semibold mb-1">Node Size</div>
-                <span className="text-muted-foreground">Represents demand</span>
+              <div className="pt-2 border-t border-purple-200 dark:border-purple-800">
+                <div className="font-semibold mb-1 text-purple-700 dark:text-purple-300">Line Thickness</div>
+                <span className="text-muted-foreground">Shows similarity strength</span>
               </div>
             </div>
           </div>
