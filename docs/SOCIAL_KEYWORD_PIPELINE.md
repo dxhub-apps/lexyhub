@@ -116,6 +116,8 @@ This system collects, aggregates, and analyzes keyword trend data from multiple 
 2. **Storage Phase** (Immediate)
    - Store in `social_platform_trends` (detailed per-platform data)
    - Upsert into `keywords` table via `lexy_upsert_keyword` RPC
+      - The `p_tier` argument now expects the numeric plan rank (`0` for free, `1` for growth, `2` for scale).
+        Always convert any textual plan value to its numeric equivalent before invoking the RPC so it can be written to the `smallint` `tier` column without casting errors.
    - Write to `trend_series` for time-series analysis
    - Update `keyword_metrics_daily` with social metrics
 
