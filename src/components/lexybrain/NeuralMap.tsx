@@ -281,8 +281,8 @@ export function NeuralMap({
   return (
     <div className="space-y-4">
       {/* Graph Canvas */}
-      <Card className="border-2 border-purple-200 dark:border-purple-800">
-        <CardHeader className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950 dark:to-blue-950">
+      <Card className="border-2 border-accent">
+        <CardHeader className="bg-card border-b border-border">
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
@@ -311,7 +311,7 @@ export function NeuralMap({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="relative border-2 border-purple-100 dark:border-purple-900 rounded-lg overflow-hidden bg-gradient-to-br from-purple-50 via-blue-50 to-cyan-50 dark:from-slate-900 dark:via-purple-950 dark:to-blue-950">
+          <div className="relative border-2 border-muted rounded-lg overflow-hidden bg-muted">
             <svg
               id={svgId}
               width="100%"
@@ -433,8 +433,8 @@ export function NeuralMap({
               </Button>
             </div>
 
-            {/* Legend with gradient background */}
-            <div className="absolute top-4 left-4 bg-gradient-to-br from-white/95 to-purple-50/95 dark:from-slate-900/95 dark:to-purple-950/95 backdrop-blur-sm p-3 rounded-lg border-2 border-purple-200 dark:border-purple-800 space-y-2 text-xs shadow-lg">
+            {/* Legend */}
+            <div className="absolute top-4 left-4 bg-card p-3 rounded-lg border-2 border-accent space-y-2 text-xs">
               <div className="font-bold mb-2 text-purple-700 dark:text-purple-300 flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-purple-500"></span>
                 Legend

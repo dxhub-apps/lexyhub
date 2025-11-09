@@ -694,11 +694,15 @@ export default function KeywordsPage(): JSX.Element {
 
       {/* Tabs */}
       <Tabs value={state.activeTab} onValueChange={(v) => dispatch({ type: "SET_TAB", v: v as State["activeTab"] })}>
-        <TabsList className="w-full justify-start">
+        <TabsList className="w-full justify-start border-b border-border rounded-none bg-background p-0">
           {tabs.map((t) => (
-            <TabsTrigger key={t.id} value={t.id} className="flex-col items-start gap-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <span>{t.label}</span>
-              {t.description && <span className="text-xs opacity-70">{t.description}</span>}
+            <TabsTrigger
+              key={t.id}
+              value={t.id}
+              className="flex-col items-start gap-1 rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:text-foreground"
+            >
+              <span className="font-medium">{t.label}</span>
+              {t.description && <span className="text-xs text-muted-foreground">{t.description}</span>}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -815,21 +819,24 @@ export default function KeywordsPage(): JSX.Element {
               )}
 
               {topOpportunity && (
-                <Card className="border-primary/20 bg-primary/5">
-                  <CardHeader>
-                    <CardTitle className="text-base">Priority opportunity</CardTitle>
+                <Card className="border-2 border-accent bg-card">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-accent" />
+                      <CardTitle className="text-base">Priority opportunity</CardTitle>
+                    </div>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-sm"><strong>{topOpportunity.term}</strong> shows the strongest combined momentum across active signals.</p>
-                    <p className="mt-2 text-xs text-muted-foreground">{SOURCE_DETAILS[topOpportunity.source]?.title ?? topOpportunity.source} · {topOpportunity.freshness_ts ? new Date(topOpportunity.freshness_ts).toLocaleString() : "Not yet synced"}</p>
+                  <CardContent className="space-y-2">
+                    <p className="text-sm"><strong className="text-foreground">{topOpportunity.term}</strong> shows the strongest combined momentum across active signals.</p>
+                    <p className="text-xs text-muted-foreground">{SOURCE_DETAILS[topOpportunity.source]?.title ?? topOpportunity.source} · {topOpportunity.freshness_ts ? new Date(topOpportunity.freshness_ts).toLocaleString() : "Not yet synced"}</p>
                   </CardContent>
                 </Card>
               )}
 
-              <div className="rounded-md border">
+              <div className="rounded-lg border border-border overflow-hidden">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b bg-muted/50">
+                    <tr className="border-b border-border bg-muted">
                       {([
                         { key: "term", label: "Keyword" },
                         { key: "adjusted_demand_index", label: "Demand Index" },
@@ -877,12 +884,12 @@ export default function KeywordsPage(): JSX.Element {
                       const cats = k.extras?.["category"] as string | undefined;
                       const tags = (k.extras?.["tags"] as string[] | undefined) ?? [];
                       return (
-                        <tr key={`${k.term}-${k.source}`} className="border-b last:border-0 hover:bg-muted/50">
+                        <tr key={`${k.term}-${k.source}`} className="border-b border-border last:border-0 hover:bg-muted transition-colors duration-150">
                           <th scope="row" className="px-4 py-3 text-left font-medium">
                             <div className="space-y-1">
                               <Link
                                 href={`/keywords/${encodeURIComponent(k.term)}`}
-                                className="font-semibold text-primary hover:underline"
+                                className="font-semibold text-accent hover:underline transition-all duration-150"
                               >
                                 {k.term}
                               </Link>
@@ -976,11 +983,11 @@ export default function KeywordsPage(): JSX.Element {
         </TabsContent>
       </Tabs>
 
-      {/* Error */}
+      {/* Error Banner */}
       {state.error && (
-        <Card className="border-destructive bg-destructive/10">
+        <Card className="border-2 border-destructive bg-card">
           <CardContent className="pt-6">
-            <p className="text-sm text-destructive" role="alert">{state.error}</p>
+            <p className="text-sm text-destructive font-medium" role="alert">{state.error}</p>
           </CardContent>
         </Card>
       )}

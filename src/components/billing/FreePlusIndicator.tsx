@@ -25,7 +25,7 @@ export function FreePlusIndicator({
   });
 
   return (
-    <Card className="border-2 border-primary bg-gradient-to-br from-primary/5 to-transparent">
+    <Card className="border-2 border-accent bg-card">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">

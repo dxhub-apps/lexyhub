@@ -127,7 +127,7 @@ export function Sidebar({
           {groups.map((group) => (
             <div key={group.title} className="space-y-1">
               {!collapsed && (
-                <h4 className="px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                <h4 className="px-2 text-xs font-semibold text-foreground uppercase tracking-wider mb-2">
                   {group.title}
                 </h4>
               )}
@@ -141,10 +141,10 @@ export function Sidebar({
                       href={item.href}
                       onClick={isMobile ? onDismissMobile : undefined}
                       className={cn(
-                        "flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors",
-                        "hover:bg-accent hover:text-accent-foreground",
+                        "relative flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-all duration-150 ease-in-out",
+                        "hover:text-accent hover:bg-muted/50",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        active ? "bg-accent text-foreground" : "text-muted-foreground",
+                        active ? "text-foreground border-l-4 border-accent pl-1.5" : "text-foreground border-l-4 border-transparent",
                         collapsed && "justify-center"
                       )}
                       aria-current={active ? "page" : undefined}
@@ -171,19 +171,19 @@ export function Sidebar({
           ))}
         </nav>
 
-        {/* Footer - Founders Deal CTA */}
+        {/* Footer - Founders Deal CTA - NO GRADIENT */}
         {!collapsed && (
           <div className="p-4 border-t border-border">
-            <div className="rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 p-3 space-y-2 text-white">
+            <div className="rounded-lg bg-accent border border-accent p-3 space-y-2 text-white">
               <h4 className="text-sm font-bold">Founders Deal — Limited Time</h4>
-              <p className="text-xs opacity-90">
+              <p className="text-xs">
                 Unlock the LexyHub Basic Plan for only $39/year.
                 More power. Less cost.
               </p>
               <Button
                 variant="secondary"
                 size="sm"
-                className="w-full bg-white text-purple-700 hover:bg-gray-100"
+                className="w-full"
                 asChild
               >
                 <Link href="/billing?upgrade=founders">Upgrade now →</Link>

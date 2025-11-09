@@ -188,10 +188,10 @@ export default function KeywordJourneyPage(): JSX.Element {
   if (error || !keyword) {
     return (
       <div className="space-y-8">
-        <Card className="border-destructive">
+        <Card className="border-2 border-destructive bg-card">
           <CardHeader>
             <CardTitle>Error</CardTitle>
-            <CardDescription>{error ?? "Keyword not found"}</CardDescription>
+            <CardDescription className="text-destructive">{error ?? "Keyword not found"}</CardDescription>
           </CardHeader>
           <CardContent>
             <Button onClick={() => router.push("/keywords")}>
@@ -234,7 +234,7 @@ export default function KeywordJourneyPage(): JSX.Element {
                     <Badge variant="default">{keyword.seasonal_label}</Badge>
                   )}
                 </div>
-                <CardTitle className="text-4xl font-bold">{keyword.term}</CardTitle>
+                <h1 className="text-[32px] font-bold tracking-tight leading-tight">{keyword.term}</h1>
                 <CardDescription className="text-base">
                   Comprehensive market intelligence powered by LexyBrain
                 </CardDescription>
@@ -265,7 +265,7 @@ export default function KeywordJourneyPage(): JSX.Element {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <Card>
           <CardContent className="pt-6">
-            <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+            <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid bg-muted">
               <TabsTrigger value="overview" className="flex items-center gap-2">
                 <BarChart3 className="h-4 w-4" />
                 Overview

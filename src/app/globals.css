@@ -4,93 +4,97 @@
 
 @layer base {
   :root {
-    /* Black and white core palette - Light theme */
-    --background: 0 0% 100%; /* Pure white */
-    --foreground: 0 0% 0%; /* Pure black */
+    /* MONOCHROME RESKIN v2 - Light Theme */
+    /* Pure black and white foundation with accent blue */
 
-    --card: 0 0% 100%; /* White cards */
-    --card-foreground: 0 0% 0%; /* Black text on cards */
+    --background: 0 0% 100%; /* #FFFFFF - Pure white */
+    --foreground: 0 0% 0%; /* #000000 - Pure black */
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 0%;
+    --card: 220 13% 98%; /* #F9FAFB - Neutral card surfaces */
+    --card-foreground: 0 0% 0%; /* #000000 - Black text on cards */
 
-    --primary: 0 0% 0%; /* Black for primary actions */
-    --primary-foreground: 0 0% 100%; /* White text on black buttons */
+    --popover: 0 0% 100%; /* #FFFFFF */
+    --popover-foreground: 0 0% 0%; /* #000000 */
 
-    --secondary: 0 0% 96%; /* Very light gray for secondary */
-    --secondary-foreground: 0 0% 0%; /* Black text */
+    --primary: 0 0% 0%; /* #000000 - Black for primary buttons (light mode) */
+    --primary-foreground: 0 0% 100%; /* #FFFFFF - White text */
 
-    --muted: 0 0% 96%; /* Very light gray for muted backgrounds */
-    --muted-foreground: 0 0% 40%; /* Medium gray for muted text */
+    --secondary: 0 0% 100%; /* #FFFFFF - White background for secondary */
+    --secondary-foreground: 0 0% 0%; /* #000000 - Black text */
 
-    --accent: 0 0% 96%; /* Very light gray for accents */
-    --accent-foreground: 0 0% 0%; /* Black text */
+    --muted: 220 13% 98%; /* #F9FAFB - Very light gray for muted backgrounds */
+    --muted-foreground: 217 33% 17%; /* #1F2937 - Subtext/labels */
 
-    --destructive: 0 84% 60%; /* Red for destructive actions */
-    --destructive-foreground: 0 0% 100%;
+    --accent: 221 83% 53%; /* #2563EB - Accent Primary (blue) */
+    --accent-foreground: 0 0% 100%; /* #FFFFFF - White text on accent */
 
-    --success: 142 76% 36%; /* Green for success */
-    --success-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%; /* #DC2626 - Error */
+    --destructive-foreground: 0 0% 100%; /* #FFFFFF */
 
-    --warning: 38 92% 50%; /* Amber for warnings */
-    --warning-foreground: 0 0% 0%;
+    --success: 158 64% 52%; /* #10B981 - Accent Secondary (success) */
+    --success-foreground: 0 0% 100%; /* #FFFFFF */
 
-    --border: 0 0% 90%; /* Light gray borders */
-    --input: 0 0% 90%; /* Light gray input borders */
-    --ring: 0 0% 0%; /* Black focus rings */
+    --warning: 38 92% 50%; /* #F59E0B - Warning */
+    --warning-foreground: 0 0% 0%; /* #000000 */
 
-    /* Chart colors - only used on dashboard */
-    --chart-1: 0 0% 0%; /* Black */
-    --chart-2: 0 0% 30%; /* Dark gray */
-    --chart-3: 0 0% 50%; /* Medium gray */
-    --chart-4: 0 0% 70%; /* Light gray */
-    --chart-5: 0 0% 85%; /* Very light gray */
+    --border: 0 0% 90%; /* #E5E5E5 - Subtle lines, 1px */
+    --input: 0 0% 90%; /* #E5E5E5 - Input borders */
+    --ring: 221 83% 53%; /* #2563EB - Accent blue focus rings */
 
-    --radius: 0.5rem; /* 8px - restrained border radius */
+    /* Chart colors - monochrome with accent */
+    --chart-1: 221 83% 53%; /* #2563EB - Accent blue for primary data */
+    --chart-2: 158 64% 52%; /* #10B981 - Green for growth */
+    --chart-3: 0 72% 51%; /* #DC2626 - Red for decline */
+    --chart-4: 0 0% 40%; /* Medium gray */
+    --chart-5: 0 0% 70%; /* Light gray */
+
+    --radius: 0.5rem; /* 8px - clean edge geometry */
   }
 
   .dark {
-    /* Black and white core palette - Dark theme */
-    --background: 0 0% 0%; /* Pure black */
-    --foreground: 0 0% 100%; /* Pure white */
+    /* MONOCHROME RESKIN v2 - Dark Theme */
+    /* Pure black and white foundation with accent blue */
 
-    --card: 0 0% 5%; /* Near black cards */
-    --card-foreground: 0 0% 100%; /* White text on cards */
+    --background: 0 0% 0%; /* #000000 - Pure black */
+    --foreground: 0 0% 100%; /* #FFFFFF - Pure white */
 
-    --popover: 0 0% 5%;
-    --popover-foreground: 0 0% 100%;
+    --card: 0 0% 7%; /* #111111 - Near black cards */
+    --card-foreground: 0 0% 100%; /* #FFFFFF - White text on cards */
 
-    --primary: 0 0% 100%; /* White for primary actions */
-    --primary-foreground: 0 0% 0%; /* Black text on white buttons */
+    --popover: 0 0% 7%; /* #111111 */
+    --popover-foreground: 0 0% 100%; /* #FFFFFF */
 
-    --secondary: 0 0% 10%; /* Very dark gray for secondary */
-    --secondary-foreground: 0 0% 100%; /* White text */
+    --primary: 0 0% 100%; /* #FFFFFF - White for primary buttons (dark mode) */
+    --primary-foreground: 0 0% 0%; /* #000000 - Black text */
 
-    --muted: 0 0% 10%; /* Very dark gray for muted backgrounds */
-    --muted-foreground: 0 0% 60%; /* Medium gray for muted text */
+    --secondary: 0 0% 0%; /* #000000 - Black background for secondary */
+    --secondary-foreground: 0 0% 100%; /* #FFFFFF - White text */
 
-    --accent: 0 0% 10%; /* Very dark gray for accents */
-    --accent-foreground: 0 0% 100%; /* White text */
+    --muted: 0 0% 7%; /* #111111 - Very dark gray for muted backgrounds */
+    --muted-foreground: 220 13% 82%; /* #D1D5DB - Subtext/labels */
 
-    --destructive: 0 62% 50%; /* Red for destructive actions */
-    --destructive-foreground: 0 0% 100%;
+    --accent: 221 83% 53%; /* #2563EB - Accent Primary (blue) */
+    --accent-foreground: 0 0% 100%; /* #FFFFFF - White text on accent */
 
-    --success: 142 71% 45%; /* Green for success */
-    --success-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%; /* #DC2626 - Error */
+    --destructive-foreground: 0 0% 100%; /* #FFFFFF */
 
-    --warning: 38 92% 50%; /* Amber for warnings */
-    --warning-foreground: 0 0% 0%;
+    --success: 158 64% 52%; /* #10B981 - Accent Secondary (success) */
+    --success-foreground: 0 0% 100%; /* #FFFFFF */
 
-    --border: 0 0% 15%; /* Dark gray borders */
-    --input: 0 0% 15%; /* Dark gray input borders */
-    --ring: 0 0% 100%; /* White focus rings */
+    --warning: 38 92% 50%; /* #F59E0B - Warning */
+    --warning-foreground: 0 0% 0%; /* #000000 */
 
-    /* Chart colors - only used on dashboard */
-    --chart-1: 0 0% 100%; /* White */
-    --chart-2: 0 0% 70%; /* Light gray */
-    --chart-3: 0 0% 50%; /* Medium gray */
-    --chart-4: 0 0% 30%; /* Dark gray */
-    --chart-5: 0 0% 15%; /* Very dark gray */
+    --border: 0 0% 12%; /* #1E1E1E - Dark borders */
+    --input: 0 0% 12%; /* #1E1E1E - Input borders */
+    --ring: 221 83% 53%; /* #2563EB - Accent blue focus rings */
+
+    /* Chart colors - monochrome with accent */
+    --chart-1: 221 83% 53%; /* #2563EB - Accent blue for primary data */
+    --chart-2: 158 64% 52%; /* #10B981 - Green for growth */
+    --chart-3: 0 72% 51%; /* #DC2626 - Red for decline */
+    --chart-4: 0 0% 60%; /* Medium gray */
+    --chart-5: 0 0% 30%; /* Dark gray */
   }
 }
 
@@ -158,11 +162,7 @@
     animation: slide-in-from-bottom 0.2s ease-out;
   }
 
-  /* Subtle glass effect for cards - use sparingly */
-  .glass {
-    backdrop-filter: blur(12px);
-    background-color: hsl(var(--card) / 0.8);
-  }
+  /* NO BLUR EFFECTS - Removed glass utility per monochrome spec */
 }
 
 /* Legacy class cleanup - these will be removed as we refactor */
@@ -183,33 +183,49 @@
   max-width: 1600px;
 }
 
-/* Typography scale - modern and restrained */
+/* Typography scale - MONOCHROME RESKIN v2 */
+/* Clean, functional hierarchy with consistent line-height */
+
 h1, h2, h3, h4, h5, h6 {
-  @apply font-semibold tracking-tight;
+  @apply tracking-tight;
+  line-height: 1.5;
 }
 
 h1 {
-  @apply text-3xl sm:text-4xl;
+  @apply text-[28px] font-semibold; /* 600 weight, 28px */
 }
 
 h2 {
-  @apply text-2xl sm:text-3xl;
+  @apply text-[22px] font-medium; /* 500 weight, 22px */
 }
 
 h3 {
-  @apply text-xl sm:text-2xl;
+  @apply text-[18px] font-medium; /* 500 weight, 18px */
 }
 
 h4 {
-  @apply text-lg sm:text-xl;
+  @apply text-base font-medium; /* 500 weight, 16px */
 }
 
 h5 {
-  @apply text-base sm:text-lg;
+  @apply text-sm font-medium; /* 500 weight, 14px */
 }
 
 h6 {
-  @apply text-sm sm:text-base;
+  @apply text-sm font-medium; /* 500 weight, 14px */
+}
+
+/* Body text - 15px (0.9375rem), 400 weight */
+body {
+  @apply text-[15px];
+  line-height: 1.5;
+}
+
+/* Caption text - 13px, 400 weight, muted color */
+.caption,
+.text-caption {
+  @apply text-[13px] font-normal text-muted-foreground;
+  line-height: 1.5;
 }
 
 /* Prose styling for content */
@@ -528,9 +544,9 @@ select {
   @apply text-sm font-medium;
 }
 
-/* Score cards */
+/* Score cards - NO GRADIENTS */
 .analysis-scorecard {
-  @apply bg-gradient-to-br from-muted/30 to-muted/10 border border-border rounded-lg p-6 space-y-4;
+  @apply bg-card border border-border rounded-lg p-6 space-y-4;
 }
 
 .analysis-scorecard h3 {
@@ -558,7 +574,7 @@ select {
 }
 
 .analysis-highlight {
-  @apply text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/60;
+  @apply text-4xl font-bold text-foreground;
 }
 
 /* Keywords section */
@@ -628,9 +644,9 @@ select {
   @apply block text-sm text-muted-foreground;
 }
 
-/* Narrative section */
+/* Narrative section - NO GRADIENTS */
 .analysis-narrative {
-  @apply bg-gradient-to-br from-primary/5 to-transparent border border-border rounded-lg p-6 space-y-4;
+  @apply bg-card border border-border rounded-lg p-6 space-y-4;
 }
 
 .analysis-narrative h3 {

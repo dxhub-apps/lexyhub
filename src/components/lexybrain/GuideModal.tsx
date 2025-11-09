@@ -187,7 +187,7 @@ export function GuideModal({ open, onClose }: GuideModalProps) {
             <div className="border-t pt-6">
               <h3 className="text-lg font-semibold mb-4">Score Quick Reference</h3>
               <div className="grid grid-cols-2 gap-4 text-sm">
-                <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 border-green-200">
+                <Card className="bg-card border-success border-2">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm flex items-center gap-2">
                       <span className="text-2xl">🟢</span>
@@ -210,7 +210,7 @@ export function GuideModal({ open, onClose }: GuideModalProps) {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-950 border-red-200">
+                <Card className="bg-card border-destructive border-2">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm flex items-center gap-2">
                       <span className="text-2xl">🔴</span>

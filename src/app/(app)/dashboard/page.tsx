@@ -209,7 +209,7 @@ export default function DashboardPage(): JSX.Element {
   return (
     <div className="space-y-6">
       {/* Hero Section - Redesigned */}
-      <Card className="bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-cyan-500/10 border-purple-200 dark:border-purple-800">
+      <Card className="bg-card border-accent border-2">
         <CardHeader>
           <div className="flex items-start justify-between">
             <div className="space-y-2">
@@ -296,8 +296,8 @@ export default function DashboardPage(): JSX.Element {
 
           {/* Recent LexyBrain Insights */}
           {recentInsights && (
-            <Card className="border-2 border-purple-200 dark:border-purple-800">
-              <CardHeader className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950 dark:to-blue-950">
+            <Card className="border-2 border-accent">
+              <CardHeader className="bg-card border-b border-border">
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2 text-lg">
@@ -404,7 +404,7 @@ export default function DashboardPage(): JSX.Element {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700" asChild>
+                <Button variant="accent" className="w-full" asChild>
                   <Link href="/insights">
                     Run Analysis
                     <Sparkles className="ml-2 h-4 w-4" />
@@ -485,7 +485,7 @@ export default function DashboardPage(): JSX.Element {
           </Card>
 
           {/* Tips Card */}
-          <Card className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950 border-amber-200 dark:border-amber-800">
+          <Card className="bg-card border-warning border-2">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-amber-600" />

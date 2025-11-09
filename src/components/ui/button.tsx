@@ -6,24 +6,32 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium ring-offset-background transition-all duration-150 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        // Primary: black bg / white text (light) or white bg / black text (dark)
+        default: "bg-primary text-primary-foreground hover:bg-secondary hover:text-secondary-foreground hover:border hover:border-foreground",
+        // Accent: blue background / white text for key CTAs
+        accent: "bg-accent text-accent-foreground hover:bg-accent/90",
+        // Secondary: white background / black border
+        secondary:
+          "bg-secondary text-secondary-foreground border border-foreground hover:bg-primary hover:text-primary-foreground",
+        // Destructive: red for warnings
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        // Outline: minimal border style
         outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-foreground underline-offset-4 hover:underline",
+          "border border-border bg-background hover:bg-muted hover:text-foreground",
+        // Ghost: minimal style
+        ghost: "hover:bg-muted hover:text-foreground",
+        // Link: underline style
+        link: "text-accent underline-offset-4 hover:underline",
       },
       size: {
         default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
+        sm: "h-9 rounded-lg px-3",
+        lg: "h-11 rounded-lg px-8",
         icon: "h-10 w-10",
       },
     },
