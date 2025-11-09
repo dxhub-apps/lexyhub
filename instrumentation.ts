@@ -14,6 +14,51 @@ export async function register() {
   // Initialize Sentry for Node.js server runtime
   if (process.env.NEXT_RUNTIME === "nodejs") {
     await import("./sentry.server.config");
+
+    // Set up global error handlers for Node.js runtime
+    const Sentry = await import("@sentry/nextjs");
+
+    // Handle uncaught exceptions
+    process.on("uncaughtException", (error: Error) => {
+      console.error("Uncaught Exception:", error);
+      Sentry.captureException(error, {
+        tags: {
+          errorType: "uncaughtException",
+        },
+        level: "fatal",
+      });
+      // Give Sentry time to send the event before crashing
+      Sentry.flush(2000).then(() => {
+        process.exit(1);
+      });
+    });
+
+    // Handle unhandled promise rejections
+    process.on("unhandledRejection", (reason: unknown, promise: Promise<any>) => {
+      console.error("Unhandled Rejection at:", promise, "reason:", reason);
+      Sentry.captureException(reason, {
+        tags: {
+          errorType: "unhandledRejection",
+        },
+        level: "error",
+      });
+    });
+
+    // Handle warnings
+    process.on("warning", (warning: Error) => {
+      console.warn("Node.js Warning:", warning);
+      // Only capture critical warnings
+      if (warning.name === "DeprecationWarning" || warning.name === "ExperimentalWarning") {
+        return; // Ignore these common warnings
+      }
+      Sentry.captureException(warning, {
+        tags: {
+          errorType: "warning",
+          warningName: warning.name,
+        },
+        level: "warning",
+      });
+    });
   }
 
   // Initialize Sentry for Edge runtime

@@ -5,6 +5,7 @@ import type { Session } from "@supabase/supabase-js";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { SupabaseProvider } from "@/components/providers/SupabaseProvider";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { isAdminUser } from "@/lib/auth/admin";
 import { ensureAdminProfile } from "@/lib/auth/ensure-profile";
 
@@ -38,7 +39,9 @@ export default async function AppLayout({
 
   return (
     <SupabaseProvider initialSession={validatedSession}>
-      <AppShell isAdmin={isAdmin}>{children}</AppShell>
+      <ErrorBoundary context={{ feature: "app", component: "app-layout" }}>
+        <AppShell isAdmin={isAdmin}>{children}</AppShell>
+      </ErrorBoundary>
     </SupabaseProvider>
   );
 }

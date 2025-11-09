@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/react";
 import { Toaster } from "@/components/ui/toaster";
 import { PostHogProvider } from "@/components/providers/posthog-provider";
+import { ClientErrorHandler } from "@/components/ClientErrorHandler";
 
 export const metadata: Metadata = {
   title: "LexyHub — AI-first commerce intelligence",
@@ -28,6 +29,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
+        <ClientErrorHandler />
         <PostHogProvider>
           {children}
           <Toaster />
