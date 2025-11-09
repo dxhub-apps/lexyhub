@@ -1,10 +1,63 @@
--- =====================================================
--- Migration: 0045_lexybrain_unified_engine.sql
--- Description: Establish unified LexyBrain orchestration storage
--- =====================================================
 
 -- Ensure vector extension exists for embeddings
 CREATE EXTENSION IF NOT EXISTS vector;
+
+-- =====================================================
+-- 0. Team workspace scaffolding (required for team scoped RLS)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.teams (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug text UNIQUE,
+  name text NOT NULL,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.team_members (
+  team_id uuid NOT NULL REFERENCES public.teams(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  role text NOT NULL DEFAULT 'member',
+  status text NOT NULL DEFAULT 'active',
+  joined_at timestamptz NOT NULL DEFAULT now(),
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  PRIMARY KEY (team_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS team_members_user_idx
+  ON public.team_members(user_id);
+
+ALTER TABLE public.teams ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS teams_select_policy ON public.teams;
+CREATE POLICY teams_select_policy ON public.teams
+  FOR SELECT
+  USING (
+    created_by = auth.uid()
+    OR EXISTS (
+      SELECT 1
+      FROM public.team_members tm
+      WHERE tm.team_id = public.teams.id
+        AND tm.user_id = auth.uid()
+        AND tm.status = 'active'
+    )
+  );
+
+ALTER TABLE public.team_members ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS team_members_select_policy ON public.team_members;
+CREATE POLICY team_members_select_policy ON public.team_members
+  FOR SELECT
+  USING (
+    user_id = auth.uid()
+    OR EXISTS (
+      SELECT 1
+      FROM public.team_members tm
+      WHERE tm.team_id = public.team_members.team_id
+        AND tm.user_id = auth.uid()
+        AND tm.status = 'active'
+    )
+  );
 
 -- =====================================================
 -- 1. Prompt Configuration Store (ai_prompts)
@@ -152,7 +205,13 @@ CREATE TABLE IF NOT EXISTS public.ai_corpus (
   is_active boolean NOT NULL DEFAULT true,
   chunk_tsv tsvector GENERATED ALWAYS AS (
     to_tsvector('english', coalesce(chunk, ''))
-  ) STORED
+  ) STORED,
+  CONSTRAINT ai_corpus_team_scope_ck CHECK (
+    owner_scope <> 'team' OR owner_team_id IS NOT NULL
+  ),
+  CONSTRAINT ai_corpus_user_scope_ck CHECK (
+    owner_scope <> 'user' OR owner_user_id IS NOT NULL
+  )
 );
 
 CREATE INDEX IF NOT EXISTS ai_corpus_scope_idx ON public.ai_corpus(owner_scope);
@@ -160,6 +219,7 @@ CREATE INDEX IF NOT EXISTS ai_corpus_owner_team_idx ON public.ai_corpus(owner_te
 CREATE INDEX IF NOT EXISTS ai_corpus_marketplace_idx ON public.ai_corpus(marketplace);
 CREATE INDEX IF NOT EXISTS ai_corpus_created_idx ON public.ai_corpus(created_at DESC);
 CREATE INDEX IF NOT EXISTS ai_corpus_chunk_tsv_idx ON public.ai_corpus USING GIN (chunk_tsv);
+CREATE INDEX IF NOT EXISTS ai_corpus_team_idx ON public.ai_corpus(owner_team_id);
 
 ALTER TABLE public.ai_corpus
   ADD COLUMN IF NOT EXISTS owner_team_id uuid REFERENCES public.teams(id) ON DELETE CASCADE;
@@ -391,7 +451,10 @@ CREATE TABLE IF NOT EXISTS public.keyword_insight_snapshots (
   insight jsonb NOT NULL,
   references jsonb NOT NULL DEFAULT '[]'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now(),
-  created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
+  created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  CONSTRAINT keyword_insight_snapshots_team_scope_ck CHECK (
+    scope <> 'team' OR team_id IS NOT NULL
+  )
 );
 
 CREATE INDEX IF NOT EXISTS keyword_insight_snapshots_keyword_idx
