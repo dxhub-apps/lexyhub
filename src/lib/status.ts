@@ -238,8 +238,6 @@ export async function generateStatusReport(): Promise<StatusReport> {
     openai,
     listingsApi,
     keywordsApi,
-    trendInsightsApi,
-    intentGraphApi,
     embeddingWorker,
     trendAggregationWorker,
     intentClassificationWorker,
@@ -299,7 +297,7 @@ export async function generateStatusReport(): Promise<StatusReport> {
     },
     environment: process.env.NODE_ENV ?? "development",
     variables: VARIABLE_DEFINITIONS.map(resolveVariableStatus),
-    apis: [listingsApi, keywordsApi, trendInsightsApi, intentGraphApi],
+    apis: [listingsApi, keywordsApi],
     services: [database, openai],
     workers: [embeddingWorker, trendAggregationWorker, intentClassificationWorker, clusterRebuildWorker],
   };
