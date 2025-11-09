@@ -12,7 +12,7 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import * as Sentry from "@sentry/nextjs";
 
 import { logger } from "@/lib/logger";
-import { lexybrainGenerate } from "@/lib/lexybrain-json";
+import { lexybrainGenerate } from "@/lib/lexybrain";
 import { consumeLexyBrainQuota, LexyBrainQuotaExceededError } from "@/lib/lexybrain-quota";
 
 import {
@@ -214,52 +214,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const generationStart = Date.now();
 
-    // Fallback if RAG model ID not set
-    const ragModelId = process.env.LEXYBRAIN_RAG_MODEL_ID || process.env.LEXYBRAIN_MODEL_ID;
-
-    if (!ragModelId) {
-      throw new Error("LEXYBRAIN_RAG_MODEL_ID or LEXYBRAIN_MODEL_ID must be set");
-    }
-
-    // Use existing LexyBrain generate function
-    // NOTE: This is a simple text generation, not the structured JSON generator
-    // For now, we'll use the generate function and extract plain text
     let generatedText = "";
+    let modelId = process.env.LEXYBRAIN_RAG_MODEL_ID || process.env.LEXYBRAIN_MODEL_ID || "unknown";
     let generationLatency = 0;
     let fallbackToGeneric = false;
 
     try {
-      // For RAG, we just need plain text generation
-      // We'll call the HuggingFace provider directly in a simplified way
-      // NOTE: In production, create a dedicated `lexybrainGenerateText()` function
-
-      const response = await fetch("https://router.huggingface.co/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.HF_TOKEN}`,
-        },
-        body: JSON.stringify({
-          model: ragModelId,
-          messages: [
-            { role: "user", content: prompt },
-          ],
-          max_tokens: requestData.options?.maxTokens || 1024,
-          temperature: requestData.options?.temperature || 0.7,
-          stream: false,
-        }),
-        signal: AbortSignal.timeout(50000), // 50s timeout
+      // Use existing LexyBrain client
+      const response = await lexybrainGenerate({
+        prompt,
+        max_tokens: requestData.options?.maxTokens || 1024,
+        temperature: requestData.options?.temperature || 0.7,
       });
 
-      if (!response.ok) {
-        throw new Error(`HF API error: ${response.status}`);
-      }
-
-      const data = await response.json() as {
-        choices?: Array<{ message?: { content?: string } }>;
-      };
-
-      generatedText = data.choices?.[0]?.message?.content || "";
+      generatedText = response.completion;
+      modelId = response.model;
       generationLatency = Date.now() - generationStart;
 
       if (!generatedText) {
@@ -301,7 +270,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const assistantMessage = await insertAssistantMessage({
       threadId: thread.id,
       content: generatedText,
-      modelId: ragModelId,
+      modelId: modelId,
       retrievedSourceIds: rankedSources.map((s) => ({
         id: s.source_id,
         type: s.source_type,
@@ -371,7 +340,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       sources,
       references,
       model: {
-        id: ragModelId,
+        id: modelId,
         usage: {
           inputTokens: promptTokens,
           outputTokens: estimateTokens(generatedText),
