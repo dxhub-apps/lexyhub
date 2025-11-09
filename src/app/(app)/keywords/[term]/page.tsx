@@ -7,28 +7,26 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@supabase/auth-helpers-react";
 import {
   ArrowLeft,
-  TrendingUp,
-  BarChart3,
-  Target,
   Star,
-  Zap,
-  ExternalLink,
   Loader2,
-  Calendar,
-  Tag as TagIcon,
-  Activity
+  BarChart3,
+  Brain,
+  TrendingUp,
+  Users,
+  MessageSquare,
 } from "lucide-react";
-import Link from "next/link";
 
-import KeywordTrendChart from "@/components/keywords/KeywordTrendChart";
-import RelatedKeywords from "@/components/keywords/RelatedKeywords";
-import { SocialMetricsCard } from "@/components/social";
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { LexyBrainActionMenu } from "@/components/lexybrain/LexyBrainActionMenu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+import { KeywordOverviewTab } from "@/components/keywords/KeywordOverviewTab";
+import { KeywordInsightsTab } from "@/components/keywords/KeywordInsightsTab";
+import { KeywordTrendsTab } from "@/components/keywords/KeywordTrendsTab";
+import { KeywordCompetitorsTab } from "@/components/keywords/KeywordCompetitorsTab";
+import { KeywordChatTab } from "@/components/keywords/KeywordChatTab";
 
 type KeywordDetails = {
   id?: string;
@@ -52,10 +50,6 @@ type KeywordDetails = {
   seasonal_label?: string | null;
 };
 
-const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
-const percent = (n: number | null | undefined) =>
-  typeof n === "number" && Number.isFinite(n) ? Math.round(clamp01(n) * 100) : 0;
-
 const SOURCE_DETAILS: Record<string, { title: string; description: string }> = {
   synthetic: {
     title: "Synthetic AI",
@@ -67,7 +61,7 @@ const SOURCE_DETAILS: Record<string, { title: string; description: string }> = {
   },
 };
 
-export default function KeywordDetailsPage(): JSX.Element {
+export default function KeywordJourneyPage(): JSX.Element {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
@@ -75,6 +69,7 @@ export default function KeywordDetailsPage(): JSX.Element {
   const userId = session?.user?.id ?? null;
 
   const term = decodeURIComponent(params.term as string);
+  const [activeTab, setActiveTab] = useState("overview");
 
   const [keyword, setKeyword] = useState<KeywordDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -89,7 +84,6 @@ export default function KeywordDetailsPage(): JSX.Element {
     setError(null);
 
     try {
-      // Fetch this specific keyword using optimized endpoint
       const response = await fetch(
         `/api/keywords/by-term/${encodeURIComponent(term)}?market=us`,
         {
@@ -183,7 +177,7 @@ export default function KeywordDetailsPage(): JSX.Element {
           <CardContent className="flex items-center justify-center py-12">
             <div className="flex items-center gap-2">
               <Loader2 className="h-5 w-5 animate-spin" />
-              <p className="text-sm text-muted-foreground">Loading keyword details...</p>
+              <p className="text-sm text-muted-foreground">Loading keyword intelligence...</p>
             </div>
           </CardContent>
         </Card>
@@ -202,7 +196,7 @@ export default function KeywordDetailsPage(): JSX.Element {
           <CardContent>
             <Button onClick={() => router.push("/keywords")}>
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Keywords
+              Back to Search
             </Button>
           </CardContent>
         </Card>
@@ -210,26 +204,13 @@ export default function KeywordDetailsPage(): JSX.Element {
     );
   }
 
-  const demandScore = percent(keyword.adjusted_demand_index ?? keyword.demand_index ?? keyword.ai_opportunity_score);
-  const competitionScore = percent(keyword.competition_score ?? keyword.compositeScore);
-  const trendScore = percent(keyword.deseasoned_trend_momentum ?? keyword.trend_momentum);
-  const engagementScore = percent(keyword.engagement_score);
-
-  const tags = (keyword.extras?.["tags"] as string[] | undefined) ?? [];
-  const category = keyword.extras?.["category"] as string | undefined;
   const sourceInfo = SOURCE_DETAILS[keyword.source] ?? {
     title: keyword.source,
     description: "Market data source"
   };
 
-  const sparklinePoints = [{
-    value: clamp01(keyword.trend_momentum ?? keyword.ai_opportunity_score ?? 0.5),
-    label: keyword.term,
-    timestamp: keyword.freshness_ts ?? null
-  }];
-
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
       <Card>
         <CardHeader>
@@ -242,26 +223,22 @@ export default function KeywordDetailsPage(): JSX.Element {
                 className="-ml-3"
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Keywords
+                Back to Search
               </Button>
 
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline">Keyword Details</Badge>
+                  <Badge variant="outline">Keyword Intelligence</Badge>
                   <Badge variant="secondary">{sourceInfo.title}</Badge>
+                  {keyword.seasonal_label && (
+                    <Badge variant="default">{keyword.seasonal_label}</Badge>
+                  )}
                 </div>
                 <CardTitle className="text-4xl font-bold">{keyword.term}</CardTitle>
                 <CardDescription className="text-base">
-                  {sourceInfo.description}
+                  Comprehensive market intelligence powered by LexyBrain
                 </CardDescription>
               </div>
-
-              {category && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <TagIcon className="h-4 w-4" />
-                  <span>Category: {category}</span>
-                </div>
-              )}
             </div>
 
             <Button
@@ -284,324 +261,55 @@ export default function KeywordDetailsPage(): JSX.Element {
         </CardHeader>
       </Card>
 
-      {/* Key Metrics */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      {/* Tabbed Content */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardDescription>Demand Index</CardDescription>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="text-3xl font-bold">{demandScore}%</div>
-                {keyword.seasonal_label && (
-                  <Badge variant="secondary" className="text-xs">{keyword.seasonal_label}</Badge>
-                )}
-              </div>
-              <Progress value={demandScore} className="h-2" />
-              <p className="text-xs text-muted-foreground">
-                {keyword.adjusted_demand_index
-                  ? "Seasonal-adjusted search demand and market interest"
-                  : "Indicates search demand and market interest"}
-              </p>
-            </div>
+          <CardContent className="pt-6">
+            <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+              <TabsTrigger value="overview" className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="insights" className="flex items-center gap-2">
+                <Brain className="h-4 w-4" />
+                Insights
+              </TabsTrigger>
+              <TabsTrigger value="trends" className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Trends
+              </TabsTrigger>
+              <TabsTrigger value="competitors" className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Competitors
+              </TabsTrigger>
+              <TabsTrigger value="chat" className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" />
+                Ask LexyBrain
+              </TabsTrigger>
+            </TabsList>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardDescription>Competition</CardDescription>
-              <Target className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="text-3xl font-bold">{competitionScore}%</div>
-              <Progress value={competitionScore} className="h-2" />
-              <p className="text-xs text-muted-foreground">
-                Market saturation and competitive intensity
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <TabsContent value="overview" className="space-y-6">
+          <KeywordOverviewTab keyword={keyword} />
+        </TabsContent>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardDescription>Trend Momentum</CardDescription>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="text-3xl font-bold">{trendScore}%</div>
-              <Progress value={trendScore} className="h-2" />
-              <p className="text-xs text-muted-foreground">
-                {keyword.deseasoned_trend_momentum
-                  ? "Deseasoned growth trajectory relative to baseline"
-                  : "Growth trajectory and trending potential"}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <TabsContent value="insights" className="space-y-6">
+          <KeywordInsightsTab keyword={keyword} userId={userId} />
+        </TabsContent>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardDescription>Engagement</CardDescription>
-              <Activity className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="text-3xl font-bold">{engagementScore}%</div>
-              <Progress value={engagementScore} className="h-2" />
-              <p className="text-xs text-muted-foreground">
-                User interaction and conversion signals
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+        <TabsContent value="trends" className="space-y-6">
+          <KeywordTrendsTab keyword={keyword} />
+        </TabsContent>
 
-      {/* Overview Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Market Overview</CardTitle>
-          <CardDescription>
-            Intelligence summary and performance indicators
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Opportunity Assessment */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold">Opportunity Assessment</h3>
-            <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
-              <p className="text-sm leading-relaxed">
-                <strong>{keyword.term}</strong> shows{" "}
-                {demandScore > 70 ? "strong" : demandScore > 40 ? "moderate" : "emerging"}{" "}
-                demand signals with{" "}
-                {competitionScore > 70 ? "high" : competitionScore > 40 ? "moderate" : "low"}{" "}
-                competition. The{" "}
-                {trendScore > 60 ? "positive" : "stable"} trend momentum suggests{" "}
-                {trendScore > 60 ? "growing" : "consistent"} market interest.
-              </p>
-              <div className="flex flex-wrap gap-2 pt-2">
-                {demandScore > 70 && (
-                  <Badge variant="default">High Demand</Badge>
-                )}
-                {competitionScore < 40 && (
-                  <Badge variant="default">Low Competition</Badge>
-                )}
-                {trendScore > 60 && (
-                  <Badge variant="default">Trending Up</Badge>
-                )}
-                {demandScore > 60 && competitionScore < 50 && (
-                  <Badge variant="default" className="bg-green-600">
-                    Prime Opportunity
-                  </Badge>
-                )}
-              </div>
-            </div>
-          </div>
+        <TabsContent value="competitors" className="space-y-6">
+          <KeywordCompetitorsTab keyword={keyword} />
+        </TabsContent>
 
-          {/* Trend Chart */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold">Performance Trend</h3>
-            <KeywordTrendChart
-              keyword={keyword.term}
-              demandScore={demandScore}
-              competitionScore={competitionScore}
-              trendScore={trendScore}
-              engagementScore={engagementScore}
-            />
-          </div>
-
-          {/* Metadata */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold">Data Lineage</h3>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex items-center gap-2 text-sm">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <span className="text-muted-foreground">Last Updated: </span>
-                  <span className="font-medium">
-                    {keyword.freshness_ts
-                      ? new Date(keyword.freshness_ts).toLocaleString()
-                      : "Not available"}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <span className="text-muted-foreground">Source: </span>
-                  <span className="font-medium">{sourceInfo.title}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <Target className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <span className="text-muted-foreground">Market: </span>
-                  <span className="font-medium">{keyword.market.toUpperCase()}</span>
-                </div>
-              </div>
-              {keyword.method && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Zap className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <span className="text-muted-foreground">Method: </span>
-                    <span className="font-medium">{keyword.method}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tags */}
-      {tags.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Associated Tags</CardTitle>
-            <CardDescription>
-              Relevant product attributes and categories
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="text-sm">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Recommendations */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Next Steps</CardTitle>
-          <CardDescription>
-            Recommended actions to capitalize on this opportunity
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-3 text-sm">
-            {demandScore > 60 && competitionScore < 50 && (
-              <li className="flex gap-2">
-                <Badge variant="outline" className="shrink-0">1</Badge>
-                <span>
-                  <strong>High Priority:</strong> This keyword shows strong demand with manageable competition.
-                  Consider developing a product targeting this search term.
-                </span>
-              </li>
-            )}
-            <li className="flex gap-2">
-              <Badge variant="outline" className="shrink-0">{demandScore > 60 && competitionScore < 50 ? "2" : "1"}</Badge>
-              <span>
-                <strong>Market Research:</strong> Use the Market Twin simulator to test different product variations
-                and optimize visibility for this keyword.
-              </span>
-            </li>
-            <li className="flex gap-2">
-              <Badge variant="outline" className="shrink-0">{demandScore > 60 && competitionScore < 50 ? "3" : "2"}</Badge>
-              <span>
-                <strong>Track Progress:</strong> Add this keyword to your watchlist to monitor trend changes
-                and timing for market entry.
-              </span>
-            </li>
-            <li className="flex gap-2">
-              <Badge variant="outline" className="shrink-0">{demandScore > 60 && competitionScore < 50 ? "4" : "3"}</Badge>
-              <span>
-                <strong>Find Related Terms:</strong> Search for similar keywords to identify complementary
-                opportunities and build a comprehensive product strategy.
-              </span>
-            </li>
-          </ul>
-        </CardContent>
-      </Card>
-
-      {/* Social Media Insights */}
-      {keyword.id && (
-        <SocialMetricsCard
-          keywordId={keyword.id}
-          keywordTerm={keyword.term}
-          lookbackDays={30}
-        />
-      )}
-
-      {/* Related Keywords */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Related Opportunities</CardTitle>
-          <CardDescription>
-            AI-powered keyword suggestions based on user intent and behavioral patterns
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <RelatedKeywords keyword={term} market={keyword.market} />
-        </CardContent>
-      </Card>
-
-      {/* Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-3">
-            <Button asChild>
-              <Link href={`/market-twin?keyword=${encodeURIComponent(term)}`}>
-                <Zap className="mr-2 h-4 w-4" />
-                Run Market Simulation
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href={`/keywords?query=${encodeURIComponent(term)}`}>
-                <BarChart3 className="mr-2 h-4 w-4" />
-                Explore Similar Keywords
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href={`/niche-explorer?niche=${encodeURIComponent(term)}`}>
-                <TrendingUp className="mr-2 h-4 w-4" />
-                Explore Niche
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/watchlists">
-                <Star className="mr-2 h-4 w-4" />
-                View Watchlist
-              </Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* LexyBrain Analysis */}
-      <Card>
-        <CardHeader>
-          <CardTitle>AI-Powered Analysis</CardTitle>
-          <CardDescription>
-            Use LexyBrain to get deep market insights and strategic recommendations
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <LexyBrainActionMenu
-            keyword={term}
-            market={keyword.market}
-            variant="button"
-          />
-        </CardContent>
-      </Card>
+        <TabsContent value="chat" className="space-y-6">
+          <KeywordChatTab keyword={keyword} userId={userId} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
