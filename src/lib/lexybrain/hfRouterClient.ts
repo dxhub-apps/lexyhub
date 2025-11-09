@@ -67,5 +67,5 @@ export async function callLexybrainHFRouter(
     throw new Error("HF router: empty completion");
   }
 
-  return { completion, model: data.model || HF_MODEL };
+  return { completion, model: data.model || HF_MODEL! };
 }
