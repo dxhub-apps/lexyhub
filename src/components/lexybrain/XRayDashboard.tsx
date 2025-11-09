@@ -407,8 +407,8 @@ export function XRayDashboard() {
             </Card>
           )}
 
-          {/* Risk Alerts */}
-          {results.risks && results.risks.alerts && results.risks.alerts.length > 0 && (
+          {/* Risk Assessment - Consolidated */}
+          {results.risks && (
             <Card className="border-l-4 border-l-red-500">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -417,41 +417,52 @@ export function XRayDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {results.risks.alerts.map((alert: any, i: number) => (
-                    <Card key={i} className={getSeverityClass(alert.severity)}>
-                      <CardContent className="pt-4 pb-3">
-                        <div className="flex justify-between items-start mb-2">
-                          <strong className="font-semibold">{alert.term}</strong>
-                          <Badge variant="outline" className="uppercase text-xs">
-                            {alert.severity}
-                          </Badge>
+                {results.risks.alerts && results.risks.alerts.length > 0 ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                      <div className="text-center p-3 rounded-lg bg-red-50 dark:bg-red-950">
+                        <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                          {results.risks.alerts.filter((a: any) => a.severity === 'high').length}
                         </div>
-                        <p className="text-sm font-medium mb-1">{alert.issue}</p>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          <strong>Evidence:</strong> {alert.evidence}
-                        </p>
-                        <p className="text-sm">
-                          <strong>Action:</strong> {alert.action}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                        <div className="text-xs text-muted-foreground">High Risk</div>
+                      </div>
+                      <div className="text-center p-3 rounded-lg bg-orange-50 dark:bg-orange-950">
+                        <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                          {results.risks.alerts.filter((a: any) => a.severity === 'medium').length}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Medium Risk</div>
+                      </div>
+                      <div className="text-center p-3 rounded-lg bg-yellow-50 dark:bg-yellow-950">
+                        <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                          {results.risks.alerts.filter((a: any) => a.severity === 'low').length}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Low Risk</div>
+                      </div>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg">
+                      <h4 className="font-semibold mb-2 text-sm">Summary</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {results.risks.alerts.filter((a: any) => a.severity === 'high').length > 0
+                          ? `⚠️ ${results.risks.alerts.filter((a: any) => a.severity === 'high').length} keyword${results.risks.alerts.filter((a: any) => a.severity === 'high').length > 1 ? 's show' : ' shows'} high-risk signals (market saturation or declining trends). Consider pivoting to less saturated niches or updating your product positioning.`
+                          : results.risks.alerts.filter((a: any) => a.severity === 'medium').length > 0
+                          ? `⚡ ${results.risks.alerts.filter((a: any) => a.severity === 'medium').length} keyword${results.risks.alerts.filter((a: any) => a.severity === 'medium').length > 1 ? 's show' : ' shows'} moderate risk. Monitor these closely and be prepared to adjust your strategy if competition increases.`
+                          : `✓ Only low-risk warnings detected. Your keywords are in relatively healthy markets. Continue monitoring monthly for changes.`}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <Alert className="border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <AlertDescription className="text-green-700 dark:text-green-300">
+                      No significant risks detected. Your market looks healthy!
+                    </AlertDescription>
+                  </Alert>
+                )}
               </CardContent>
             </Card>
           )}
 
-          {results.risks && results.risks.alerts && results.risks.alerts.length === 0 && (
-            <Alert className="border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-700 dark:text-green-300">
-                No significant risks detected. Your market looks healthy!
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Ad Budget Breakdown */}
+          {/* Ad Budget Strategy - Consolidated */}
           {results.ads && results.ads.budget_split && results.ads.budget_split.length > 0 && (
             <Card className="border-l-4 border-l-yellow-500">
               <CardHeader>
@@ -461,26 +472,26 @@ export function XRayDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {results.ads.budget_split.map((item: any, i: number) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-900">
-                      <div>
-                        <strong className="block">{item.term}</strong>
-                        <span className="text-sm text-muted-foreground">
-                          ${(item.expected_cpc_cents / 100).toFixed(2)} CPC • {item.expected_clicks} clicks/day
-                        </span>
-                      </div>
-                      <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300">
-                        ${(item.daily_cents / 100).toFixed(2)}/day
-                      </Badge>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="text-center p-3 rounded-lg bg-yellow-50 dark:bg-yellow-950">
+                    <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                      ${(results.ads.budget_split.reduce((sum: number, item: any) => sum + item.expected_cpc_cents, 0) / results.ads.budget_split.length / 100).toFixed(2)}
                     </div>
-                  ))}
+                    <div className="text-xs text-muted-foreground">Avg. CPC</div>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-blue-50 dark:bg-blue-950">
+                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                      {Math.round(results.ads.budget_split.reduce((sum: number, item: any) => sum + item.expected_clicks, 0) / results.ads.budget_split.length)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Avg. Clicks/Day</div>
+                  </div>
                 </div>
-                {results.ads.notes && (
-                  <p className="text-sm text-muted-foreground mt-4 p-3 bg-slate-100 dark:bg-slate-800 rounded">
-                    {results.ads.notes}
+                <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg">
+                  <h4 className="font-semibold mb-2 text-sm">Strategy Recommendation</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {results.ads.notes || `Based on your keywords, expect an average CPC of $${(results.ads.budget_split.reduce((sum: number, item: any) => sum + item.expected_cpc_cents, 0) / results.ads.budget_split.length / 100).toFixed(2)} and approximately ${Math.round(results.ads.budget_split.reduce((sum: number, item: any) => sum + item.expected_clicks, 0))} total clicks per day across all keywords. Focus your budget on high-profit keywords (70+ profit score) for best ROI.`}
                   </p>
-                )}
+                </div>
               </CardContent>
             </Card>
           )}
