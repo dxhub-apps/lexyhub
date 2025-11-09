@@ -1,11 +1,11 @@
 "use client";
 
 import { Menu } from "lucide-react";
-import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import type { SidebarNavItem } from "./Sidebar";
 import { UserMenu } from "./UserMenu";
+import { NotificationsBell } from "@/components/notifications/NotificationsBell";
 
 type TopbarProps = {
   activeNavItem: SidebarNavItem;
@@ -33,9 +33,7 @@ export function Topbar({ activeNavItem, onToggleSidebar }: TopbarProps): JSX.Ele
         </div>
 
         <div className="flex items-center gap-2">
-          <Button asChild variant="accent" size="sm">
-            <Link href="/ask-lexybrain">Ask LexyBrain</Link>
-          </Button>
+          <NotificationsBell />
           <UserMenu />
         </div>
       </div>

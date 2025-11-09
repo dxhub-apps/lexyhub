@@ -2,41 +2,23 @@
 // API endpoints for managing user keyword watchlists
 
 import { NextResponse } from "next/server";
-import { getSupabaseServerClient } from "@/lib/supabase-server";
-
-// Helper to get authenticated user
-async function getAuthenticatedUser(supabase: ReturnType<typeof getSupabaseServerClient>) {
-  if (!supabase) {
-    return null;
-  }
-
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error || !user) {
-    return null;
-  }
-
-  return user;
-}
+import { cookies } from "next/headers";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 
 // GET /api/watchlist - Get user's watchlist
 export async function GET(req: Request): Promise<NextResponse> {
-  const supabase = getSupabaseServerClient();
-
-  if (!supabase) {
-    return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
-  }
-
-  const user = await getAuthenticatedUser(supabase);
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const supabase = createRouteHandlerClient({ cookies });
 
   try {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { data: watchlist, error } = await supabase
       .from("user_keyword_watchlists")
       .select(
@@ -77,19 +59,19 @@ export async function GET(req: Request): Promise<NextResponse> {
 
 // POST /api/watchlist - Add keyword to watchlist
 export async function POST(req: Request): Promise<NextResponse> {
-  const supabase = getSupabaseServerClient();
-
-  if (!supabase) {
-    return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
-  }
-
-  const user = await getAuthenticatedUser(supabase);
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const supabase = createRouteHandlerClient({ cookies });
 
   try {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+
     const body = await req.json();
     const { keyword_id, alert_threshold, alert_enabled, notes } = body;
 

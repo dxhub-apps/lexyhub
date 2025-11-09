@@ -193,9 +193,15 @@ export function UserMenu(): JSX.Element {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem>
-              <Link href="/affiliates" className="flex w-full items-center">
+              <Link href="/referrals" className="flex w-full items-center">
                 <Users className="mr-2 h-4 w-4" />
                 <span>Referrals</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Link href="/help" className="flex w-full items-center">
+                <HelpCircle className="mr-2 h-4 w-4" />
+                <span>Help</span>
               </Link>
             </DropdownMenuItem>
           </>
@@ -222,12 +228,6 @@ export function UserMenu(): JSX.Element {
             </DropdownMenuRadioGroup>
           </DropdownMenuSubContent>
         </DropdownMenuSub>
-        <DropdownMenuItem>
-          <Link href="/docs" className="flex w-full items-center">
-            <HelpCircle className="mr-2 h-4 w-4" />
-            <span>Help Center</span>
-          </Link>
-        </DropdownMenuItem>
         {user && (
           <>
             <DropdownMenuSeparator />
