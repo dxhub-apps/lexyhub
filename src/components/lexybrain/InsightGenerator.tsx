@@ -53,6 +53,15 @@ export function InsightGenerator() {
     }
 
     await generate(request);
+
+    // Persist to localStorage for Neural Map tab
+    if (terms.length > 0) {
+      localStorage.setItem("lexybrain_last_search", JSON.stringify({
+        market,
+        keyword: terms[0],
+        timestamp: new Date().toISOString(),
+      }));
+    }
   };
 
   const isValid = market.length > 0 && (activeTab !== "ad_insight" || parseFloat(budgetDollars || "0") > 0);

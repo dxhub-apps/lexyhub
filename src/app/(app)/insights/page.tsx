@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { Brain, FileText, Radar, DollarSign, AlertTriangle, Network, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,38 +15,54 @@ import { Label } from "@/components/ui/label";
 import { InsightGenerator } from "@/components/lexybrain/InsightGenerator";
 import { QuotaDisplay } from "@/components/lexybrain/QuotaDisplay";
 import { NeuralMap } from "@/components/lexybrain/NeuralMap";
+import { XRayDashboard } from "@/components/lexybrain/XRayDashboard";
 
 export default function InsightsPage() {
   const [neuralMapTerm, setNeuralMapTerm] = useState("handmade jewelry");
   const [neuralMapMarket, setNeuralMapMarket] = useState("etsy");
   const [showNeuralMap, setShowNeuralMap] = useState(false);
 
+  // Load persisted search from X-Ray/Generate tabs
+  useEffect(() => {
+    const stored = localStorage.getItem("lexybrain_last_search");
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed.keyword) {
+          setNeuralMapTerm(parsed.keyword);
+          setNeuralMapMarket(parsed.market || "etsy");
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
+  }, []);
+
   return (
     <div className="space-y-8">
-      {/* Hero Section */}
+      {/* Hero Section - Compact */}
       <Card className="bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-cyan-500/10 border-purple-200 dark:border-purple-800">
-        <CardHeader>
-          <div className="flex items-start gap-3">
-            <Brain className="h-8 w-8 text-purple-600 dark:text-purple-400" />
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-3xl font-bold">LexyBrain AI Insights</CardTitle>
-                <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
-                  AI-Powered
-                </Badge>
-              </div>
-              <CardDescription className="text-base">
-                Powered by Llama-3-8B, LexyBrain transforms your keyword data into actionable market intelligence.
-                Get personalized insights, discover opportunities, and make data-driven decisions to grow your business.
-              </CardDescription>
-            </div>
+        <CardHeader className="pb-3 pt-4">
+          <div className="flex items-center gap-2">
+            <Brain className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+            <CardTitle className="text-xl font-bold">LexyBrain AI Insights</CardTitle>
+            <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 text-xs">
+              AI-Powered
+            </Badge>
           </div>
+          <CardDescription className="text-sm mt-1">
+            Complete market intelligence in one click - powered by Llama-3-8B
+          </CardDescription>
         </CardHeader>
       </Card>
 
       {/* Main Tabs */}
-      <Tabs defaultValue="generate" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue="xray" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="xray" className="flex items-center gap-2">
+            <Radar className="h-4 w-4" />
+            X-Ray
+          </TabsTrigger>
           <TabsTrigger value="generate" className="flex items-center gap-2">
             <Sparkles className="h-4 w-4" />
             Generate
@@ -64,6 +80,18 @@ export default function InsightsPage() {
             Guide
           </TabsTrigger>
         </TabsList>
+
+        {/* X-Ray Tab */}
+        <TabsContent value="xray" className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <XRayDashboard />
+            </div>
+            <div>
+              <QuotaDisplay />
+            </div>
+          </div>
+        </TabsContent>
 
         {/* Generate Tab */}
         <TabsContent value="generate" className="space-y-6">
@@ -148,141 +176,162 @@ export default function InsightsPage() {
 
           {/* AI Insight Types */}
           <div>
-            <h2 className="text-2xl font-semibold mb-4">AI-Powered Analysis</h2>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <h2 className="text-xl font-semibold mb-3">AI-Powered Analysis</h2>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {/* Market Brief */}
           <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <FileText className="h-8 w-8 text-blue-600 dark:text-blue-400 mb-2" />
-              <CardTitle>Market Brief</CardTitle>
-              <CardDescription>
-                Comprehensive market analysis with opportunities, risks, and actionable recommendations
+            <CardHeader className="pb-3">
+              <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400 mb-1" />
+              <CardTitle className="text-base">Market Brief</CardTitle>
+              <CardDescription className="text-xs">
+                Comprehensive market analysis with opportunities and risks
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <ul className="text-sm space-y-2 text-muted-foreground">
-                <li>• High-level market summary</li>
-                <li>• Top 5 keyword opportunities</li>
+            <CardContent className="space-y-2">
+              <ul className="text-xs space-y-1 text-muted-foreground">
+                <li>• Market summary & trends</li>
+                <li>• Top opportunities</li>
                 <li>• Risk assessment</li>
-                <li>• Strategic action items</li>
-                <li>• Confidence scoring</li>
+                <li>• Action items</li>
               </ul>
               <Badge variant="secondary" className="text-xs">
-                24h cache • 2 briefs/month (Free)
+                24h cache • 2/mo (Free)
               </Badge>
             </CardContent>
           </Card>
 
           {/* Opportunity Radar */}
           <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <Radar className="h-8 w-8 text-green-600 dark:text-green-400 mb-2" />
-              <CardTitle>Opportunity Radar</CardTitle>
-              <CardDescription>
-                Multi-dimensional keyword scoring across demand, momentum, competition, and profit potential
+            <CardHeader className="pb-3">
+              <Radar className="h-6 w-6 text-green-600 dark:text-green-400 mb-1" />
+              <CardTitle className="text-base">Opportunity Radar</CardTitle>
+              <CardDescription className="text-xs">
+                Multi-dimensional keyword scoring system
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <ul className="text-sm space-y-2 text-muted-foreground">
-                <li>• 5-dimension scoring system</li>
-                <li>• Demand & momentum analysis</li>
-                <li>• Competition assessment</li>
+            <CardContent className="space-y-2">
+              <ul className="text-xs space-y-1 text-muted-foreground">
+                <li>• Demand & momentum</li>
+                <li>• Competition level</li>
                 <li>• Novelty & profit scores</li>
-                <li>• Expert commentary</li>
+                <li>• AI commentary</li>
               </ul>
               <Badge variant="secondary" className="text-xs">
-                24h cache • 20 calls/month (Free)
+                24h cache • 20/mo (Free)
               </Badge>
             </CardContent>
           </Card>
 
           {/* Ad Insight */}
           <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <DollarSign className="h-8 w-8 text-yellow-600 dark:text-yellow-400 mb-2" />
-              <CardTitle>Ad Insight</CardTitle>
-              <CardDescription>
-                Smart advertising budget allocation with CPC estimates and click predictions
+            <CardHeader className="pb-3">
+              <DollarSign className="h-6 w-6 text-yellow-600 dark:text-yellow-400 mb-1" />
+              <CardTitle className="text-base">Ad Insight</CardTitle>
+              <CardDescription className="text-xs">
+                Smart ad budget allocation with CPC estimates
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <ul className="text-sm space-y-2 text-muted-foreground">
-                <li>• Budget split recommendations</li>
-                <li>• Expected CPC per keyword</li>
-                <li>• Daily click estimates</li>
-                <li>• ROI optimization tips</li>
-                <li>• Seasonal adjustments</li>
+            <CardContent className="space-y-2">
+              <ul className="text-xs space-y-1 text-muted-foreground">
+                <li>• Budget recommendations</li>
+                <li>• CPC estimates</li>
+                <li>• Click predictions</li>
+                <li>• ROI optimization</li>
               </ul>
               <Badge variant="secondary" className="text-xs">
-                6h cache • 20 calls/month (Free)
+                6h cache • 20/mo (Free)
               </Badge>
             </CardContent>
           </Card>
 
           {/* Risk Sentinel */}
           <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <AlertTriangle className="h-8 w-8 text-red-600 dark:text-red-400 mb-2" />
-              <CardTitle>Risk Sentinel</CardTitle>
-              <CardDescription>
-                Proactive risk detection with severity assessment and mitigation strategies
+            <CardHeader className="pb-3">
+              <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400 mb-1" />
+              <CardTitle className="text-base">Risk Sentinel</CardTitle>
+              <CardDescription className="text-xs">
+                Proactive risk detection and mitigation
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <ul className="text-sm space-y-2 text-muted-foreground">
-                <li>• Market saturation alerts</li>
-                <li>• Declining trend warnings</li>
-                <li>• Severity classification</li>
-                <li>• Evidence-based insights</li>
-                <li>• Actionable mitigation steps</li>
+            <CardContent className="space-y-2">
+              <ul className="text-xs space-y-1 text-muted-foreground">
+                <li>• Saturation alerts</li>
+                <li>• Trend warnings</li>
+                <li>• Severity levels</li>
+                <li>• Action plans</li>
               </ul>
               <Badge variant="secondary" className="text-xs">
-                12h cache • 20 calls/month (Free)
+                12h cache • 20/mo (Free)
               </Badge>
             </CardContent>
           </Card>
 
           {/* Keyword Graph */}
           <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <Network className="h-8 w-8 text-purple-600 dark:text-purple-400 mb-2" />
-              <CardTitle>Neural Map</CardTitle>
-              <CardDescription>
-                Interactive keyword similarity graph powered by AI vector embeddings
+            <CardHeader className="pb-3">
+              <Network className="h-6 w-6 text-purple-600 dark:text-purple-400 mb-1" />
+              <CardTitle className="text-base">Neural Map</CardTitle>
+              <CardDescription className="text-xs">
+                Interactive keyword similarity visualization
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <ul className="text-sm space-y-2 text-muted-foreground">
-                <li>• Vector-based similarity</li>
-                <li>• Interactive visualization</li>
-                <li>• Discover related niches</li>
-                <li>• Expansion opportunities</li>
-                <li>• Multi-level exploration</li>
+            <CardContent className="space-y-2">
+              <ul className="text-xs space-y-1 text-muted-foreground">
+                <li>• Vector similarity</li>
+                <li>• Interactive graph</li>
+                <li>• Niche discovery</li>
+                <li>• Expansion ideas</li>
               </ul>
               <Badge variant="secondary" className="text-xs">
-                Real-time • Unlimited (All plans)
+                Real-time • Unlimited
+              </Badge>
+            </CardContent>
+          </Card>
+
+          {/* X-Ray */}
+          <Card className="hover:shadow-lg transition-shadow border-2 border-purple-200 dark:border-purple-800">
+            <CardHeader className="pb-3">
+              <Radar className="h-6 w-6 text-purple-600 dark:text-purple-400 mb-1" />
+              <CardTitle className="text-base flex items-center gap-2">
+                X-Ray Dashboard
+                <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+                  NEW
+                </Badge>
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Complete market intelligence in one click
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <ul className="text-xs space-y-1 text-muted-foreground">
+                <li>• All insights combined</li>
+                <li>• Visual dashboard</li>
+                <li>• One-click analysis</li>
+                <li>• Persistent results</li>
+              </ul>
+              <Badge variant="secondary" className="text-xs">
+                Uses quota from each feature
               </Badge>
             </CardContent>
           </Card>
 
           {/* Coming Soon */}
           <Card className="hover:shadow-lg transition-shadow opacity-75">
-            <CardHeader>
-              <Brain className="h-8 w-8 text-gray-400 mb-2" />
-              <CardTitle className="flex items-center gap-2">
-                More AI Features
-                <Badge variant="outline" className="text-xs">Coming Soon</Badge>
+            <CardHeader className="pb-3">
+              <Brain className="h-6 w-6 text-gray-400 mb-1" />
+              <CardTitle className="text-base flex items-center gap-2">
+                More Features
+                <Badge variant="outline" className="text-xs">Soon</Badge>
               </CardTitle>
-              <CardDescription>
-                Additional AI-powered features in development
+              <CardDescription className="text-xs">
+                Additional AI features in development
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <ul className="text-sm space-y-2 text-muted-foreground">
+            <CardContent className="space-y-2">
+              <ul className="text-xs space-y-1 text-muted-foreground">
                 <li>• Seasonal forecasting</li>
                 <li>• Competitor tracking</li>
                 <li>• Listing optimizer</li>
-                <li>• Market simulator</li>
                 <li>• Trend alerts</li>
               </ul>
             </CardContent>
@@ -582,6 +631,250 @@ export default function InsightsPage() {
                       Run Risk Sentinel on all your active keywords monthly. Diversify away from high-risk keywords.
                     </p>
                   </div>
+                </div>
+              </div>
+
+              {/* Seller Scenarios */}
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+                    Seller Scenarios
+                  </Badge>
+                </h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Real-world examples of how sellers use LexyBrain to grow their business. These scenarios show you exactly what to do in common situations.
+                </p>
+
+                <div className="space-y-6">
+                  {/* Scenario 1: New Seller */}
+                  <Card className="border-2 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <span className="text-blue-600 dark:text-blue-400">📦</span>
+                        New Seller: Finding Your First Profitable Niche
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                      <div>
+                        <strong className="text-blue-700 dark:text-blue-300">Situation:</strong>
+                        <p className="text-muted-foreground">
+                          Sarah wants to start selling on Etsy but doesn&apos;t know which products will be profitable.
+                        </p>
+                      </div>
+                      <div>
+                        <strong className="text-blue-700 dark:text-blue-300">How to use LexyBrain:</strong>
+                        <ol className="list-decimal list-inside space-y-2 text-muted-foreground mt-2">
+                          <li>Use <strong>X-Ray Dashboard</strong> with broad keywords like &quot;handmade gifts, personalized items, custom jewelry&quot;</li>
+                          <li>Look at the <strong>Market Overview</strong> to understand which category has the best opportunities</li>
+                          <li>Check <strong>Opportunity Radar</strong> scores - focus on keywords with high demand (70+) and low competition (30-)</li>
+                          <li>Review <strong>Risk Assessment</strong> to avoid saturated markets</li>
+                          <li>Use <strong>Neural Map</strong> to discover related niches you hadn&apos;t considered</li>
+                        </ol>
+                      </div>
+                      <div className="bg-white dark:bg-slate-900 p-3 rounded border border-blue-200 dark:border-blue-800">
+                        <strong className="text-blue-700 dark:text-blue-300">Expected Result:</strong>
+                        <p className="text-muted-foreground mt-1">
+                          Sarah discovers that &quot;custom pet portraits&quot; has high demand (85) with moderate competition (45), perfect for a beginner. The X-Ray shows 12 related keywords she can target.
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Scenario 2: Struggling Seller */}
+                  <Card className="border-2 border-yellow-200 dark:border-yellow-800 bg-yellow-50/50 dark:bg-yellow-950/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <span className="text-yellow-600 dark:text-yellow-400">📉</span>
+                        Struggling Seller: Reviving Declining Sales
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                      <div>
+                        <strong className="text-yellow-700 dark:text-yellow-300">Situation:</strong>
+                        <p className="text-muted-foreground">
+                          Mike&apos;s sales have dropped 40% in the last 3 months. He sells vintage-style home decor.
+                        </p>
+                      </div>
+                      <div>
+                        <strong className="text-yellow-700 dark:text-yellow-300">How to use LexyBrain:</strong>
+                        <ol className="list-decimal list-inside space-y-2 text-muted-foreground mt-2">
+                          <li>Run <strong>Risk Sentinel</strong> on his current keywords like &quot;vintage wall art, rustic signs, farmhouse decor&quot;</li>
+                          <li>Identify which keywords are declining (red alerts) vs. still strong (green/yellow)</li>
+                          <li>Use <strong>Market Brief</strong> to see what new trends are emerging in his niche</li>
+                          <li>Check <strong>Opportunity Radar</strong> for pivot opportunities within his expertise</li>
+                          <li>Use <strong>Neural Map</strong> to find adjacent niches with better momentum</li>
+                        </ol>
+                      </div>
+                      <div className="bg-white dark:bg-slate-900 p-3 rounded border border-yellow-200 dark:border-yellow-800">
+                        <strong className="text-yellow-700 dark:text-yellow-300">Expected Result:</strong>
+                        <p className="text-muted-foreground mt-1">
+                          Risk Sentinel shows &quot;farmhouse decor&quot; is saturated (high severity alert). However, &quot;cottagecore aesthetic&quot; and &quot;dark academia decor&quot; are trending with low competition. Mike pivots his designs.
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Scenario 3: Scaling Seller */}
+                  <Card className="border-2 border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <span className="text-green-600 dark:text-green-400">📈</span>
+                        Growing Seller: Scaling with Smart Ad Spend
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                      <div>
+                        <strong className="text-green-700 dark:text-green-300">Situation:</strong>
+                        <p className="text-muted-foreground">
+                          Jessica is making consistent sales and wants to invest $500/month in ads to scale up.
+                        </p>
+                      </div>
+                      <div>
+                        <strong className="text-green-700 dark:text-green-300">How to use LexyBrain:</strong>
+                        <ol className="list-decimal list-inside space-y-2 text-muted-foreground mt-2">
+                          <li>Use <strong>X-Ray Dashboard</strong> with her top 10 performing keywords</li>
+                          <li>Check <strong>Ad Budget Strategy</strong> to see recommended allocation (enter $16.67 daily budget)</li>
+                          <li>Focus ad spend on keywords with high profit scores (70+) in <strong>Opportunity Radar</strong></li>
+                          <li>Run <strong>Risk Sentinel</strong> monthly to avoid wasting budget on declining keywords</li>
+                          <li>Use <strong>Neural Map</strong> to discover new keyword clusters for expansion</li>
+                        </ol>
+                      </div>
+                      <div className="bg-white dark:bg-slate-900 p-3 rounded border border-green-200 dark:border-green-800">
+                        <strong className="text-green-700 dark:text-green-300">Expected Result:</strong>
+                        <p className="text-muted-foreground mt-1">
+                          Ad Insight shows putting 60% of budget on &quot;custom wedding invitations&quot; (CPC: $0.45, 37 clicks/day) will drive the best ROI. She allocates accordingly and sees 3x return.
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Scenario 4: Seasonal Seller */}
+                  <Card className="border-2 border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <span className="text-purple-600 dark:text-purple-400">🎄</span>
+                        Seasonal Seller: Planning for Holiday Rush
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                      <div>
+                        <strong className="text-purple-700 dark:text-purple-300">Situation:</strong>
+                        <p className="text-muted-foreground">
+                          It&apos;s August, and David wants to prepare his inventory for the Christmas season.
+                        </p>
+                      </div>
+                      <div>
+                        <strong className="text-purple-700 dark:text-purple-300">How to use LexyBrain:</strong>
+                        <ol className="list-decimal list-inside space-y-2 text-muted-foreground mt-2">
+                          <li>Use <strong>Market Brief</strong> with seasonal keywords like &quot;Christmas gifts, holiday decor, winter accessories&quot;</li>
+                          <li>Check <strong>Opportunity Radar</strong> to find which seasonal items have best momentum scores (indicating growing interest)</li>
+                          <li>Use <strong>Neural Map</strong> to discover micro-niches (e.g., &quot;Grinch ornaments&quot; vs generic &quot;Christmas ornaments&quot;)</li>
+                          <li>Run <strong>Ad Insight</strong> to plan promotional budget for October-November launch</li>
+                          <li>Set up monthly <strong>Risk Sentinel</strong> checks to monitor competition levels as season approaches</li>
+                        </ol>
+                      </div>
+                      <div className="bg-white dark:bg-slate-900 p-3 rounded border border-purple-200 dark:border-purple-800">
+                        <strong className="text-purple-700 dark:text-purple-300">Expected Result:</strong>
+                        <p className="text-muted-foreground mt-1">
+                          David finds that &quot;personalized family ornaments&quot; has 40% higher momentum than generic ornaments. He focuses production there and captures early-season buyers in September.
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Scenario 5: Product Expansion */}
+                  <Card className="border-2 border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <span className="text-orange-600 dark:text-orange-400">🎨</span>
+                        Expanding Seller: Adding New Product Lines
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                      <div>
+                        <strong className="text-orange-700 dark:text-orange-300">Situation:</strong>
+                        <p className="text-muted-foreground">
+                          Emma sells digital printables and wants to add 3 new product categories to diversify income.
+                        </p>
+                      </div>
+                      <div>
+                        <strong className="text-orange-700 dark:text-orange-300">How to use LexyBrain:</strong>
+                        <ol className="list-decimal list-inside space-y-2 text-muted-foreground mt-2">
+                          <li>Start with her current best sellers in <strong>Neural Map</strong> to find semantically related products</li>
+                          <li>Run <strong>X-Ray Dashboard</strong> on 5-6 potential expansion categories</li>
+                          <li>Compare <strong>Opportunity Radar</strong> scores across all options - prioritize high novelty (60+) with medium competition (40-60)</li>
+                          <li>Use <strong>Market Brief</strong> on top 2 candidates to understand full landscape</li>
+                          <li>Check <strong>Risk Assessment</strong> to avoid categories with high saturation warnings</li>
+                        </ol>
+                      </div>
+                      <div className="bg-white dark:bg-slate-900 p-3 rounded border border-orange-200 dark:border-orange-800">
+                        <strong className="text-orange-700 dark:text-orange-300">Expected Result:</strong>
+                        <p className="text-muted-foreground mt-1">
+                          Neural Map reveals that customers buying &quot;budget planner printables&quot; also search for &quot;meal planning templates&quot; and &quot;habit tracker sheets&quot; - both showing high opportunity scores with low risk. Emma expands into both.
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+
+              {/* Quick Reference Visual Guide */}
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-semibold mb-4">Visual Quick Reference</h3>
+                <div className="grid md:grid-cols-2 gap-4 text-sm">
+                  <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 border-green-200 dark:border-green-800">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <span className="text-2xl">🟢</span>
+                        Green Signals (Good to Go!)
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-1 text-xs">
+                      <div className="flex items-start gap-2">
+                        <span className="font-bold text-green-700 dark:text-green-300">70+</span>
+                        <span className="text-muted-foreground">Opportunity score - Start here!</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="font-bold text-green-700 dark:text-green-300">80+</span>
+                        <span className="text-muted-foreground">Demand score - High buyer interest</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="font-bold text-green-700 dark:text-green-300">30-</span>
+                        <span className="text-muted-foreground">Competition - Easy to rank</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="font-bold text-green-700 dark:text-green-300">Low</span>
+                        <span className="text-muted-foreground">Risk severity - Safe market</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-950 border-red-200 dark:border-red-800">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <span className="text-2xl">🔴</span>
+                        Red Flags (Avoid or Pivot!)
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-1 text-xs">
+                      <div className="flex items-start gap-2">
+                        <span className="font-bold text-red-700 dark:text-red-300">40-</span>
+                        <span className="text-muted-foreground">Opportunity score - Look elsewhere</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="font-bold text-red-700 dark:text-red-300">30-</span>
+                        <span className="text-muted-foreground">Demand score - Not enough buyers</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="font-bold text-red-700 dark:text-red-300">70+</span>
+                        <span className="text-muted-foreground">Competition - Very crowded market</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="font-bold text-red-700 dark:text-red-300">High</span>
+                        <span className="text-muted-foreground">Risk severity - Market declining</span>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               </div>
             </CardContent>
