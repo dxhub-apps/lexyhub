@@ -27,6 +27,9 @@ const envSchema = z.object({
     .optional(),
   // LexyBrain AI configuration
   LEXYBRAIN_ENABLE: z.string().optional(),
+  HF_TOKEN: z.string().optional(),
+  LEXYBRAIN_MODEL_ID: z.string().optional(),
+  LEXYBRAIN_RAG_MODEL_ID: z.string().optional(),
   // New RunPod Serverless Queue configuration
   RUNPOD_API_KEY: z.string().optional(),
   LEXYBRAIN_RUNPOD_ENDPOINT_ID: z.string().optional(),
@@ -67,6 +70,9 @@ function readEnv(): Env {
     BROWSER_EXTENSION_ALLOW_USER_TELEMETRY_DEFAULT:
       process.env.BROWSER_EXTENSION_ALLOW_USER_TELEMETRY_DEFAULT,
     LEXYBRAIN_ENABLE: process.env.LEXYBRAIN_ENABLE,
+    HF_TOKEN: process.env.HF_TOKEN,
+    LEXYBRAIN_MODEL_ID: process.env.LEXYBRAIN_MODEL_ID,
+    LEXYBRAIN_RAG_MODEL_ID: process.env.LEXYBRAIN_RAG_MODEL_ID,
     RUNPOD_API_KEY: process.env.RUNPOD_API_KEY,
     LEXYBRAIN_RUNPOD_ENDPOINT_ID: process.env.LEXYBRAIN_RUNPOD_ENDPOINT_ID,
     LEXYBRAIN_MODEL_URL: process.env.LEXYBRAIN_MODEL_URL,

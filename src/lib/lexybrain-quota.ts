@@ -13,7 +13,7 @@ import type { LexyBrainOutputType } from "./lexybrain-schemas";
 // Types
 // =====================================================
 
-export type LexyBrainQuotaKey = "ai_calls" | "ai_brief" | "ai_sim";
+export type LexyBrainQuotaKey = "ai_calls" | "ai_brief" | "ai_sim" | "rag_messages";
 
 export interface PlanEntitlements {
   plan_code: string;
@@ -23,6 +23,7 @@ export interface PlanEntitlements {
   ai_calls_per_month: number;
   briefs_per_month: number;
   sims_per_month: number;
+  rag_messages_per_month: number;
   extension_boost: Record<string, unknown>;
 }
 
@@ -152,6 +153,7 @@ function getDefaultEntitlements(planCode: string): PlanEntitlements {
       ai_calls_per_month: 20,
       briefs_per_month: 2,
       sims_per_month: 2,
+      rag_messages_per_month: 50,
       extension_boost: { ai_calls_multiplier: 2 },
     },
     basic: {
@@ -162,6 +164,7 @@ function getDefaultEntitlements(planCode: string): PlanEntitlements {
       ai_calls_per_month: 200,
       briefs_per_month: 20,
       sims_per_month: 20,
+      rag_messages_per_month: 500,
       extension_boost: {},
     },
     pro: {
@@ -172,6 +175,7 @@ function getDefaultEntitlements(planCode: string): PlanEntitlements {
       ai_calls_per_month: 2000,
       briefs_per_month: 100,
       sims_per_month: 200,
+      rag_messages_per_month: 2000,
       extension_boost: {},
     },
     growth: {
@@ -182,6 +186,7 @@ function getDefaultEntitlements(planCode: string): PlanEntitlements {
       ai_calls_per_month: -1,
       briefs_per_month: -1,
       sims_per_month: -1,
+      rag_messages_per_month: -1,
       extension_boost: {},
     },
     admin: {
@@ -192,6 +197,7 @@ function getDefaultEntitlements(planCode: string): PlanEntitlements {
       ai_calls_per_month: -1,
       briefs_per_month: -1,
       sims_per_month: -1,
+      rag_messages_per_month: -1,
       extension_boost: {},
     },
   };
@@ -226,6 +232,7 @@ export async function consumeLexyBrainQuota(
     ai_calls: "ai_calls_per_month",
     ai_brief: "briefs_per_month",
     ai_sim: "sims_per_month",
+    rag_messages: "rag_messages_per_month",
   };
 
   const limitField = limitFieldMap[key];
@@ -358,6 +365,7 @@ export async function checkLexyBrainQuota(
     ai_calls: "ai_calls_per_month",
     ai_brief: "briefs_per_month",
     ai_sim: "sims_per_month",
+    rag_messages: "rag_messages_per_month",
   };
 
   const limitField = limitFieldMap[key];
@@ -399,16 +407,18 @@ export async function checkLexyBrainQuota(
 export async function getLexyBrainQuotaUsage(userId: string): Promise<
   Record<LexyBrainQuotaKey, QuotaCheckResult>
 > {
-  const [aiCalls, aiBrief, aiSim] = await Promise.all([
+  const [aiCalls, aiBrief, aiSim, ragMessages] = await Promise.all([
     checkLexyBrainQuota(userId, "ai_calls"),
     checkLexyBrainQuota(userId, "ai_brief"),
     checkLexyBrainQuota(userId, "ai_sim"),
+    checkLexyBrainQuota(userId, "rag_messages"),
   ]);
 
   return {
     ai_calls: aiCalls,
     ai_brief: aiBrief,
     ai_sim: aiSim,
+    rag_messages: ragMessages,
   };
 }
 

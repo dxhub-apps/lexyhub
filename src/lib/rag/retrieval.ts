@@ -1,0 +1,219 @@
+/**
+ * Ask LexyBrain RAG - Retrieval
+ *
+ * Handles vector search and context retrieval
+ */
+
+import { getSupabaseServerClient } from "@/lib/supabase-server";
+import { createDeterministicEmbedding } from "@/lib/ai/embeddings";
+import { logger } from "@/lib/logger";
+import type { RetrievalContext } from "./types";
+
+const KEYWORD_EMBEDDING_DIMENSION = 384; // all-MiniLM-L6-v2
+
+// =====================================================
+// Embedding Generation
+// =====================================================
+
+/**
+ * Generate embedding for RAG query
+ *
+ * NOTE: This uses deterministic SHA256-based embeddings as a fallback.
+ * In production, integrate with Sentence Transformers or HuggingFace
+ * embedding API to match the all-MiniLM-L6-v2 model used for keywords.
+ */
+export async function generateEmbedding(text: string): Promise<number[]> {
+  // For now, use deterministic fallback
+  // TODO: Integrate with actual all-MiniLM-L6-v2 model
+  const embedding = createDeterministicEmbedding(text, KEYWORD_EMBEDDING_DIMENSION);
+
+  logger.debug(
+    { type: 'rag_embedding_generated', text_length: text.length },
+    'Generated embedding for query'
+  );
+
+  return embedding;
+}
+
+// =====================================================
+// Vector Search
+// =====================================================
+
+/**
+ * Retrieve context using vector similarity search
+ */
+export async function retrieveContext(params: {
+  query: string;
+  userId: string;
+  capability: string;
+  market?: string | null;
+  timeRangeFrom?: string | null;
+  timeRangeTo?: string | null;
+  topK?: number;
+}): Promise<RetrievalContext[]> {
+  const supabase = getSupabaseServerClient();
+
+  if (!supabase) {
+    logger.warn('Supabase client unavailable, skipping retrieval');
+    return [];
+  }
+
+  const startTime = Date.now();
+
+  // Generate embedding
+  const embedding = await generateEmbedding(params.query);
+
+  // Call RPC function
+  const { data, error } = await supabase.rpc('search_rag_context', {
+    p_query_embedding: embedding,
+    p_user_id: params.userId,
+    p_capability: params.capability,
+    p_market: params.market || null,
+    p_time_range_from: params.timeRangeFrom || null,
+    p_time_range_to: params.timeRangeTo || null,
+    p_top_k: params.topK || 40,
+  });
+
+  const latency = Date.now() - startTime;
+
+  if (error) {
+    logger.error(
+      {
+        type: 'rag_retrieval_error',
+        user_id: params.userId,
+        capability: params.capability,
+        error: error.message,
+        latency_ms: latency,
+      },
+      'Vector search failed'
+    );
+    return [];
+  }
+
+  logger.info(
+    {
+      type: 'rag_retrieval_success',
+      user_id: params.userId,
+      capability: params.capability,
+      results_count: data?.length || 0,
+      latency_ms: latency,
+    },
+    'Vector search completed'
+  );
+
+  return (data as RetrievalContext[]) || [];
+}
+
+// =====================================================
+// Reranking
+// =====================================================
+
+/**
+ * Rerank results to prioritize user-owned sources
+ */
+export function rerank(
+  results: RetrievalContext[],
+  topN: number = 12
+): RetrievalContext[] {
+  // Sort by ownership scope and similarity
+  const ranked = results.sort((a, b) => {
+    // Priority: user > global > team
+    const scopePriority = { user: 3, global: 2, team: 1 };
+    const aPriority = scopePriority[a.owner_scope] || 0;
+    const bPriority = scopePriority[b.owner_scope] || 0;
+
+    if (aPriority !== bPriority) {
+      return bPriority - aPriority;
+    }
+
+    // If same scope, sort by similarity
+    return b.similarity_score - a.similarity_score;
+  });
+
+  return ranked.slice(0, topN);
+}
+
+// =====================================================
+// Structured Context Fetch
+// =====================================================
+
+/**
+ * Fetch keyword details by IDs
+ */
+export async function fetchKeywordsByIds(
+  keywordIds: string[]
+): Promise<Array<{
+  id: string;
+  term: string;
+  demand_index: number | null;
+  competition_score: number | null;
+  trend_momentum: number | null;
+  engagement_score: number | null;
+  ai_opportunity_score: number | null;
+}>> {
+  const supabase = getSupabaseServerClient();
+
+  if (!supabase || keywordIds.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('keywords')
+    .select(
+      'id, term, demand_index, competition_score, trend_momentum, engagement_score, ai_opportunity_score'
+    )
+    .in('id', keywordIds);
+
+  if (error) {
+    logger.error(
+      { type: 'rag_keyword_fetch_error', error: error.message },
+      'Failed to fetch keywords by IDs'
+    );
+    return [];
+  }
+
+  return data || [];
+}
+
+/**
+ * Fetch full context including vector search + structured IDs
+ */
+export async function fetchFullContext(params: {
+  query: string;
+  userId: string;
+  capability: string;
+  market?: string | null;
+  timeRangeFrom?: string | null;
+  timeRangeTo?: string | null;
+  keywordIds?: string[];
+  topK?: number;
+}): Promise<{
+  vectorResults: RetrievalContext[];
+  structuredKeywords: Array<{
+    id: string;
+    term: string;
+    demand_index: number | null;
+    competition_score: number | null;
+    trend_momentum: number | null;
+    engagement_score: number | null;
+    ai_opportunity_score: number | null;
+  }>;
+}> {
+  // Parallel fetch
+  const [vectorResults, structuredKeywords] = await Promise.all([
+    retrieveContext({
+      query: params.query,
+      userId: params.userId,
+      capability: params.capability,
+      market: params.market,
+      timeRangeFrom: params.timeRangeFrom,
+      timeRangeTo: params.timeRangeTo,
+      topK: params.topK,
+    }),
+    params.keywordIds?.length
+      ? fetchKeywordsByIds(params.keywordIds)
+      : Promise.resolve([]),
+  ]);
+
+  return { vectorResults, structuredKeywords };
+}
