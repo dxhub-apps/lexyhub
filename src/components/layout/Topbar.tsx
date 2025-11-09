@@ -78,12 +78,12 @@ export function Topbar({
 
         {/* Right section */}
         <div className="flex items-center gap-2">
-          {/* Ask LexyBrain Button */}
+          {/* Ask LexyBrain Button - NO GRADIENT */}
           <Button
-            variant="default"
+            variant="accent"
             size="sm"
             onClick={handleAskLexyBrain}
-            className="gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+            className="gap-2"
           >
             <MessageSquare className="h-4 w-4" />
             <span className="hidden sm:inline">Ask LexyBrain</span>

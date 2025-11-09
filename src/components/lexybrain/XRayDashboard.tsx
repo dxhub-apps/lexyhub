@@ -265,7 +265,8 @@ export function XRayDashboard() {
           <Button
             onClick={handleGenerate}
             disabled={loading || !isValid}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+            variant="accent"
+            className="w-full"
             size="lg"
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -291,8 +292,8 @@ export function XRayDashboard() {
 
       {/* Results Dashboard with Tabs */}
       {results && (
-        <Card className="border-2 border-purple-200 dark:border-purple-800">
-          <CardHeader className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950 dark:to-blue-950">
+        <Card className="border-2 border-accent">
+          <CardHeader className="bg-card border-b border-border">
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
@@ -363,7 +364,7 @@ export function XRayDashboard() {
                 {/* Market Summary */}
                 {results.brief && (
                   <div className="space-y-4">
-                    <div className="p-4 rounded-lg bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950 border-2 border-blue-200 dark:border-blue-800">
+                    <div className="p-4 rounded-lg bg-card border-2 border-accent">
                       <h4 className="font-semibold text-lg mb-2 flex items-center gap-2">
                         <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                         {results.brief.niche}
@@ -425,7 +426,7 @@ export function XRayDashboard() {
                     </h4>
                     <div className="grid gap-3">
                       {results.radar.items.map((item: any, i: number) => (
-                        <Card key={i} className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+                        <Card key={i} className="bg-muted border border-border">
                           <CardContent className="pt-4 pb-3">
                             <h5 className="font-semibold mb-3">{item.term}</h5>
                             <div className="grid grid-cols-5 gap-2 mb-2">
@@ -449,7 +450,7 @@ export function XRayDashboard() {
                 {results.ads?.budget_split && results.ads.budget_split.length > 0 ? (
                   <>
                     <div className="grid grid-cols-2 gap-4">
-                      <Card className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-950 dark:to-orange-950 border-yellow-200 dark:border-yellow-800">
+                      <Card className="bg-card border-warning border-2">
                         <CardContent className="pt-6 text-center">
                           <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
                             ${(results.ads.budget_split.reduce((sum: number, item: any) => sum + item.expected_cpc_cents, 0) / results.ads.budget_split.length / 100).toFixed(2)}
@@ -457,7 +458,7 @@ export function XRayDashboard() {
                           <div className="text-sm text-muted-foreground mt-1">Average CPC</div>
                         </CardContent>
                       </Card>
-                      <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950 border-blue-200 dark:border-blue-800">
+                      <Card className="bg-card border-accent border-2">
                         <CardContent className="pt-6 text-center">
                           <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
                             {Math.round(results.ads.budget_split.reduce((sum: number, item: any) => sum + item.expected_clicks, 0) / results.ads.budget_split.length)}
@@ -489,7 +490,7 @@ export function XRayDashboard() {
                 {results.risks?.alerts && results.risks.alerts.length > 0 ? (
                   <>
                     <div className="grid grid-cols-3 gap-4">
-                      <Card className="bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-950 border-red-200 dark:border-red-800">
+                      <Card className="bg-card border-destructive border-2">
                         <CardContent className="pt-6 text-center">
                           <div className="text-3xl font-bold text-red-600 dark:text-red-400">
                             {results.risks.alerts.filter((a: any) => a.severity === 'high').length}
@@ -497,7 +498,7 @@ export function XRayDashboard() {
                           <div className="text-sm text-muted-foreground mt-1">High Risk</div>
                         </CardContent>
                       </Card>
-                      <Card className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 border-orange-200 dark:border-orange-800">
+                      <Card className="bg-card border-warning border-2">
                         <CardContent className="pt-6 text-center">
                           <div className="text-3xl font-bold text-orange-600 dark:text-orange-400">
                             {results.risks.alerts.filter((a: any) => a.severity === 'medium').length}
@@ -505,7 +506,7 @@ export function XRayDashboard() {
                           <div className="text-sm text-muted-foreground mt-1">Medium Risk</div>
                         </CardContent>
                       </Card>
-                      <Card className="bg-gradient-to-br from-yellow-50 to-lime-50 dark:from-yellow-950 dark:to-lime-950 border-yellow-200 dark:border-yellow-800">
+                      <Card className="bg-card border-warning border-2">
                         <CardContent className="pt-6 text-center">
                           <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
                             {results.risks.alerts.filter((a: any) => a.severity === 'low').length}
@@ -552,14 +553,14 @@ export function XRayDashboard() {
 
 function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string | number; color: string }) {
   const colorClasses = {
-    green: "from-green-500/10 to-green-600/10 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300",
-    blue: "from-blue-500/10 to-blue-600/10 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300",
-    red: "from-red-500/10 to-red-600/10 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300",
-    purple: "from-purple-500/10 to-purple-600/10 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300",
+    green: "border-success text-success",
+    blue: "border-accent text-accent",
+    red: "border-destructive text-destructive",
+    purple: "border-accent text-accent",
   };
 
   return (
-    <Card className={`bg-gradient-to-br ${colorClasses[color as keyof typeof colorClasses]}`}>
+    <Card className={`bg-card border ${colorClasses[color as keyof typeof colorClasses]}`}>
       <CardContent className="pt-6 pb-4">
         <div className="flex items-center justify-between">
           <div>

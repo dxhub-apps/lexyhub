@@ -336,7 +336,7 @@ export default function BillingPage(): JSX.Element {
 
       {/* Founders Deal CTA - Show if coming from sidebar */}
       {showFoundersDeal && showUpgradeCTA && (
-        <Card className="border-blue-600 border-2 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950">
+        <Card className="border-accent border-2 bg-card">
           <CardHeader>
             <div className="flex items-start gap-3">
               <Sparkles className="h-6 w-6 text-blue-600" />
