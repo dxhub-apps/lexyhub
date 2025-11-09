@@ -146,6 +146,9 @@ const sentryWebpackPluginOptions = {
   project: process.env.SENTRY_PROJECT,
   authToken: process.env.SENTRY_AUTH_TOKEN,
 
+  // Upload a larger set of source maps for prettier stack traces (increases build time)
+  widenClientFileUpload: true,
+
   // Automatically annotate React components for easier debugging
   reactComponentAnnotation: {
     enabled: true,
