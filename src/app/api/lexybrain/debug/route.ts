@@ -29,7 +29,7 @@ export async function GET(): Promise<NextResponse> {
   }
 
   // HuggingFace configuration
-  const hfModelId = process.env.LEXYBRAIN_MODEL_ID || "meta-llama/Llama-3.1-8B-Instruct";
+  const hfModelId = process.env.LEXYBRAIN_MODEL_ID;
 
   // Legacy RunPod configuration (deprecated)
   let maskedRunpodKey = "NOT SET (Deprecated)";

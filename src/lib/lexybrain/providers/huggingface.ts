@@ -5,7 +5,7 @@ import {
 } from "./types";
 
 const HF_TOKEN = process.env.HF_TOKEN;
-const HF_MODEL = process.env.LEXYBRAIN_MODEL_ID || "meta-llama/Llama-3.1-8B-Instruct";
+const HF_MODEL = process.env.LEXYBRAIN_MODEL_ID;
 const HF_URL = "https://router.huggingface.co/v1/chat/completions";
 
 export class HuggingFaceProvider implements LexyBrainProvider {
@@ -16,6 +16,10 @@ export class HuggingFaceProvider implements LexyBrainProvider {
   constructor() {
     if (!HF_TOKEN) {
       throw new Error("HF_TOKEN is not set in environment variables");
+    }
+
+    if (!HF_MODEL) {
+      throw new Error("LEXYBRAIN_MODEL_ID is not set in environment variables");
     }
 
     this.token = HF_TOKEN;
@@ -34,7 +38,7 @@ export class HuggingFaceProvider implements LexyBrainProvider {
 
     console.log(`[HuggingFaceProvider] Generating completion`, {
       promptLength: prompt.length,
-      maxTokens: max_tokens ?? 256,
+      maxTokens: max_tokens ?? 1024,
       temperature: temperature ?? 0.3,
       model: this.model,
     });
@@ -52,7 +56,7 @@ export class HuggingFaceProvider implements LexyBrainProvider {
             },
         { role: "user", content: prompt },
       ],
-      max_tokens: max_tokens ?? 256,
+      max_tokens: max_tokens ?? 1024,
       temperature: temperature ?? 0.3,
     };
 
