@@ -155,7 +155,7 @@ export function KeywordChatTab({
             <div className="space-y-1 flex-1">
               <CardTitle>Ask LexyBrain</CardTitle>
               <CardDescription>
-                Chat with AI about "{keyword.term}" - ask anything about market trends,
+                Chat with AI about &ldquo;{keyword.term}&rdquo; - ask anything about market trends,
                 competition, risks, or recommendations
               </CardDescription>
             </div>
