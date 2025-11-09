@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { UserMenu } from "./UserMenu";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { WatchlistIndicator } from "@/components/watchlist/WatchlistIndicator";
+import { TopbarFeedbackButton } from "@/components/feedback/TopbarFeedbackButton";
 import type { SidebarNavItem } from "./Sidebar";
 
 type TopbarProps = {
@@ -87,6 +88,10 @@ export function Topbar({
             <MessageSquare className="h-4 w-4" />
             <span className="hidden sm:inline">Ask LexyBrain</span>
           </Button>
+
+          <Separator orientation="vertical" className="h-6" />
+
+          <TopbarFeedbackButton />
 
           <Separator orientation="vertical" className="h-6" />
 
