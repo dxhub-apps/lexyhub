@@ -63,6 +63,7 @@ export function NeuralMap({
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -76,6 +77,7 @@ export function NeuralMap({
     async function fetchGraph() {
       setLoading(true);
       setError(null);
+      setSuggestions([]);
 
       try {
         const response = await fetch("/api/lexybrain/graph", {
@@ -92,6 +94,12 @@ export function NeuralMap({
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ message: "Unknown error" }));
+
+          // Check if we have suggestions
+          if (errorData.suggestions && errorData.suggestions.length > 0) {
+            setSuggestions(errorData.suggestions);
+          }
+
           throw new Error(errorData.message || `HTTP ${response.status}`);
         }
 
@@ -208,11 +216,50 @@ export function NeuralMap({
 
   if (error) {
     return (
-      <Card>
+      <Card className="border-orange-200 dark:border-orange-800">
         <CardContent className="py-12">
-          <div className="text-center">
-            <p className="text-sm text-destructive mb-2">Failed to load graph</p>
-            <p className="text-xs text-muted-foreground">{error}</p>
+          <div className="text-center space-y-4">
+            <div>
+              <p className="text-sm text-orange-600 dark:text-orange-400 mb-2 font-medium">Keyword Not Indexed Yet</p>
+              <p className="text-xs text-muted-foreground">{error}</p>
+            </div>
+
+            {suggestions.length > 0 && (
+              <div className="max-w-md mx-auto">
+                <p className="text-sm font-medium mb-3">Try one of these similar keywords:</p>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {suggestions.map((suggestion, i) => (
+                    <Button
+                      key={i}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Update the term in parent component
+                        window.location.href = `#neural-map`;
+                        // Trigger a re-render with new term
+                        const event = new CustomEvent('neuralMapSuggestion', {
+                          detail: { term: suggestion }
+                        });
+                        window.dispatchEvent(event);
+                      }}
+                      className="text-xs"
+                    >
+                      {suggestion}
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-4">
+                  These keywords have been analyzed and have neural map data available. Click one to explore!
+                </p>
+              </div>
+            )}
+
+            {suggestions.length === 0 && (
+              <p className="text-xs text-muted-foreground mt-4">
+                This keyword hasn&apos;t been indexed yet. Our database grows as more users search keywords.
+                Try searching for popular marketplace terms like &quot;handmade jewelry&quot; or &quot;vintage decor&quot;.
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
