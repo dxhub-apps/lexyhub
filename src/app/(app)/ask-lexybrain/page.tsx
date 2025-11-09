@@ -12,6 +12,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { RagResponse } from "@/lib/rag/types";
 import { cn } from "@/lib/utils";
+import { FeedbackButtonsCompact } from "@/components/lexybrain/FeedbackButtons";
 
 interface Message {
   id: string;
@@ -436,6 +437,9 @@ export default function AskLexyBrainPage() {
                         )}
                       </div>
                     </div>
+                  )}
+                  {message.role === "assistant" && (
+                    <FeedbackButtonsCompact responseId={message.id} className="mt-2" />
                   )}
                 </div>
               </div>
