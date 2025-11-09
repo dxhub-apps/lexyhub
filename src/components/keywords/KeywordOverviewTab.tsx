@@ -148,7 +148,7 @@ export function KeywordOverviewTab({ keyword }: { keyword: KeywordDetails }) {
           {/* Opportunity Assessment */}
           <div className="space-y-3">
             <h3 className="text-sm font-semibold">Opportunity Assessment</h3>
-            <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
+            <div className="rounded-lg border border-border bg-muted p-4 space-y-2">
               <p className="text-sm leading-relaxed">
                 <strong>{keyword.term}</strong> shows{" "}
                 {demandScore > 70 ? "strong" : demandScore > 40 ? "moderate" : "emerging"}{" "}
@@ -169,7 +169,7 @@ export function KeywordOverviewTab({ keyword }: { keyword: KeywordDetails }) {
                   <Badge variant="default">Trending Up</Badge>
                 )}
                 {demandScore > 60 && competitionScore < 50 && (
-                  <Badge variant="default" className="bg-green-600">
+                  <Badge className="bg-success text-success-foreground">
                     Prime Opportunity
                   </Badge>
                 )}
