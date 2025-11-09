@@ -161,6 +161,12 @@ await flushSentry();
 
 ## PostHog - Analytics
 
+### Initialization
+
+- The browser SDK is initialized in [`instrumentation-client.ts`](../instrumentation-client.ts) using the official Next.js integration pattern. The client uses the `defaults: "2025-05-24"` preset so pageview and pageleave events are handled automatically by PostHog.
+- The helper in [`src/lib/analytics/posthog.ts`](../src/lib/analytics/posthog.ts) exposes `initPostHog`, `getPostHog`, and `isPostHogReady`. These utilities gracefully no-op when the required environment variables are missing and simply return the existing instance when PostHog was already initialized by the instrumentation client.
+- Wrap the application in [`PostHogProvider`](../src/components/providers/posthog-provider.tsx) to ensure `initPostHog()` runs on the client and children can safely call the analytics helpers.
+
 ### Automatic Tracking
 
 PostHog automatically tracks:
@@ -170,7 +176,7 @@ PostHog automatically tracks:
 - Click events
 - Form submissions
 
-> **Initialization safeguard**: The PostHog client only initializes when both `NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_POSTHOG_HOST` are defined. If the key is missing during a render (for example, due to a misconfigured environment), the guard unlocks itself so that the client can initialize correctly once the variable is provided rather than staying permanently disabled.
+> **Initialization safeguard**: The helper functions only initialize PostHog when both `NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_POSTHOG_HOST` are defined in the runtime environment. If those variables are missing, the helpers simply return `null` and PostHog will initialize once the configuration is corrected.
 
 ### Event Tracking
 
@@ -555,7 +561,7 @@ To see more events in production, adjust sample rates in the Sentry config files
 
    // Check PostHog
    import { isPostHogReady } from '@/lib/analytics/posthog'
-   console.log(isPostHogReady()) // Should return true
+   isPostHogReady() // Returns true when the browser client is initialized
    ```
 
 ## Monitoring Status Page

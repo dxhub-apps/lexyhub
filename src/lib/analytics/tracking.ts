@@ -5,7 +5,11 @@
  * Integrates with PostHog and Sentry for comprehensive analytics and error tracking.
  */
 
-import { getPostHog, isPostHogReady } from "./posthog";
+import {
+  getPostHog,
+  isPostHogReady,
+  sanitizeAnalyticsProperties,
+} from "./posthog";
 import * as Sentry from "@sentry/nextjs";
 
 /**
@@ -75,8 +79,12 @@ export function trackAnalyticsEvent(
 
   try {
     const posthog = getPostHog();
+    const sanitizedProperties = properties
+      ? sanitizeAnalyticsProperties(properties)
+      : undefined;
+
     if (posthog && isPostHogReady()) {
-      posthog.capture(eventName, properties);
+      posthog.capture(eventName, sanitizedProperties);
     }
 
     // For important events, also add a breadcrumb in Sentry
@@ -84,12 +92,12 @@ export function trackAnalyticsEvent(
       Sentry.addBreadcrumb({
         category: "analytics",
         message: eventName,
-        data: properties,
+        data: sanitizedProperties,
         level: "info",
       });
     }
   } catch (error) {
-    console.error("Failed to track analytics event:", error);
+    Sentry.captureException(error);
   }
 }
 
@@ -111,19 +119,23 @@ export function identifyAnalyticsUser(
   try {
     // PostHog identification
     const posthog = getPostHog();
+    const sanitizedTraits = traits
+      ? sanitizeAnalyticsProperties(traits)
+      : undefined;
+
     if (posthog && isPostHogReady()) {
-      posthog.identify(userId, traits);
+      posthog.identify(userId, sanitizedTraits);
     }
 
     // Sentry identification
     Sentry.setUser({
       id: userId,
-      email: traits?.email,
-      username: traits?.name,
-      ...traits,
+      email: sanitizedTraits?.email ?? traits?.email,
+      username: sanitizedTraits?.name ?? traits?.name,
+      ...(sanitizedTraits ?? {}),
     });
   } catch (error) {
-    console.error("Failed to identify user:", error);
+    Sentry.captureException(error);
   }
 }
 
@@ -141,7 +153,7 @@ export function resetAnalyticsUser() {
 
     Sentry.setUser(null);
   } catch (error) {
-    console.error("Failed to reset user:", error);
+    Sentry.captureException(error);
   }
 }
 
@@ -164,15 +176,19 @@ export function trackError(
 ) {
   const errorMessage = typeof error === "string" ? error : error.message;
 
+  const sanitizedContext = context
+    ? sanitizeAnalyticsProperties(context)
+    : undefined;
+
   trackAnalyticsEvent(AnalyticsEvents.ERROR_OCCURRED, {
     error_message: errorMessage,
-    ...context,
+    ...sanitizedContext,
   });
 
   // Also capture in Sentry if it's an Error object
   if (error instanceof Error) {
     Sentry.captureException(error, {
-      extra: context,
+      extra: sanitizedContext,
     });
   }
 }
@@ -201,10 +217,10 @@ export function setAnalyticsUserProperties(properties: Record<string, any>) {
   try {
     const posthog = getPostHog();
     if (posthog && isPostHogReady()) {
-      posthog.setPersonProperties(properties);
+      posthog.setPersonProperties(sanitizeAnalyticsProperties(properties));
     }
   } catch (error) {
-    console.error("Failed to set user properties:", error);
+    Sentry.captureException(error);
   }
 }
 
@@ -268,9 +284,13 @@ export function groupAnalyticsUser(
   try {
     const posthog = getPostHog();
     if (posthog && isPostHogReady()) {
-      posthog.group(groupType, groupId, properties);
+      posthog.group(
+        groupType,
+        groupId,
+        properties ? sanitizeAnalyticsProperties(properties) : undefined
+      );
     }
   } catch (error) {
-    console.error("Failed to group user:", error);
+    Sentry.captureException(error);
   }
 }
