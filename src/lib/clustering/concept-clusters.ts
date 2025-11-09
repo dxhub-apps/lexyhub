@@ -2,7 +2,7 @@ import { buildChatMessages, buildPromptTrace, CLUSTER_LABEL_PROMPT, type Cluster
 import type { PromptTrace } from "@/lib/ai/prompts";
 import { env } from "@/lib/env";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
-import { orchestrate } from "@/lib/lexybrain/orchestrator";
+import { runLexyBrainOrchestration } from "@/lib/lexybrain/orchestrator";
 
 export type KeywordVector = {
   id: string;
@@ -162,7 +162,7 @@ async function labelCluster(members: KeywordVector[]): Promise<ClusterLabel> {
 
   try {
     // Use LexyBrain orchestrator for cluster labeling
-    const result = await orchestrate({
+    const result = await runLexyBrainOrchestration({
       capability: "cluster_labeling",
       userId: "system",
       scope: "global",

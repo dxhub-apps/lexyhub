@@ -49,7 +49,7 @@ export function KeywordChatTab({
       {
         id: "welcome",
         role: "assistant",
-        content: `Hi! I'm LexyBrain, your AI market intelligence assistant. I'm ready to answer questions about "${keyword.term}" and help you understand this keyword opportunity.\n\nYou can ask me about:\n- Market trends and demand patterns\n- Competition and positioning strategies\n- Risk factors and compliance considerations\n- Product recommendations and next steps\n\nWhat would you like to know?`,
+        content: `Hi! I'm LexyBrain, your AI market intelligence assistant. I'm ready to answer questions about &ldquo;${keyword.term}&rdquo; and help you understand this keyword opportunity.\n\nYou can ask me about:\n- Market trends and demand patterns\n- Competition and positioning strategies\n- Risk factors and compliance considerations\n- Product recommendations and next steps\n\nWhat would you like to know?`,
         timestamp: new Date(),
       },
     ]);

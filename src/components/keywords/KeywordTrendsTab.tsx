@@ -45,7 +45,7 @@ export function KeywordTrendsTab({ keyword }: { keyword: KeywordDetails }) {
             <div className="space-y-1">
               <CardTitle>Trend Analysis</CardTitle>
               <CardDescription>
-                Historical performance and momentum indicators for "{keyword.term}"
+                Historical performance and momentum indicators for &ldquo;{keyword.term}&rdquo;
               </CardDescription>
             </div>
           </div>

@@ -25,7 +25,7 @@ export function KeywordCompetitorsTab({ keyword }: { keyword: KeywordDetails }) 
             <div className="space-y-1">
               <CardTitle>Competitor Intelligence</CardTitle>
               <CardDescription>
-                Analyze competitors targeting "{keyword.term}"
+                Analyze competitors targeting &ldquo;{keyword.term}&rdquo;
               </CardDescription>
             </div>
           </div>

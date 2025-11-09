@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { orchestrate } from "@/lib/lexybrain/orchestrator";
+import { runLexyBrainOrchestration } from "@/lib/lexybrain/orchestrator";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 async function createJobRun(jobName: string) {
@@ -73,7 +73,7 @@ export async function POST(): Promise<NextResponse> {
 
     for (const keyword of targets) {
       // Use LexyBrain orchestrator for intent classification
-      const result = await orchestrate({
+      const result = await runLexyBrainOrchestration({
         capability: "intent_classification",
         userId: "system",
         keywordIds: [keyword.id],

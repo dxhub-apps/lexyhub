@@ -162,7 +162,7 @@ export function KeywordInsightsTab({
               <CardHeader>
                 <CardTitle>Market Intelligence</CardTitle>
                 <CardDescription>
-                  LexyBrain's analysis of "{keyword.term}"
+                  LexyBrain&apos;s analysis of &ldquo;{keyword.term}&rdquo;
                 </CardDescription>
               </CardHeader>
               <CardContent>
