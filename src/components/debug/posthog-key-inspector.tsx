@@ -50,18 +50,6 @@ export function PostHogKeyInspector() {
       }
     });
 
-    // Log full details to console for debugging
-    console.group("🔍 PostHog Key Inspector");
-    console.log("Client bundle key (from process.env):", clientKey);
-    console.log("PostHog instance key (from window.posthog):", posthogKey);
-    console.log("Keys match:", clientKey === posthogKey);
-    console.log("Full info:", {
-      clientKey,
-      clientHost,
-      posthogKey,
-      posthogHost,
-    });
-    console.groupEnd();
   }, []);
 
   if (!info) {

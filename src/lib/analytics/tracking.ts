@@ -89,7 +89,7 @@ export function trackAnalyticsEvent(
       });
     }
   } catch (error) {
-    console.error("Failed to track analytics event:", error);
+    Sentry.captureException(error);
   }
 }
 
@@ -123,7 +123,7 @@ export function identifyAnalyticsUser(
       ...traits,
     });
   } catch (error) {
-    console.error("Failed to identify user:", error);
+    Sentry.captureException(error);
   }
 }
 
@@ -141,7 +141,7 @@ export function resetAnalyticsUser() {
 
     Sentry.setUser(null);
   } catch (error) {
-    console.error("Failed to reset user:", error);
+    Sentry.captureException(error);
   }
 }
 
@@ -204,7 +204,7 @@ export function setAnalyticsUserProperties(properties: Record<string, any>) {
       posthog.setPersonProperties(properties);
     }
   } catch (error) {
-    console.error("Failed to set user properties:", error);
+    Sentry.captureException(error);
   }
 }
 
@@ -271,6 +271,6 @@ export function groupAnalyticsUser(
       posthog.group(groupType, groupId, properties);
     }
   } catch (error) {
-    console.error("Failed to group user:", error);
+    Sentry.captureException(error);
   }
 }
