@@ -1,8 +1,14 @@
 /**
  * LexyBrain Generate API Endpoint
  *
- * Main orchestrator for LexyBrain AI insights generation.
- * Handles caching, quota enforcement, model calls, and analytics.
+ * ⚠️ DEPRECATED: This endpoint is deprecated and will be removed in a future version.
+ * Please use /api/lexybrain with capability parameter instead.
+ *
+ * Migration guide:
+ * - Old: POST /api/lexybrain/generate with { type, market, niche_terms }
+ * - New: POST /api/lexybrain with { capability, marketplace, keywordIds, query }
+ *
+ * This endpoint will continue to work but may be removed in the next major version.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -260,7 +266,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // 16. Return Result with Metadata
-    return NextResponse.json({
+    const response = NextResponse.json({
       ...result.output,
       _metadata: {
         responseId: result.metadata.responseId,
@@ -269,6 +275,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         modelVersion: result.metadata.modelVersion,
       },
     });
+
+    // Add deprecation warning header
+    response.headers.set('X-API-Deprecated', 'true');
+    response.headers.set('X-API-Deprecation-Message', 'This endpoint is deprecated. Use /api/lexybrain instead.');
+    response.headers.set('X-API-Migration-Url', 'https://docs.lexyhub.com/api/lexybrain-migration');
+
+    return response;
   } catch (error) {
     const latencyMs = Date.now() - startTime;
 

@@ -41,6 +41,8 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 
 /**
  * Retrieve context using vector similarity search
+ *
+ * UNIFIED: Now uses ai_corpus_rrf_search (same RPC as orchestrator)
  */
 export async function retrieveContext(params: {
   query: string;
@@ -63,15 +65,14 @@ export async function retrieveContext(params: {
   // Generate embedding
   const embedding = await generateEmbedding(params.query);
 
-  // Call RPC function
-  const { data, error } = await supabase.rpc('search_rag_context', {
+  // Call unified RPC function (same as orchestrator)
+  const { data, error } = await supabase.rpc('ai_corpus_rrf_search', {
+    p_query: params.query || null,
     p_query_embedding: embedding,
-    p_user_id: params.userId,
     p_capability: params.capability,
-    p_market: params.market || null,
-    p_time_range_from: params.timeRangeFrom || null,
-    p_time_range_to: params.timeRangeTo || null,
-    p_top_k: params.topK || 40,
+    p_marketplace: params.market || null,
+    p_language: null,
+    p_limit: params.topK || 40,
   });
 
   const latency = Date.now() - startTime;
@@ -90,18 +91,29 @@ export async function retrieveContext(params: {
     return [];
   }
 
+  // Transform ai_corpus results to RetrievalContext format
+  const results: RetrievalContext[] = (data || []).map((row: any) => ({
+    source_id: row.id,
+    source_type: row.source_type,
+    source_label: row.chunk?.substring(0, 100) || 'Untitled',
+    chunk: row.chunk,
+    similarity_score: row.combined_score || 0,
+    owner_scope: row.owner_scope,
+    metadata: row.metadata || {},
+  }));
+
   logger.info(
     {
       type: 'rag_retrieval_success',
       user_id: params.userId,
       capability: params.capability,
-      results_count: data?.length || 0,
+      results_count: results.length,
       latency_ms: latency,
     },
-    'Vector search completed'
+    'Vector search completed with unified RPC'
   );
 
-  return (data as RetrievalContext[]) || [];
+  return results;
 }
 
 // =====================================================

@@ -14,6 +14,8 @@ import type { PromptConfig, RetrievalContext, ConversationHistory } from "./type
 
 /**
  * Load system prompt from database
+ *
+ * UNIFIED: Now uses ai_prompts table (same as orchestrator)
  */
 export async function loadSystemPrompt(): Promise<string | null> {
   const supabase = getSupabaseServerClient();
@@ -23,17 +25,19 @@ export async function loadSystemPrompt(): Promise<string | null> {
   }
 
   const { data } = await supabase
-    .from('lexybrain_prompt_configs')
-    .select('system_instructions')
+    .from('ai_prompts')
+    .select('content')
     .eq('is_active', true)
-    .eq('name', 'ask_lexybrain_system')
+    .eq('key', 'lexybrain_system')
     .maybeSingle();
 
-  return data?.system_instructions || null;
+  return data?.content || null;
 }
 
 /**
  * Load capability-specific prompt from database
+ *
+ * UNIFIED: Now uses ai_prompts table (same as orchestrator)
  */
 export async function loadCapabilityPrompt(
   capability: string
@@ -44,20 +48,25 @@ export async function loadCapabilityPrompt(
     return null;
   }
 
+  // Map capability to prompt key
+  const promptKey = capability === 'ask_anything' ? 'ask_anything_v1' : `${capability}_v1`;
+
   const { data } = await supabase
-    .from('lexybrain_prompt_configs')
-    .select('system_instructions, constraints')
+    .from('ai_prompts')
+    .select('content, config')
     .eq('is_active', true)
-    .eq('type', capability)
+    .eq('key', promptKey)
     .maybeSingle();
 
   if (!data) {
     return null;
   }
 
+  const constraints = (data.config as Record<string, unknown>)?.constraints;
+
   return {
-    system_instructions: data.system_instructions,
-    constraints: (data.constraints as Record<string, unknown>) || {},
+    system_instructions: data.content,
+    constraints: (constraints as Record<string, unknown>) || {},
   };
 }
 
