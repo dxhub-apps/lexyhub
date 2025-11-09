@@ -115,12 +115,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       "Processing LexyBrain graph request"
     );
 
-    // 4. Find the center keyword
+    // 4. Find the center keyword (with fuzzy matching)
     const centerKeyword = await findKeyword(term, market);
 
     if (!centerKeyword) {
+      // Try fuzzy search for similar keywords
+      const suggestions = await findSimilarTerms(term, market);
+
       return NextResponse.json(
-        { error: "keyword_not_found", message: `Keyword "${term}" not found in market "${market}"` },
+        {
+          error: "keyword_not_found",
+          message: `Keyword "${term}" not found in our database yet.`,
+          suggestions: suggestions.length > 0 ? suggestions : null,
+        },
         { status: 404 }
       );
     }
@@ -195,7 +202,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 // =====================================================
 
 /**
- * Find keyword by term and market
+ * Find keyword by term and market (exact match)
  */
 async function findKeyword(
   term: string,
@@ -220,6 +227,37 @@ async function findKeyword(
   }
 
   return data;
+}
+
+/**
+ * Find similar terms for suggestions
+ */
+async function findSimilarTerms(
+  term: string,
+  market: string
+): Promise<string[]> {
+  const supabase = getSupabaseServerClient();
+
+  if (!supabase) {
+    return [];
+  }
+
+  // Try partial matching on words
+  const words = term.toLowerCase().split(' ');
+  const patterns = words.map(word => `%${word}%`);
+
+  const { data, error } = await supabase
+    .from("keywords")
+    .select("term")
+    .eq("market", market)
+    .or(patterns.map((_, i) => `term.ilike.${patterns[i]}`).join(','))
+    .limit(5);
+
+  if (error || !data) {
+    return [];
+  }
+
+  return data.map(k => k.term);
 }
 
 /**
