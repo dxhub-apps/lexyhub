@@ -260,18 +260,6 @@ export async function generateStatusReport(): Promise<StatusReport> {
       ["POST"],
     ),
     checkApiModule(
-      "trends-api",
-      "Trend Insights API",
-      () => import("@/app/api/insights/trends/route"),
-      ["GET"],
-    ),
-    checkApiModule(
-      "intent-graph-api",
-      "Intent Graph API",
-      () => import("@/app/api/insights/intent-graph/route"),
-      ["GET"],
-    ),
-    checkApiModule(
       "embed-missing-worker",
       "Embedding Backfill Worker",
       () => import("@/app/api/jobs/embed-missing/route"),
