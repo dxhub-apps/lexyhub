@@ -130,6 +130,21 @@ END;
 -- =====================================================
 -- 5. SEED RAG PROMPT CONFIGS
 -- =====================================================
+-- Deactivate any existing active configs for types we're about to insert
+-- This ensures the partial unique index (type) WHERE is_active = true won't conflict
+UPDATE public.lexybrain_prompt_configs
+SET is_active = false
+WHERE type IN ('global', 'market_brief', 'competitor_intel', 'keyword_explanation', 'alert_explanation', 'general_chat')
+  AND is_active = true
+  AND name NOT IN (
+    'ask_lexybrain_system',
+    'ask_lexybrain_market_brief_v1',
+    'ask_lexybrain_competitor_intel_v1',
+    'ask_lexybrain_keyword_explanation_v1',
+    'ask_lexybrain_alert_explanation_v1',
+    'ask_lexybrain_general_chat_v1'
+  );
+
 -- Global RAG system prompt
 INSERT INTO public.lexybrain_prompt_configs (name, type, system_instructions, constraints, is_active) VALUES (
   'ask_lexybrain_system',
@@ -156,7 +171,10 @@ OUTPUT STYLE:
 - End with actionable next steps when appropriate',
   '{"temperature": 0.7, "max_tokens": 1024}'::jsonb,
   true
-) ON CONFLICT (name, type) DO NOTHING;
+) ON CONFLICT (name, type) DO UPDATE SET
+  system_instructions = EXCLUDED.system_instructions,
+  constraints = EXCLUDED.constraints,
+  is_active = EXCLUDED.is_active;
 
 -- Market brief capability
 INSERT INTO public.lexybrain_prompt_configs (name, type, system_instructions, constraints, is_active) VALUES (
@@ -174,7 +192,10 @@ FORMAT:
 Brief overview paragraph, then bullet points for opportunities, risks, and actions.',
   '{"max_keywords": 20, "retrieval_scope": ["keywords", "trends"]}'::jsonb,
   true
-) ON CONFLICT (name, type) DO NOTHING;
+) ON CONFLICT (name, type) DO UPDATE SET
+  system_instructions = EXCLUDED.system_instructions,
+  constraints = EXCLUDED.constraints,
+  is_active = EXCLUDED.is_active;
 
 -- Competitor intelligence capability
 INSERT INTO public.lexybrain_prompt_configs (name, type, system_instructions, constraints, is_active) VALUES (
@@ -192,7 +213,10 @@ FORMAT:
 Summary findings followed by specific competitor examples with metrics.',
   '{"max_listings": 10, "retrieval_scope": ["listings", "shops", "keywords"]}'::jsonb,
   true
-) ON CONFLICT (name, type) DO NOTHING;
+) ON CONFLICT (name, type) DO UPDATE SET
+  system_instructions = EXCLUDED.system_instructions,
+  constraints = EXCLUDED.constraints,
+  is_active = EXCLUDED.is_active;
 
 -- Keyword explanation capability
 INSERT INTO public.lexybrain_prompt_configs (name, type, system_instructions, constraints, is_active) VALUES (
@@ -210,7 +234,10 @@ FORMAT:
 Explain the keyword''s meaning, then metrics, then strategic advice.',
   '{"max_related_keywords": 15, "retrieval_scope": ["keywords", "keyword_history", "alerts"]}'::jsonb,
   true
-) ON CONFLICT (name, type) DO NOTHING;
+) ON CONFLICT (name, type) DO UPDATE SET
+  system_instructions = EXCLUDED.system_instructions,
+  constraints = EXCLUDED.constraints,
+  is_active = EXCLUDED.is_active;
 
 -- Alert explanation capability
 INSERT INTO public.lexybrain_prompt_configs (name, type, system_instructions, constraints, is_active) VALUES (
@@ -228,7 +255,10 @@ FORMAT:
 Clear explanation of the issue, severity, evidence, and action steps.',
   '{"max_alerts": 5, "retrieval_scope": ["alerts", "risk_rules", "docs"]}'::jsonb,
   true
-) ON CONFLICT (name, type) DO NOTHING;
+) ON CONFLICT (name, type) DO UPDATE SET
+  system_instructions = EXCLUDED.system_instructions,
+  constraints = EXCLUDED.constraints,
+  is_active = EXCLUDED.is_active;
 
 -- General chat (fallback)
 INSERT INTO public.lexybrain_prompt_configs (name, type, system_instructions, constraints, is_active) VALUES (
@@ -245,7 +275,10 @@ FORMAT:
 Conversational, helpful, and honest about limitations.',
   '{"retrieval_scope": ["docs", "user_keywords", "user_watchlists"]}'::jsonb,
   true
-) ON CONFLICT (name, type) DO NOTHING;
+) ON CONFLICT (name, type) DO UPDATE SET
+  system_instructions = EXCLUDED.system_instructions,
+  constraints = EXCLUDED.constraints,
+  is_active = EXCLUDED.is_active;
 
 -- =====================================================
 -- 6. SEARCH RAG CONTEXT RPC
