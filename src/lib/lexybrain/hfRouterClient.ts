@@ -1,11 +1,15 @@
 "use server";
 
 const HF_TOKEN = process.env.HF_TOKEN;
-const HF_MODEL = process.env.LEXYBRAIN_MODEL_ID || "meta-llama/Llama-3.1-8B-Instruct";
+const HF_MODEL = process.env.LEXYBRAIN_MODEL_ID;
 const HF_URL = "https://router.huggingface.co/v1/chat/completions";
 
 if (!HF_TOKEN) {
   throw new Error("HF_TOKEN is not set");
+}
+
+if (!HF_MODEL) {
+  throw new Error("LEXYBRAIN_MODEL_ID is not set");
 }
 
 type LexybrainParams = {
@@ -33,7 +37,7 @@ export async function callLexybrainHFRouter(
           },
       { role: "user", content: prompt },
     ],
-    max_tokens: max_tokens ?? 256,
+    max_tokens: max_tokens ?? 1024,
     temperature: temperature ?? 0.3,
   };
 
