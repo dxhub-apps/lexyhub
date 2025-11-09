@@ -25,6 +25,7 @@ export interface LexyBrainOrchestrationRequest {
   marketplace?: string | null;
   language?: string | null;
   scope?: "user" | "team" | "global";
+  teamId?: string | null;
   metadata?: Record<string, unknown>;
 }
 
@@ -124,6 +125,7 @@ type CorpusChunk = {
   id: string;
   owner_scope: string;
   owner_user_id: string | null;
+  owner_team_id: string | null;
   source_type: string;
   source_ref: Record<string, unknown> | null;
   marketplace: string | null;
@@ -179,6 +181,28 @@ async function fetchUserProfile(userId: string): Promise<Record<string, unknown>
   }
 
   return data as Record<string, unknown> | null;
+}
+
+async function fetchActiveTeamIds(userId: string): Promise<string[]> {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("team_members")
+    .select("team_id")
+    .eq("user_id", userId)
+    .eq("is_active", true);
+
+  if (error) {
+    logger.warn({ type: "lexybrain_team_membership_error", error: error.message }, "Failed to load team memberships");
+    return [];
+  }
+
+  return (data ?? [])
+    .map((row) => row?.team_id)
+    .filter((value): value is string => typeof value === "string" && value.length > 0);
 }
 
 async function fetchKeywords(keywordIds: string[]): Promise<KeywordRecord[]> {
@@ -317,6 +341,7 @@ async function retrieveCorpusContext(params: {
   marketplace: string | null;
   language: string | null;
   limit: number;
+  teamId: string | null;
 }): Promise<CorpusChunk[]> {
   const supabase = getSupabaseServerClient();
   if (!supabase) {
@@ -334,6 +359,7 @@ async function retrieveCorpusContext(params: {
     p_capability: params.capability,
     p_marketplace: params.marketplace || null,
     p_language: params.language || null,
+    p_team_id: params.teamId || null,
     p_limit: params.limit,
   });
 
@@ -505,6 +531,7 @@ function buildReferences(
       score: chunk.combined_score,
       extra: {
         source_ref: chunk.source_ref,
+        owner_team_id: chunk.owner_team_id,
         lexical_rank: chunk.lexical_rank,
         vector_rank: chunk.vector_rank,
       },
@@ -518,6 +545,7 @@ async function persistSnapshots(params: {
   capability: LexyBrainCapability;
   scope: "user" | "team" | "global";
   userId: string;
+  teamId: string | null;
   keywordIds: string[];
   insight: LexyBrainOutput;
   references: Array<{ type: string; id: string; extra?: Record<string, unknown> }>;
@@ -528,10 +556,19 @@ async function persistSnapshots(params: {
     return [];
   }
 
+  if (params.scope === "team" && (!params.teamId || params.teamId.length === 0)) {
+    logger.warn(
+      { type: "lexybrain_snapshot_missing_team", user_id: params.userId },
+      "Skipping team-scoped snapshot persistence due to missing team ID"
+    );
+    return [];
+  }
+
   const rows = params.keywordIds.map((keywordId) => ({
     keyword_id: keywordId,
     capability: params.capability,
     scope: params.scope,
+    team_id: params.scope === "team" ? params.teamId : null,
     metrics_used: params.metrics,
     insight: params.insight,
     references: params.references,
@@ -560,6 +597,7 @@ export async function runLexyBrainOrchestration(
   }
 
   const config = CAPABILITY_CONFIG[request.capability] ?? CAPABILITY_CONFIG.keyword_insights;
+  const scope = request.scope ?? config.defaultScope;
 
   logger.info(
     {
@@ -575,6 +613,29 @@ export async function runLexyBrainOrchestration(
   const profile = await fetchUserProfile(request.userId);
   if (!profile) {
     logger.warn({ type: "lexybrain_missing_profile", user_id: request.userId }, "Missing user profile for LexyBrain access");
+  }
+
+  const teamMemberships = await fetchActiveTeamIds(request.userId);
+  let teamId: string | null = null;
+
+  if (typeof request.teamId === "string" && request.teamId.length > 0) {
+    if (teamMemberships.includes(request.teamId)) {
+      teamId = request.teamId;
+    } else {
+      throw new Error("No reliable data: team scope not available for this user");
+    }
+  }
+
+  if (scope === "team" && !teamId) {
+    if (teamMemberships.length === 0) {
+      throw new Error("No reliable data: user is not a member of any team");
+    }
+
+    if (teamMemberships.length > 1) {
+      throw new Error("No reliable data: specify a teamId when accessing team scope");
+    }
+
+    teamId = teamMemberships[0];
   }
 
   const keywordIds = Array.from(new Set(request.keywordIds ?? [])).filter((id) => typeof id === "string" && id.length > 0);
@@ -597,6 +658,7 @@ export async function runLexyBrainOrchestration(
     marketplace: request.marketplace ?? keywords[0]?.marketplace ?? null,
     language: request.language ?? null,
     limit: config.maxContext,
+    teamId,
   });
 
   const promptConfig = await loadPromptConfig(config.promptKey);
@@ -622,8 +684,9 @@ export async function runLexyBrainOrchestration(
 
   const snapshotIds = await persistSnapshots({
     capability: request.capability,
-    scope: request.scope ?? config.defaultScope,
+    scope,
     userId: request.userId,
+    teamId,
     keywordIds,
     insight: generation.output,
     references,
