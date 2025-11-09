@@ -2,7 +2,7 @@
  * Tests for capability detection
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 import { detectCapabilityHeuristic, getRetrievalScopeForCapability } from '../capability-detector';
 
 describe('detectCapabilityHeuristic', () => {

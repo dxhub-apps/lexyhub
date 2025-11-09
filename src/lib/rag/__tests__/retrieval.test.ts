@@ -2,7 +2,7 @@
  * Tests for retrieval functions
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 import { rerank, generateEmbedding } from '../retrieval';
 import type { RetrievalContext } from '../types';
 

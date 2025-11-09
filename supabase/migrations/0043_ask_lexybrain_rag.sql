@@ -128,7 +128,18 @@ UPDATE public.plan_entitlements SET rag_messages_per_month = CASE
 END;
 
 -- =====================================================
--- 5. SEED RAG PROMPT CONFIGS
+-- 5. EXTEND PROMPT CONFIG TYPES
+-- =====================================================
+-- Add new RAG capability types to the CHECK constraint
+ALTER TABLE public.lexybrain_prompt_configs
+  DROP CONSTRAINT IF EXISTS lexybrain_prompt_configs_type_check;
+
+ALTER TABLE public.lexybrain_prompt_configs
+  ADD CONSTRAINT lexybrain_prompt_configs_type_check
+  CHECK (type IN ('market_brief', 'radar', 'ad_insight', 'risk', 'global', 'competitor_intel', 'keyword_explanation', 'alert_explanation', 'general_chat'));
+
+-- =====================================================
+-- 6. SEED RAG PROMPT CONFIGS
 -- =====================================================
 -- Deactivate any existing active configs for types we're about to insert
 -- This ensures the partial unique index (type) WHERE is_active = true won't conflict
@@ -281,7 +292,7 @@ Conversational, helpful, and honest about limitations.',
   is_active = EXCLUDED.is_active;
 
 -- =====================================================
--- 6. SEARCH RAG CONTEXT RPC
+-- 7. SEARCH RAG CONTEXT RPC
 -- =====================================================
 -- Vector search function for RAG retrieval
 CREATE OR REPLACE FUNCTION public.search_rag_context(
@@ -343,7 +354,7 @@ END;
 $$;
 
 -- =====================================================
--- 7. ROW LEVEL SECURITY (RLS)
+-- 8. ROW LEVEL SECURITY (RLS)
 -- =====================================================
 
 -- rag_threads
