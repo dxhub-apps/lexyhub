@@ -9,44 +9,28 @@
 
 ## ✨ Features
 
-### 🎯 **Keyword Intelligence**
-- AI-powered semantic keyword search across multiple data sources
-- 3,072-dimensional vector embeddings for similarity matching (pgvector)
-- Real-time demand, competition, and momentum scoring
-- **Seasonal-Aware Demand Index**: Automatic seasonal weighting for global retail periods
-- **Trend Momentum**: Week-over-week and deseasoned trend analysis
-- Automatic intent classification and opportunity analysis
-- Tag optimization with GPT-powered suggestions
+### 🔑 **Keyword Workspace**
+- Unified `/search` landing experience with autosuggest powered by `public.keywords`
+- Deterministic scoring for volume, competition, and momentum
+- Right-hand LexyBrain insight panel for immediate reasoning
+- Keyboard shortcuts (`/`, `↑`, `↓`, `Enter`) for fast navigation
 
-### 📊 **Insights & Analytics**
-- **Trend Radar**: Multi-source trend aggregation (Google Trends, Pinterest, Reddit)
-- **Intent Graph**: Purchase intent classification and funnel analysis
-- **Competitor Analysis**: Pricing, tone, and market saturation benchmarking
-- **Visual Tag AI**: Image-to-tag generation with BLIP-2 + GPT
+### 🧠 **LexyBrain Orchestration**
+- All AI requests route through the LexyBrain orchestration API with `LEXYBRAIN_RAG_MODEL_ID`
+- Consistent summaries, metrics, and risk analysis across search, keyword journeys, and reports
+- Ask LexyBrain terminal interface for free-form market questions
 
-### 🔍 **Watchlists & Monitoring**
-- Track keywords and listings across marketplaces
-- SERP position tracking with historical snapshots
-- Automated alerts for inventory risks and policy changes
-- Real-time sync with Etsy, Amazon, and more
+### ⭐ **Watchlist**
+- Minimal cards showing tracked keywords and core metrics
+- Quick links into the keyword journey and Ask LexyBrain context
 
-### 💡 **Market Twin Simulator**
-- Scenario planning engine for "what-if" analysis
-- Simulate pricing changes, ad spend, and conversion impacts
-- Revenue and margin forecasting
-- Team collaboration with saved scenarios
+### 📈 **Keyword Journey**
+- `/keyword/[id]` mirrors the search insight panel with full-screen tabs
+- LexyBrain insights, sparkline trends, risk summary, and comparison entry points
 
-### ✏️ **Listing Optimization**
-- AI-powered listing quality audits
-- Tag health scoring against catalog
-- Quick-fix recommendations
-- Listing intelligence with competitor benchmarking
-
-### 📈 **Dashboard & Reporting**
-- Sales velocity monitoring vs. targets
-- Momentum charts for trailing performance
-- Quota pulse cards and KPI tracking
-- Revenue pacing analysis
+### 🗒️ **Reports**
+- Weekly and monthly LexyBrain briefs via the `market_brief` capability
+- Top niches, keyword deltas, and risk summary surfaced in a monochrome table layout
 
 ## 🏗️ Technology Stack
 

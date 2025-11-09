@@ -24,7 +24,7 @@ export default async function AdminLayout({
   const plan = profile.data?.plan ?? null;
 
   if (!isAdminUser(user, plan)) {
-    redirect("/dashboard");
+    redirect("/search");
   }
 
   return <>{children}</>;

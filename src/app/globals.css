@@ -123,11 +123,12 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-muted-foreground/20 rounded-full;
+    background-color: hsl(var(--border));
+    border-radius: 9999px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground/30;
+    background-color: hsl(var(--foreground));
   }
 
   /* Focus visible outline */
@@ -137,7 +138,8 @@
 
   /* Selection */
   ::selection {
-    @apply bg-foreground/10;
+    background-color: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
   }
 }
 
