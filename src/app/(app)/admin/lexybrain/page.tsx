@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Brain, Plus, Pencil, Trash2 } from "lucide-react";
 
@@ -47,7 +47,7 @@ export default function LexyBrainPromptsPage(): JSX.Element {
   const [configToDelete, setConfigToDelete] = useState<PromptConfig | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const loadConfigs = async () => {
+  const loadConfigs = useCallback(async () => {
     try {
       const response = await fetch("/api/admin/lexybrain/configs", {
         headers: { "x-user-role": "admin" },
@@ -70,11 +70,11 @@ export default function LexyBrainPromptsPage(): JSX.Element {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     void loadConfigs();
-  }, []);
+  }, [loadConfigs]);
 
   const handleDeleteClick = (config: PromptConfig) => {
     setConfigToDelete(config);
