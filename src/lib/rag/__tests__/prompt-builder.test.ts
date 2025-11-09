@@ -2,7 +2,7 @@
  * Tests for prompt building
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 import { formatSources, formatHistory, estimateTokens } from '../prompt-builder';
 import type { RetrievalContext, ConversationHistory } from '../types';
 
