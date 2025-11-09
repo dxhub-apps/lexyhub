@@ -120,7 +120,8 @@ export async function upsertKeywordsBatch(
           p_term: keyword.termNorm,
           p_market: keyword.market,
           p_source: keyword.source,
-          p_tier: "free",
+          // Tier column is a smallint: 0=free, 1=growth, 2=scale
+          p_tier: 0,
           p_method: "dataforseo_k4k_standard",
           p_extras: {
             search_volume: keyword.searchVolume,
