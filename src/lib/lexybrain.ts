@@ -35,7 +35,7 @@ export async function lexybrainGenerate(
   console.log(`[LexyBrain] Initiating request`);
   console.log(`[LexyBrain] Request parameters:`, {
     promptLength: input.prompt?.length || 0,
-    maxTokens: input.max_tokens ?? 256,
+    maxTokens: input.max_tokens ?? 1024,
     temperature: input.temperature ?? 0.3,
     hasSystem: !!input.system,
   });
@@ -46,7 +46,7 @@ export async function lexybrainGenerate(
 
     const response = await provider.generate({
       prompt: input.prompt,
-      max_tokens: input.max_tokens ?? 256,
+      max_tokens: input.max_tokens ?? 1024,
       temperature: input.temperature ?? 0.3,
       system: input.system,
     });

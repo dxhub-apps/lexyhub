@@ -152,7 +152,7 @@ export async function generateLexyBrainJson(
       const response = await lexybrainGenerate({
         prompt,
         temperature: isRetry ? 0.1 : 0.3, // More deterministic on retry
-        max_tokens: 256, // Reduced to improve latency
+        max_tokens: 1024, // Increased to allow complete JSON generation for complex schemas
       });
 
       rawOutput = response.completion;

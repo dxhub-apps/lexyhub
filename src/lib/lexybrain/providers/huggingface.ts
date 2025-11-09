@@ -34,7 +34,7 @@ export class HuggingFaceProvider implements LexyBrainProvider {
 
     console.log(`[HuggingFaceProvider] Generating completion`, {
       promptLength: prompt.length,
-      maxTokens: max_tokens ?? 256,
+      maxTokens: max_tokens ?? 1024,
       temperature: temperature ?? 0.3,
       model: this.model,
     });
@@ -52,7 +52,7 @@ export class HuggingFaceProvider implements LexyBrainProvider {
             },
         { role: "user", content: prompt },
       ],
-      max_tokens: max_tokens ?? 256,
+      max_tokens: max_tokens ?? 1024,
       temperature: temperature ?? 0.3,
     };
 
