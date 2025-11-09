@@ -170,6 +170,8 @@ PostHog automatically tracks:
 - Click events
 - Form submissions
 
+> **Initialization safeguard**: The PostHog client only initializes when both `NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_POSTHOG_HOST` are defined. If the key is missing during a render (for example, due to a misconfigured environment), the guard unlocks itself so that the client can initialize correctly once the variable is provided rather than staying permanently disabled.
+
 ### Event Tracking
 
 Use the tracking utilities to track custom events:

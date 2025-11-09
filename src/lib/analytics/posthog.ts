@@ -51,6 +51,7 @@ export function initPostHog() {
       "⚠️ PostHog: NEXT_PUBLIC_POSTHOG_KEY is not set. Analytics will not be tracked.\n" +
       "To enable PostHog, add NEXT_PUBLIC_POSTHOG_KEY to your .env.local file."
     );
+    INIT_LOCK.locked = false;
     return null;
   }
 
