@@ -10,52 +10,34 @@ import { HuggingFaceProvider } from "./huggingface";
 
 /**
  * Get the configured provider type from environment
+ *
+ * UNIFIED: Only HuggingFace provider is supported (removed RunPod, OpenAI stubs)
  */
 export function getConfiguredProviderType(): ProviderType {
-  const provider = process.env.LEXYBRAIN_PROVIDER?.toLowerCase() as ProviderType;
+  const provider = process.env.LEXYBRAIN_PROVIDER?.toLowerCase();
 
-  // Default to HuggingFace
-  if (!provider) {
-    return "huggingface";
-  }
-
-  // Validate provider type
-  const validProviders: ProviderType[] = ["huggingface", "runpod", "openai"];
-  if (!validProviders.includes(provider)) {
+  // Only HuggingFace is supported
+  if (provider && provider !== "huggingface") {
     console.warn(
-      `[LexyBrain] Invalid provider "${provider}", defaulting to "huggingface"`
+      `[LexyBrain] Invalid provider "${provider}", defaulting to "huggingface". Only HuggingFace is supported.`
     );
-    return "huggingface";
   }
 
-  return provider;
+  return "huggingface";
 }
 
 /**
  * Create a provider instance based on type
+ *
+ * UNIFIED: Only HuggingFace provider is supported
  */
 export function createProvider(type?: ProviderType): LexyBrainProvider {
   const providerType = type || getConfiguredProviderType();
 
   console.log(`[LexyBrain] Creating provider: ${providerType}`);
 
-  switch (providerType) {
-    case "huggingface":
-      return new HuggingFaceProvider();
-
-    case "runpod":
-      throw new Error(
-        "RunPod provider is deprecated. Please use HuggingFace provider instead."
-      );
-
-    case "openai":
-      throw new Error(
-        "OpenAI provider not yet implemented. Please use HuggingFace provider."
-      );
-
-    default:
-      throw new Error(`Unknown provider type: ${providerType}`);
-  }
+  // Only HuggingFace is supported
+  return new HuggingFaceProvider();
 }
 
 /**

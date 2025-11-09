@@ -39,4 +39,4 @@ export interface LexyBrainProvider {
   getProviderName(): string;
 }
 
-export type ProviderType = "huggingface" | "runpod" | "openai";
+export type ProviderType = "huggingface";

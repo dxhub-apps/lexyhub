@@ -23,6 +23,8 @@ const RequestSchema = z.object({
     z.literal("compliance_check"),
     z.literal("support_docs"),
     z.literal("ask_anything"),
+    z.literal("intent_classification"),
+    z.literal("cluster_labeling"),
   ]),
   keywordIds: z.array(z.string().uuid()).optional().default([]),
   query: z.string().optional().default(""),

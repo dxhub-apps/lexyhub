@@ -1,6 +1,8 @@
 /**
  * Admin API: LexyBrain Prompt Configuration Management
  *
+ * UNIFIED: Now manages ai_prompts table (replaced lexybrain_prompt_configs)
+ *
  * Allows admins to view and manage prompt configurations for LexyBrain.
  * Configurations control LLM behavior without code changes.
  */
@@ -21,18 +23,18 @@ export const dynamic = "force-dynamic";
 // =====================================================
 
 const CreateConfigSchema = z.object({
-  name: z.string().min(1).max(100),
-  type: z.enum(["market_brief", "radar", "ad_insight", "risk", "global"]),
-  system_instructions: z.string().min(10),
-  constraints: z.record(z.unknown()).optional().default({}),
+  key: z.string().min(1).max(100),
+  type: z.enum(["system", "capability", "template"]),
+  content: z.string().min(10),
+  config: z.record(z.unknown()).optional().default({}),
   is_active: z.boolean().optional().default(false),
 });
 
 const UpdateConfigSchema = z.object({
   id: z.string().uuid(),
-  name: z.string().min(1).max(100).optional(),
-  system_instructions: z.string().min(10).optional(),
-  constraints: z.record(z.unknown()).optional(),
+  key: z.string().min(1).max(100).optional(),
+  content: z.string().min(10).optional(),
+  config: z.record(z.unknown()).optional(),
   is_active: z.boolean().optional(),
 });
 
@@ -61,10 +63,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Build query
     let query = supabase
-      .from("lexybrain_prompt_configs")
+      .from("ai_prompts")
       .select("*")
       .order("type", { ascending: true })
-      .order("created_at", { ascending: false });
+      .order("updated_at", { ascending: false });
 
     if (type) {
       query = query.eq("type", type);
@@ -141,25 +143,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const { name, type, system_instructions, constraints, is_active } = parsed.data;
+    const { key, type, content, config, is_active } = parsed.data;
 
-    // If setting as active, deactivate other configs of same type
+    // If setting as active, deactivate other prompts with same key
     if (is_active) {
       await supabase
-        .from("lexybrain_prompt_configs")
+        .from("ai_prompts")
         .update({ is_active: false })
-        .eq("type", type);
+        .eq("key", key);
     }
 
     // Create new config
     const { data, error } = await supabase
-      .from("lexybrain_prompt_configs")
+      .from("ai_prompts")
       .insert({
-        name,
+        key,
         type,
-        system_instructions,
-        constraints,
+        content,
+        config,
         is_active,
+        updated_by: user.id,
       })
       .select()
       .single();
@@ -179,7 +182,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       {
         type: "admin_lexybrain_config_created",
         config_id: data.id,
-        config_name: name,
+        config_key: key,
         config_type: type,
         admin_user: user.id,
       },
@@ -242,10 +245,10 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
 
     const { id, ...updates } = parsed.data;
 
-    // Get existing config to check type
+    // Get existing config to check key
     const { data: existing } = await supabase
-      .from("lexybrain_prompt_configs")
-      .select("type")
+      .from("ai_prompts")
+      .select("key")
       .eq("id", id)
       .maybeSingle();
 
@@ -256,19 +259,22 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // If setting as active, deactivate other configs of same type
+    // If setting as active, deactivate other configs with same key
     if (updates.is_active === true) {
       await supabase
-        .from("lexybrain_prompt_configs")
+        .from("ai_prompts")
         .update({ is_active: false })
-        .eq("type", existing.type)
+        .eq("key", existing.key)
         .neq("id", id);
     }
 
     // Update config
     const { data, error } = await supabase
-      .from("lexybrain_prompt_configs")
-      .update(updates)
+      .from("ai_prompts")
+      .update({
+        ...updates,
+        updated_by: user.id,
+      })
       .eq("id", id)
       .select()
       .single();
@@ -349,7 +355,7 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
 
     // Delete config
     const { error } = await supabase
-      .from("lexybrain_prompt_configs")
+      .from("ai_prompts")
       .delete()
       .eq("id", configId);
 

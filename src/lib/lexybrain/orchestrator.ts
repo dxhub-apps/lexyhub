@@ -15,7 +15,9 @@ export type LexyBrainCapability =
   | "recommendations"
   | "compliance_check"
   | "support_docs"
-  | "ask_anything";
+  | "ask_anything"
+  | "intent_classification"
+  | "cluster_labeling";
 
 export interface LexyBrainOrchestrationRequest {
   capability: LexyBrainCapability;
@@ -106,6 +108,18 @@ const CAPABILITY_CONFIG: Record<LexyBrainCapability, CapabilityConfig> = {
     promptKey: "ask_anything_v1",
     defaultScope: "user",
     maxContext: 12,
+  },
+  intent_classification: {
+    outputType: "market_brief",
+    promptKey: "intent_classification_v1",
+    defaultScope: "global",
+    maxContext: 0,
+  },
+  cluster_labeling: {
+    outputType: "market_brief",
+    promptKey: "cluster_labeling_v1",
+    defaultScope: "global",
+    maxContext: 0,
   },
 };
 
