@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { classifyKeywordIntent } from "@/lib/ai/intent-classifier";
+import { runLexyBrainOrchestration } from "@/lib/lexybrain/orchestrator";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 async function createJobRun(jobName: string) {
@@ -72,28 +72,38 @@ export async function POST(): Promise<NextResponse> {
     const processed: Array<{ id: string; intent: string }> = [];
 
     for (const keyword of targets) {
-      const classification = await classifyKeywordIntent({
-        term: keyword.term,
-        market: keyword.market,
-        source: keyword.source,
+      // Use LexyBrain orchestrator for intent classification
+      const result = await runLexyBrainOrchestration({
+        capability: "intent_classification",
+        userId: "system",
+        keywordIds: [keyword.id],
+        marketplace: keyword.market || null,
+        scope: "global",
+        metadata: {
+          term: keyword.term,
+          source: keyword.source,
+        },
       });
 
       const extras = keyword.extras && typeof keyword.extras === "object" ? { ...keyword.extras } : {};
+
+      // Extract classification from orchestrator result
+      const insightData = result.insight as any;
       extras.classification = {
-        intent: classification.intent,
-        purchaseStage: classification.purchaseStage,
-        persona: classification.persona,
-        summary: classification.summary,
-        confidence: classification.confidence,
-        model: classification.model,
+        intent: insightData.intent || "unknown",
+        purchaseStage: insightData.purchaseStage || insightData.purchase_stage || "unknown",
+        persona: insightData.persona || "unknown",
+        summary: insightData.summary || "",
+        confidence: insightData.confidence || 0,
+        model: result.llama.modelVersion,
         updatedAt: new Date().toISOString(),
       };
       extras.classificationAudit = {
-        templateId: classification.trace.templateId,
-        templateVersion: classification.trace.templateVersion,
-        system: classification.trace.system,
-        user: classification.trace.user,
+        capability: result.capability,
+        outputType: result.outputType,
         generatedAt: new Date().toISOString(),
+        promptTokens: result.llama.promptTokens,
+        outputTokens: result.llama.outputTokens,
       };
 
       const { error: updateError } = await supabase
@@ -106,7 +116,7 @@ export async function POST(): Promise<NextResponse> {
         continue;
       }
 
-      processed.push({ id: keyword.id, intent: classification.intent });
+      processed.push({ id: keyword.id, intent: insightData.intent || "unknown" });
     }
 
     await finalizeJobRun(supabase, jobRunId, "succeeded", {

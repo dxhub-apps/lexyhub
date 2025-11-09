@@ -6,12 +6,8 @@ import {
   LayoutDashboard,
   Star,
   Search,
-  TrendingUp,
-  Sparkles,
-  PenTool,
+  User,
   Shield,
-  Calendar,
-  Brain,
 } from "lucide-react";
 
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
@@ -23,55 +19,31 @@ import { cn } from "@/lib/utils";
 const NAV_ITEMS: readonly SidebarNavItem[] = [
   {
     href: "/dashboard",
-    label: "Dashboard",
-    description: "Quota pulse",
+    label: "Home",
+    description: "Overview & quota",
     icon: <LayoutDashboard className="h-5 w-5" />,
+  },
+  {
+    href: "/keywords",
+    label: "Search",
+    description: "Keyword intelligence",
+    icon: <Search className="h-5 w-5" />,
   },
   {
     href: "/watchlists",
     label: "Watchlist",
-    description: "Monitored items",
+    description: "Tracked keywords",
     icon: <Star className="h-5 w-5" />,
   },
   {
-    href: "/keywords",
-    label: "Keywords",
-    description: "AI search",
-    icon: <Search className="h-5 w-5" />,
-  },
-  {
-    href: "/insights",
-    label: "Insights",
-    description: "LexyBrain AI",
-    icon: <Brain className="h-5 w-5" />,
-  },
-  {
-    href: "/seasonal-calendar",
-    label: "Seasonal Calendar",
-    description: "Commerce events",
-    icon: <Calendar className="h-5 w-5" />,
-  },
-  {
-    href: "/niche-explorer",
-    label: "Niche Explorer",
-    description: "Market Intelligence",
-    icon: <TrendingUp className="h-5 w-5" />,
-  },
-  {
-    href: "/market-twin",
-    label: "Market Twin",
-    description: "Simulations",
-    icon: <Sparkles className="h-5 w-5" />,
-  },
-  {
-    href: "/editing",
-    label: "Etsy Suite",
-    description: "Listing tools",
-    icon: <PenTool className="h-5 w-5" />,
+    href: "/profile",
+    label: "Profile",
+    description: "Account settings",
+    icon: <User className="h-5 w-5" />,
   },
   {
     href: "/admin/backoffice",
-    label: "Backoffice",
+    label: "Admin",
     description: "Admin controls",
     icon: <Shield className="h-5 w-5" />,
   },
@@ -100,7 +72,10 @@ export function AppShell({ children, isAdmin }: AppShellProps) {
           return currentPath.startsWith("/dashboard");
         }
         if (item.href === "/admin/backoffice") {
-          return currentPath.startsWith("/admin/backoffice");
+          return currentPath.startsWith("/admin");
+        }
+        if (item.href === "/profile") {
+          return currentPath.startsWith("/profile");
         }
         return currentPath.startsWith(item.href);
       }) ?? nav[0]

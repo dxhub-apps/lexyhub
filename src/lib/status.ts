@@ -238,8 +238,6 @@ export async function generateStatusReport(): Promise<StatusReport> {
     openai,
     listingsApi,
     keywordsApi,
-    trendInsightsApi,
-    intentGraphApi,
     embeddingWorker,
     trendAggregationWorker,
     intentClassificationWorker,
@@ -258,18 +256,6 @@ export async function generateStatusReport(): Promise<StatusReport> {
       "Keyword Search API",
       () => import("@/app/api/keywords/search/route"),
       ["POST"],
-    ),
-    checkApiModule(
-      "trends-api",
-      "Trend Insights API",
-      () => import("@/app/api/insights/trends/route"),
-      ["GET"],
-    ),
-    checkApiModule(
-      "intent-graph-api",
-      "Intent Graph API",
-      () => import("@/app/api/insights/intent-graph/route"),
-      ["GET"],
     ),
     checkApiModule(
       "embed-missing-worker",
@@ -311,7 +297,7 @@ export async function generateStatusReport(): Promise<StatusReport> {
     },
     environment: process.env.NODE_ENV ?? "development",
     variables: VARIABLE_DEFINITIONS.map(resolveVariableStatus),
-    apis: [listingsApi, keywordsApi, trendInsightsApi, intentGraphApi],
+    apis: [listingsApi, keywordsApi],
     services: [database, openai],
     workers: [embeddingWorker, trendAggregationWorker, intentClassificationWorker, clusterRebuildWorker],
   };

@@ -2,6 +2,7 @@ import { buildChatMessages, buildPromptTrace, CLUSTER_LABEL_PROMPT, type Cluster
 import type { PromptTrace } from "@/lib/ai/prompts";
 import { env } from "@/lib/env";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
+import { runLexyBrainOrchestration } from "@/lib/lexybrain/orchestrator";
 
 export type KeywordVector = {
   id: string;
@@ -159,49 +160,33 @@ async function labelCluster(members: KeywordVector[]): Promise<ClusterLabel> {
     signals,
   };
 
-  if (!env.OPENAI_API_KEY) {
-    return fallbackLabel(members);
-  }
-
   try {
-    const messages = buildChatMessages(CLUSTER_LABEL_PROMPT, payload);
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+    // Use LexyBrain orchestrator for cluster labeling
+    const result = await runLexyBrainOrchestration({
+      capability: "cluster_labeling",
+      userId: "system",
+      scope: "global",
+      metadata: {
+        keywords: payload.keywords,
+        primaryIntent: payload.primaryIntent,
+        signals: payload.signals,
       },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        temperature: 0.25,
-        messages,
-        response_format: { type: "json_object" },
-      }),
     });
 
-    if (!response.ok) {
-      throw new Error(`OpenAI cluster label failed (${response.status})`);
-    }
-
-    const payloadJson = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-
-    const content = payloadJson.choices?.[0]?.message?.content ?? "";
-    const match = content.match(/\{[\s\S]*\}/);
-    const parsed = match ? JSON.parse(match[0]) : null;
-
-    if (!parsed) {
-      throw new Error("Cluster label response missing JSON");
-    }
+    const insightData = result.insight as any;
 
     return {
-      label: parsed.label ?? members[0]?.term ?? "Cluster",
-      description: parsed.description ?? "Model did not supply a description.",
-      confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.62,
-      model: "gpt-4o-mini",
-      trace: buildPromptTrace(CLUSTER_LABEL_PROMPT, payload),
-      raw: parsed,
+      label: insightData.label ?? members[0]?.term ?? "Cluster",
+      description: insightData.description ?? "Model did not supply a description.",
+      confidence: typeof insightData.confidence === "number" ? insightData.confidence : 0.62,
+      model: result.llama.modelVersion,
+      trace: {
+        templateId: result.capability,
+        templateVersion: result.outputType,
+        system: "LexyBrain Orchestrator",
+        user: JSON.stringify(payload),
+      } as PromptTrace<ClusterLabelInput>,
+      raw: insightData,
     };
   } catch (error) {
     console.error("Cluster label call failed", error);
