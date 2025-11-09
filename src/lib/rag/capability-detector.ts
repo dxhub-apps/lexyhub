@@ -20,6 +20,17 @@ export function detectCapabilityHeuristic(message: string): RagCapability {
 
   // Keyword patterns for each capability
   const patterns: Record<RagCapability, string[]> = {
+    keyword_insights: [
+      'insight',
+      'insights',
+      'watchlist',
+      'momentum',
+      'performance',
+      'growth',
+      'trending keyword',
+      'search volume',
+      'opportunity',
+    ],
     competitor_intel: [
       'competitor',
       'competing',
@@ -71,6 +82,7 @@ export function detectCapabilityHeuristic(message: string): RagCapability {
 
   // Count matches for each capability
   const scores: Record<RagCapability, number> = {
+    keyword_insights: 0,
     competitor_intel: 0,
     alert_explanation: 0,
     keyword_explanation: 0,
@@ -142,6 +154,7 @@ export function getRetrievalScopeForCapability(
   capability: RagCapability
 ): string[] {
   const scopes: Record<RagCapability, string[]> = {
+    keyword_insights: ['keywords', 'keyword_history', 'watchlists'],
     market_brief: ['keywords', 'trends'],
     competitor_intel: ['listings', 'shops', 'keywords'],
     keyword_explanation: ['keywords', 'keyword_history', 'alerts'],

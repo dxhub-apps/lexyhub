@@ -11,6 +11,7 @@ import { z } from "zod";
 // =====================================================
 
 export const RAG_CAPABILITIES = [
+  'keyword_insights',
   'market_brief',
   'competitor_intel',
   'keyword_explanation',
