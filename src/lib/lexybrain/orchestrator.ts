@@ -613,6 +613,21 @@ export async function runLexyBrainOrchestration(
     limit: config.maxContext,
   });
 
+  // Hard-stop: If corpus is empty, refuse to generate to prevent hallucination
+  if (!corpus || corpus.length === 0) {
+    logger.info(
+      {
+        type: "lexybrain_no_data",
+        capability: request.capability,
+        user_id: request.userId,
+        keyword_ids: keywordIds.length,
+      },
+      "No corpus data available - returning hard-stop no-data response"
+    );
+
+    throw new Error("No reliable data for this query in LexyHub at the moment.");
+  }
+
   const promptConfig = await loadPromptConfig(config.promptKey);
   const context = buildContext(config, keywords, request.marketplace ?? null, {
     metrics,
