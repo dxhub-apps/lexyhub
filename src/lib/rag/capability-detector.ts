@@ -21,15 +21,20 @@ export function detectCapabilityHeuristic(message: string): RagCapability {
   // Keyword patterns for each capability
   const patterns: Record<RagCapability, string[]> = {
     keyword_insights: [
-      'insight',
-      'insights',
+      'keyword insight',
+      'keyword insights',
       'watchlist',
-      'momentum',
-      'performance',
-      'growth',
+      'tracked keyword',
+      'tracked keywords',
+      'keyword tracker',
+      'keyword tracking',
+      'keyword momentum',
+      'momentum score',
       'trending keyword',
+      'trending keywords',
       'search volume',
-      'opportunity',
+      'share of voice',
+      'sov',
     ],
     competitor_intel: [
       'competitor',
