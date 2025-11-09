@@ -112,7 +112,7 @@ export function KeywordChatTab({
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: data.response || data.message || "I couldn't generate a response. Please try again.",
+        content: data.answer || data.response || data.message || "I couldn't generate a response. Please try again.",
         timestamp: new Date(),
         sources: data.sources || data.references || [],
       };
