@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { Menu } from "lucide-react";
+import { Menu, MessageSquare } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -27,12 +28,18 @@ export function Topbar({
   sidebarCollapsed,
   activeNavItem,
 }: TopbarProps): JSX.Element {
+  const router = useRouter();
+
   const handleToggle = () => {
     if (isMobile) {
       onToggleNav();
     } else {
       onToggleSidebar();
     }
+  };
+
+  const handleAskLexyBrain = () => {
+    router.push('/ask-lexybrain');
   };
 
   return (
@@ -70,14 +77,16 @@ export function Topbar({
 
         {/* Right section */}
         <div className="flex items-center gap-2">
-          {/* LexyBrain Status Indicator */}
-          <div className="flex items-center gap-2 px-2">
-            <div className="relative flex items-center justify-center">
-              <div className="absolute h-3 w-3 rounded-full bg-green-500 opacity-75 animate-ping" />
-              <div className="relative h-2 w-2 rounded-full bg-green-500" />
-            </div>
-            <span className="text-xs text-muted-foreground hidden sm:inline">LexyBrain</span>
-          </div>
+          {/* Ask LexyBrain Button */}
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleAskLexyBrain}
+            className="gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+          >
+            <MessageSquare className="h-4 w-4" />
+            <span className="hidden sm:inline">Ask LexyBrain</span>
+          </Button>
 
           <Separator orientation="vertical" className="h-6" />
 
