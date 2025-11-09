@@ -34,6 +34,13 @@ Keyword search now normalizes cached embedding payloads retrieved from Supabase 
 | Welcome summary & card list | The page fetches `/api/watchlists`, normalizes the nested payload, and uses it to render the friendly hero summary plus each watchlist card.【F:src/app/(app)/watchlists/page.tsx†L31-L263】 | `watchlists`, `watchlist_items`, `keywords`, `listings` (for joined metadata).【F:src/lib/watchlists/service.ts†L92-L149】 |
 | Watchlist item tables | Each card renders the `watchlist_items` array returned from the API, including links to listing URLs when present and the humanized source label.【F:src/app/(app)/watchlists/page.tsx†L150-L220】 | Same as above (`watchlists`, `watchlist_items`, `keywords`, `listings`).【F:src/lib/watchlists/service.ts†L92-L149】 |
 | Remove item action | Triggering “Remove” sends `DELETE /api/watchlists/items/:id`, which validates ownership before deleting the row.【F:src/app/(app)/watchlists/page.tsx†L90-L114】【F:src/app/api/watchlists/items/[id]/route.ts†L9-L32】 | `watchlist_items` (with inner join to `watchlists` for user scoping).【F:src/lib/watchlists/service.ts†L151-L185】 |
+| Ask LexyBrain shortcut | The "Ask LexyBrain" button links into the chat workspace with the keyword context so the subsequent conversation requests `/api/lexybrain/rag` using the `keyword_insights` capability for watchlist-grade analysis.【F:src/app/(app)/watchlists/page.tsx†L205-L246】【F:src/app/(app)/ask-lexybrain/page.tsx†L58-L108】 | `rag_threads`, `rag_messages`, `usage_events` (persisted by the RAG handler while enforcing quotas).【F:src/app/api/lexybrain/rag/route.ts†L46-L115】【F:src/lib/rag/thread-manager.ts†L33-L124】 |
+
+## Ask LexyBrain (`/ask-lexybrain`)
+
+| UI element | How data is loaded | Supabase tables / stores |
+| --- | --- | --- |
+| Chat composer & transcript | Submitting a prompt posts to `/api/lexybrain/rag` with capability `keyword_insights` (or the detected fallback) and appends the streaming result into the on-page transcript.【F:src/app/(app)/ask-lexybrain/page.tsx†L58-L137】【F:src/app/api/lexybrain/rag/route.ts†L31-L195】 | `rag_threads`, `rag_messages` (conversation history), plus `usage_events` for quota tracking.【F:src/lib/rag/thread-manager.ts†L33-L180】【F:src/app/api/lexybrain/rag/route.ts†L46-L115】 |
 
 ## Insights (`/insights`)
 
