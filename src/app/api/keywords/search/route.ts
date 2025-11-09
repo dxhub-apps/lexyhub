@@ -55,11 +55,21 @@ const PLAN_SOURCES: Record<PlanTier, string[]> = {
   scale: ["synthetic", "amazon"],
 };
 
-const PLAN_RANK: Record<string, number> = {
+const PLAN_RANK = {
   free: 0,
   growth: 1,
   scale: 2,
-};
+} as const satisfies Record<PlanTier, number>;
+
+type PlanRank = (typeof PLAN_RANK)[PlanTier];
+
+function resolvePlanRank(plan: PlanTier): PlanRank {
+  const rank = PLAN_RANK[plan];
+  if (typeof rank === "number" && Number.isInteger(rank)) {
+    return Math.max(0, Math.min(2, rank)) as PlanRank;
+  }
+  return PLAN_RANK.free;
+}
 
 function normalizePlanTier(plan?: string | null): PlanTier {
   if (plan === "growth" || plan === "scale") return plan;
@@ -396,8 +406,9 @@ async function handleSearch(req: Request): Promise<NextResponse> {
   const resolvedSources = filteredSources.length > 0 ? filteredSources : allowedSources;
   const primarySource = resolvedSources[0] ?? allowedSources[0];
 
+  const planRank = resolvePlanRank(plan);
   const allowedTiers = Object.entries(PLAN_RANK)
-    .filter(([, rank]) => rank <= PLAN_RANK[plan])
+    .filter(([, rank]) => rank <= planRank)
     .map(([tier]) => tier);
 
   const limit = Math.max(1, Math.min(payload.limit ?? 20, 50));
@@ -440,11 +451,13 @@ async function handleSearch(req: Request): Promise<NextResponse> {
 
     // Immediately insert the keyword into the keywords table for future searches
     try {
+      const tier = resolvePlanRank(plan);
+
       const result = await supabase.rpc("lexy_upsert_keyword", {
         p_term: trimmedQuery,
         p_market: market,
         p_source: "ai",
-        p_tier: PLAN_RANK[plan] ?? 0,
+        p_tier: tier,
         p_method: "search_touch",
         p_extras: {},
         p_freshness: new Date().toISOString(),
