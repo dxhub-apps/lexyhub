@@ -32,6 +32,54 @@ CREATE POLICY ai_prompts_select_policy ON public.ai_prompts
   USING (true);
 
 -- =====================================================
+-- 1a. Team collaboration tables
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.teams (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  slug text NOT NULL,
+  created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (slug)
+);
+
+ALTER TABLE public.teams ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS teams_select_members ON public.teams;
+CREATE POLICY teams_select_members ON public.teams
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.team_members tm
+      WHERE tm.team_id = id
+        AND tm.user_id = auth.uid()
+        AND tm.is_active = true
+    )
+  );
+
+CREATE TABLE IF NOT EXISTS public.team_members (
+  team_id uuid NOT NULL REFERENCES public.teams(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  role text NOT NULL DEFAULT 'member' CHECK (role IN ('owner', 'admin', 'member', 'viewer')),
+  is_active boolean NOT NULL DEFAULT true,
+  joined_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (team_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS team_members_user_idx
+  ON public.team_members(user_id)
+  WHERE is_active = true;
+
+ALTER TABLE public.team_members ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS team_members_select_self ON public.team_members;
+CREATE POLICY team_members_select_self ON public.team_members
+  FOR SELECT
+  USING (user_id = auth.uid());
+
+-- =====================================================
 -- Seed core prompts if missing
 -- =====================================================
 INSERT INTO public.ai_prompts (key, type, content, config, is_active)
@@ -92,6 +140,7 @@ CREATE TABLE IF NOT EXISTS public.ai_corpus (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_scope text NOT NULL CHECK (owner_scope IN ('global', 'team', 'user')),
   owner_user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  owner_team_id uuid REFERENCES public.teams(id) ON DELETE CASCADE,
   source_type text NOT NULL,
   source_ref jsonb NOT NULL DEFAULT '{}'::jsonb,
   marketplace text,
@@ -107,9 +156,30 @@ CREATE TABLE IF NOT EXISTS public.ai_corpus (
 );
 
 CREATE INDEX IF NOT EXISTS ai_corpus_scope_idx ON public.ai_corpus(owner_scope);
+CREATE INDEX IF NOT EXISTS ai_corpus_owner_team_idx ON public.ai_corpus(owner_team_id);
 CREATE INDEX IF NOT EXISTS ai_corpus_marketplace_idx ON public.ai_corpus(marketplace);
 CREATE INDEX IF NOT EXISTS ai_corpus_created_idx ON public.ai_corpus(created_at DESC);
 CREATE INDEX IF NOT EXISTS ai_corpus_chunk_tsv_idx ON public.ai_corpus USING GIN (chunk_tsv);
+
+ALTER TABLE public.ai_corpus
+  ADD COLUMN IF NOT EXISTS owner_team_id uuid REFERENCES public.teams(id) ON DELETE CASCADE;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'ai_corpus_team_scope_ck'
+      AND conrelid = 'public.ai_corpus'::regclass
+  ) THEN
+    ALTER TABLE public.ai_corpus
+      ADD CONSTRAINT ai_corpus_team_scope_ck
+      CHECK (
+        owner_scope <> 'team'
+        OR owner_team_id IS NOT NULL
+      );
+  END IF;
+END $$;
 
 -- IVFFlat index for vector search (requires ANALYZE after population)
 CREATE INDEX IF NOT EXISTS ai_corpus_embedding_idx
@@ -124,7 +194,17 @@ CREATE POLICY ai_corpus_select_policy ON public.ai_corpus
   USING (
     owner_scope = 'global'
     OR (owner_scope = 'user' AND owner_user_id = auth.uid())
-    OR owner_scope = 'team'
+    OR (
+      owner_scope = 'team'
+      AND owner_team_id IS NOT NULL
+      AND EXISTS (
+        SELECT 1
+        FROM public.team_members tm
+        WHERE tm.team_id = owner_team_id
+          AND tm.user_id = auth.uid()
+          AND tm.is_active = true
+      )
+    )
   );
 
 -- =====================================================
@@ -136,6 +216,7 @@ CREATE OR REPLACE FUNCTION public.ai_corpus_rrf_search(
   p_capability text,
   p_marketplace text DEFAULT NULL,
   p_language text DEFAULT NULL,
+  p_team_id uuid DEFAULT NULL,
   p_limit int DEFAULT 12,
   p_rrf_k int DEFAULT 60
 )
@@ -143,6 +224,7 @@ RETURNS TABLE (
   id uuid,
   owner_scope text,
   owner_user_id uuid,
+  owner_team_id uuid,
   source_type text,
   source_ref jsonb,
   marketplace text,
@@ -160,6 +242,7 @@ WITH lexical AS (
     c.id,
     c.owner_scope,
     c.owner_user_id,
+    c.owner_team_id,
     c.source_type,
     c.source_ref,
     c.marketplace,
@@ -171,6 +254,7 @@ WITH lexical AS (
   WHERE c.is_active = true
     AND (p_marketplace IS NULL OR c.marketplace = p_marketplace)
     AND (p_language IS NULL OR c.language = p_language)
+    AND (p_team_id IS NULL OR c.owner_team_id = p_team_id)
     AND (COALESCE(trim(p_query), '') = '' OR c.chunk_tsv @@ websearch_to_tsquery('english', p_query))
 ),
 vector AS (
@@ -178,6 +262,7 @@ vector AS (
     c.id,
     c.owner_scope,
     c.owner_user_id,
+    c.owner_team_id,
     c.source_type,
     c.source_ref,
     c.marketplace,
@@ -190,12 +275,14 @@ vector AS (
     AND p_query_embedding IS NOT NULL
     AND (p_marketplace IS NULL OR c.marketplace = p_marketplace)
     AND (p_language IS NULL OR c.language = p_language)
+    AND (p_team_id IS NULL OR c.owner_team_id = p_team_id)
 ),
 merged AS (
   SELECT
     COALESCE(l.id, v.id) AS id,
     COALESCE(l.owner_scope, v.owner_scope) AS owner_scope,
     COALESCE(l.owner_user_id, v.owner_user_id) AS owner_user_id,
+    COALESCE(l.owner_team_id, v.owner_team_id) AS owner_team_id,
     COALESCE(l.source_type, v.source_type) AS source_type,
     COALESCE(l.source_ref, v.source_ref) AS source_ref,
     COALESCE(l.marketplace, v.marketplace) AS marketplace,
@@ -211,6 +298,7 @@ SELECT
   m.id,
   m.owner_scope,
   m.owner_user_id,
+  m.owner_team_id,
   m.source_type,
   m.source_ref,
   m.marketplace,
@@ -298,6 +386,7 @@ CREATE TABLE IF NOT EXISTS public.keyword_insight_snapshots (
   keyword_id uuid NOT NULL REFERENCES public.keywords(id) ON DELETE CASCADE,
   capability text NOT NULL,
   scope text NOT NULL CHECK (scope IN ('global', 'team', 'user')),
+  team_id uuid REFERENCES public.teams(id) ON DELETE SET NULL,
   metrics_used jsonb NOT NULL DEFAULT '{}'::jsonb,
   insight jsonb NOT NULL,
   references jsonb NOT NULL DEFAULT '[]'::jsonb,
@@ -309,6 +398,29 @@ CREATE INDEX IF NOT EXISTS keyword_insight_snapshots_keyword_idx
   ON public.keyword_insight_snapshots(keyword_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS keyword_insight_snapshots_capability_idx
   ON public.keyword_insight_snapshots(capability, created_at DESC);
+CREATE INDEX IF NOT EXISTS keyword_insight_snapshots_team_idx
+  ON public.keyword_insight_snapshots(team_id)
+  WHERE team_id IS NOT NULL;
+
+ALTER TABLE public.keyword_insight_snapshots
+  ADD COLUMN IF NOT EXISTS team_id uuid REFERENCES public.teams(id) ON DELETE SET NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'keyword_insight_snapshots_team_scope_ck'
+      AND conrelid = 'public.keyword_insight_snapshots'::regclass
+  ) THEN
+    ALTER TABLE public.keyword_insight_snapshots
+      ADD CONSTRAINT keyword_insight_snapshots_team_scope_ck
+      CHECK (
+        scope <> 'team'
+        OR team_id IS NOT NULL
+      );
+  END IF;
+END $$;
 
 ALTER TABLE public.keyword_insight_snapshots ENABLE ROW LEVEL SECURITY;
 
@@ -318,7 +430,17 @@ CREATE POLICY keyword_insight_snapshots_select_policy ON public.keyword_insight_
   USING (
     scope = 'global'
     OR (scope = 'user' AND created_by = auth.uid())
-    OR scope = 'team'
+    OR (
+      scope = 'team'
+      AND team_id IS NOT NULL
+      AND EXISTS (
+        SELECT 1
+        FROM public.team_members tm
+        WHERE tm.team_id = team_id
+          AND tm.user_id = auth.uid()
+          AND tm.is_active = true
+      )
+    )
   );
 
 -- =====================================================

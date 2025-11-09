@@ -29,6 +29,7 @@ const RequestSchema = z.object({
   marketplace: z.string().optional().nullable(),
   language: z.string().optional().nullable(),
   scope: z.enum(["user", "team", "global"]).optional(),
+  teamId: z.string().uuid().optional().nullable(),
   metadata: z.record(z.any()).optional(),
 });
 
