@@ -8,6 +8,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { RagResponse } from "@/lib/rag/types";
 
 interface Message {
@@ -195,10 +197,60 @@ export default function AskLexyBrainPage() {
                   className={`${
                     message.role === "user"
                       ? "text-sm"
-                      : "rounded-2xl rounded-tl-sm border bg-card px-4 py-3 text-sm"
+                      : "rounded-2xl rounded-tl-sm border bg-card px-4 py-3 text-sm prose prose-sm dark:prose-invert max-w-none"
                   }`}
                 >
-                  {message.content}
+                  {message.role === "user" ? (
+                    message.content
+                  ) : (
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        h2: ({ children }) => (
+                          <h2 className="text-base font-semibold mt-4 mb-2 first:mt-0 text-foreground">
+                            {children}
+                          </h2>
+                        ),
+                        h3: ({ children }) => (
+                          <h3 className="text-sm font-semibold mt-3 mb-2 text-foreground">
+                            {children}
+                          </h3>
+                        ),
+                        p: ({ children }) => (
+                          <p className="mb-3 last:mb-0 text-foreground leading-relaxed">
+                            {children}
+                          </p>
+                        ),
+                        ul: ({ children }) => (
+                          <ul className="my-2 space-y-1 list-disc list-inside">
+                            {children}
+                          </ul>
+                        ),
+                        ol: ({ children }) => (
+                          <ol className="my-2 space-y-1 list-decimal list-inside">
+                            {children}
+                          </ol>
+                        ),
+                        li: ({ children }) => (
+                          <li className="text-foreground leading-relaxed">
+                            {children}
+                          </li>
+                        ),
+                        strong: ({ children }) => (
+                          <strong className="font-semibold text-foreground">
+                            {children}
+                          </strong>
+                        ),
+                        code: ({ children }) => (
+                          <code className="px-1.5 py-0.5 rounded bg-muted text-xs font-mono">
+                            {children}
+                          </code>
+                        ),
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  )}
                 </div>
                 {message.sources && message.sources.length > 0 && (
                   <div className="space-y-2">
