@@ -8,6 +8,11 @@ import { cn } from "@/lib/utils";
 
 const ADMIN_SECTIONS = [
   {
+    href: "/admin/jobs",
+    label: "Background Jobs",
+    description: "Monitor and manually trigger background automation jobs",
+  },
+  {
     href: "/admin/lexybrain",
     label: "LexyBrain Prompts",
     description: "Manage AI prompt configurations",
