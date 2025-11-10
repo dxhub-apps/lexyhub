@@ -1,6 +1,6 @@
 -- migrate:up
 -- ===========================================
--- 0050_signup_source_tracking.sql
+-- 0054_signup_source_tracking.sql
 -- Add signup_source tracking for extension users
 -- ===========================================
 

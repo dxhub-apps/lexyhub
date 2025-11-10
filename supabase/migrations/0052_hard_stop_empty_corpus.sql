@@ -1,5 +1,8 @@
+-- ===========================================
+-- 0052_hard_stop_empty_corpus.sql
 -- Migration: Hard-stop behavior when ai_corpus is empty
 -- Enforces strict "no data" responses to prevent hallucinations when corpus is empty
+-- ===========================================
 
 -- Update system prompt with strict anti-hallucination rules
 UPDATE public.ai_prompts
