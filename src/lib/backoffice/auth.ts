@@ -12,7 +12,8 @@ export class AdminAccessError extends Error {
 }
 
 export async function requireAdminUser(): Promise<{ user: User; plan: string | null }> {
-  const supabase = createRouteHandlerClient({ cookies });
+  const cookieStore = cookies();
+  const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
   const {
     data: { user },
     error,
