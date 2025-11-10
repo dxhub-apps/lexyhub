@@ -101,7 +101,7 @@
     "archiver": "6.0.1",
     "autoprefixer": "^10.4.21",
     "eslint": "8.57.0",
-    "eslint-config-next": "14.2.5",
+    "eslint-config-next": "16.0.1",
     "husky": "9.1.2",
     "lint-staged": "15.2.7",
     "playwright-core": "^1.56.1",
