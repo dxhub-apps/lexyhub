@@ -55,13 +55,15 @@ function normalizeQuotaKey(key: QuotaKey): string {
  * Checks monthly usage against plan entitlements.
  * Throws QuotaExceededError if limit reached.
  *
+ * Note: Named "enforceQuota" (not "useQuota") to avoid React Hooks ESLint rules.
+ *
  * @param userId - User UUID
  * @param key - Quota key: 'ks' (keyword search), 'lb' (LexyBrain), 'br' (briefs), 'wl' (watchlist)
  *               Legacy keys also supported: 'searches', 'ai_opportunities', 'niches'
  * @param amount - Amount to increment (default 1)
  * @returns QuotaResult with allowed, used, limit
  */
-export async function useQuota(
+export async function enforceQuota(
   userId: string,
   key: QuotaKey,
   amount: number = 1,

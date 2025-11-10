@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { authenticateExtension, checkRateLimit } from "@/lib/extension/auth";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
-import { useQuota, QuotaExceededError } from "@/lib/billing/enforce";
+import { enforceQuota, QuotaExceededError } from "@/lib/billing/enforce";
 
 interface BriefPayload {
   terms: string[];
@@ -42,7 +42,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   // Enforce brief quota (BR)
   try {
-    await useQuota(context.userId, "br", 1);
+    await enforceQuota(context.userId, "br", 1);
   } catch (error) {
     if (error instanceof QuotaExceededError) {
       return NextResponse.json(

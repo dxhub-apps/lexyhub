@@ -11,7 +11,7 @@ import {
 import { createProvenanceId, normalizeKeywordTerm } from "@/lib/keywords/utils";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 import type { PlanTier } from "@/lib/usage/quotas";
-import { useQuota, QuotaExceededError } from "@/lib/billing/enforce";
+import { enforceQuota, QuotaExceededError } from "@/lib/billing/enforce";
 
 interface SearchRequestPayload {
   query?: string;
@@ -429,7 +429,7 @@ async function handleSearch(req: Request): Promise<NextResponse> {
   // Enforce keyword search quota (KS) for authenticated users
   if (userId) {
     try {
-      await useQuota(userId, "ks", 1);
+      await enforceQuota(userId, "ks", 1);
     } catch (error) {
       if (error instanceof QuotaExceededError) {
         return NextResponse.json(
