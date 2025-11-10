@@ -12,8 +12,8 @@ const LOOKBACK_DAYS = 7;
 interface Keyword {
   id: string;
   term: string;
-  marketplace: string | null;
-  market?: string | null;
+  market: string | null;
+  marketplace?: string | null;
   demand_index: number | null;
   competition_score: number | null;
   trend_momentum: number | null;
@@ -56,8 +56,8 @@ function createMetricChunk(keyword: Keyword, dailyMetrics: DailyMetric[], weekly
   const parts: string[] = [];
 
   parts.push(`Keyword: "${keyword.term}"`);
-  if (keyword.marketplace) {
-    parts.push(`Marketplace: ${keyword.marketplace}`);
+  if (keyword.market) {
+    parts.push(`Marketplace: ${keyword.market}`);
   }
 
   const currentMetrics: string[] = [];
@@ -104,8 +104,8 @@ export async function ingestMetricsToCorpus(): Promise<{ success: boolean; proce
 
     const { data: keywords, error: keywordsError } = await supabase
       .from("keywords")
-      .select("id, term, marketplace, demand_index, competition_score, trend_momentum, engagement_score, ai_opportunity_score")
-      .not("marketplace", "is", null)
+      .select("id, term, market, demand_index, competition_score, trend_momentum, engagement_score, ai_opportunity_score")
+      .not("market", "is", null)
       .gte("updated_at", lookbackDate.toISOString())
       .order("updated_at", { ascending: false })
       .limit(BATCH_SIZE);
@@ -172,7 +172,7 @@ export async function ingestMetricsToCorpus(): Promise<{ success: boolean; proce
             weekly_count: weekly.length,
             ingested_at: new Date().toISOString(),
           },
-          marketplace: keyword.marketplace,
+          marketplace: keyword.market,
           language: "en",
           chunk,
           embedding: JSON.stringify(embedding),
@@ -237,7 +237,7 @@ export async function ingestPredictionsToCorpus(): Promise<{ success: boolean; p
     const keywordIds = [...new Set(predictions.map((p) => p.keyword_id))];
     const { data: keywords } = await supabase
       .from("keywords")
-      .select("id, term, marketplace")
+      .select("id, term, market")
       .in("id", keywordIds);
 
     const keywordsMap = new Map((keywords || []).map((k) => [k.id, k]));
@@ -247,7 +247,7 @@ export async function ingestPredictionsToCorpus(): Promise<{ success: boolean; p
       const keyword = keywordsMap.get(pred.keyword_id);
       if (!keyword) continue;
 
-      const chunk = `Forecast for keyword: "${keyword.term}". Marketplace: ${pred.marketplace || keyword.marketplace}. Forecast Horizon: ${pred.horizon}. ${JSON.stringify(pred.metrics)}`;
+      const chunk = `Forecast for keyword: "${keyword.term}". Marketplace: ${pred.marketplace || keyword.market}. Forecast Horizon: ${pred.horizon}. ${JSON.stringify(pred.metrics)}`;
       const embedding = await createSemanticEmbedding(chunk, { fallbackToDeterministic: true });
 
       await supabase.from("ai_corpus").upsert({
@@ -255,7 +255,7 @@ export async function ingestPredictionsToCorpus(): Promise<{ success: boolean; p
         owner_scope: "global",
         source_type: "keyword_prediction",
         source_ref: { prediction_id: pred.id, keyword_id: pred.keyword_id, ingested_at: new Date().toISOString() },
-        marketplace: pred.marketplace || keyword.marketplace,
+        marketplace: pred.marketplace || keyword.market,
         language: "en",
         chunk,
         embedding: JSON.stringify(embedding),
