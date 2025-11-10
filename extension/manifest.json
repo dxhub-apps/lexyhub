@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "LexyHub Extension",
-  "version": "1.0.0",
-  "description": "Keyword research assistant for e-commerce marketplaces. Capture keywords, track watchlists, and get real-time insights on Etsy, Amazon, and Shopify.",
+  "version": "4.0.0",
+  "description": "Transform your marketplace browsing into keyword intelligence. Highlight verified keywords, get instant LexyBrain insights, and build your watchlist across Etsy, Amazon, eBay, Walmart, and Shopify.",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -26,10 +26,20 @@
     "https://www.amazon.fr/*",
     "https://www.amazon.it/*",
     "https://www.amazon.es/*",
+    "https://www.amazon.co.jp/*",
+    "https://www.amazon.in/*",
+    "https://www.amazon.com.au/*",
+    "https://www.ebay.com/*",
+    "https://www.ebay.ca/*",
+    "https://www.ebay.co.uk/*",
+    "https://www.walmart.com/*",
+    "https://www.walmart.ca/*",
     "https://www.google.com/*",
     "https://www.pinterest.com/*",
     "https://www.pinterest.ca/*",
     "https://www.reddit.com/*",
+    "https://app.lexyhub.com/*",
+    "https://lexyhub.com/*",
     "https://*/*"
   ],
   "background": {

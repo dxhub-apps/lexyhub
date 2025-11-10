@@ -7,6 +7,11 @@ import { Highlighter } from "../lib/highlighter";
 import { TooltipManager } from "../lib/tooltip";
 import { SessionRecorder } from "../lib/session-recorder";
 import { extractSearchQuery, parseRelatedSearches, batchNormalize } from "../lib/parsers";
+import {
+  shouldEnableHighlighting,
+  checkAuthentication,
+  getWatchlist,
+} from "../lib/content-helpers";
 
 const MARKET = "google";
 
@@ -33,6 +38,20 @@ class GoogleContentScript {
   }
 
   async init(): Promise<void> {
+    // Check if highlighting should be enabled
+    const highlightCheck = await shouldEnableHighlighting(MARKET);
+    if (!highlightCheck.enabled) {
+      console.log(`[LexyHub Google] ${highlightCheck.reason}`);
+      return;
+    }
+
+    // Check authentication
+    const authCheck = await checkAuthentication();
+    if (!authCheck.authenticated) {
+      console.log(`[LexyHub Google] ${authCheck.reason}`);
+      return;
+    }
+
     // Track search query
     const query = extractSearchQuery(window.location.href);
     if (query) {
@@ -46,7 +65,12 @@ class GoogleContentScript {
     this.setupObserver();
 
     // Fetch and apply watchlist highlights
-    await this.applyWatchlistHighlights();
+    const terms = await getWatchlist(MARKET);
+    if (terms.length > 0) {
+      this.highlighter.setKeywords(terms);
+      this.highlighter.highlight(document.body);
+      console.log(`[LexyHub Google] Loaded ${terms.length} watchlist terms`);
+    }
   }
 
   private async extractKeywords(): Promise<void> {
@@ -91,22 +115,6 @@ class GoogleContentScript {
     normalized.forEach(term => this.sessionRecorder.addTerm(term));
 
     console.log(`[LexyHub Google] Extracted ${normalized.length} keywords`);
-  }
-
-  private async applyWatchlistHighlights(): Promise<void> {
-    try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'GET_WATCHLIST',
-        payload: { market: MARKET },
-      });
-
-      if (response?.success && response.data?.terms) {
-        this.highlighter.setKeywords(response.data.terms);
-        this.highlighter.highlight(document.body);
-      }
-    } catch (error) {
-      console.error('[LexyHub Google] Error fetching watchlist:', error);
-    }
   }
 
   private setupObserver(): void {

@@ -7,6 +7,11 @@ import { Highlighter } from "../lib/highlighter";
 import { TooltipManager } from "../lib/tooltip";
 import { SessionRecorder } from "../lib/session-recorder";
 import { extractSearchQuery, parseRelatedSearches, batchNormalize } from "../lib/parsers";
+import {
+  shouldEnableHighlighting,
+  checkAuthentication,
+  getWatchlist,
+} from "../lib/content-helpers";
 
 const MARKET = "bing";
 
@@ -29,6 +34,20 @@ class BingContentScript {
   }
 
   async init(): Promise<void> {
+    // Check if highlighting should be enabled
+    const highlightCheck = await shouldEnableHighlighting(MARKET);
+    if (!highlightCheck.enabled) {
+      console.log(`[LexyHub Bing] ${highlightCheck.reason}`);
+      return;
+    }
+
+    // Check authentication
+    const authCheck = await checkAuthentication();
+    if (!authCheck.authenticated) {
+      console.log(`[LexyHub Bing] ${authCheck.reason}`);
+      return;
+    }
+
     const query = extractSearchQuery(window.location.href);
     if (query) {
       this.sessionRecorder.trackSearch(query);
@@ -60,14 +79,11 @@ class BingContentScript {
     normalized.forEach(term => this.sessionRecorder.addTerm(term));
 
     // Apply highlights
-    const response = await chrome.runtime.sendMessage({
-      type: 'GET_WATCHLIST',
-      payload: { market: MARKET },
-    });
-
-    if (response?.success && response.data?.terms) {
-      this.highlighter.setKeywords(response.data.terms);
+    const terms = await getWatchlist(MARKET);
+    if (terms.length > 0) {
+      this.highlighter.setKeywords(terms);
       this.highlighter.highlight(document.body);
+      console.log(`[LexyHub Bing] Loaded ${terms.length} watchlist terms`);
     }
   }
 }

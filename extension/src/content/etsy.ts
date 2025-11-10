@@ -5,6 +5,11 @@
 
 import { Highlighter } from "../lib/highlighter";
 import { TooltipManager } from "../lib/tooltip";
+import {
+  shouldEnableHighlighting,
+  checkAuthentication,
+  getWatchlist,
+} from "../lib/content-helpers";
 
 const MARKET = "etsy";
 
@@ -49,22 +54,26 @@ class EtsyContentScript {
    * Initialize the content script
    */
   async init(): Promise<void> {
-    // Check if extension is enabled for Etsy
-    const settings = await this.getSettings();
-    if (!settings?.enabled_domains?.etsy) {
-      console.log("[LexyHub Etsy] Etsy domain is disabled");
+    // Check if highlighting should be enabled
+    const highlightCheck = await shouldEnableHighlighting(MARKET);
+    if (!highlightCheck.enabled) {
+      console.log(`[LexyHub Etsy] ${highlightCheck.reason}`);
       return;
     }
 
     // Check authentication
-    const authState = await this.getAuthState();
-    if (!authState?.isAuthenticated) {
-      console.log("[LexyHub Etsy] User not authenticated");
+    const authCheck = await checkAuthentication();
+    if (!authCheck.authenticated) {
+      console.log(`[LexyHub Etsy] ${authCheck.reason}`);
       return;
     }
 
     // Fetch watchlist
-    await this.loadWatchlist();
+    const terms = await getWatchlist(MARKET);
+    if (terms.length > 0) {
+      this.highlighter.setKeywords(terms);
+      console.log(`[LexyHub Etsy] Loaded ${terms.length} watchlist terms`);
+    }
 
     // Start observing DOM changes
     this.startObserver();
@@ -75,56 +84,6 @@ class EtsyContentScript {
     console.log("[LexyHub Etsy] Content script ready");
   }
 
-  /**
-   * Get settings from background
-   */
-  private getSettings(): Promise<any> {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage(
-        { type: "GET_SETTINGS" },
-        (response) => {
-          resolve(response?.success ? response.data : null);
-        }
-      );
-    });
-  }
-
-  /**
-   * Get auth state from background
-   */
-  private getAuthState(): Promise<any> {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage(
-        { type: "GET_AUTH_STATE" },
-        (response) => {
-          resolve(response || null);
-        }
-      );
-    });
-  }
-
-  /**
-   * Load watchlist from background
-   */
-  private async loadWatchlist(): Promise<void> {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage(
-        {
-          type: "GET_WATCHLIST",
-          payload: { market: MARKET },
-        },
-        (response) => {
-          if (response?.success && response.data?.terms) {
-            this.highlighter.setKeywords(response.data.terms);
-            console.log(
-              `[LexyHub Etsy] Loaded ${response.data.terms.length} watchlist terms`
-            );
-          }
-          resolve();
-        }
-      );
-    });
-  }
 
   /**
    * Highlight keywords on the page
