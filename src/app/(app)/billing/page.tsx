@@ -67,10 +67,12 @@ export default function BillingPage(): JSX.Element {
     searches: { used: number; limit: number };
     ai_opportunities: { used: number; limit: number };
     niches: { used: number; limit: number };
+    briefs?: { used: number; limit: number };
   }>({
     searches: { used: 0, limit: 10 },
     ai_opportunities: { used: 0, limit: 2 },
     niches: { used: 0, limit: 1 },
+    briefs: { used: 0, limit: 0 },
   });
   const activePlanSummary = useMemo(() => PLAN_SUMMARY[currentPlan] || "Manage your subscription and usage.", [currentPlan]);
   const visiblePlans = useMemo(() => getVisiblePlans(), []);
@@ -352,15 +354,19 @@ export default function BillingPage(): JSX.Element {
             <div className="grid gap-3">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
-                <span className="text-sm">100 searches per month</span>
+                <span className="text-sm">1,000 keyword searches per month</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
-                <span className="text-sm">10 AI opportunities per month</span>
+                <span className="text-sm">300 LexyBrain calls per month</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
-                <span className="text-sm">5 niches maximum</span>
+                <span className="text-sm">150 watchlist keywords</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <span className="text-sm">4 market briefs per month</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
@@ -403,15 +409,19 @@ export default function BillingPage(): JSX.Element {
             <div className="grid gap-3">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
-                <span className="text-sm">100 searches per month</span>
+                <span className="text-sm">1,000 keyword searches per month</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
-                <span className="text-sm">10 AI opportunities per month</span>
+                <span className="text-sm">300 LexyBrain calls per month</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
-                <span className="text-sm">5 niches maximum</span>
+                <span className="text-sm">150 watchlist keywords</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <span className="text-sm">4 market briefs per month</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
@@ -438,21 +448,26 @@ export default function BillingPage(): JSX.Element {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <UsageChip
-              label="Searches"
+              label="Keyword Searches (KS)"
               used={usage.searches.used}
               limit={usage.searches.limit}
             />
             <UsageChip
-              label="AI Opportunities"
+              label="LexyBrain Calls (LB)"
               used={usage.ai_opportunities.used}
               limit={usage.ai_opportunities.limit}
             />
             <UsageChip
-              label="Niches"
+              label="Watchlist Keywords (WL)"
               used={usage.niches.used}
               limit={usage.niches.limit}
+            />
+            <UsageChip
+              label="Market Briefs (BR)"
+              used={usage.briefs?.used || 0}
+              limit={usage.briefs?.limit || 0}
             />
           </div>
           <div className="mt-4">
