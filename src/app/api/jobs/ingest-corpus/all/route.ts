@@ -6,6 +6,11 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import {
+  ingestMetricsToCorpus,
+  ingestPredictionsToCorpus,
+  ingestRisksToCorpus,
+} from "@/lib/jobs/corpus-ingestion";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,29 +27,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
     const results: Record<string, any> = {};
 
-    // Run each ingestion job
-    const jobs = ["metrics", "predictions", "risks"];
+    // Run each ingestion job directly (no HTTP calls)
+    try {
+      results.metrics = await ingestMetricsToCorpus();
+    } catch (error) {
+      results.metrics = {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
 
-    for (const job of jobs) {
-      try {
-        const response = await fetch(`${baseUrl}/api/jobs/ingest-corpus/${job}`, {
-          method: "POST",
-          headers: {
-            "Authorization": authHeader,
-            "Content-Type": "application/json",
-          },
-        });
+    try {
+      results.predictions = await ingestPredictionsToCorpus();
+    } catch (error) {
+      results.predictions = {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
 
-        results[job] = await response.json();
-      } catch (error) {
-        results[job] = {
-          success: false,
-          error: error instanceof Error ? error.message : String(error),
-        };
-      }
+    try {
+      results.risks = await ingestRisksToCorpus();
+    } catch (error) {
+      results.risks = {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
     }
 
     const allSuccess = Object.values(results).every((r: any) => r.success);
