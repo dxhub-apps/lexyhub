@@ -24,6 +24,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { NotificationPreferences } from "@/components/profile/NotificationPreferences";
+import { Bell } from "lucide-react";
 
 type ProfileDetails = {
   fullName: string;
@@ -350,6 +352,23 @@ export default function ProfilePage(): JSX.Element {
               </form>
             </CardContent>
           </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-start gap-3">
+              <Bell className="h-6 w-6 text-muted-foreground" />
+              <div className="space-y-1">
+                <CardTitle>Notification Preferences</CardTitle>
+                <CardDescription>
+                  Manage how and when you receive notifications from LexyHub
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <NotificationPreferences userId={userId} />
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
