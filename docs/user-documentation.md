@@ -146,10 +146,15 @@ The Status area communicates current system health and highlights any degradatio
 - **Notifications:** Toasts appear for successes, warnings, and errors across the application using consistent solid backgrounds that respect the current theme. The topbar bell prepares the surface for richer notification history that will land soon.
 - **Themes:** Switch between Light, Dark, and System modes from the Theme submenu in the user menu. All surfaces—including cards, tables, and navigation—now share the same palette so light and dark experiences remain visually balanced. Preferences persist per device.
 
+## Feedback
+- **Quick access icon:** The top navigation now includes a speech bubble icon next to notifications. Click it from any page to open the feedback form without leaving your current workflow.
+- **Submission form:** Choose whether you are reporting a bug, sharing an idea, or asking a question, then provide optional context such as impact and technical details. Submissions automatically capture the page URL to help the team reproduce issues faster.
+- **Admin review:** Workspace administrators can review every submission from **Admin → Feedback**, filter by status or impact, and open detailed entries that include metadata, screenshots, and timestamps.
+
 ## Help & Support
 - **Help Center:** Access this documentation from the new "Need help?" shortcut in the workspace header or the help icon in the global user menu.
 - **Contact support:** Email `support@lexyhub.ai` or open the in-app messenger (Settings → Support) for urgent issues.
-- **Feedback:** Submit feature requests from Settings or by replying to any LexyHub email notification.
+- **Feedback:** Use the topbar feedback button or visit **Settings → Support** to share ideas and report issues. Replies to LexyHub email notifications still route to the support team if you prefer email.
 
 ## Troubleshooting
 | Issue | Resolution |
@@ -169,4 +174,4 @@ LexyHub publishes sprint-level release notes in `/docs/changelog.md`. Review the
 - **Amazon keyword population guide:** `/docs/amazon-keyword-population-guide.md`
 - **Trend & intent intelligence:** `/docs/trend-intent-intelligence.md`
 
-_Last updated: 2025-07-16_
+_Last updated: 2025-07-17_
