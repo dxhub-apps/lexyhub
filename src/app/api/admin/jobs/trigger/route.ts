@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminUser, AdminAccessError } from "@/lib/backoffice/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +14,9 @@ export const maxDuration = 600; // 10 minutes
 
 export async function POST(request: NextRequest) {
   try {
+    // Check admin authentication
+    await requireAdminUser();
+
     const body = await request.json();
     const { endpoint, parameters } = body;
 
@@ -52,6 +56,16 @@ export async function POST(request: NextRequest) {
       result,
     });
   } catch (error) {
+    if (error instanceof AdminAccessError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: error.message,
+        },
+        { status: 403 }
+      );
+    }
+
     return NextResponse.json(
       {
         success: false,
