@@ -5,7 +5,7 @@
  */
 
 import { getSupabaseServerClient } from "@/lib/supabase-server";
-import { createDeterministicEmbedding } from "@/lib/ai/embeddings";
+import { createSemanticEmbedding } from "@/lib/ai/semantic-embeddings";
 import { logger } from "@/lib/logger";
 import type { RetrievalContext } from "./types";
 
@@ -18,21 +18,36 @@ const KEYWORD_EMBEDDING_DIMENSION = 384; // all-MiniLM-L6-v2
 /**
  * Generate embedding for RAG query
  *
- * NOTE: This uses deterministic SHA256-based embeddings as a fallback.
- * In production, integrate with Sentence Transformers or HuggingFace
- * embedding API to match the all-MiniLM-L6-v2 model used for keywords.
+ * CRITICAL: Must use the same embedding model as corpus ingestion
+ * (sentence-transformers/all-MiniLM-L6-v2) for proper vector similarity.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
-  // For now, use deterministic fallback
-  // TODO: Integrate with actual all-MiniLM-L6-v2 model
-  const embedding = createDeterministicEmbedding(text, KEYWORD_EMBEDDING_DIMENSION);
+  try {
+    // Use semantic embeddings to match corpus data
+    const embedding = await createSemanticEmbedding(text, {
+      fallbackToDeterministic: true,
+    });
 
-  logger.debug(
-    { type: 'rag_embedding_generated', text_length: text.length },
-    'Generated embedding for query'
-  );
+    logger.debug(
+      {
+        type: 'rag_embedding_generated',
+        text_length: text.length,
+        dimension: embedding.length,
+      },
+      'Generated semantic embedding for query'
+    );
 
-  return embedding;
+    return embedding;
+  } catch (error) {
+    logger.error(
+      {
+        type: 'rag_embedding_error',
+        error: error instanceof Error ? error.message : String(error),
+      },
+      'Failed to generate embedding for RAG query'
+    );
+    throw error;
+  }
 }
 
 // =====================================================

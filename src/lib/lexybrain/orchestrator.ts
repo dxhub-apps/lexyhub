@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 
-import { createDeterministicEmbedding } from "@/lib/ai/embeddings";
+import { createSemanticEmbedding } from "@/lib/ai/semantic-embeddings";
 import { logger } from "@/lib/logger";
 import { generateLexyBrainJson } from "@/lib/lexybrain-json";
 import type { LexyBrainContext } from "@/lib/lexybrain-prompt";
@@ -339,7 +339,7 @@ async function retrieveCorpusContext(params: {
 
   const trimmedQuery = params.queryText.trim();
   const embedding = trimmedQuery
-    ? createDeterministicEmbedding(trimmedQuery, 384)
+    ? await createSemanticEmbedding(trimmedQuery, { fallbackToDeterministic: true })
     : null;
 
   const { data, error } = await supabase.rpc("ai_corpus_rrf_search", {

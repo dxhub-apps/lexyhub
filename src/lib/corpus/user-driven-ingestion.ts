@@ -137,6 +137,22 @@ export async function ingestKeywordToCorpus(
       fallbackToDeterministic: true,
     });
 
+    // Validate embedding dimension
+    if (embedding.length !== 384) {
+      const errorMsg = `Invalid embedding dimension: expected 384, got ${embedding.length}`;
+      logger.error(
+        {
+          type: "corpus_invalid_embedding_dimension",
+          keyword_id: keyword.id,
+          term: keyword.term,
+          expected_dim: 384,
+          actual_dim: embedding.length,
+        },
+        errorMsg
+      );
+      return { success: false, error: errorMsg };
+    }
+
     // Upsert to ai_corpus
     const corpusId = crypto.randomUUID();
 
@@ -154,7 +170,7 @@ export async function ingestKeywordToCorpus(
       marketplace: keyword.marketplace,
       language: "en",
       chunk,
-      embedding: JSON.stringify(embedding),
+      embedding: embedding, // Pass array directly, not JSON.stringify
       metadata: {
         keyword_term: keyword.term,
         source: keyword.source,

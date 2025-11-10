@@ -146,6 +146,15 @@ async function main() {
             fallbackToDeterministic: true,
           });
 
+          // Validate embedding dimension
+          if (embedding.length !== 384) {
+            console.error(
+              `[ERROR] Invalid embedding dimension for rule ${rule.rule_code}: expected 384, got ${embedding.length}`
+            );
+            totalErrors++;
+            continue;
+          }
+
           const { error: upsertError } = await supabase
             .from("ai_corpus")
             .upsert({
@@ -162,7 +171,7 @@ async function main() {
               marketplace: rule.marketplace,
               language: "en",
               chunk,
-              embedding: JSON.stringify(embedding),
+              embedding: embedding, // Pass array directly, not JSON.stringify
               metadata: {
                 rule_code: rule.rule_code,
                 severity: rule.severity,
@@ -247,6 +256,15 @@ async function main() {
             fallbackToDeterministic: true,
           });
 
+          // Validate embedding dimension
+          if (embedding.length !== 384) {
+            console.error(
+              `[ERROR] Invalid embedding dimension for event ${event.id}: expected 384, got ${embedding.length}`
+            );
+            eventErrors++;
+            continue;
+          }
+
           const { error: upsertError } = await supabase
             .from("ai_corpus")
             .upsert({
@@ -264,7 +282,7 @@ async function main() {
               marketplace: event.marketplace || keyword?.marketplace,
               language: "en",
               chunk,
-              embedding: JSON.stringify(embedding),
+              embedding: embedding, // Pass array directly, not JSON.stringify
               metadata: {
                 keyword_term: keyword?.term,
                 rule_code: rule?.rule_code,
