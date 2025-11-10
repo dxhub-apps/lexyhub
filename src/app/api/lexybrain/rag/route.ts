@@ -184,6 +184,62 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const insufficientContext = rankedSources.length < 5;
 
     // ============================================
+    // HARD-STOP: Enforce "No Reliable Data" when corpus is insufficient
+    // ============================================
+    if (insufficientContext) {
+      logger.info(
+        {
+          type: "rag_no_data",
+          user_id: userId,
+          thread_id: thread.id,
+          sources_count: rankedSources.length,
+        },
+        "Insufficient corpus data - returning hard-stop no-data response"
+      );
+
+      // Insert assistant message with "no data" response
+      const noDataMessage = "No reliable data for this query in LexyHub at the moment.";
+
+      const assistantMessage = await insertAssistantMessage({
+        threadId: thread.id,
+        content: noDataMessage,
+        modelId: "n/a",
+        retrievedSourceIds: [],
+        generationMetadata: {
+          tokens_in: 0,
+          tokens_out: 0,
+          latencyMs: Date.now() - startTime,
+          temperature: 0,
+        },
+        flags: {
+          usedRag: false,
+          fallbackToGeneric: false,
+          insufficientContext: true,
+        },
+        trainingEligible: false,
+      });
+
+      return NextResponse.json({
+        threadId: thread.id,
+        messageId: assistantMessage.id,
+        answer: noDataMessage,
+        capability,
+        sources: [],
+        references: { keywords: [], listings: [], alerts: [], docs: [] },
+        model: {
+          id: "n/a",
+          usage: { inputTokens: 0, outputTokens: 0 },
+          latencyMs: Date.now() - startTime,
+        },
+        flags: {
+          usedRag: false,
+          fallbackToGeneric: false,
+          insufficientContext: true,
+        },
+      });
+    }
+
+    // ============================================
     // Step 6: Prompt Construction
     // ============================================
 
