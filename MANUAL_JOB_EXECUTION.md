@@ -6,7 +6,56 @@ This guide provides instructions for running background jobs manually without ac
 
 1. **Service Role Key**: You need the Supabase service role key
 2. **Base URL**: Your application's base URL (production or local)
-3. **Tool**: `curl` or any HTTP client (Postman, Insomnia, etc.)
+3. **Tool**: `curl`, PowerShell script, or any HTTP client (Postman, Insomnia, etc.)
+
+## Quick Start with PowerShell (Windows)
+
+The easiest way to run jobs on Windows:
+
+```powershell
+# Set your credentials
+$env:SUPABASE_SERVICE_KEY = "your-service-role-key"
+$env:BASE_URL = "https://your-app.com"  # Optional, defaults to localhost:3000
+
+# Run all corpus jobs
+.\run-jobs.ps1
+
+# Or run a specific job
+.\run-jobs.ps1 -Job corpus-metrics
+
+# Run with inline parameters
+.\run-jobs.ps1 -Job corpus-risks -BaseUrl "https://your-app.com" -ServiceKey "your-key"
+```
+
+### Available Jobs in PowerShell Script
+- `corpus-all` (default) - Run all AI corpus ingestion jobs
+- `corpus-metrics` - Ingest metrics to corpus
+- `corpus-predictions` - Ingest predictions to corpus
+- `corpus-risks` - Ingest risks to corpus
+- `social-metrics` - Aggregate social metrics
+- `ingest-metrics` - Collect keyword metrics
+- `intent-classify` - Classify keyword intents
+- `rebuild-clusters` - Rebuild semantic clusters
+- `embed-missing` - Generate missing embeddings
+- `trend-aggregation` - Aggregate trends
+- `keyword-telemetry` - Collapse keyword events
+- `dataforseo` - Trigger DataForSEO ingestion
+
+### PowerShell Examples
+
+```powershell
+# Set environment variables once
+$env:SUPABASE_SERVICE_KEY = "eyJhbGc..."
+$env:BASE_URL = "https://lexyhub.com"
+
+# Run different jobs
+.\run-jobs.ps1 -Job corpus-all
+.\run-jobs.ps1 -Job social-metrics
+.\run-jobs.ps1 -Job embed-missing
+
+# Get help
+Get-Help .\run-jobs.ps1 -Full
+```
 
 ## Environment Setup
 
