@@ -129,8 +129,9 @@ class PopupApp {
     return '<div class="login-screen">' +
       '<img src="../icons/icon-128.png" alt="LexyHub">' +
       '<h2>Welcome to LexyHub</h2>' +
-      '<p>Sign in to start capturing keywords and get real-time insights</p>' +
-      '<button class="btn-primary" id="loginBtn">Sign In</button>' +
+      '<p>Connect your LexyHub account to unlock keyword highlighting and insights across supported marketplaces</p>' +
+      '<p style="font-size: 13px; color: #2563eb; margin-top: 8px;">✨ Extension users get extended free quota</p>' +
+      '<button class="btn-primary" id="loginBtn">Connect LexyHub (Free)</button>' +
       '<a href="https://lexyhub.com/docs/extension" target="_blank" style="margin-top: 16px; font-size: 12px; color: #6b7280;">Learn More</a>' +
       '</div>';
   }
@@ -262,6 +263,7 @@ class PopupApp {
   renderSettingsTab() {
     const settings = this.settings || {};
     const domains = settings.enabled_domains || {};
+    const ignoredDomains = settings.ignored_domains || [];
 
     let domainsHtml = '';
     for (const [domain, enabled] of Object.entries(domains)) {
@@ -276,21 +278,30 @@ class PopupApp {
         '</div>';
     }
 
-    return '<div class="settings-section">' +
+    return '<div class="settings-section" style="border-bottom: 2px solid #e5e7eb; padding-bottom: 16px; margin-bottom: 16px;">' +
+      '<div class="setting-item">' +
+      '<div class="setting-row">' +
+      '<div>' +
+      '<div class="setting-label" style="font-size: 15px; font-weight: 600;">Keyword Highlighting</div>' +
+      '<div class="setting-description">Enable keyword highlights on supported sites</div>' +
+      '</div>' +
+      '<div class="toggle-switch ' + (settings.highlight_enabled !== false ? 'active' : '') + '" data-setting="highlight_enabled" style="transform: scale(1.1);"></div>' +
+      '</div></div>' +
+      '</div>' +
+      '<div class="settings-section">' +
       '<h4>Enabled Domains</h4>' +
       domainsHtml +
+      (ignoredDomains.length > 0 ?
+        '<div style="margin-top: 12px; padding: 8px; background: #fef3c7; border-radius: 4px; font-size: 12px;">' +
+        '<strong>Ignored domains:</strong> ' + ignoredDomains.join(', ') +
+        '</div>' : '') +
       '</div>' +
       '<div class="settings-section">' +
       '<h4>Features</h4>' +
       '<div class="setting-item">' +
       '<div class="setting-row">' +
-      '<div><div class="setting-label">Highlighting</div><div class="setting-description">Show keyword highlights on pages</div></div>' +
-      '<div class="toggle-switch ' + (settings.highlight_enabled ? 'active' : '') + '" data-setting="highlight_enabled"></div>' +
-      '</div></div>' +
-      '<div class="setting-item">' +
-      '<div class="setting-row">' +
       '<div><div class="setting-label">Tooltips</div><div class="setting-description">Show metrics on hover</div></div>' +
-      '<div class="toggle-switch ' + (settings.tooltip_enabled ? 'active' : '') + '" data-setting="tooltip_enabled"></div>' +
+      '<div class="toggle-switch ' + (settings.tooltip_enabled !== false ? 'active' : '') + '" data-setting="tooltip_enabled"></div>' +
       '</div></div>' +
       '<div class="setting-item">' +
       '<div class="setting-row">' +

@@ -14,12 +14,28 @@ export default function ExtensionAuthPage() {
   useEffect(() => {
     const supabase = createClientComponentClient();
 
+    // Initialize user profile with extension signup source
+    const initializeProfile = async (userId: string) => {
+      try {
+        await fetch('/api/auth/init-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ signup_source: 'extension' }),
+        });
+      } catch (err) {
+        console.error('Failed to initialize profile:', err);
+      }
+    };
+
     // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setSession(session);
         setUser(session.user);
         setLoading(false);
+
+        // Initialize profile with extension source (handles bonus quota)
+        initializeProfile(session.user.id);
 
         // Try to communicate with extension
         notifyExtension(session.access_token, session.user);
@@ -38,6 +54,10 @@ export default function ExtensionAuthPage() {
         setSession(session);
         setUser(session.user);
         setLoading(false);
+
+        // Initialize profile with extension source
+        initializeProfile(session.user.id);
+
         notifyExtension(session.access_token, session.user);
       }
     });
@@ -143,7 +163,7 @@ export default function ExtensionAuthPage() {
           </div>
 
           {/* Extension Boost Badge */}
-          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg p-4 text-white">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg p-4 text-white">
             <div className="flex items-center space-x-2">
               <svg
                 className="h-5 w-5"
@@ -153,9 +173,9 @@ export default function ExtensionAuthPage() {
                 <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z" />
               </svg>
               <div className="flex-1">
-                <div className="font-semibold text-sm">Extension Boost Active</div>
-                <div className="text-xs text-indigo-100">
-                  25 searches/month • 3 niches • 8 AI opportunities
+                <div className="font-semibold text-sm">✨ Extension Bonus Activated</div>
+                <div className="text-xs text-blue-100">
+                  Free+ tier with extended quota
                 </div>
               </div>
             </div>

@@ -37,6 +37,23 @@ export interface BriefResponse {
   url: string;
 }
 
+export interface ResolvedKeyword {
+  term: string;
+  keyword_id: string;
+  marketplace: string;
+  metrics?: {
+    demand?: number;
+    competition?: number;
+    trend?: string;
+    ai_score?: number;
+  };
+}
+
+export interface ResolveKeywordsResponse {
+  resolved: ResolvedKeyword[];
+  count: number;
+}
+
 export class APIClient {
   constructor(private auth: AuthManager) {}
 
@@ -176,6 +193,63 @@ export class APIClient {
     return this.request<any>("/trends/suggest", {
       method: "POST",
       body: JSON.stringify({ term, market, limit }),
+    });
+  }
+
+  /**
+   * Resolve candidate keywords against public.keywords database
+   * Returns only verified keywords with keyword_id
+   */
+  async resolveKeywords(
+    candidates: string[],
+    marketplace: string,
+    domain: string
+  ): Promise<ResolveKeywordsResponse> {
+    return this.request<ResolveKeywordsResponse>("/keywords/resolve", {
+      method: "POST",
+      body: JSON.stringify({ candidates, marketplace, domain }),
+    });
+  }
+
+  /**
+   * Get LexyBrain insights for a keyword
+   * Uses deterministic LexyBrain capabilities
+   */
+  async getLexyBrainInsights(payload: {
+    keyword_id?: string;
+    term: string;
+    marketplace: string;
+    url?: string;
+    capability?: string;
+  }): Promise<any> {
+    return this.request<any>("/lexybrain/insights", {
+      method: "POST",
+      body: JSON.stringify({
+        ...payload,
+        source: "extension",
+        capability: payload.capability || "keyword_insights",
+      }),
+    });
+  }
+
+  /**
+   * Send structured event for deterministic aggregation
+   */
+  async sendEvent(payload: {
+    event_type: string;
+    user_id?: string;
+    marketplace?: string;
+    keyword_id?: string;
+    url?: string;
+    metadata?: any;
+  }): Promise<void> {
+    await this.request<{ ok: boolean }>("/events", {
+      method: "POST",
+      body: JSON.stringify({
+        ...payload,
+        timestamp: new Date().toISOString(),
+        source: "extension",
+      }),
     });
   }
 }

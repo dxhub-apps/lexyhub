@@ -1,19 +1,19 @@
 /* extension/src/content/styles.css */
-/* LexyHub Extension - Content Script Styles */
+/* LexyHub Extension v4 - Content Script Styles */
+/* Monochrome design with #2563EB accent */
 
-/* Keyword highlights */
+/* Keyword highlights - thin border design */
 .lexyhub-k {
-  border-bottom: 2px dotted #6366f1;
-  background-color: rgba(99, 102, 241, 0.05);
-  padding: 0 2px;
-  border-radius: 2px;
+  border-bottom: 1px solid #2563eb;
+  padding: 0;
   cursor: help;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
+  background: none;
 }
 
 .lexyhub-k:hover {
-  background-color: rgba(99, 102, 241, 0.1);
-  border-bottom-color: #4f46e5;
+  border-bottom-width: 2px;
+  border-bottom-color: #1d4ed8;
 }
 
 /* Tooltip container (already styled inline, but can be overridden here) */
@@ -28,21 +28,20 @@
   right: 24px;
   width: 56px;
   height: 56px;
-  background: #6366f1;
+  background: #2563eb;
   border-radius: 50%;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 999998;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .lexyhub-fab:hover {
-  background: #4f46e5;
-  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.5);
-  transform: scale(1.05);
+  background: #1d4ed8;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .lexyhub-fab svg {
@@ -80,11 +79,11 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
-/* Button styles */
+/* Button styles - flat monochrome design */
 .lexyhub-btn {
   padding: 8px 16px;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -93,21 +92,22 @@
 }
 
 .lexyhub-btn-primary {
-  background: #6366f1;
-  color: white;
+  background: #2563eb;
+  color: #ffffff;
 }
 
 .lexyhub-btn-primary:hover {
-  background: #4f46e5;
+  background: #1d4ed8;
 }
 
 .lexyhub-btn-secondary {
-  background: #e5e7eb;
-  color: #374151;
+  background: #ffffff;
+  color: #000000;
+  border: 1px solid #e5e7eb;
 }
 
 .lexyhub-btn-secondary:hover {
-  background: #d1d5db;
+  background: #f9fafb;
 }
 
 .lexyhub-btn-small {
@@ -115,15 +115,15 @@
   font-size: 12px;
 }
 
-/* Badge for extension boost */
+/* Badge for extension boost - no gradients */
 .lexyhub-boost-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: white;
+  background: #2563eb;
+  color: #ffffff;
   padding: 4px 10px;
-  border-radius: 12px;
+  border-radius: 4px;
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -132,8 +132,8 @@
 
 /* Loading spinner */
 .lexyhub-spinner {
-  border: 2px solid #f3f4f6;
-  border-top: 2px solid #6366f1;
+  border: 2px solid #e5e7eb;
+  border-top: 2px solid #2563eb;
   border-radius: 50%;
   width: 16px;
   height: 16px;
@@ -150,29 +150,29 @@
   }
 }
 
-/* Dark mode support */
+/* Dark mode support - monochrome with accent */
 @media (prefers-color-scheme: dark) {
   .lexyhub-k {
-    border-bottom-color: #818cf8;
-    background-color: rgba(129, 140, 248, 0.1);
+    border-bottom-color: #3b82f6;
   }
 
   .lexyhub-k:hover {
-    background-color: rgba(129, 140, 248, 0.15);
+    border-bottom-color: #2563eb;
   }
 
   .lexyhub-overlay-content {
-    background: #1f2937;
-    color: #f9fafb;
+    background: #000000;
+    color: #ffffff;
   }
 
   .lexyhub-btn-secondary {
-    background: #374151;
-    color: #f9fafb;
+    background: #000000;
+    color: #ffffff;
+    border-color: #374151;
   }
 
   .lexyhub-btn-secondary:hover {
-    background: #4b5563;
+    background: #1f2937;
   }
 }
 

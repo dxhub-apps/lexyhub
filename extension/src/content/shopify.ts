@@ -5,6 +5,11 @@
 
 import { Highlighter } from "../lib/highlighter";
 import { TooltipManager } from "../lib/tooltip";
+import {
+  shouldEnableHighlighting,
+  checkAuthentication,
+  getWatchlist,
+} from "../lib/content-helpers";
 
 const MARKET = "shopify";
 
@@ -72,59 +77,31 @@ class ShopifyContentScript {
       return;
     }
 
-    const settings = await this.getSettings();
-    if (!settings?.enabled_domains?.shopify) {
-      console.log("[LexyHub Shopify] Shopify domain is disabled");
+    // Check if highlighting should be enabled
+    const highlightCheck = await shouldEnableHighlighting(MARKET);
+    if (!highlightCheck.enabled) {
+      console.log(`[LexyHub Shopify] ${highlightCheck.reason}`);
       return;
     }
 
-    const authState = await this.getAuthState();
-    if (!authState?.isAuthenticated) {
-      console.log("[LexyHub Shopify] User not authenticated");
+    // Check authentication
+    const authCheck = await checkAuthentication();
+    if (!authCheck.authenticated) {
+      console.log(`[LexyHub Shopify] ${authCheck.reason}`);
       return;
     }
 
-    await this.loadWatchlist();
+    // Fetch watchlist
+    const terms = await getWatchlist(MARKET);
+    if (terms.length > 0) {
+      this.highlighter.setKeywords(terms);
+      console.log(`[LexyHub Shopify] Loaded ${terms.length} watchlist terms`);
+    }
+
     this.startObserver();
     this.highlightPage();
 
     console.log("[LexyHub Shopify] Content script ready");
-  }
-
-  private getSettings(): Promise<any> {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage({ type: "GET_SETTINGS" }, (response) => {
-        resolve(response?.success ? response.data : null);
-      });
-    });
-  }
-
-  private getAuthState(): Promise<any> {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage({ type: "GET_AUTH_STATE" }, (response) => {
-        resolve(response || null);
-      });
-    });
-  }
-
-  private async loadWatchlist(): Promise<void> {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage(
-        {
-          type: "GET_WATCHLIST",
-          payload: { market: MARKET },
-        },
-        (response) => {
-          if (response?.success && response.data?.terms) {
-            this.highlighter.setKeywords(response.data.terms);
-            console.log(
-              `[LexyHub Shopify] Loaded ${response.data.terms.length} watchlist terms`
-            );
-          }
-          resolve();
-        }
-      );
-    });
   }
 
   private highlightPage(): void {

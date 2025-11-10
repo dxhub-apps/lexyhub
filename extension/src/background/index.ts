@@ -38,10 +38,12 @@ chrome.runtime.onInstalled.addListener(async (details) => {
         google: false,
         pinterest: false,
         reddit: false,
+        bing: false,
       },
-      highlight_enabled: true,
+      highlight_enabled: true, // Global toggle for keyword highlighting
       tooltip_enabled: true,
       capture_enabled: true,
+      ignored_domains: [], // Per-domain ignore list
     });
   }
 
@@ -108,6 +110,42 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     case "SAVE_SESSION":
       handleSaveSession(message.payload, sendResponse);
+      return true;
+
+    case "GET_TRENDING":
+      handleGetTrending(message.payload, sendResponse);
+      return true;
+
+    case "GET_CURRENT_SESSION":
+      handleGetCurrentSession(sendResponse);
+      return true;
+
+    case "END_SESSION":
+      handleEndSession(sendResponse);
+      return true;
+
+    case "GET_BRIEFS":
+      handleGetBriefs(message.payload, sendResponse);
+      return true;
+
+    case "EXPORT_DATA":
+      handleExportData(sendResponse);
+      return true;
+
+    case "DELETE_DATA":
+      handleDeleteData(sendResponse);
+      return true;
+
+    case "RESOLVE_KEYWORDS":
+      handleResolveKeywords(message.payload, sendResponse);
+      return true;
+
+    case "GET_LEXYBRAIN_INSIGHTS":
+      handleGetLexyBrainInsights(message.payload, sendResponse);
+      return true;
+
+    case "SEND_EVENT":
+      handleSendEvent(message.payload, sendResponse);
       return true;
 
     default:
@@ -416,6 +454,65 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     }
   }
 });
+
+async function handleResolveKeywords(
+  payload: { candidates: string[]; marketplace: string; domain: string },
+  sendResponse: (response: any) => void
+) {
+  try {
+    const resolved = await api.resolveKeywords(
+      payload.candidates,
+      payload.marketplace,
+      payload.domain
+    );
+    sendResponse({ success: true, data: resolved });
+  } catch (error) {
+    console.error("[LexyHub] Error resolving keywords:", error);
+    sendResponse({ success: false, error: String(error) });
+  }
+}
+
+async function handleGetLexyBrainInsights(
+  payload: {
+    keyword_id?: string;
+    term: string;
+    marketplace: string;
+    url?: string;
+    capability?: string;
+  },
+  sendResponse: (response: any) => void
+) {
+  try {
+    const insights = await api.getLexyBrainInsights(payload);
+    sendResponse({ success: true, data: insights });
+  } catch (error) {
+    console.error("[LexyHub] Error getting LexyBrain insights:", error);
+    sendResponse({ success: false, error: String(error) });
+  }
+}
+
+async function handleSendEvent(
+  payload: {
+    event_type: string;
+    marketplace?: string;
+    keyword_id?: string;
+    url?: string;
+    metadata?: any;
+  },
+  sendResponse: (response: any) => void
+) {
+  try {
+    const user = await auth.getUser();
+    await api.sendEvent({
+      ...payload,
+      user_id: user?.id,
+    });
+    sendResponse({ success: true });
+  } catch (error) {
+    console.error("[LexyHub] Error sending event:", error);
+    sendResponse({ success: false, error: String(error) });
+  }
+}
 
 function detectMarketFromUrl(url: string): string {
   if (url.includes('etsy.com')) return 'etsy';

@@ -68,9 +68,10 @@ export class AuthManager {
   /**
    * Initialize auth from LexyHub web app
    * Opens OAuth flow in new tab
+   * Uses extension-signup URL to track signup_source and apply bonus quota
    */
   async initiateLogin(): Promise<void> {
-    const loginUrl = "https://app.lexyhub.com/auth/extension";
+    const loginUrl = "https://lexyhub.com/extension-signup?ref=chrome";
     await chrome.tabs.create({ url: loginUrl });
 
     // The auth page will store credentials in its localStorage
@@ -85,9 +86,12 @@ export class AuthManager {
   private startPollingForAuth(): void {
     const checkInterval = setInterval(async () => {
       try {
-        // Query all tabs for the auth page
+        // Query all tabs for the auth page (support both old and new URLs)
         const tabs = await chrome.tabs.query({
-          url: "https://app.lexyhub.com/auth/extension*",
+          url: [
+            "https://lexyhub.com/extension-signup*",
+            "https://app.lexyhub.com/auth/extension*",
+          ],
         });
 
         if (tabs.length > 0 && tabs[0].id) {
