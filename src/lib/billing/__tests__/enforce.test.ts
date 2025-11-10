@@ -179,7 +179,7 @@ describe("enforceQuota", () => {
         if (error instanceof QuotaExceededError) {
           expect(error.used).toBe(50);
           expect(error.limit).toBe(50);
-          expect(error.quotaKey).toBe("ks");
+          expect(error.key).toBe("ks");
         }
       }
     });
@@ -198,7 +198,7 @@ describe("enforceQuota", () => {
         await enforceQuota(testUserId, "br", 1);
       } catch (error) {
         if (error instanceof QuotaExceededError) {
-          expect(error.quotaKey).toBe("br");
+          expect(error.key).toBe("br");
           expect(error.used).toBe(1);
           expect(error.limit).toBe(1);
         }
