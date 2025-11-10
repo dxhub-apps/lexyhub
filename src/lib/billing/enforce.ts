@@ -149,13 +149,14 @@ export async function enforceQuota(
 /**
  * Get current usage for a user without incrementing.
  * Useful for displaying usage in UI.
+ * Returns legacy quota keys for backward compatibility.
  *
  * @param userId - User UUID
- * @returns Map of quota keys to {used, limit}
+ * @returns Map of legacy quota keys to {used, limit}
  */
 export async function getCurrentUsage(
   userId: string,
-): Promise<Record<QuotaKey, { used: number; limit: number }>> {
+): Promise<Record<LegacyQuotaKey, { used: number; limit: number }>> {
   const supabase = getSupabaseServerClient();
   if (!supabase) {
     throw new Error("Supabase client unavailable");
