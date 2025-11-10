@@ -138,14 +138,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // 8. Calculate health metrics
     const latestRun = recentRuns?.[0];
     const isHealthy =
-      latestRun?.status === "completed" && (pendingSeeds || 0) > 0;
+      latestRun?.status === "completed" && (seedStatistics?.pending || 0) > 0;
 
     // 9. Return comprehensive status
     return NextResponse.json({
       status: "ok",
       health: {
         overall: isHealthy ? "healthy" : "needs_attention",
-        has_pending_seeds: (pendingSeeds || 0) > 0,
+        has_pending_seeds: (seedStatistics?.pending || 0) > 0,
         latest_run_status: latestRun?.status || "none",
         last_ingestion: recentKeyword?.created_at || null,
       },
