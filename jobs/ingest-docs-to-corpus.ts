@@ -234,6 +234,15 @@ async function main() {
           fallbackToDeterministic: true,
         });
 
+        // Validate embedding dimension
+        if (embedding.length !== 384) {
+          console.error(
+            `[ERROR] Invalid embedding dimension for doc ${docChunk.file.relativePath}: expected 384, got ${embedding.length}`
+          );
+          errorCount++;
+          continue;
+        }
+
         // Upsert to ai_corpus
         const { error: upsertError } = await supabase
           .from("ai_corpus")
@@ -252,7 +261,7 @@ async function main() {
             marketplace: null,
             language: "en",
             chunk: enrichedChunk,
-            embedding: JSON.stringify(embedding),
+            embedding: embedding, // Pass array directly, not JSON.stringify
             metadata: {
               title: docChunk.file.title,
               category: docChunk.file.category,
