@@ -9,6 +9,12 @@ import type { PlanCode, PlanLimits } from './types';
  * Plan configurations
  * IMPORTANT: Stripe price IDs should be stored in database (stripe_price_mappings table)
  * and fetched dynamically. These are defaults for type safety.
+ *
+ * UPDATED: Aligned with new quota strategy (v1)
+ * - KS = keyword searches
+ * - LB = LexyBrain/RAG calls (tracked separately, see plan_entitlements.rag_messages_per_month)
+ * - WL = watchlist keywords (niches_max)
+ * - BR = briefs (tracked separately, see plan_entitlements.briefs_per_month)
  */
 export const PLAN_CONFIGS: Record<PlanCode, PlanLimits> = {
   free: {
@@ -16,86 +22,106 @@ export const PLAN_CONFIGS: Record<PlanCode, PlanLimits> = {
     display_name: 'Free',
     price_monthly_cents: 0,
     price_annual_cents: 0,
-    searches_per_month: 10,
-    niches_max: 1,
-    ai_opportunities_per_month: 10,
-    keywords_storage_max: 50,
+    searches_per_month: 50,          // KS
+    niches_max: 10,                   // WL
+    ai_opportunities_per_month: 50,   // Legacy field (kept for compatibility)
+    keywords_storage_max: 100,
     features: [
-      'Basic keyword research',
-      '10 monthly searches',
-      '1 niche tracking',
-      '10 AI opportunities',
+      '50 monthly searches',
+      '10 watchlist keywords',
+      '20 LexyBrain calls',
+      'Basic insights',
       'Extension support',
       'Community support',
     ],
     is_hidden: false,
     sort_order: 1,
   },
+  free_extension: {
+    plan_code: 'free_extension',
+    display_name: 'Free+',
+    price_monthly_cents: 0,
+    price_annual_cents: 0,
+    searches_per_month: 200,          // KS
+    niches_max: 30,                   // WL
+    ai_opportunities_per_month: 200,  // Legacy field
+    keywords_storage_max: 300,
+    features: [
+      '200 monthly searches',
+      '30 watchlist keywords',
+      '80 LexyBrain calls',
+      '1 brief per month',
+      'Extension boost',
+      'Community support',
+    ],
+    is_hidden: false,
+    sort_order: 2,
+  },
   basic: {
     plan_code: 'basic',
     display_name: 'Basic',
     price_monthly_cents: 699, // $6.99
     price_annual_cents: 6990, // $69.90 (save ~17%)
-    searches_per_month: 100,
-    niches_max: 10,
-    ai_opportunities_per_month: 100,
-    keywords_storage_max: 500,
+    searches_per_month: 1000,         // KS
+    niches_max: 150,                  // WL
+    ai_opportunities_per_month: 1000, // Legacy field
+    keywords_storage_max: 1500,
     features: [
-      '100 monthly searches',
-      '10 niche projects',
-      '100 AI opportunities',
-      'Advanced keyword insights',
+      '1,000 monthly searches',
+      '150 watchlist keywords',
+      '300 LexyBrain calls',
+      '4 briefs per month',
+      'Advanced insights',
       'Trend analysis',
       'Email support',
-      'Chrome extension boost',
     ],
     is_hidden: false,
-    sort_order: 2,
+    sort_order: 3,
   },
   pro: {
     plan_code: 'pro',
     display_name: 'Pro',
     price_monthly_cents: 1299, // $12.99
     price_annual_cents: 12990, // $129.90 (save ~17%)
-    searches_per_month: 500,
-    niches_max: 50,
-    ai_opportunities_per_month: 500,
-    keywords_storage_max: 5000,
+    searches_per_month: 10000,        // KS
+    niches_max: 1000,                 // WL
+    ai_opportunities_per_month: 10000, // Legacy field
+    keywords_storage_max: 10000,
     features: [
-      '500 monthly searches',
-      '50 niche projects',
-      '500 AI opportunities',
-      'Advanced analytics dashboard',
+      '10,000 monthly searches',
+      '1,000 watchlist keywords',
+      '1,000 LexyBrain calls',
+      '12 briefs per month',
       'Market Twin simulator',
-      'Trend forecasting',
+      'Advanced analytics',
       'Priority support',
       'Export capabilities',
     ],
     is_hidden: false,
-    sort_order: 3,
+    sort_order: 4,
   },
   growth: {
     plan_code: 'growth',
     display_name: 'Growth',
-    price_monthly_cents: 2499, // $24.99
-    price_annual_cents: 24990, // $249.90 (save ~17%)
-    searches_per_month: -1, // Unlimited
-    niches_max: -1, // Unlimited
-    ai_opportunities_per_month: -1, // Unlimited
-    keywords_storage_max: -1, // Unlimited
+    price_monthly_cents: 5500, // $55.00
+    price_annual_cents: 55000, // $550.00 (save ~17%)
+    searches_per_month: 50000,        // KS
+    niches_max: 5000,                 // WL
+    ai_opportunities_per_month: 50000, // Legacy field
+    keywords_storage_max: 50000,
     features: [
-      'Unlimited searches',
-      'Unlimited niche projects',
-      'Unlimited AI opportunities',
-      'Unlimited keyword storage',
+      '50,000 monthly searches',
+      '5,000 watchlist keywords',
+      '5,000 LexyBrain calls',
+      '30 briefs per month',
+      'Unlimited simulators',
       'White-glove support',
-      'Custom integrations',
       'API access',
       'Team collaboration',
       'Advanced reporting',
     ],
-    is_hidden: true, // Hidden from public pricing page
-    sort_order: 4,
+    is_hidden: false, // Now visible
+    sort_order: 5,
   },
 };
 
