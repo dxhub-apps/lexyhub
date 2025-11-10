@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       const keywordIds = [...new Set(events.filter((e) => e.keyword_id).map((e) => e.keyword_id!))];
       const ruleIds = [...new Set(events.filter((e) => e.rule_id).map((e) => e.rule_id!))];
 
-      const { data: keywords } = keywordIds.length ? await supabase.from("keywords").select("id, term, marketplace").in("id", keywordIds) : { data: [] };
+      const { data: keywords } = keywordIds.length ? await supabase.from("keywords").select("id, term, market").in("id", keywordIds) : { data: [] };
       const { data: rulesData } = ruleIds.length ? await supabase.from("risk_rules").select("id, rule_code, description, severity").in("id", ruleIds) : { data: [] };
 
       const keywordsMap = new Map((keywords || []).map((k) => [k.id, k]));
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
           owner_scope: event.scope === "user" ? "user" : "global",
           source_type: "risk_event",
           source_ref: { event_id: event.id, keyword_id: event.keyword_id, rule_id: event.rule_id, ingested_at: new Date().toISOString() },
-          marketplace: event.marketplace || keyword?.marketplace,
+          marketplace: event.marketplace || keyword?.market,
           language: "en",
           chunk,
           embedding: JSON.stringify(embedding),

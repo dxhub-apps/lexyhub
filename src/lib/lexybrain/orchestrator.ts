@@ -126,7 +126,7 @@ const CAPABILITY_CONFIG: Record<LexyBrainCapability, CapabilityConfig> = {
 type KeywordRecord = {
   id: string;
   term: string;
-  marketplace: string | null;
+  market: string | null;
   demand_index: number | null;
   competition_score: number | null;
   trend_momentum: number | null;
@@ -183,7 +183,7 @@ async function fetchUserProfile(userId: string): Promise<Record<string, unknown>
 
   const { data, error } = await supabase
     .from("user_profiles")
-    .select("user_id, plan_code, trial_expires_at, extension_free_plus_expires_at")
+    .select("user_id, plan, trial_expires_at, extension_free_plus_expires_at")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -204,7 +204,7 @@ async function fetchKeywords(keywordIds: string[]): Promise<KeywordRecord[]> {
   const { data, error } = await supabase
     .from("keywords")
     .select(
-      "id, term, marketplace, demand_index, competition_score, trend_momentum, engagement_score, ai_opportunity_score"
+      "id, term, market, demand_index, competition_score, trend_momentum, engagement_score, ai_opportunity_score"
     )
     .in("id", keywordIds);
 
@@ -418,7 +418,7 @@ function buildContext(
   const nicheTerms = keywords.map((keyword) => keyword.term);
 
   return {
-    market: marketplace || keywords[0]?.marketplace || "global",
+    market: marketplace || keywords[0]?.market || "global",
     niche_terms: nicheTerms,
     keywords: keywords.map((keyword) => ({
       term: keyword.term,
@@ -608,7 +608,7 @@ export async function runLexyBrainOrchestration(
   const corpus = await retrieveCorpusContext({
     queryText,
     capability: request.capability,
-    marketplace: request.marketplace ?? keywords[0]?.marketplace ?? null,
+    marketplace: request.marketplace ?? keywords[0]?.market ?? null,
     language: request.language ?? null,
     limit: config.maxContext,
   });
