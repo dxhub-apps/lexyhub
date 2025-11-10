@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { Brain, ClipboardList, Search, Settings, Shield, Star } from "lucide-react";
 
@@ -36,6 +36,8 @@ const ADMIN_NAV: SidebarNavItem = {
   icon: Shield,
 };
 
+const SIDEBAR_COLLAPSED_KEY = "lexyhub.sidebar.collapsed";
+
 type AppShellProps = {
   children: ReactNode;
   isAdmin: boolean;
@@ -44,6 +46,26 @@ type AppShellProps = {
 export function AppShell({ children, isAdmin }: AppShellProps) {
   const pathname = usePathname() ?? "/search";
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Load collapsed state from localStorage on mount
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const stored = window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+    if (stored === "true") {
+      setSidebarCollapsed(true);
+    }
+  }, []);
+
+  // Save collapsed state to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   const navigation = useMemo(() => {
     return isAdmin ? [...BASE_NAV, ADMIN_NAV] : [...BASE_NAV];
@@ -71,9 +93,13 @@ export function AppShell({ children, isAdmin }: AppShellProps) {
           activePath={pathname}
           openOnMobile={mobileNavOpen}
           onCloseMobile={() => setMobileNavOpen(false)}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
         />
 
-        <div className="flex min-h-screen flex-1 flex-col md:pl-64">
+        <div
+          className={`flex min-h-screen flex-1 flex-col transition-all duration-200 ${sidebarCollapsed ? "md:pl-16" : "md:pl-64"}`}
+        >
           <Topbar
             activeNavItem={activeNavItem}
             onToggleSidebar={() => setMobileNavOpen((open) => !open)}
