@@ -48,7 +48,21 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(parameters || {}),
     });
 
-    const result = await response.json();
+    // Try to parse JSON response, handle errors gracefully
+    let result: unknown;
+    let text = "";
+    try {
+      text = await response.text();
+      result = text ? JSON.parse(text) : null;
+    } catch (parseError) {
+      // If JSON parsing fails, return the raw response text
+      return NextResponse.json({
+        success: false,
+        status: response.status,
+        error: "Failed to parse job response as JSON",
+        rawResponse: text.substring(0, 500) || "Empty response", // Limit to first 500 chars
+      });
+    }
 
     return NextResponse.json({
       success: response.ok,
