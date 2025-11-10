@@ -483,6 +483,7 @@ begin
     join public.keywords k on k.id = new.keyword_id
     where w.alert_enabled = true
       and new.keyword_id is not null
+      and w.keyword_id = new.keyword_id
   loop
     v_event_key := format('risk_event:%s:%s', new.keyword_id, rec.user_id);
     perform public.notify_user(
