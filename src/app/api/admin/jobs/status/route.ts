@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // Job definitions with schedule and descriptions
-export const JOB_DEFINITIONS = [
+const JOB_DEFINITIONS = [
   {
     id: "dataforseo",
     name: "DataForSEO K4K Ingestion",
@@ -119,7 +119,7 @@ export const JOB_DEFINITIONS = [
   },
 ] as const;
 
-export type JobDefinition = (typeof JOB_DEFINITIONS)[number];
+type JobDefinition = (typeof JOB_DEFINITIONS)[number];
 
 export async function GET(request: NextRequest) {
   try {
