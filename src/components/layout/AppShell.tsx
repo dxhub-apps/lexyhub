@@ -16,28 +16,16 @@ const BASE_NAV: readonly SidebarNavItem[] = [
     icon: Search,
   },
   {
-    href: "/watchlist",
-    label: "Watchlist",
-    description: "Tracked opportunities",
-    icon: Star,
-  },
-  {
     href: "/ask-lexybrain",
     label: "Ask LexyBrain",
     description: "Conversational analysis",
     icon: Brain,
   },
   {
-    href: "/reports",
-    label: "Reports",
-    description: "Automated briefs",
-    icon: ClipboardList,
-  },
-  {
-    href: "/settings",
-    label: "Settings",
-    description: "Account controls",
-    icon: Settings,
+    href: "/watchlist",
+    label: "Watchlist",
+    description: "Tracked opportunities",
+    icon: Star,
   },
 ];
 
