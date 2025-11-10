@@ -1,5 +1,5 @@
 -- ===========================================
--- 0051_bootstrap_keyword_seeds.sql
+-- 0053_bootstrap_keyword_seeds.sql
 -- Bootstrap keyword_seeds with curated marketplace niches
 -- ===========================================
 

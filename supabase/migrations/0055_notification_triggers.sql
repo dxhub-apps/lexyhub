@@ -1,6 +1,8 @@
--- 0050_notification_triggers.sql
+-- ===========================================
+-- 0055_notification_triggers.sql
 -- Bootstrap notification triggers and helper utilities for onboarding,
 -- quota, insights, extension engagement, billing, and system health events.
+-- ===========================================
 
 -- =====================================================
 -- Helper tables and functions
