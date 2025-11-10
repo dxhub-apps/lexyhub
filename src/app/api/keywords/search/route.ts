@@ -11,6 +11,7 @@ import {
 import { createProvenanceId, normalizeKeywordTerm } from "@/lib/keywords/utils";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 import type { PlanTier } from "@/lib/usage/quotas";
+import { enforceQuota, QuotaExceededError } from "@/lib/billing/enforce";
 
 interface SearchRequestPayload {
   query?: string;
@@ -424,6 +425,29 @@ async function handleSearch(req: Request): Promise<NextResponse> {
   if (!supabase) return NextResponse.json({ error: "Supabase client unavailable" }, { status: 503 });
 
   const userId = resolveUserId(req);
+
+  // Enforce keyword search quota (KS) for authenticated users
+  if (userId) {
+    try {
+      await enforceQuota(userId, "ks", 1);
+    } catch (error) {
+      if (error instanceof QuotaExceededError) {
+        return NextResponse.json(
+          {
+            error: "Quota exceeded",
+            code: "quota_exceeded",
+            quota_key: "ks",
+            used: error.used,
+            limit: error.limit,
+            message: `You've reached your monthly keyword search limit (${error.limit} searches). Upgrade your plan for more searches.`,
+          },
+          { status: 402 }
+        );
+      }
+      // Re-throw other errors
+      throw error;
+    }
+  }
 
   // Check if keyword already exists in the keywords table
   let exactMatchKeyword: KeywordRow | null = null;

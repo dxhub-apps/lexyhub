@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { authenticateExtension, checkRateLimit } from "@/lib/extension/auth";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
+import { enforceQuota, QuotaExceededError } from "@/lib/billing/enforce";
 
 interface BriefPayload {
   terms: string[];
@@ -37,6 +38,27 @@ export async function POST(request: Request): Promise<NextResponse> {
       { error: "Rate limit exceeded" },
       { status: 429 }
     );
+  }
+
+  // Enforce brief quota (BR)
+  try {
+    await enforceQuota(context.userId, "br", 1);
+  } catch (error) {
+    if (error instanceof QuotaExceededError) {
+      return NextResponse.json(
+        {
+          error: "Quota exceeded",
+          code: "quota_exceeded",
+          quota_key: "br",
+          used: error.used,
+          limit: error.limit,
+          message: `You've reached your monthly brief limit (${error.limit} briefs). Upgrade your plan for more briefs.`,
+        },
+        { status: 402 }
+      );
+    }
+    // Re-throw other errors
+    throw error;
   }
 
   // Parse payload

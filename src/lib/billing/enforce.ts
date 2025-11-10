@@ -2,7 +2,14 @@ import { getSupabaseServerClient } from "@/lib/supabase-server";
 import { shouldSendUsageWarning, recordUsageWarning, createUpsellTrigger } from "./usage";
 import { USAGE_WARNING_THRESHOLDS } from "./plans";
 
-export type QuotaKey = "searches" | "ai_opportunities" | "niches";
+// Legacy quota keys (for backwards compatibility)
+export type LegacyQuotaKey = "searches" | "ai_opportunities" | "niches";
+
+// New standardized quota keys per v1 scope
+export type StandardQuotaKey = "ks" | "lb" | "br" | "wl";
+
+// Union type supporting both legacy and new keys
+export type QuotaKey = LegacyQuotaKey | StandardQuotaKey;
 
 export type QuotaResult = {
   allowed: boolean;
@@ -25,16 +32,38 @@ export class QuotaExceededError extends Error {
 }
 
 /**
+ * Normalize quota keys for RPC compatibility
+ * Maps new standardized keys (ks, lb, br, wl) to RPC-compatible keys
+ *
+ * Key mapping:
+ * - ks → ks (keyword searches) - RPC updated to support this
+ * - lb → lb (LexyBrain/RAG) - RPC updated to support this
+ * - br → br (briefs) - RPC updated to support this
+ * - wl → wl (watchlist) - RPC updated to support this
+ * - searches → searches (legacy)
+ * - ai_opportunities → ai_opportunities (legacy)
+ * - niches → niches (legacy)
+ */
+function normalizeQuotaKey(key: QuotaKey): string {
+  // New keys pass through as-is (RPC function now supports them)
+  // Legacy keys also pass through
+  return key;
+}
+
+/**
  * Server-side quota enforcement using atomic RPC.
  * Checks monthly usage against plan entitlements.
  * Throws QuotaExceededError if limit reached.
  *
+ * Note: Named "enforceQuota" (not "useQuota") to avoid React Hooks ESLint rules.
+ *
  * @param userId - User UUID
- * @param key - Quota key: 'searches', 'ai_opportunities', 'niches'
+ * @param key - Quota key: 'ks' (keyword search), 'lb' (LexyBrain), 'br' (briefs), 'wl' (watchlist)
+ *               Legacy keys also supported: 'searches', 'ai_opportunities', 'niches'
  * @param amount - Amount to increment (default 1)
  * @returns QuotaResult with allowed, used, limit
  */
-export async function useQuota(
+export async function enforceQuota(
   userId: string,
   key: QuotaKey,
   amount: number = 1,
@@ -44,9 +73,11 @@ export async function useQuota(
     throw new Error("Supabase client unavailable");
   }
 
+  const normalizedKey = normalizeQuotaKey(key);
+
   const { data, error } = await supabase.rpc("use_quota", {
     p_user: userId,
-    p_key: key,
+    p_key: normalizedKey,
     p_amount: amount,
   });
 
@@ -118,13 +149,14 @@ export async function useQuota(
 /**
  * Get current usage for a user without incrementing.
  * Useful for displaying usage in UI.
+ * Returns legacy quota keys for backward compatibility.
  *
  * @param userId - User UUID
- * @returns Map of quota keys to {used, limit}
+ * @returns Map of legacy quota keys to {used, limit}
  */
 export async function getCurrentUsage(
   userId: string,
-): Promise<Record<QuotaKey, { used: number; limit: number }>> {
+): Promise<Record<LegacyQuotaKey, { used: number; limit: number }>> {
   const supabase = getSupabaseServerClient();
   if (!supabase) {
     throw new Error("Supabase client unavailable");

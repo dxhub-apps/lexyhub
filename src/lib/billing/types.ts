@@ -2,7 +2,7 @@
  * Pricing tier types and utilities for LexyHub billing system
  */
 
-export type PlanCode = 'free' | 'basic' | 'pro' | 'growth';
+export type PlanCode = 'free' | 'free_extension' | 'basic' | 'pro' | 'growth';
 export type BillingCycle = 'monthly' | 'annual';
 export type SubscriptionStatus = 'active' | 'trialing' | 'canceled' | 'past_due' | 'incomplete' | 'incomplete_expired' | 'unpaid';
 
@@ -85,6 +85,7 @@ export interface UserSubscription {
  */
 export const PLAN_HIERARCHY: Record<PlanCode, number> = {
   free: 0,
+  free_extension: 0, // Same tier as free, just with boosted limits
   basic: 1,
   pro: 2,
   growth: 3,

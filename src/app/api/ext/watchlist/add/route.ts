@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { authenticateExtension, checkRateLimit } from "@/lib/extension/auth";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
+import { getPlanConfig } from "@/lib/billing/plans";
 
 interface AddToWatchlistPayload {
   term: string;
@@ -73,7 +74,40 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    // 1. Insert into user_watchlist_terms
+    // 1. Check watchlist quota (WL) before inserting
+    // Get user's plan
+    const { data: profileData } = await supabase
+      .from("user_profiles")
+      .select("plan")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+
+    const planCode = (profileData?.plan || "free") as "free" | "free_extension" | "basic" | "pro" | "growth";
+    const planConfig = getPlanConfig(planCode);
+    const watchlistLimit = planConfig.niches_max;
+
+    // Count existing watchlist items
+    const { count: currentCount } = await supabase
+      .from("user_watchlist_terms")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", context.userId);
+
+    // Check if adding this term would exceed the limit
+    if (watchlistLimit !== -1 && (currentCount ?? 0) >= watchlistLimit) {
+      return NextResponse.json(
+        {
+          error: "Watchlist limit reached",
+          code: "watchlist_limit_reached",
+          quota_key: "wl",
+          used: currentCount,
+          limit: watchlistLimit,
+          message: `You've reached your watchlist limit (${watchlistLimit} keywords). Upgrade your plan for more watchlist capacity.`,
+        },
+        { status: 402 }
+      );
+    }
+
+    // 2. Insert into user_watchlist_terms
     const { data: watchlistItem, error: watchlistError } = await supabase
       .from("user_watchlist_terms")
       .insert({

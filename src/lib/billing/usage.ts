@@ -3,7 +3,7 @@
  */
 
 import { getSupabaseServerClient } from "@/lib/supabase-server";
-import type { QuotaKey } from "./enforce";
+import type { QuotaKey, LegacyQuotaKey } from "./enforce";
 import { USAGE_WARNING_THRESHOLDS } from "./plans";
 
 export interface UsageStats {
@@ -22,9 +22,10 @@ export interface UsageWarningCheck {
 }
 
 /**
- * Get comprehensive usage statistics for a user
+ * Get comprehensive usage statistics for a user.
+ * Returns legacy quota keys for backward compatibility.
  */
-export async function getUserUsageStats(userId: string): Promise<Record<QuotaKey, UsageStats>> {
+export async function getUserUsageStats(userId: string): Promise<Record<LegacyQuotaKey, UsageStats>> {
   const supabase = getSupabaseServerClient();
   if (!supabase) {
     throw new Error("Supabase client unavailable");
