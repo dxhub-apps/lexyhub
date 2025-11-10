@@ -44,7 +44,7 @@ const BASE_NAV: readonly SidebarNavItem[] = [
 const ADMIN_NAV: SidebarNavItem = {
   href: "/admin/lexybrain",
   label: "Admin",
-  description: "Prompt management",
+  description: "Administrative tools",
   icon: Shield,
 };
 

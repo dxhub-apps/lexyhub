@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import type { SidebarNavItem } from "./Sidebar";
 import { UserMenu } from "./UserMenu";
 import { NotificationsBell } from "@/components/notifications/NotificationsBell";
+import { TopbarFeedbackButton } from "@/components/feedback/TopbarFeedbackButton";
 
 type TopbarProps = {
   activeNavItem: SidebarNavItem;
@@ -33,6 +34,7 @@ export function Topbar({ activeNavItem, onToggleSidebar }: TopbarProps): JSX.Ele
         </div>
 
         <div className="flex items-center gap-2">
+          <TopbarFeedbackButton />
           <NotificationsBell />
           <UserMenu />
         </div>

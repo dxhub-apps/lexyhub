@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 
 import { isAdminUser } from "@/lib/auth/admin";
+import { AdminNavigation } from "@/components/admin/AdminNavigation";
 
 export default async function AdminLayout({
   children,
@@ -27,7 +28,12 @@ export default async function AdminLayout({
     redirect("/search");
   }
 
-  return <>{children}</>;
+  return (
+    <div className="space-y-8">
+      <AdminNavigation />
+      {children}
+    </div>
+  );
 }
 
 export const dynamic = "force-dynamic";
