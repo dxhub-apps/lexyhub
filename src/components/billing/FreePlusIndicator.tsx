@@ -37,7 +37,7 @@ export function FreePlusIndicator({
           </Badge>
         </div>
         <CardDescription>
-          Enjoying 2.5x higher limits thanks to the LexyHub Chrome Extension
+          Enhanced limits for LexyHub Chrome Extension users
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -58,16 +58,17 @@ export function FreePlusIndicator({
         </div>
 
         <div className="rounded-lg bg-muted p-3 text-sm">
-          <p className="mb-2 font-medium">Your boosted limits:</p>
+          <p className="mb-2 font-medium">Your Free+ limits:</p>
           <ul className="space-y-1 text-muted-foreground">
-            <li>• 25 searches per month (vs 10)</li>
-            <li>• 3 niche projects (vs 1)</li>
-            <li>• 25 AI opportunities (vs 10)</li>
+            <li>• 200 keyword searches per month (vs 50 on Free)</li>
+            <li>• 30 watchlist keywords (vs 10 on Free)</li>
+            <li>• 80 LexyBrain calls (vs 20 on Free)</li>
+            <li>• 1 market brief (vs 0 on Free)</li>
           </ul>
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Want even more? <a href="/pricing" className="text-primary underline">Upgrade to Basic or Pro</a> for unlimited access.
+          Want even more? <a href="/pricing" className="text-primary underline">Upgrade to Basic or Pro</a> for higher limits.
         </p>
       </CardContent>
     </Card>

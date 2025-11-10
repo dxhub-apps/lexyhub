@@ -41,12 +41,22 @@ export function UsageWarningBanner({
 
   const getQuotaDisplayName = (key: QuotaKey): string => {
     switch (key) {
+      // Legacy quota keys
       case 'searches':
-        return 'monthly searches';
+        return 'keyword searches';
       case 'ai_opportunities':
-        return 'AI opportunities';
+        return 'LexyBrain calls';
       case 'niches':
-        return 'niche projects';
+        return 'watchlist keywords';
+      // New standardized quota keys (v1)
+      case 'ks':
+        return 'keyword searches';
+      case 'lb':
+        return 'LexyBrain calls';
+      case 'br':
+        return 'market briefs';
+      case 'wl':
+        return 'watchlist keywords';
       default:
         return key;
     }
