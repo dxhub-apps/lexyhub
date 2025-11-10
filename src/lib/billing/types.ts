@@ -77,7 +77,7 @@ export interface UserSubscription {
   current_period_end: string | null;
   cancel_at_period_end: boolean;
   trial_expires_at: string | null;
-  extension_free_plus_expires_at: string | null;
+  extension_trial_expires_at: string | null;
 }
 
 /**
@@ -193,11 +193,11 @@ export function getRecommendedUpgrade(
 }
 
 /**
- * Check if user has active Free+ extension boost
+ * Check if user has active extension trial (14-day Pro trial)
  */
-export function hasActiveFreePlus(extensionFreePlusExpiresAt: string | null): boolean {
-  if (!extensionFreePlusExpiresAt) return false;
-  return new Date(extensionFreePlusExpiresAt) > new Date();
+export function hasActiveExtensionTrial(extensionTrialExpiresAt: string | null): boolean {
+  if (!extensionTrialExpiresAt) return false;
+  return new Date(extensionTrialExpiresAt) > new Date();
 }
 
 /**

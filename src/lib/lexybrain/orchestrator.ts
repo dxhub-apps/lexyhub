@@ -183,7 +183,7 @@ async function fetchUserProfile(userId: string): Promise<Record<string, unknown>
 
   const { data, error } = await supabase
     .from("user_profiles")
-    .select("user_id, plan, trial_expires_at, extension_free_plus_expires_at")
+    .select("user_id, plan, trial_expires_at, extension_trial_expires_at")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -224,7 +224,7 @@ async function fetchKeywordMetrics(keywordIds: string[]): Promise<Record<string,
 
   const { data: daily, error: dailyError } = await supabase
     .from("keyword_metrics_daily")
-    .select("keyword_id, collected_on, demand, supply, competition_score, trend_momentum, social_mentions, social_sentiment")
+    .select("keyword_id, collected_on, volume, competition_score, engagement, social_mentions, social_sentiment")
     .in("keyword_id", keywordIds)
     .gte("collected_on", new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString())
     .order("collected_on", { ascending: false });
