@@ -132,6 +132,7 @@ type KeywordRecord = {
   trend_momentum: number | null;
   engagement_score: number | null;
   ai_opportunity_score: number | null;
+  extras?: Record<string, unknown> | null;
 };
 
 type CorpusChunk = {
@@ -204,7 +205,7 @@ async function fetchKeywords(keywordIds: string[]): Promise<KeywordRecord[]> {
   const { data, error } = await supabase
     .from("keywords")
     .select(
-      "id, term, market, demand_index, competition_score, trend_momentum, engagement_score, ai_opportunity_score"
+      "id, term, market, demand_index, competition_score, trend_momentum, engagement_score, ai_opportunity_score, extras"
     )
     .in("id", keywordIds);
 
@@ -213,7 +214,44 @@ async function fetchKeywords(keywordIds: string[]): Promise<KeywordRecord[]> {
     return [];
   }
 
-  return (data ?? []) as KeywordRecord[];
+  const keywords = (data ?? []) as KeywordRecord[];
+
+  // Enrich keywords with DataForSEO metrics if primary metrics are missing
+  return keywords.map((keyword) => {
+    const extras = keyword.extras as Record<string, any> | null;
+    const dataforSEOData = extras?.dataforseo;
+
+    if (dataforSEOData && typeof dataforSEOData === 'object') {
+      // Extract search volume if demand_index is missing
+      if (keyword.demand_index === null || keyword.demand_index === undefined) {
+        const searchVolume = dataforSEOData.search_volume || dataforSEOData.monthly_searches?.[0]?.search_volume;
+        if (searchVolume && typeof searchVolume === 'number') {
+          // Normalize search volume to 0-1 scale (assuming max of 100,000 searches)
+          keyword.demand_index = Math.min(searchVolume / 100000, 1);
+
+          logger.info({
+            type: "lexybrain_keyword_enriched",
+            keyword_id: keyword.id,
+            term: keyword.term,
+            source: "dataforseo_extras",
+            search_volume: searchVolume,
+            normalized_demand: keyword.demand_index,
+          }, "Enriched keyword metrics from DataForSEO data");
+        }
+      }
+
+      // Extract competition score if missing
+      if (keyword.competition_score === null || keyword.competition_score === undefined) {
+        const competition = dataforSEOData.competition || dataforSEOData.competition_index;
+        if (competition !== null && competition !== undefined) {
+          // DataForSEO competition is 0-1, we store it as is
+          keyword.competition_score = typeof competition === 'number' ? competition : parseFloat(competition);
+        }
+      }
+    }
+
+    return keyword;
+  });
 }
 
 async function fetchKeywordMetrics(keywordIds: string[]): Promise<Record<string, unknown>> {
@@ -667,6 +705,8 @@ export async function runLexyBrainOrchestration(
 
   // Hard-stop: If corpus is empty, refuse to generate to prevent hallucination
   if (!corpus || corpus.length === 0) {
+    const keywordTerm = keywords[0]?.term || queryText || "this keyword";
+
     logger.info(
       {
         type: "lexybrain_no_data",
@@ -675,11 +715,30 @@ export async function runLexyBrainOrchestration(
         keyword_ids: keywordIds.length,
         marketplace_searched: resolvedMarketplace,
         query_text: queryText,
+        keyword_term: keywordTerm,
       },
       "No corpus data available - returning hard-stop no-data response"
     );
 
-    throw new Error("No reliable data for this query in LexyHub at the moment.");
+    // Provide a more detailed, human-readable error message
+    let errorMessage = `We don't have enough data about "${keywordTerm}" yet to provide meaningful insights.`;
+
+    if (keywords.length > 0) {
+      errorMessage += `\n\nThe keyword exists in our database, but we need to gather more information first. This usually takes a few minutes after a keyword is added.`;
+
+      if (resolvedMarketplace) {
+        errorMessage += `\n\nMarketplace: ${resolvedMarketplace}`;
+      }
+
+      errorMessage += `\n\nWhat you can do:
+• Wait a few minutes and try again (our system collects data automatically)
+• Check if the keyword has been fully processed in the keywords table
+• Contact support if this issue persists`;
+    } else {
+      errorMessage += `\n\nThis keyword may not be in our database yet. Try searching for it first to add it to LexyHub.`;
+    }
+
+    throw new Error(errorMessage);
   }
 
   // Log warning if we have limited corpus context
