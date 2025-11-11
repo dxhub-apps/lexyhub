@@ -325,11 +325,32 @@ async function main(): Promise<void> {
         // Fetch result
         const response = await dataForSeoClient.getTaskResult(taskState.taskId);
 
+        // Log full response for debugging
+        logger.info({
+          taskId: taskState.taskId,
+          full_response: JSON.stringify(response, null, 2),
+        }, "FULL_TASK_GET_RESPONSE");
+
         if (!response.tasks || response.tasks.length === 0) {
+          logger.error({
+            taskId: taskState.taskId,
+            full_response: JSON.stringify(response, null, 2),
+          }, "No tasks array in response");
           throw new Error("No task result returned");
         }
 
         const taskResult = response.tasks[0];
+
+        // Log parsed task result
+        logger.info({
+          taskId: taskState.taskId,
+          status_code: taskResult.status_code,
+          status_message: taskResult.status_message,
+          result_count: taskResult.result_count,
+          result_length: taskResult.result?.length || 0,
+          cost: taskResult.cost,
+          path: taskResult.path,
+        }, "PARSED_TASK_RESULT");
 
         // CRITICAL: Validate status_code == 20000 for successful tasks
         if (taskResult.status_code !== 20000) {
@@ -337,7 +358,7 @@ async function main(): Promise<void> {
             taskId: taskState.taskId,
             status_code: taskResult.status_code,
             status_message: taskResult.status_message,
-            full_response: JSON.stringify(taskResult, null, 2),
+            full_task_result: JSON.stringify(taskResult, null, 2),
           }, `Task failed with status_code ${taskResult.status_code}: ${taskResult.status_message}`);
           throw new Error(
             `Task status_code ${taskResult.status_code}: ${taskResult.status_message}`
@@ -357,6 +378,11 @@ async function main(): Promise<void> {
           items_count: items.length,
           cost: taskResult.cost,
           accumulated_cost: actualCostUsd,
+          sample_items: items.slice(0, 2).map(item => ({
+            keyword: item.keyword,
+            search_volume: item.search_volume,
+            cpc: item.cpc,
+          })),
         }, "FETCH_RESULT");
 
         // Log full response if zero results
@@ -387,12 +413,35 @@ async function main(): Promise<void> {
           },
         };
 
+        logger.info({
+          taskId: taskState.taskId,
+          raw_payload_preview: {
+            provider: rawPayload.provider,
+            source_type: rawPayload.source_type,
+            source_key: rawPayload.source_key,
+            status: rawPayload.status,
+            items_count: items.length,
+            metadata: rawPayload.metadata,
+          },
+        }, "INSERTING_RAW_SOURCE");
+
         const rawSourceId = await insertRawSource(supabase, rawPayload);
         if (rawSourceId) {
           rowsRawSaved++;
+          logger.info({ taskId: taskState.taskId, rawSourceId }, "RAW_SOURCE_INSERTED");
+        } else {
+          logger.warn({ taskId: taskState.taskId }, "RAW_SOURCE_DUPLICATE_SKIPPED");
         }
 
         // Normalize keywords
+        logger.info({
+          taskId: taskState.taskId,
+          items_to_normalize: items.length,
+          market: config.lexyHubMarket,
+          source: SOURCE_NAME,
+          batch_id: INGEST_BATCH_ID,
+        }, "STARTING_NORMALIZATION");
+
         const { valid, skipped } = normalizeDataForSEOBatch(
           items,
           config.lexyHubMarket,
@@ -402,12 +451,30 @@ async function main(): Promise<void> {
 
         rowsSkippedInvalid += skipped;
 
+        logger.info({
+          taskId: taskState.taskId,
+          valid_count: valid.length,
+          skipped_count: skipped,
+          sample_valid: valid.slice(0, 2).map(k => ({
+            term: k.termNorm,
+            source: k.source,
+            batch_id: k.ingestBatchId,
+            search_volume: k.searchVolume,
+          })),
+        }, "NORMALIZATION_COMPLETE");
+
         if (valid.length === 0) {
-          logger.warn({}, `No valid keywords in task ${taskState.taskId}`);
+          logger.warn({ taskId: taskState.taskId, skipped }, `No valid keywords in task ${taskState.taskId}`);
           return;
         }
 
         // Upsert keywords
+        logger.info({
+          taskId: taskState.taskId,
+          keywords_to_upsert: valid.length,
+          rawSourceId,
+        }, "STARTING_KEYWORD_UPSERT");
+
         const upsertResult = await upsertKeywordsBatch(
           supabase,
           valid,

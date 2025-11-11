@@ -194,11 +194,23 @@ export async function ingestMetricsToCorpus(): Promise<{ success: boolean; proce
         }, { onConflict: "id", ignoreDuplicates: false });
 
         if (upsertError) {
+          console.error(`[ERROR] Failed to upsert keyword_metrics for keyword ${keyword.id}:`, {
+            keyword_id: keyword.id,
+            keyword_term: keyword.term,
+            error_code: upsertError.code,
+            error_message: upsertError.message,
+            error_details: upsertError.details,
+            error_hint: upsertError.hint,
+            embedding_length: embedding.length,
+            chunk_length: chunk.length,
+            marketplace: keyword.market,
+          });
           errorCount++;
         } else {
           successCount++;
         }
       } catch (error) {
+        console.error(`[ERROR] Exception during keyword_metrics ingestion for keyword ${keyword.id}:`, error);
         errorCount++;
       }
     }
@@ -263,7 +275,7 @@ export async function ingestPredictionsToCorpus(): Promise<{ success: boolean; p
         continue;
       }
 
-      await supabase.from("ai_corpus").upsert({
+      const { error: upsertError } = await supabase.from("ai_corpus").upsert({
         id: crypto.randomUUID(),
         owner_scope: "global",
         source_type: "keyword_prediction",
@@ -275,7 +287,22 @@ export async function ingestPredictionsToCorpus(): Promise<{ success: boolean; p
         metadata: { keyword_term: keyword.term, horizon: pred.horizon, metrics: pred.metrics },
         is_active: true,
       });
-      successCount++;
+
+      if (upsertError) {
+        console.error(`[ERROR] Failed to upsert keyword_prediction for prediction ${pred.id}:`, {
+          prediction_id: pred.id,
+          keyword_id: pred.keyword_id,
+          keyword_term: keyword.term,
+          error_code: upsertError.code,
+          error_message: upsertError.message,
+          error_details: upsertError.details,
+          error_hint: upsertError.hint,
+          embedding_length: embedding.length,
+          chunk_length: chunk.length,
+        });
+      } else {
+        successCount++;
+      }
     }
 
     return { success: true, processed: predictions.length, successCount };
@@ -313,7 +340,7 @@ export async function ingestRisksToCorpus(): Promise<{ success: boolean; totalSu
           continue;
         }
 
-        await supabase.from("ai_corpus").upsert({
+        const { error: upsertError } = await supabase.from("ai_corpus").upsert({
           id: crypto.randomUUID(),
           owner_scope: "global",
           source_type: "risk_rule",
@@ -325,7 +352,21 @@ export async function ingestRisksToCorpus(): Promise<{ success: boolean; totalSu
           metadata: { rule_code: rule.rule_code, severity: rule.severity, description: rule.description },
           is_active: true,
         });
-        totalSuccess++;
+
+        if (upsertError) {
+          console.error(`[ERROR] Failed to upsert risk_rule for rule ${rule.id}:`, {
+            rule_id: rule.id,
+            rule_code: rule.rule_code,
+            error_code: upsertError.code,
+            error_message: upsertError.message,
+            error_details: upsertError.details,
+            error_hint: upsertError.hint,
+            embedding_length: embedding.length,
+            chunk_length: chunk.length,
+          });
+        } else {
+          totalSuccess++;
+        }
       }
     }
 
@@ -363,7 +404,7 @@ export async function ingestRisksToCorpus(): Promise<{ success: boolean; totalSu
           continue;
         }
 
-        await supabase.from("ai_corpus").upsert({
+        const { error: upsertError } = await supabase.from("ai_corpus").upsert({
           id: crypto.randomUUID(),
           owner_scope: event.scope === "user" ? "user" : "global",
           source_type: "risk_event",
@@ -375,7 +416,22 @@ export async function ingestRisksToCorpus(): Promise<{ success: boolean; totalSu
           metadata: { keyword_term: keyword?.term, rule_code: rule?.rule_code, severity: rule?.severity, occurred_at: event.occurred_at, scope: event.scope },
           is_active: true,
         });
-        totalSuccess++;
+
+        if (upsertError) {
+          console.error(`[ERROR] Failed to upsert risk_event for event ${event.id}:`, {
+            event_id: event.id,
+            keyword_id: event.keyword_id,
+            rule_id: event.rule_id,
+            error_code: upsertError.code,
+            error_message: upsertError.message,
+            error_details: upsertError.details,
+            error_hint: upsertError.hint,
+            embedding_length: embedding.length,
+            chunk_length: chunk.length,
+          });
+        } else {
+          totalSuccess++;
+        }
       }
     }
 
