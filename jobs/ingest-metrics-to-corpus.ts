@@ -120,6 +120,7 @@ async function main() {
     const lookbackDate = new Date();
     lookbackDate.setDate(lookbackDate.getDate() - LOOKBACK_DAYS);
 
+    console.log(`[INFO] Fetching keywords updated since ${lookbackDate.toISOString()}, limit ${BATCH_SIZE}...`);
     const { data: keywords, error: keywordsError } = await supabase
       .from("keywords")
       .select("id, term, marketplace, demand_index, competition_score, trend_momentum, engagement_score, ai_opportunity_score")
@@ -129,6 +130,7 @@ async function main() {
       .limit(BATCH_SIZE);
 
     if (keywordsError) {
+      console.error("[ERROR] Failed to fetch keywords:", keywordsError);
       throw new Error(`Failed to fetch keywords: ${keywordsError.message}`);
     }
 
@@ -137,11 +139,12 @@ async function main() {
       return;
     }
 
-    console.log(`[INFO] Processing ${keywords.length} keywords`);
+    console.log(`[INFO] Found ${keywords.length} keywords to process`);
 
     const keywordIds = keywords.map((k) => k.id);
 
     // Fetch daily metrics
+    console.log(`[INFO] Fetching daily metrics for ${keywordIds.length} keywords...`);
     const { data: dailyMetrics, error: dailyError } = await supabase
       .from("keyword_metrics_daily")
       .select("keyword_id, collected_on, demand, supply, competition_score, trend_momentum, social_mentions, social_sentiment")
@@ -151,9 +154,12 @@ async function main() {
 
     if (dailyError) {
       console.warn(`[WARN] Failed to fetch daily metrics: ${dailyError.message}`);
+    } else {
+      console.log(`[INFO] Found ${dailyMetrics?.length || 0} daily metric records`);
     }
 
     // Fetch weekly metrics
+    console.log(`[INFO] Fetching weekly metrics for ${keywordIds.length} keywords...`);
     const { data: weeklyMetrics, error: weeklyError } = await supabase
       .from("keyword_metrics_weekly")
       .select("keyword_id, week_start, source, metrics")
@@ -163,6 +169,8 @@ async function main() {
 
     if (weeklyError) {
       console.warn(`[WARN] Failed to fetch weekly metrics: ${weeklyError.message}`);
+    } else {
+      console.log(`[INFO] Found ${weeklyMetrics?.length || 0} weekly metric records`);
     }
 
     // Group metrics by keyword
@@ -186,23 +194,28 @@ async function main() {
     let successCount = 0;
     let errorCount = 0;
 
+    console.log(`[INFO] Processing ${keywords.length} keywords with embeddings...`);
     for (const keyword of keywords as Keyword[]) {
       try {
         const daily = dailyByKeyword.get(keyword.id) || [];
         const weekly = weeklyByKeyword.get(keyword.id) || [];
 
+        console.log(`[INFO] Processing keyword "${keyword.term}" (${keyword.id}): ${daily.length} daily, ${weekly.length} weekly metrics`);
+
         // Create factual chunk
         const chunk = createMetricChunk(keyword, daily, weekly);
+        console.log(`[INFO] Created chunk for "${keyword.term}" (${chunk.length} chars)`);
 
         // Generate semantic embedding
         const embedding = await createSemanticEmbedding(chunk, {
           fallbackToDeterministic: true,
         });
+        console.log(`[INFO] Generated embedding for "${keyword.term}" (${embedding.length} dimensions)`);
 
         // Validate embedding dimension
         if (embedding.length !== 384) {
           console.error(
-            `[ERROR] Invalid embedding dimension for keyword ${keyword.id}: expected 384, got ${embedding.length}`
+            `[ERROR] Invalid embedding dimension for keyword ${keyword.id} "${keyword.term}": expected 384, got ${embedding.length}`
           );
           errorCount++;
           continue;
@@ -241,19 +254,29 @@ async function main() {
           });
 
         if (upsertError) {
-          console.error(`[ERROR] Failed to upsert keyword ${keyword.id}: ${upsertError.message}`);
+          console.error(`[ERROR] Failed to upsert keyword ${keyword.id} "${keyword.term}":`, {
+            keyword_id: keyword.id,
+            keyword_term: keyword.term,
+            error_code: upsertError.code,
+            error_message: upsertError.message,
+            error_details: upsertError.details,
+            error_hint: upsertError.hint,
+            embedding_length: embedding.length,
+            chunk_length: chunk.length,
+            marketplace: keyword.marketplace,
+          });
           errorCount++;
         } else {
           successCount++;
-          if (successCount % 10 === 0) {
-            console.log(`[INFO] Processed ${successCount}/${keywords.length} keywords`);
-          }
+          console.log(`[INFO] ✓ Successfully inserted keyword "${keyword.term}" (${successCount}/${keywords.length})`);
         }
       } catch (error) {
-        console.error(`[ERROR] Failed to process keyword ${keyword.id}: ${error}`);
+        console.error(`[ERROR] Exception processing keyword ${keyword.id} "${keyword.term}":`, error);
         errorCount++;
       }
     }
+
+    console.log(`[INFO] Processing complete: ${successCount} success, ${errorCount} errors out of ${keywords.length} total`);
 
     const runEnded = new Date().toISOString();
     const duration = new Date(runEnded).getTime() - new Date(runStarted).getTime();
