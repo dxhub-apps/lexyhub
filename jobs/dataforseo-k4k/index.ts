@@ -15,7 +15,7 @@ import { getSupabaseServerClient } from "@/lib/supabase-server";
 import { logger, logJobExecution } from "@/lib/logger";
 import { loadConfig, validateConfig } from "./config";
 import { DataForSEOClient, ConcurrencyLimiter } from "./client";
-import { TaskPoller } from "./poller";
+import { DirectTaskPoller } from "./poller-direct";
 import { normalizeDataForSEOBatch } from "./normalize";
 import {
   fetchKeywordSeeds,
@@ -283,8 +283,9 @@ async function main(): Promise<void> {
     throw new Error("Failed to post any tasks to DataForSEO");
   }
 
-  // Poll until tasks are ready
-  const poller = new TaskPoller(dataForSeoClient, {
+  // Poll until tasks are ready using direct task_get polling
+  // This is more reliable than the generic tasks_ready endpoint for Google Ads K4K
+  const poller = new DirectTaskPoller(dataForSeoClient, {
     intervalMs: config.pollIntervalMs,
     timeoutMs: config.pollTimeoutMs,
   });
