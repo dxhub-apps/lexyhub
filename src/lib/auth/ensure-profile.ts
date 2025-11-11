@@ -21,7 +21,11 @@ export async function ensureAdminProfile(user: User): Promise<{ plan: string | n
   }
 
   // Call RPC to ensure profile exists before fetching
-  const { error: rpcError } = await supabase.rpc('ensure_user_profile', { p_user_id: user.id });
+  // Explicitly pass both parameters to avoid function overloading ambiguity
+  const { error: rpcError } = await supabase.rpc('ensure_user_profile', {
+    p_user_id: user.id,
+    p_signup_source: 'web'
+  });
   if (rpcError) {
     console.error("Failed to ensure user profile via RPC:", rpcError);
   }
