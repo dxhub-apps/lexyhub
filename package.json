@@ -20,6 +20,7 @@
     "jobs:etsy-ingest": "tsx jobs/etsy-ingest/index.ts",
     "jobs:keyword-serp-sampler": "tsx jobs/keyword-serp-sampler.ts",
     "jobs:ingest-metrics": "tsx jobs/ingest_metrics_and_score.ts",
+    "jobs:ingest-metrics-to-corpus": "tsx jobs/ingest-metrics-to-corpus.ts",
     "jobs:social-aggregator": "tsx jobs/social-metrics-aggregator.ts",
     "jobs:hourly-refresh": "tsx jobs/hourly-keyword-refresh.ts",
     "jobs:watchlist-monitor": "tsx jobs/watchlist-momentum-monitor.ts",
