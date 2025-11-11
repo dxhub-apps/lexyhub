@@ -40,7 +40,6 @@ function createKeywordSummaryChunk(keyword: KeywordSnapshot): string {
     parts.push(`Tier: ${keyword.tier}`);
   }
 
-  // Add metrics if available
   const metrics: string[] = [];
 
   if (keyword.demand_index !== null) {
@@ -119,7 +118,6 @@ export async function ingestKeywordToCorpus(
   userId?: string | null
 ): Promise<{ success: boolean; corpusId?: string; error?: string }> {
   try {
-    // Check if already ingested
     const exists = await hasCorpusEntry(supabase, keyword.id);
     if (exists) {
       logger.debug(
@@ -129,15 +127,10 @@ export async function ingestKeywordToCorpus(
       return { success: true };
     }
 
-    // Create summary chunk
     const chunk = createKeywordSummaryChunk(keyword);
 
-    // Generate semantic embedding
-    const embedding = await createSemanticEmbedding(chunk, {
-      fallbackToDeterministic: true,
-    });
+    const embedding = await createSemanticEmbedding(chunk);
 
-    // Validate embedding dimension
     if (embedding.length !== 384) {
       const errorMsg = `Invalid embedding dimension: expected 384, got ${embedding.length}`;
       logger.error(
@@ -153,7 +146,6 @@ export async function ingestKeywordToCorpus(
       return { success: false, error: errorMsg };
     }
 
-    // Upsert to ai_corpus
     const corpusId = crypto.randomUUID();
 
     const { error: upsertError } = await supabase.from("ai_corpus").insert({
@@ -170,7 +162,7 @@ export async function ingestKeywordToCorpus(
       marketplace: keyword.marketplace,
       language: "en",
       chunk,
-      embedding: embedding, // Pass array directly, not JSON.stringify
+      embedding,
       metadata: {
         keyword_term: keyword.term,
         source: keyword.source,
@@ -249,7 +241,6 @@ export async function batchIngestKeywordsToCorpus(
       error: result.error,
     });
 
-    // Small delay to avoid overwhelming the embedding service
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
