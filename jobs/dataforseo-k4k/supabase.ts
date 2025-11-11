@@ -121,7 +121,8 @@ export async function upsertKeywordsBatch(
           p_market: keyword.market,
           p_source: keyword.source,
           // Tier column is a smallint: 0=free, 1=growth, 2=scale
-          p_tier: 0,
+          // Using tier 1 (growth) as default for DataForSEO keywords
+          p_tier: 1,
           p_method: "dataforseo_k4k_standard",
           p_extras: {
             search_volume: keyword.searchVolume,
@@ -129,6 +130,11 @@ export async function upsertKeywordsBatch(
             monthly_trend: keyword.monthlyTrend,
             original_term: keyword.termOriginal,
             locale: keyword.locale,
+            dataforseo: {
+              search_volume: keyword.searchVolume,
+              competition: keyword.competition,
+              cpc: keyword.cpc,
+            },
           },
           p_demand: null,
           p_competition: keyword.competition,
