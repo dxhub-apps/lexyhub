@@ -160,6 +160,13 @@ export async function ingestMetricsToCorpus(): Promise<{ success: boolean; proce
         const chunk = createMetricChunk(keyword, daily, weekly);
         const embedding = await createSemanticEmbedding(chunk, { fallbackToDeterministic: true });
 
+        // Validate embedding dimension
+        if (embedding.length !== 384) {
+          console.error(`[ERROR] Invalid embedding dimension for keyword ${keyword.id}: expected 384, got ${embedding.length}`);
+          errorCount++;
+          continue;
+        }
+
         const { error: upsertError } = await supabase.from("ai_corpus").upsert({
           id: crypto.randomUUID(),
           owner_scope: "global",
@@ -175,7 +182,7 @@ export async function ingestMetricsToCorpus(): Promise<{ success: boolean; proce
           marketplace: keyword.market,
           language: "en",
           chunk,
-          embedding: JSON.stringify(embedding),
+          embedding: embedding,
           metadata: {
             keyword_term: keyword.term,
             demand_index: keyword.demand_index,
@@ -250,6 +257,12 @@ export async function ingestPredictionsToCorpus(): Promise<{ success: boolean; p
       const chunk = `Forecast for keyword: "${keyword.term}". Marketplace: ${pred.marketplace || keyword.market}. Forecast Horizon: ${pred.horizon}. ${JSON.stringify(pred.metrics)}`;
       const embedding = await createSemanticEmbedding(chunk, { fallbackToDeterministic: true });
 
+      // Validate embedding dimension
+      if (embedding.length !== 384) {
+        console.error(`[ERROR] Invalid embedding dimension for prediction ${pred.id}: expected 384, got ${embedding.length}`);
+        continue;
+      }
+
       await supabase.from("ai_corpus").upsert({
         id: crypto.randomUUID(),
         owner_scope: "global",
@@ -258,7 +271,7 @@ export async function ingestPredictionsToCorpus(): Promise<{ success: boolean; p
         marketplace: pred.marketplace || keyword.market,
         language: "en",
         chunk,
-        embedding: JSON.stringify(embedding),
+        embedding: embedding,
         metadata: { keyword_term: keyword.term, horizon: pred.horizon, metrics: pred.metrics },
         is_active: true,
       });
@@ -294,6 +307,12 @@ export async function ingestRisksToCorpus(): Promise<{ success: boolean; totalSu
         const chunk = `Risk Rule: ${rule.rule_code}. Description: ${rule.description}. Severity: ${rule.severity.toUpperCase()}. ${rule.marketplace ? `Marketplace: ${rule.marketplace}` : 'Scope: All marketplaces'}`;
         const embedding = await createSemanticEmbedding(chunk, { fallbackToDeterministic: true });
 
+        // Validate embedding dimension
+        if (embedding.length !== 384) {
+          console.error(`[ERROR] Invalid embedding dimension for risk rule ${rule.id}: expected 384, got ${embedding.length}`);
+          continue;
+        }
+
         await supabase.from("ai_corpus").upsert({
           id: crypto.randomUUID(),
           owner_scope: "global",
@@ -302,7 +321,7 @@ export async function ingestRisksToCorpus(): Promise<{ success: boolean; totalSu
           marketplace: rule.marketplace,
           language: "en",
           chunk,
-          embedding: JSON.stringify(embedding),
+          embedding: embedding,
           metadata: { rule_code: rule.rule_code, severity: rule.severity, description: rule.description },
           is_active: true,
         });
@@ -338,6 +357,12 @@ export async function ingestRisksToCorpus(): Promise<{ success: boolean; totalSu
         const chunk = `Risk Alert${keyword ? ` for keyword: "${keyword.term}"` : ''}. ${rule ? `Rule: ${rule.rule_code} - ${rule.description}. Severity: ${rule.severity}` : ''}. Date: ${new Date(event.occurred_at).toISOString().split('T')[0]}. ${JSON.stringify(event.details)}`;
         const embedding = await createSemanticEmbedding(chunk, { fallbackToDeterministic: true });
 
+        // Validate embedding dimension
+        if (embedding.length !== 384) {
+          console.error(`[ERROR] Invalid embedding dimension for risk event ${event.id}: expected 384, got ${embedding.length}`);
+          continue;
+        }
+
         await supabase.from("ai_corpus").upsert({
           id: crypto.randomUUID(),
           owner_scope: event.scope === "user" ? "user" : "global",
@@ -346,7 +371,7 @@ export async function ingestRisksToCorpus(): Promise<{ success: boolean; totalSu
           marketplace: event.marketplace || keyword?.market,
           language: "en",
           chunk,
-          embedding: JSON.stringify(embedding),
+          embedding: embedding,
           metadata: { keyword_term: keyword?.term, rule_code: rule?.rule_code, severity: rule?.severity, occurred_at: event.occurred_at, scope: event.scope },
           is_active: true,
         });

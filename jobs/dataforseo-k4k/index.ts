@@ -37,7 +37,10 @@ import type {
 
 const INGEST_BATCH_ID = crypto.randomUUID();
 const SOURCE_NAME = "dataforseo_google_ads_k4k_standard";
-const COST_PER_TASK_USD = 0.0012; // Approximate cost per standard task
+// IMPORTANT: This is only for INITIAL estimation. Actual costs from DataForSEO API
+// (which can vary, e.g., $0.05 for Google Ads K4K) are accumulated and reported
+// in the final summary. Do not rely on this constant for accurate cost tracking.
+const COST_PER_TASK_USD = 0.0012; // Initial estimate only - actual costs vary by API endpoint
 
 /**
  * Group seeds by locale (language_code + location_code)
@@ -304,6 +307,7 @@ async function main(): Promise<void> {
   let rowsInserted = 0;
   let rowsUpdated = 0;
   let rowsSkippedInvalid = 0;
+  let actualCostUsd = 0; // Track actual API costs
 
   await getLimiter.executeAll(
     async (taskState) => {
@@ -326,13 +330,42 @@ async function main(): Promise<void> {
         }
 
         const taskResult = response.tasks[0];
+
+        // CRITICAL: Validate status_code == 20000 for successful tasks
+        if (taskResult.status_code !== 20000) {
+          logger.error({
+            taskId: taskState.taskId,
+            status_code: taskResult.status_code,
+            status_message: taskResult.status_message,
+            full_response: JSON.stringify(taskResult, null, 2),
+          }, `Task failed with status_code ${taskResult.status_code}: ${taskResult.status_message}`);
+          throw new Error(
+            `Task status_code ${taskResult.status_code}: ${taskResult.status_message}`
+          );
+        }
+
         const items = taskResult.result || [];
+
+        // Accumulate actual cost from API
+        if (taskResult.cost) {
+          actualCostUsd += taskResult.cost;
+        }
 
         logger.info({
           taskId: taskState.taskId,
+          status_code: taskResult.status_code,
           items_count: items.length,
           cost: taskResult.cost,
+          accumulated_cost: actualCostUsd,
         }, "FETCH_RESULT");
+
+        // Log full response if zero results
+        if (items.length === 0) {
+          logger.warn({
+            taskId: taskState.taskId,
+            full_response: JSON.stringify(taskResult, null, 2),
+          }, "Task returned zero results - logging full API response for debugging");
+        }
 
         // Save raw source
         const rawPayload: RawSourcePayload = {
@@ -448,10 +481,15 @@ async function main(): Promise<void> {
     rowsInserted,
     rowsUpdated,
     rowsSkippedInvalid,
-    estimatedCostUsd,
+    estimatedCostUsd: actualCostUsd > 0 ? actualCostUsd : estimatedCostUsd, // Use actual cost if available
   };
 
-  logger.info(summary, "RUN_SUMMARY");
+  logger.info({
+    ...summary,
+    initialEstimate: estimatedCostUsd,
+    actualCost: actualCostUsd,
+    costDifference: actualCostUsd > 0 ? actualCostUsd - estimatedCostUsd : 0,
+  }, "RUN_SUMMARY");
 
   logJobExecution("dataforseo-k4k", "completed", durationMs, summary as unknown as Record<string, unknown>);
 
