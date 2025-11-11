@@ -15,7 +15,7 @@ import { createDeterministicEmbedding } from "./embeddings";
 
 const HF_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2";
 const HF_EMBEDDING_DIMENSION = 384;
-const HF_API_URL = `https://api-inference.huggingface.co/models/${HF_EMBEDDING_MODEL}`;
+const HF_API_URL = `https://router.huggingface.co/models/${HF_EMBEDDING_MODEL}`;
 
 interface EmbeddingOptions {
   model?: string;
