@@ -342,6 +342,19 @@ async function retrieveCorpusContext(params: {
     ? await createSemanticEmbedding(trimmedQuery)
     : null;
 
+  logger.info(
+    {
+      type: "lexybrain_rrf_search_call",
+      capability: params.capability,
+      marketplace: params.marketplace,
+      language: params.language,
+      query_length: trimmedQuery.length,
+      has_embedding: !!embedding,
+      limit: params.limit,
+    },
+    "Calling ai_corpus_rrf_search RPC"
+  );
+
   const { data, error } = await supabase.rpc("ai_corpus_rrf_search", {
     p_query: trimmedQuery || null,
     p_query_embedding: embedding,
@@ -355,6 +368,16 @@ async function retrieveCorpusContext(params: {
     logger.warn({ type: "lexybrain_corpus_error", error: error.message }, "Failed to retrieve ai_corpus context");
     return [];
   }
+
+  logger.info(
+    {
+      type: "lexybrain_rrf_search_response",
+      capability: params.capability,
+      marketplace: params.marketplace,
+      results_count: data?.length ?? 0,
+    },
+    `RRF search returned ${data?.length ?? 0} corpus chunks`
+  );
 
   return (data ?? []) as CorpusChunk[];
 }
@@ -605,13 +628,42 @@ export async function runLexyBrainOrchestration(
   const queryParts = [request.query ?? "", ...keywords.map((keyword) => keyword.term)];
   const queryText = queryParts.join(" ").trim();
 
+  const resolvedMarketplace = keywords[0]?.market ?? request.marketplace ?? null;
+
+  logger.info(
+    {
+      type: "lexybrain_corpus_search_params",
+      capability: request.capability,
+      user_id: request.userId,
+      query_text: queryText,
+      marketplace_resolved: resolvedMarketplace,
+      marketplace_from_keyword: keywords[0]?.market,
+      marketplace_from_request: request.marketplace,
+      keywords_count: keywords.length,
+    },
+    "Preparing to search corpus with marketplace filter"
+  );
+
   const corpus = await retrieveCorpusContext({
     queryText,
     capability: request.capability,
-    marketplace: keywords[0]?.market ?? request.marketplace ?? null,
+    marketplace: resolvedMarketplace,
     language: request.language ?? null,
     limit: config.maxContext,
   });
+
+  logger.info(
+    {
+      type: "lexybrain_corpus_search_result",
+      capability: request.capability,
+      user_id: request.userId,
+      corpus_count: corpus.length,
+      marketplace_searched: resolvedMarketplace,
+      query_text: queryText,
+      sample_corpus_marketplaces: corpus.slice(0, 3).map((c) => c.marketplace),
+    },
+    `Corpus search returned ${corpus.length} results`
+  );
 
   // Hard-stop: If corpus is empty, refuse to generate to prevent hallucination
   if (!corpus || corpus.length === 0) {
@@ -621,6 +673,8 @@ export async function runLexyBrainOrchestration(
         capability: request.capability,
         user_id: request.userId,
         keyword_ids: keywordIds.length,
+        marketplace_searched: resolvedMarketplace,
+        query_text: queryText,
       },
       "No corpus data available - returning hard-stop no-data response"
     );
