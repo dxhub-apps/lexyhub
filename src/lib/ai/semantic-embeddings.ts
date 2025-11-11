@@ -78,9 +78,11 @@ export async function createSemanticEmbedding(
     if (!response.ok) {
       const errorText = await response.text().catch(() => "Unknown error");
 
-      // If model is loading and we allow fallback, use deterministic
-      if (response.status === 503 && fallbackToDeterministic) {
-        console.warn(`[SemanticEmbedding] Model loading (503), using deterministic fallback`);
+      // Any non-2xx from HF: if allowed, fall back instead of throwing
+      if (fallbackToDeterministic) {
+        console.warn(
+          `[SemanticEmbedding] HuggingFace API error ${response.status}. Using deterministic fallback. Details: ${errorText}`
+        );
         return createDeterministicEmbedding(text, HF_EMBEDDING_DIMENSION);
       }
 
@@ -114,7 +116,9 @@ export async function createSemanticEmbedding(
       const values = Object.values(data);
       const arrayValue = values.find((v) => Array.isArray(v));
       if (arrayValue) {
-        embeddingArray = Array.isArray((arrayValue as any)[0]) ? (arrayValue as any)[0] : (arrayValue as number[]);
+        embeddingArray = Array.isArray((arrayValue as any)[0])
+          ? (arrayValue as any)[0]
+          : (arrayValue as number[]);
       } else {
         throw new SemanticEmbeddingError("Invalid embedding format in response");
       }
