@@ -628,6 +628,20 @@ export async function runLexyBrainOrchestration(
     throw new Error("No reliable data for this query in LexyHub at the moment.");
   }
 
+  // Log warning if we have limited corpus context
+  if (corpus.length < 5) {
+    logger.warn(
+      {
+        type: "lexybrain_limited_context",
+        capability: request.capability,
+        user_id: request.userId,
+        keyword_ids: keywordIds.length,
+        corpus_count: corpus.length,
+      },
+      "Limited corpus data available - proceeding with partial context"
+    );
+  }
+
   const promptConfig = await loadPromptConfig(config.promptKey);
   const context = buildContext(config, keywords, request.marketplace ?? null, {
     metrics,
