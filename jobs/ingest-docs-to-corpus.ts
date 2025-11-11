@@ -202,42 +202,49 @@ async function main() {
 
   try {
     // Find all markdown files
-    console.log("[INFO] Scanning for markdown files...");
+    console.log(`[INFO] Scanning for markdown files in ${DOCS_DIR}...`);
     const docFiles = findMarkdownFiles(DOCS_DIR);
 
     if (docFiles.length === 0) {
-      console.log("[INFO] No markdown files found");
+      console.log(`[INFO] No markdown files found in ${DOCS_DIR}`);
       return;
     }
 
     console.log(`[INFO] Found ${docFiles.length} markdown files`);
 
     // Chunk all documents
+    console.log("[INFO] Chunking documents...");
     const allChunks: DocChunk[] = [];
     for (const doc of docFiles) {
       const chunks = chunkDocument(doc);
+      console.log(`[INFO] Chunked "${doc.title}" into ${chunks.length} chunks`);
       allChunks.push(...chunks);
     }
 
-    console.log(`[INFO] Created ${allChunks.length} chunks from ${docFiles.length} documents`);
+    console.log(`[INFO] Created ${allChunks.length} total chunks from ${docFiles.length} documents`);
 
     // Process each chunk
     let successCount = 0;
     let errorCount = 0;
 
+    console.log(`[INFO] Processing ${allChunks.length} chunks with embeddings...`);
     for (const docChunk of allChunks) {
       try {
+        console.log(`[INFO] Processing chunk ${docChunk.index + 1}/${docChunk.totalChunks} of "${docChunk.file.title}"`);
+
         const enrichedChunk = createEnrichedChunk(docChunk);
+        console.log(`[INFO] Created enriched chunk (${enrichedChunk.length} chars)`);
 
         // Generate semantic embedding
         const embedding = await createSemanticEmbedding(enrichedChunk, {
           fallbackToDeterministic: true,
         });
+        console.log(`[INFO] Generated embedding (${embedding.length} dimensions)`);
 
         // Validate embedding dimension
         if (embedding.length !== 384) {
           console.error(
-            `[ERROR] Invalid embedding dimension for doc ${docChunk.file.relativePath}: expected 384, got ${embedding.length}`
+            `[ERROR] Invalid embedding dimension for doc ${docChunk.file.relativePath} chunk ${docChunk.index}: expected 384, got ${embedding.length}`
           );
           errorCount++;
           continue;
@@ -276,19 +283,28 @@ async function main() {
           });
 
         if (upsertError) {
-          console.error(`[ERROR] Failed to upsert chunk for ${docChunk.file.relativePath}: ${upsertError.message}`);
+          console.error(`[ERROR] Failed to upsert chunk for ${docChunk.file.relativePath} chunk ${docChunk.index}:`, {
+            file_path: docChunk.file.relativePath,
+            chunk_index: docChunk.index,
+            error_code: upsertError.code,
+            error_message: upsertError.message,
+            error_details: upsertError.details,
+            error_hint: upsertError.hint,
+            embedding_length: embedding.length,
+            chunk_length: enrichedChunk.length,
+          });
           errorCount++;
         } else {
           successCount++;
-          if (successCount % 20 === 0) {
-            console.log(`[INFO] Processed ${successCount}/${allChunks.length} chunks`);
-          }
+          console.log(`[INFO] ✓ Successfully inserted chunk ${docChunk.index + 1}/${docChunk.totalChunks} of "${docChunk.file.title}" (${successCount}/${allChunks.length})`);
         }
       } catch (error) {
-        console.error(`[ERROR] Failed to process chunk for ${docChunk.file.relativePath}: ${error}`);
+        console.error(`[ERROR] Exception processing chunk for ${docChunk.file.relativePath} chunk ${docChunk.index}:`, error);
         errorCount++;
       }
     }
+
+    console.log(`[INFO] Processing complete: ${successCount} success, ${errorCount} errors out of ${allChunks.length} total`);
 
     const runEnded = new Date().toISOString();
     const duration = new Date(runEnded).getTime() - new Date(runStarted).getTime();

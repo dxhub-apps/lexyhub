@@ -102,6 +102,7 @@ async function main() {
     const lookbackDate = new Date();
     lookbackDate.setDate(lookbackDate.getDate() - LOOKBACK_DAYS);
 
+    console.log(`[INFO] Fetching predictions created since ${lookbackDate.toISOString()}, limit ${BATCH_SIZE}...`);
     const { data: predictions, error: predictionsError } = await supabase
       .from("keyword_predictions")
       .select("id, keyword_id, marketplace, horizon, metrics, created_at")
@@ -110,6 +111,7 @@ async function main() {
       .limit(BATCH_SIZE);
 
     if (predictionsError) {
+      console.error("[ERROR] Failed to fetch predictions:", predictionsError);
       throw new Error(`Failed to fetch predictions: ${predictionsError.message}`);
     }
 
@@ -118,16 +120,18 @@ async function main() {
       return;
     }
 
-    console.log(`[INFO] Processing ${predictions.length} predictions`);
+    console.log(`[INFO] Found ${predictions.length} predictions to process`);
 
     // Fetch associated keywords
     const keywordIds = [...new Set(predictions.map((p) => p.keyword_id))];
+    console.log(`[INFO] Fetching ${keywordIds.length} unique keywords...`);
     const { data: keywords, error: keywordsError } = await supabase
       .from("keywords")
       .select("id, term, marketplace")
       .in("id", keywordIds);
 
     if (keywordsError) {
+      console.error("[ERROR] Failed to fetch keywords:", keywordsError);
       throw new Error(`Failed to fetch keywords: ${keywordsError.message}`);
     }
 
@@ -135,32 +139,38 @@ async function main() {
     (keywords || []).forEach((k) => {
       keywordsMap.set(k.id, k as Keyword);
     });
+    console.log(`[INFO] Loaded ${keywordsMap.size} keywords`);
 
     // Process each prediction
     let successCount = 0;
     let errorCount = 0;
 
+    console.log(`[INFO] Processing ${predictions.length} predictions with embeddings...`);
     for (const prediction of predictions as Prediction[]) {
       try {
         const keyword = keywordsMap.get(prediction.keyword_id);
         if (!keyword) {
-          console.warn(`[WARN] Keyword not found for prediction ${prediction.id}`);
+          console.warn(`[WARN] Keyword not found for prediction ${prediction.id}, skipping`);
           errorCount++;
           continue;
         }
 
+        console.log(`[INFO] Processing prediction for "${keyword.term}" (${prediction.horizon}, ${prediction.id})`);
+
         // Create factual chunk
         const chunk = createPredictionChunk(keyword, prediction);
+        console.log(`[INFO] Created chunk for prediction (${chunk.length} chars)`);
 
         // Generate semantic embedding
         const embedding = await createSemanticEmbedding(chunk, {
           fallbackToDeterministic: true,
         });
+        console.log(`[INFO] Generated embedding (${embedding.length} dimensions)`);
 
         // Validate embedding dimension
         if (embedding.length !== 384) {
           console.error(
-            `[ERROR] Invalid embedding dimension for prediction ${prediction.id}: expected 384, got ${embedding.length}`
+            `[ERROR] Invalid embedding dimension for prediction ${prediction.id} "${keyword.term}": expected 384, got ${embedding.length}`
           );
           errorCount++;
           continue;
@@ -198,19 +208,29 @@ async function main() {
           });
 
         if (upsertError) {
-          console.error(`[ERROR] Failed to upsert prediction ${prediction.id}: ${upsertError.message}`);
+          console.error(`[ERROR] Failed to upsert prediction ${prediction.id} "${keyword.term}":`, {
+            prediction_id: prediction.id,
+            keyword_id: prediction.keyword_id,
+            keyword_term: keyword.term,
+            error_code: upsertError.code,
+            error_message: upsertError.message,
+            error_details: upsertError.details,
+            error_hint: upsertError.hint,
+            embedding_length: embedding.length,
+            chunk_length: chunk.length,
+          });
           errorCount++;
         } else {
           successCount++;
-          if (successCount % 10 === 0) {
-            console.log(`[INFO] Processed ${successCount}/${predictions.length} predictions`);
-          }
+          console.log(`[INFO] ✓ Successfully inserted prediction for "${keyword.term}" (${successCount}/${predictions.length})`);
         }
       } catch (error) {
-        console.error(`[ERROR] Failed to process prediction ${prediction.id}: ${error}`);
+        console.error(`[ERROR] Exception processing prediction ${prediction.id}:`, error);
         errorCount++;
       }
     }
+
+    console.log(`[INFO] Processing complete: ${successCount} success, ${errorCount} errors out of ${predictions.length} total`);
 
     const runEnded = new Date().toISOString();
     const duration = new Date(runEnded).getTime() - new Date(runStarted).getTime();
