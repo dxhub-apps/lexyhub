@@ -278,6 +278,8 @@ export async function ingestPredictionsToCorpus(): Promise<{ success: boolean; p
       const { error: upsertError } = await supabase.from("ai_corpus").upsert({
         id: crypto.randomUUID(),
         owner_scope: "global",
+        owner_user_id: null,
+        owner_team_id: null,
         source_type: "keyword_prediction",
         source_ref: { prediction_id: pred.id, keyword_id: pred.keyword_id, ingested_at: new Date().toISOString() },
         marketplace: pred.marketplace || keyword.market,
@@ -343,6 +345,8 @@ export async function ingestRisksToCorpus(): Promise<{ success: boolean; totalSu
         const { error: upsertError } = await supabase.from("ai_corpus").upsert({
           id: crypto.randomUUID(),
           owner_scope: "global",
+          owner_user_id: null,
+          owner_team_id: null,
           source_type: "risk_rule",
           source_ref: { rule_id: rule.id, rule_code: rule.rule_code, ingested_at: new Date().toISOString() },
           marketplace: rule.marketplace,
@@ -404,9 +408,13 @@ export async function ingestRisksToCorpus(): Promise<{ success: boolean; totalSu
           continue;
         }
 
+        // Always use global scope for risk events to avoid constraint violations
+        // (user-scoped events would require owner_user_id, which we don't have in the event data)
         const { error: upsertError } = await supabase.from("ai_corpus").upsert({
           id: crypto.randomUUID(),
-          owner_scope: event.scope === "user" ? "user" : "global",
+          owner_scope: "global",
+          owner_user_id: null,
+          owner_team_id: null,
           source_type: "risk_event",
           source_ref: { event_id: event.id, keyword_id: event.keyword_id, rule_id: event.rule_id, ingested_at: new Date().toISOString() },
           marketplace: event.marketplace || keyword?.market,

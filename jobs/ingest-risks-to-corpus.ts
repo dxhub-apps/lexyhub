@@ -265,11 +265,13 @@ async function main() {
             continue;
           }
 
+          // Always use global scope for risk events to avoid constraint violations
+          // (user-scoped events would require owner_user_id, which we don't have in the event data)
           const { error: upsertError } = await supabase
             .from("ai_corpus")
             .upsert({
               id: crypto.randomUUID(),
-              owner_scope: event.scope === "user" ? "user" : "global",
+              owner_scope: "global",
               owner_user_id: null,
               owner_team_id: null,
               source_type: "risk_event",
