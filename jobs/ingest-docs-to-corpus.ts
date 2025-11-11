@@ -54,20 +54,20 @@ function findMarkdownFiles(dir: string, baseDir: string = dir): DocFile[] {
 
       if (stats.isDirectory()) {
         // Skip node_modules, .git, etc.
-        if (!entry.startsWith('.') && entry !== 'node_modules') {
+        if (!entry.startsWith(".") && entry !== "node_modules") {
           files.push(...findMarkdownFiles(fullPath, baseDir));
         }
-      } else if (stats.isFile() && entry.endsWith('.md')) {
+      } else if (stats.isFile() && entry.endsWith(".md")) {
         const relativePath = relative(baseDir, fullPath);
-        const content = readFileSync(fullPath, 'utf-8');
+        const content = readFileSync(fullPath, "utf-8");
 
         // Extract title from first heading or filename
         const titleMatch = content.match(/^#\s+(.+)$/m);
-        const title = titleMatch ? titleMatch[1] : entry.replace('.md', '');
+        const title = titleMatch ? titleMatch[1] : entry.replace(".md", "");
 
         // Determine category from path
-        const pathParts = relativePath.split('/');
-        const category = pathParts.length > 1 ? pathParts[0] : 'general';
+        const pathParts = relativePath.split("/");
+        const category = pathParts.length > 1 ? pathParts[0] : "general";
 
         files.push({
           path: fullPath,
@@ -102,7 +102,7 @@ function chunkDocument(doc: DocFile): DocChunk[] {
   // Split by sections (headings)
   const sections = content.split(/\n(?=#+\s)/);
 
-  let currentChunk = '';
+  let currentChunk = "";
   let chunkIndex = 0;
 
   for (const section of sections) {
@@ -110,7 +110,7 @@ function chunkDocument(doc: DocFile): DocChunk[] {
 
     // If section is small enough, add to current chunk
     if (estimateTokens(currentChunk + section) <= CHUNK_SIZE) {
-      currentChunk += '\n\n' + section;
+      currentChunk += "\n\n" + section;
     } else {
       // Current chunk is full, save it
       if (currentChunk.trim()) {
@@ -128,11 +128,11 @@ function chunkDocument(doc: DocFile): DocChunk[] {
       } else {
         // Section itself is too large, split by paragraphs
         const paragraphs = section.split(/\n\n+/);
-        let subChunk = '';
+        let subChunk = "";
 
         for (const para of paragraphs) {
           if (estimateTokens(subChunk + para) <= CHUNK_SIZE) {
-            subChunk += '\n\n' + para;
+            subChunk += "\n\n" + para;
           } else {
             if (subChunk.trim()) {
               chunks.push({
@@ -183,10 +183,10 @@ function createEnrichedChunk(docChunk: DocChunk): string {
     parts.push(`Section: ${docChunk.index + 1} of ${docChunk.totalChunks}`);
   }
 
-  parts.push(''); // Blank line
+  parts.push(""); // Blank line
   parts.push(docChunk.chunk);
 
-  return parts.join('\n');
+  return parts.join("\n");
 }
 
 async function main() {
@@ -230,15 +230,15 @@ async function main() {
     console.log(`[INFO] Processing ${allChunks.length} chunks with embeddings...`);
     for (const docChunk of allChunks) {
       try {
-        console.log(`[INFO] Processing chunk ${docChunk.index + 1}/${docChunk.totalChunks} of "${docChunk.file.title}"`);
+        console.log(
+          `[INFO] Processing chunk ${docChunk.index + 1}/${docChunk.totalChunks} of "${docChunk.file.title}"`
+        );
 
         const enrichedChunk = createEnrichedChunk(docChunk);
         console.log(`[INFO] Created enriched chunk (${enrichedChunk.length} chars)`);
 
-        // Generate semantic embedding
-        const embedding = await createSemanticEmbedding(enrichedChunk, {
-          fallbackToDeterministic: true,
-        });
+        // Generate semantic embedding (single-argument API)
+        const embedding = await createSemanticEmbedding(enrichedChunk);
         console.log(`[INFO] Generated embedding (${embedding.length} dimensions)`);
 
         // Validate embedding dimension
@@ -253,58 +253,73 @@ async function main() {
         // Upsert to ai_corpus
         const { error: upsertError } = await supabase
           .from("ai_corpus")
-          .upsert({
-            id: crypto.randomUUID(),
-            owner_scope: "global",
-            owner_user_id: null,
-            owner_team_id: null,
-            source_type: "doc",
-            source_ref: {
-              file_path: docChunk.file.relativePath,
-              chunk_index: docChunk.index,
-              total_chunks: docChunk.totalChunks,
-              ingested_at: new Date().toISOString(),
+          .upsert(
+            {
+              id: crypto.randomUUID(),
+              owner_scope: "global",
+              owner_user_id: null,
+              owner_team_id: null,
+              source_type: "doc",
+              source_ref: {
+                file_path: docChunk.file.relativePath,
+                chunk_index: docChunk.index,
+                total_chunks: docChunk.totalChunks,
+                ingested_at: new Date().toISOString(),
+              },
+              marketplace: null,
+              language: "en",
+              chunk: enrichedChunk,
+              embedding: embedding,
+              metadata: {
+                title: docChunk.file.title,
+                category: docChunk.file.category,
+                file_path: docChunk.file.relativePath,
+                chunk_index: docChunk.index,
+                total_chunks: docChunk.totalChunks,
+              },
+              is_active: true,
             },
-            marketplace: null,
-            language: "en",
-            chunk: enrichedChunk,
-            embedding: embedding, // Pass array directly, not JSON.stringify
-            metadata: {
-              title: docChunk.file.title,
-              category: docChunk.file.category,
-              file_path: docChunk.file.relativePath,
-              chunk_index: docChunk.index,
-              total_chunks: docChunk.totalChunks,
-            },
-            is_active: true,
-          }, {
-            onConflict: "id",
-            ignoreDuplicates: false,
-          });
+            {
+              onConflict: "id",
+              ignoreDuplicates: false,
+            }
+          );
 
         if (upsertError) {
-          console.error(`[ERROR] Failed to upsert chunk for ${docChunk.file.relativePath} chunk ${docChunk.index}:`, {
-            file_path: docChunk.file.relativePath,
-            chunk_index: docChunk.index,
-            error_code: upsertError.code,
-            error_message: upsertError.message,
-            error_details: upsertError.details,
-            error_hint: upsertError.hint,
-            embedding_length: embedding.length,
-            chunk_length: enrichedChunk.length,
-          });
+          console.error(
+            `[ERROR] Failed to upsert chunk for ${docChunk.file.relativePath} chunk ${docChunk.index}:`,
+            {
+              file_path: docChunk.file.relativePath,
+              chunk_index: docChunk.index,
+              error_code: upsertError.code,
+              error_message: upsertError.message,
+              error_details: upsertError.details,
+              error_hint: upsertError.hint,
+              embedding_length: embedding.length,
+              chunk_length: enrichedChunk.length,
+            }
+          );
           errorCount++;
         } else {
           successCount++;
-          console.log(`[INFO] ✓ Successfully inserted chunk ${docChunk.index + 1}/${docChunk.totalChunks} of "${docChunk.file.title}" (${successCount}/${allChunks.length})`);
+          console.log(
+            `[INFO] ✓ Successfully inserted chunk ${docChunk.index + 1}/${docChunk.totalChunks} of "${
+              docChunk.file.title
+            }" (${successCount}/${allChunks.length})`
+          );
         }
       } catch (error) {
-        console.error(`[ERROR] Exception processing chunk for ${docChunk.file.relativePath} chunk ${docChunk.index}:`, error);
+        console.error(
+          `[ERROR] Exception processing chunk for ${docChunk.file.relativePath} chunk ${docChunk.index}:`,
+          error
+        );
         errorCount++;
       }
     }
 
-    console.log(`[INFO] Processing complete: ${successCount} success, ${errorCount} errors out of ${allChunks.length} total`);
+    console.log(
+      `[INFO] Processing complete: ${successCount} success, ${errorCount} errors out of ${allChunks.length} total`
+    );
 
     const runEnded = new Date().toISOString();
     const duration = new Date(runEnded).getTime() - new Date(runStarted).getTime();
