@@ -101,7 +101,7 @@ async function testRRFSearch(query: string, marketplace: string | null) {
     console.log("\n=== SUMMARY ===");
     console.log(`Total results: ${data.length}`);
 
-    const marketplaceCounts = data.reduce((acc: Record<string, number>, r) => {
+    const marketplaceCounts = data.reduce((acc: Record<string, number>, r: any) => {
       const mp = r.marketplace || "NULL";
       acc[mp] = (acc[mp] || 0) + 1;
       return acc;
@@ -112,9 +112,9 @@ async function testRRFSearch(query: string, marketplace: string | null) {
       console.log(`  ${mp}: ${count}`);
     }
 
-    const lexicalCount = data.filter(r => r.lexical_rank).length;
-    const vectorCount = data.filter(r => r.vector_rank).length;
-    const bothCount = data.filter(r => r.lexical_rank && r.vector_rank).length;
+    const lexicalCount = data.filter((r: any) => r.lexical_rank).length;
+    const vectorCount = data.filter((r: any) => r.vector_rank).length;
+    const bothCount = data.filter((r: any) => r.lexical_rank && r.vector_rank).length;
 
     console.log(`\nSearch method breakdown:`);
     console.log(`  Lexical only: ${lexicalCount - bothCount}`);
