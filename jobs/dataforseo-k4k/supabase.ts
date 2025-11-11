@@ -115,29 +115,46 @@ export async function upsertKeywordsBatch(
 
     for (const keyword of chunk) {
       try {
+        // Validate all numeric fields before upsert
+        // CRITICAL: Ensure no string values leak into numeric columns
+        const tier: number = 1; // smallint: 0=free, 1=growth, 2=scale
+        const searchVolume: number =
+          typeof keyword.searchVolume === "number" ? keyword.searchVolume : 0;
+        const cpc: number = typeof keyword.cpc === "number" ? keyword.cpc : 0;
+        const competition: number =
+          typeof keyword.competition === "number" ? keyword.competition : 0;
+
+        // Validate tier is smallint-compatible (0-32767)
+        if (!Number.isInteger(tier) || tier < 0 || tier > 32767) {
+          logger.warn(
+            { term: keyword.termNorm, tier },
+            `Invalid tier value for keyword "${keyword.termNorm}", skipping`
+          );
+          failed++;
+          continue;
+        }
+
         // Use the lexy_upsert_keyword RPC function
         const { data, error } = await client.rpc("lexy_upsert_keyword", {
           p_term: keyword.termNorm,
           p_market: keyword.market,
           p_source: keyword.source,
-          // Tier column is a smallint: 0=free, 1=growth, 2=scale
-          // Using tier 1 (growth) as default for DataForSEO keywords
-          p_tier: 1,
+          p_tier: tier,
           p_method: "dataforseo_k4k_standard",
           p_extras: {
-            search_volume: keyword.searchVolume,
-            cpc: keyword.cpc,
+            search_volume: searchVolume,
+            cpc: cpc,
             monthly_trend: keyword.monthlyTrend,
             original_term: keyword.termOriginal,
             locale: keyword.locale,
             dataforseo: {
-              search_volume: keyword.searchVolume,
-              competition: keyword.competition,
-              cpc: keyword.cpc,
+              search_volume: searchVolume,
+              competition: competition,
+              cpc: cpc,
             },
           },
           p_demand: null,
-          p_competition: keyword.competition,
+          p_competition: competition,
           p_engagement: null,
           p_ai: null,
           p_freshness: new Date().toISOString(),
