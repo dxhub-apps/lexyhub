@@ -80,6 +80,24 @@ export function normalizeDataForSEOKeyword(
       }))
     : null;
 
+  // Handle competition mapping: prefer numeric competition (0-1), fallback to mapped competition_level
+  const competitionNumeric =
+    typeof item.competition === "number" ? item.competition : null;
+
+  const competitionLevel = item.competition_level; // "LOW" | "MEDIUM" | "HIGH"
+
+  const competitionLevelNumeric =
+    competitionLevel === "LOW"
+      ? 0.2
+      : competitionLevel === "MEDIUM"
+        ? 0.5
+        : competitionLevel === "HIGH"
+          ? 0.8
+          : null;
+
+  // Use numeric competition if available, otherwise use mapped level, otherwise 0
+  const competitionScore = competitionNumeric ?? competitionLevelNumeric ?? 0;
+
   return {
     termNorm,
     termOriginal,
@@ -89,7 +107,7 @@ export function normalizeDataForSEOKeyword(
     ingestBatchId,
     searchVolume: item.search_volume || 0,
     cpc: item.cpc || 0,
-    competition: item.competition || 0,
+    competition: competitionScore,
     monthlyTrend,
   };
 }
