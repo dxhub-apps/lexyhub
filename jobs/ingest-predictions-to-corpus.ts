@@ -17,7 +17,9 @@ const BATCH_SIZE = parseInt(process.env.BATCH_SIZE || "50", 10);
 const LOOKBACK_DAYS = parseInt(process.env.LOOKBACK_DAYS || "30", 10);
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.error("[ERROR] Missing required environment variables: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY");
+  console.error(
+    "[ERROR] Missing required environment variables: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY"
+  );
   process.exit(1);
 }
 
@@ -49,7 +51,7 @@ function createPredictionChunk(keyword: Keyword, prediction: Prediction): string
   parts.push(`Forecast Horizon: ${prediction.horizon}`);
 
   // Extract prediction metrics
-  const metrics = prediction.metrics;
+  const metrics = prediction.metrics as any;
   const predictionDetails: string[] = [];
 
   if (metrics.forecast_trend !== undefined) {
@@ -59,10 +61,22 @@ function createPredictionChunk(keyword: Keyword, prediction: Prediction): string
     predictionDetails.push(`Predicted Demand: ${metrics.predicted_demand}`);
   }
   if (metrics.growth_rate !== undefined) {
-    predictionDetails.push(`Growth Rate: ${typeof metrics.growth_rate === 'number' ? (metrics.growth_rate * 100).toFixed(1) + '%' : metrics.growth_rate}`);
+    predictionDetails.push(
+      `Growth Rate: ${
+        typeof metrics.growth_rate === "number"
+          ? (metrics.growth_rate * 100).toFixed(1) + "%"
+          : metrics.growth_rate
+      }`
+    );
   }
   if (metrics.confidence !== undefined) {
-    predictionDetails.push(`Confidence: ${typeof metrics.confidence === 'number' ? (metrics.confidence * 100).toFixed(0) + '%' : metrics.confidence}`);
+    predictionDetails.push(
+      `Confidence: ${
+        typeof metrics.confidence === "number"
+          ? (metrics.confidence * 100).toFixed(0) + "%"
+          : metrics.confidence
+      }`
+    );
   }
   if (metrics.seasonality_index !== undefined) {
     predictionDetails.push(`Seasonality Index: ${metrics.seasonality_index}`);
@@ -76,11 +90,13 @@ function createPredictionChunk(keyword: Keyword, prediction: Prediction): string
   }
 
   // Add forecast context
-  if (metrics.forecast_summary && typeof metrics.forecast_summary === 'string') {
+  if (metrics.forecast_summary && typeof metrics.forecast_summary === "string") {
     parts.push(`Summary: ${metrics.forecast_summary}`);
   }
 
-  const createdDate = new Date(prediction.created_at).toISOString().split("T")[0];
+  const createdDate = new Date(prediction.created_at)
+    .toISOString()
+    .split("T")[0];
   parts.push(`Forecast Generated: ${createdDate}`);
 
   return parts.join(". ");
@@ -94,15 +110,21 @@ async function main() {
   const runId = crypto.randomUUID();
   const runStarted = new Date().toISOString();
 
-  console.log(`[${runStarted}] Starting prediction ingestion to ai_corpus ${runId}`);
-  console.log(`[INFO] Batch size: ${BATCH_SIZE}, Lookback: ${LOOKBACK_DAYS} days`);
+  console.log(
+    `[${runStarted}] Starting prediction ingestion to ai_corpus ${runId}`
+  );
+  console.log(
+    `[INFO] Batch size: ${BATCH_SIZE}, Lookback: ${LOOKBACK_DAYS} days`
+  );
 
   try {
     // Get recent predictions
     const lookbackDate = new Date();
     lookbackDate.setDate(lookbackDate.getDate() - LOOKBACK_DAYS);
 
-    console.log(`[INFO] Fetching predictions created since ${lookbackDate.toISOString()}, limit ${BATCH_SIZE}...`);
+    console.log(
+      `[INFO] Fetching predictions created since ${lookbackDate.toISOString()}, limit ${BATCH_SIZE}...`
+    );
     const { data: predictions, error: predictionsError } = await supabase
       .from("keyword_predictions")
       .select("id, keyword_id, marketplace, horizon, metrics, created_at")
@@ -112,7 +134,9 @@ async function main() {
 
     if (predictionsError) {
       console.error("[ERROR] Failed to fetch predictions:", predictionsError);
-      throw new Error(`Failed to fetch predictions: ${predictionsError.message}`);
+      throw new Error(
+        `Failed to fetch predictions: ${predictionsError.message}`
+      );
     }
 
     if (!predictions || predictions.length === 0) {
@@ -120,11 +144,15 @@ async function main() {
       return;
     }
 
-    console.log(`[INFO] Found ${predictions.length} predictions to process`);
+    console.log(
+      `[INFO] Found ${predictions.length} predictions to process`
+    );
 
     // Fetch associated keywords
     const keywordIds = [...new Set(predictions.map((p) => p.keyword_id))];
-    console.log(`[INFO] Fetching ${keywordIds.length} unique keywords...`);
+    console.log(
+      `[INFO] Fetching ${keywordIds.length} unique keywords...`
+    );
     const { data: keywords, error: keywordsError } = await supabase
       .from("keywords")
       .select("id, term, marketplace")
@@ -132,7 +160,9 @@ async function main() {
 
     if (keywordsError) {
       console.error("[ERROR] Failed to fetch keywords:", keywordsError);
-      throw new Error(`Failed to fetch keywords: ${keywordsError.message}`);
+      throw new Error(
+        `Failed to fetch keywords: ${keywordsError.message}`
+      );
     }
 
     const keywordsMap = new Map<string, Keyword>();
@@ -145,27 +175,35 @@ async function main() {
     let successCount = 0;
     let errorCount = 0;
 
-    console.log(`[INFO] Processing ${predictions.length} predictions with embeddings...`);
+    console.log(
+      `[INFO] Processing ${predictions.length} predictions with embeddings...`
+    );
     for (const prediction of predictions as Prediction[]) {
       try {
         const keyword = keywordsMap.get(prediction.keyword_id);
         if (!keyword) {
-          console.warn(`[WARN] Keyword not found for prediction ${prediction.id}, skipping`);
+          console.warn(
+            `[WARN] Keyword not found for prediction ${prediction.id}, skipping`
+          );
           errorCount++;
           continue;
         }
 
-        console.log(`[INFO] Processing prediction for "${keyword.term}" (${prediction.horizon}, ${prediction.id})`);
+        console.log(
+          `[INFO] Processing prediction for "${keyword.term}" (${prediction.horizon}, ${prediction.id})`
+        );
 
         // Create factual chunk
         const chunk = createPredictionChunk(keyword, prediction);
-        console.log(`[INFO] Created chunk for prediction (${chunk.length} chars)`);
+        console.log(
+          `[INFO] Created chunk for prediction (${chunk.length} chars)`
+        );
 
-        // Generate semantic embedding
-        const embedding = await createSemanticEmbedding(chunk, {
-          fallbackToDeterministic: true,
-        });
-        console.log(`[INFO] Generated embedding (${embedding.length} dimensions)`);
+        // Generate semantic embedding (single-argument API)
+        const embedding = await createSemanticEmbedding(chunk);
+        console.log(
+          `[INFO] Generated embedding (${embedding.length} dimensions)`
+        );
 
         // Validate embedding dimension
         if (embedding.length !== 384) {
@@ -179,67 +217,88 @@ async function main() {
         // Upsert to ai_corpus
         const { error: upsertError } = await supabase
           .from("ai_corpus")
-          .upsert({
-            id: crypto.randomUUID(),
-            owner_scope: "global",
-            owner_user_id: null,
-            owner_team_id: null,
-            source_type: "keyword_prediction",
-            source_ref: {
-              prediction_id: prediction.id,
-              keyword_id: prediction.keyword_id,
-              horizon: prediction.horizon,
-              ingested_at: new Date().toISOString(),
+          .upsert(
+            {
+              id: crypto.randomUUID(),
+              owner_scope: "global",
+              owner_user_id: null,
+              owner_team_id: null,
+              source_type: "keyword_prediction",
+              source_ref: {
+                prediction_id: prediction.id,
+                keyword_id: prediction.keyword_id,
+                horizon: prediction.horizon,
+                ingested_at: new Date().toISOString(),
+              },
+              marketplace:
+                prediction.marketplace || keyword.marketplace,
+              language: "en",
+              chunk,
+              embedding,
+              metadata: {
+                keyword_term: keyword.term,
+                horizon: prediction.horizon,
+                metrics: prediction.metrics,
+                created_at: prediction.created_at,
+              },
+              is_active: true,
             },
-            marketplace: prediction.marketplace || keyword.marketplace,
-            language: "en",
-            chunk,
-            embedding: embedding, // Pass array directly, not JSON.stringify
-            metadata: {
-              keyword_term: keyword.term,
-              horizon: prediction.horizon,
-              metrics: prediction.metrics,
-              created_at: prediction.created_at,
-            },
-            is_active: true,
-          }, {
-            onConflict: "id",
-            ignoreDuplicates: false,
-          });
+            {
+              onConflict: "id",
+              ignoreDuplicates: false,
+            }
+          );
 
         if (upsertError) {
-          console.error(`[ERROR] Failed to upsert prediction ${prediction.id} "${keyword.term}":`, {
-            prediction_id: prediction.id,
-            keyword_id: prediction.keyword_id,
-            keyword_term: keyword.term,
-            error_code: upsertError.code,
-            error_message: upsertError.message,
-            error_details: upsertError.details,
-            error_hint: upsertError.hint,
-            embedding_length: embedding.length,
-            chunk_length: chunk.length,
-          });
+          console.error(
+            `[ERROR] Failed to upsert prediction ${prediction.id} "${keyword.term}":`,
+            {
+              prediction_id: prediction.id,
+              keyword_id: prediction.keyword_id,
+              keyword_term: keyword.term,
+              error_code: upsertError.code,
+              error_message: upsertError.message,
+              error_details: upsertError.details,
+              error_hint: upsertError.hint,
+              embedding_length: embedding.length,
+              chunk_length: chunk.length,
+            }
+          );
           errorCount++;
         } else {
           successCount++;
-          console.log(`[INFO] ✓ Successfully inserted prediction for "${keyword.term}" (${successCount}/${predictions.length})`);
+          console.log(
+            `[INFO] ✓ Successfully inserted prediction for "${keyword.term}" (${successCount}/${predictions.length})`
+          );
         }
       } catch (error) {
-        console.error(`[ERROR] Exception processing prediction ${prediction.id}:`, error);
+        console.error(
+          `[ERROR] Exception processing prediction ${prediction.id}:`,
+          error
+        );
         errorCount++;
       }
     }
 
-    console.log(`[INFO] Processing complete: ${successCount} success, ${errorCount} errors out of ${predictions.length} total`);
+    console.log(
+      `[INFO] Processing complete: ${successCount} success, ${errorCount} errors out of ${predictions.length} total`
+    );
 
     const runEnded = new Date().toISOString();
-    const duration = new Date(runEnded).getTime() - new Date(runStarted).getTime();
+    const duration =
+      new Date(runEnded).getTime() - new Date(runStarted).getTime();
 
     console.log(`[${runEnded}] Prediction ingestion completed`);
-    console.log(`[INFO] Duration: ${(duration / 1000).toFixed(2)}s`);
-    console.log(`[INFO] Success: ${successCount}, Errors: ${errorCount}`);
+    console.log(
+      `[INFO] Duration: ${(duration / 1000).toFixed(2)}s`
+    );
+    console.log(
+      `[INFO] Success: ${successCount}, Errors: ${errorCount}`
+    );
   } catch (error) {
-    console.error(`[ERROR] Fatal error in prediction ingestion: ${error}`);
+    console.error(
+      `[ERROR] Fatal error in prediction ingestion: ${error}`
+    );
     process.exit(1);
   }
 }
