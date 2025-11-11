@@ -80,12 +80,18 @@ export function normalizeDataForSEOKeyword(
       }))
     : null;
 
-  // Handle competition mapping: prefer numeric competition (0-1), fallback to mapped competition_level
+  // Handle competition mapping: ONLY use numeric values, never strings
+  // DataForSEO provides both numeric competition (0-1) and string competition_level (LOW/MEDIUM/HIGH)
+  // We must map the string to numeric to avoid "invalid input syntax for type numeric" errors
+
   const competitionNumeric =
-    typeof item.competition === "number" ? item.competition : null;
+    typeof item.competition === "number" && !isNaN(item.competition)
+      ? item.competition
+      : null;
 
-  const competitionLevel = item.competition_level; // "LOW" | "MEDIUM" | "HIGH"
+  const competitionLevel = item.competition_level as string | undefined | null;
 
+  // Map string competition_level to numeric (0-1 range) for database storage
   const competitionLevelNumeric =
     competitionLevel === "LOW"
       ? 0.2
@@ -98,6 +104,20 @@ export function normalizeDataForSEOKeyword(
   // Use numeric competition if available, otherwise use mapped level, otherwise 0
   const competitionScore = competitionNumeric ?? competitionLevelNumeric ?? 0;
 
+  // Validate: ensure we never have a string value here
+  if (typeof competitionScore !== "number" || isNaN(competitionScore)) {
+    return null; // Skip this keyword if competition score is invalid
+  }
+
+  // Ensure all numeric fields are actually numbers, not strings
+  const searchVolume =
+    typeof item.search_volume === "number" && !isNaN(item.search_volume)
+      ? item.search_volume
+      : 0;
+
+  const cpc =
+    typeof item.cpc === "number" && !isNaN(item.cpc) ? item.cpc : 0;
+
   return {
     termNorm,
     termOriginal,
@@ -105,8 +125,8 @@ export function normalizeDataForSEOKeyword(
     market,
     source,
     ingestBatchId,
-    searchVolume: item.search_volume || 0,
-    cpc: item.cpc || 0,
+    searchVolume,
+    cpc,
     competition: competitionScore,
     monthlyTrend,
   };

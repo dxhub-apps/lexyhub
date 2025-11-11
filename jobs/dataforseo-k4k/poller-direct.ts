@@ -131,12 +131,26 @@ export class DirectTaskPoller {
         taskState.status = "failed";
         taskState.error = `${taskResult.status_message} (${taskResult.status_code})`;
         taskState.completedAt = Date.now();
-        logger.error({
-          taskId,
-          status_code: taskResult.status_code,
-          status_message: taskResult.status_message,
-          error: taskState.error,
-        }, `[DirectTaskPoller] Task failed: ${taskId}`);
+
+        // Special logging for 50301 errors (invalid argument)
+        if (taskResult.status_code === 50301) {
+          logger.error({
+            taskId,
+            status_code: taskResult.status_code,
+            status_message: taskResult.status_message,
+            error: taskState.error,
+            full_task_result: taskResult,
+            task_data: taskResult.data,
+            task_path: taskResult.path,
+          }, `[DirectTaskPoller] Task failed with 50301 (Invalid Argument) - possible endpoint mismatch: ${taskId}`);
+        } else {
+          logger.error({
+            taskId,
+            status_code: taskResult.status_code,
+            status_message: taskResult.status_message,
+            error: taskState.error,
+          }, `[DirectTaskPoller] Task failed: ${taskId}`);
+        }
       } else {
         // Unknown status code - log and keep polling
         logger.warn({

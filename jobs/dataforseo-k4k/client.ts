@@ -203,13 +203,57 @@ export class DataForSEOClient {
 
   /**
    * Get results for a specific task
+   *
+   * DataForSEO provides two task_get endpoints:
+   * - Standard: /task_get/{id} - basic results
+   * - Advanced: /task_get/advanced/{id} - detailed results with additional metrics
+   *
+   * Currently using standard endpoint. If you encounter 50301 errors,
+   * try switching to the advanced endpoint.
    */
   async getTaskResult(taskId: string): Promise<DataForSEOTaskGetResponse> {
     const url = `${BASE_URL}/v3/keywords_data/google_ads/keywords_for_keywords/task_get/${taskId}`;
 
-    return this.fetchWithRetry<DataForSEOTaskGetResponse>(url, {
-      method: "GET",
-    });
+    console.log(`[DataForSEO] GET ${url}`);
+
+    try {
+      const response = await this.fetchWithRetry<DataForSEOTaskGetResponse>(url, {
+        method: "GET",
+      });
+
+      // Log response for debugging
+      if (response.status_code !== 20000) {
+        console.error(
+          `[DataForSEO] task_get failed for ${taskId}:`,
+          JSON.stringify({
+            url,
+            status_code: response.status_code,
+            status_message: response.status_message,
+            cost: response.cost,
+            tasks_count: response.tasks_count,
+            tasks_error: response.tasks_error,
+            tasks: response.tasks?.map((t) => ({
+              id: t.id,
+              status_code: t.status_code,
+              status_message: t.status_message,
+              path: t.path,
+            })),
+          }, null, 2)
+        );
+      }
+
+      return response;
+    } catch (error: any) {
+      console.error(
+        `[DataForSEO] task_get exception for ${taskId}:`,
+        {
+          url,
+          error: error.message,
+          stack: error.stack,
+        }
+      );
+      throw error;
+    }
   }
 }
 
