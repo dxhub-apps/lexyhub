@@ -14,6 +14,16 @@ interface Keyword {
   term: string;
   market: string;
   source: string;
+  extras?: {
+    search_volume?: number;
+    cpc?: number;
+    dataforseo?: {
+      search_volume?: number;
+      competition?: number;
+      cpc?: number;
+    };
+    monthly_trend?: Array<{ year: number; month: number; search_volume: number }>;
+  };
 }
 
 interface MetricsData {
@@ -52,7 +62,7 @@ async function main() {
 
     const { data: keywords, error: kwError } = await supabase
       .from("keywords")
-      .select("id, term, market, source")
+      .select("id, term, market, source, extras")
       .gte("freshness_ts", ninetyDaysAgo.toISOString())
       .order("freshness_ts", { ascending: false });
 
@@ -152,26 +162,36 @@ async function main() {
 }
 
 async function collectMetrics(keyword: Keyword, openai: OpenAI): Promise<MetricsData> {
-  // Simulate or fetch real metrics
-  // In production, this would call actual APIs (Google Trends, SEMrush, etc.)
-  // For missing data, use AI inference
-
   let volume: number | null = null;
   let traffic_rank: number | null = null;
   let competition_score: number | null = null;
   let engagement: number | null = null;
   let ai_confidence = 0.0;
 
-  // Simulate sparse data - only 30% have real metrics
-  const hasRealData = Math.random() < 0.3;
+  // First, check if we have DataForSEO data in the extras field
+  const dataForSEO = keyword.extras?.dataforseo;
+  const hasDataForSEO = dataForSEO && (dataForSEO.search_volume !== undefined || dataForSEO.competition !== undefined);
 
-  if (hasRealData) {
-    volume = Math.floor(Math.random() * 10000) + 100;
-    traffic_rank = Math.floor(Math.random() * 1000000);
-    competition_score = Math.random() * 100;
-    engagement = Math.random() * 100;
+  if (hasDataForSEO) {
+    // Use DataForSEO data - this is real API data, not simulated
+    volume = dataForSEO.search_volume ?? keyword.extras?.search_volume ?? null;
+    competition_score = dataForSEO.competition !== undefined ? dataForSEO.competition * 100 : null;
+
+    // Calculate engagement from CPC (higher CPC often correlates with higher engagement)
+    const cpc = dataForSEO.cpc ?? keyword.extras?.cpc ?? null;
+    engagement = cpc !== null ? Math.min(cpc * 10, 100) : null;
+
+    // For traffic_rank, we don't have direct data, but we can estimate from search volume
+    // Higher volume = lower (better) rank
+    traffic_rank = volume !== null ? Math.max(1, Math.floor(1000000 / (volume + 1))) : null;
+
+    // DataForSEO data has high confidence (0.95 = 95% confidence)
+    ai_confidence = 0.95;
+
+    console.log(`[INFO] Using DataForSEO data for "${keyword.term}": volume=${volume}, competition=${competition_score?.toFixed(2)}`);
   } else {
-    // Use AI to infer missing metrics
+    // Fallback to AI inference for keywords without DataForSEO data
+    console.log(`[INFO] No DataForSEO data for "${keyword.term}", using AI inference`);
     const inference = await inferMetricsWithAI(keyword, openai);
     volume = inference.volume ?? null;
     traffic_rank = inference.traffic_rank ?? null;
