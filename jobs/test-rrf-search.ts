@@ -101,7 +101,7 @@ async function testRRFSearch(query: string, marketplace: string | null) {
     console.log("\n=== SUMMARY ===");
     console.log(`Total results: ${data.length}`);
 
-    const marketplaceCounts = data.reduce((acc, r) => {
+    const marketplaceCounts = data.reduce((acc: Record<string, number>, r) => {
       const mp = r.marketplace || "NULL";
       acc[mp] = (acc[mp] || 0) + 1;
       return acc;
