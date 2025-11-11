@@ -22,6 +22,7 @@
     "jobs:ingest-metrics": "tsx jobs/ingest_metrics_and_score.ts",
     "jobs:ingest-metrics-to-corpus": "tsx jobs/ingest-metrics-to-corpus.ts",
     "jobs:diagnose-keyword-search": "tsx jobs/diagnose-keyword-search.ts",
+    "jobs:diagnose-corpus-marketplace": "tsx jobs/diagnose-corpus-marketplace.ts",
     "jobs:backfill-corpus-marketplace": "tsx jobs/backfill-corpus-marketplace.ts",
     "jobs:social-aggregator": "tsx jobs/social-metrics-aggregator.ts",
     "jobs:hourly-refresh": "tsx jobs/hourly-keyword-refresh.ts",
