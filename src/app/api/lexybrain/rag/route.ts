@@ -181,10 +181,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       "Retrieval completed"
     );
 
-    const insufficientContext = rankedSources.length < 5;
+    // Lower threshold from 5 to 1 to allow partial data responses
+    // If we have at least 1 source, we can provide some context
+    const insufficientContext = rankedSources.length < 1;
 
     // ============================================
-    // HARD-STOP: Enforce "No Reliable Data" when corpus is insufficient
+    // HARD-STOP: Enforce "No Reliable Data" when corpus is completely empty
     // ============================================
     if (insufficientContext) {
       logger.info(
@@ -194,7 +196,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           thread_id: thread.id,
           sources_count: rankedSources.length,
         },
-        "Insufficient corpus data - returning hard-stop no-data response"
+        "No corpus data found - returning hard-stop no-data response"
       );
 
       // Insert assistant message with "no data" response
@@ -237,6 +239,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           insufficientContext: true,
         },
       });
+    }
+
+    // Log warning if we have limited context (1-4 sources)
+    if (rankedSources.length < 5) {
+      logger.warn(
+        {
+          type: "rag_limited_context",
+          user_id: userId,
+          thread_id: thread.id,
+          sources_count: rankedSources.length,
+        },
+        "Limited corpus data available - proceeding with partial context"
+      );
     }
 
     // ============================================

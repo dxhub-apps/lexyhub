@@ -21,6 +21,7 @@
     "jobs:keyword-serp-sampler": "tsx jobs/keyword-serp-sampler.ts",
     "jobs:ingest-metrics": "tsx jobs/ingest_metrics_and_score.ts",
     "jobs:ingest-metrics-to-corpus": "tsx jobs/ingest-metrics-to-corpus.ts",
+    "jobs:diagnose-keyword-search": "tsx jobs/diagnose-keyword-search.ts",
     "jobs:social-aggregator": "tsx jobs/social-metrics-aggregator.ts",
     "jobs:hourly-refresh": "tsx jobs/hourly-keyword-refresh.ts",
     "jobs:watchlist-monitor": "tsx jobs/watchlist-momentum-monitor.ts",
