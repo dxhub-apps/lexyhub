@@ -8,6 +8,12 @@ import { cn } from "@/lib/utils";
 
 const ADMIN_SECTIONS = [
   {
+    href: "/admin",
+    label: "Dashboard",
+    description: "Overview of platform health and key metrics",
+    exact: true,
+  },
+  {
     href: "/admin/jobs",
     label: "Background Jobs",
     description: "Monitor and manually trigger background automation jobs",
@@ -36,7 +42,11 @@ export function AdminNavigation(): JSX.Element {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         {ADMIN_SECTIONS.map((section) => {
-          const isActive = pathname?.startsWith(section.href) ?? false;
+          // For exact match (dashboard), check if pathname exactly matches
+          // For others, check if pathname starts with the href
+          const isActive = "exact" in section && section.exact
+            ? pathname === section.href
+            : pathname?.startsWith(section.href) ?? false;
 
           return (
             <Link
@@ -58,8 +68,12 @@ export function AdminNavigation(): JSX.Element {
       </div>
 
       <p className="text-sm text-muted-foreground">
-        {ADMIN_SECTIONS.find((section) => pathname?.startsWith(section.href))?.description ??
-          "Administer LexyHub experiences and system settings."}
+        {ADMIN_SECTIONS.find((section) => {
+          if ("exact" in section && section.exact) {
+            return pathname === section.href;
+          }
+          return pathname?.startsWith(section.href);
+        })?.description ?? "Administer LexyHub experiences and system settings."}
       </p>
     </div>
   );
