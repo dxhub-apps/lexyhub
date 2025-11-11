@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { X, Info, CheckCircle2, AlertTriangle, AlertCircle } from 'lucide-react';
 import { useUser } from '@supabase/auth-helpers-react';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,10 @@ type Banner = {
   severity: 'info' | 'success' | 'warning' | 'critical';
   icon?: string;
 };
+
+const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_RETRIES = 3;
+const INITIAL_BACKOFF_MS = 2000; // 2 seconds
 
 const severityConfig = {
   info: {
@@ -57,17 +61,66 @@ export function NotificationCard() {
   const [banner, setBanner] = useState<Banner | null>(null);
   const [isVisible, setIsVisible] = useState(true);
 
-  const fetchBanner = useCallback(async () => {
-    if (!user?.id) {
-      console.log('[NotificationCard] No user ID, skipping banner fetch');
-      return;
-    }
+  // Refs to prevent duplicate requests and manage cleanup
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const isRequestInFlightRef = useRef(false);
+  const retryCountRef = useRef(0);
+  const backoffTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    try {
-      console.log('[NotificationCard] Fetching active banner for user:', user.id);
-      const response = await fetch(`/api/notifications/active?userId=${user.id}`);
+  useEffect(() => {
+    if (!user?.id) return;
 
-      if (response.ok) {
+    const fetchBanner = async () => {
+      // Prevent duplicate simultaneous requests
+      if (isRequestInFlightRef.current) {
+        console.log('[NotificationCard] Request already in flight, skipping');
+        return;
+      }
+
+      // Cancel any previous request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      // Create new abort controller for this request
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+      isRequestInFlightRef.current = true;
+
+      try {
+        console.log('[NotificationCard] Fetching active banner for user:', user.id);
+        const response = await fetch(
+          `/api/notifications/active?userId=${user.id}`,
+          { signal: abortController.signal }
+        );
+
+        if (!response.ok) {
+          // Handle rate limiting with exponential backoff
+          if (response.status === 429) {
+            if (retryCountRef.current < MAX_RETRIES) {
+              const backoffDelay = INITIAL_BACKOFF_MS * Math.pow(2, retryCountRef.current);
+              console.warn(
+                `[NotificationCard] Rate limited, retrying in ${backoffDelay}ms (attempt ${retryCountRef.current + 1}/${MAX_RETRIES})`
+              );
+              retryCountRef.current += 1;
+
+              backoffTimeoutRef.current = setTimeout(() => {
+                isRequestInFlightRef.current = false;
+                void fetchBanner();
+              }, backoffDelay);
+              return;
+            } else {
+              console.error('[NotificationCard] Max retries reached, giving up');
+              retryCountRef.current = 0;
+            }
+          }
+          console.error('[NotificationCard] Failed to fetch banner, status:', response.status);
+          return;
+        }
+
+        // Reset retry count on successful request
+        retryCountRef.current = 0;
+
         const data = await response.json();
         console.log('[NotificationCard] Banner data received:', data);
 
@@ -79,24 +132,37 @@ export function NotificationCard() {
           setBanner(null);
           console.log('[NotificationCard] No active banner');
         }
-      } else {
-        console.error('[NotificationCard] Failed to fetch banner, status:', response.status);
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.log('[NotificationCard] Request aborted');
+        } else {
+          console.error('[NotificationCard] Error fetching active banner:', error);
+        }
+      } finally {
+        isRequestInFlightRef.current = false;
       }
-    } catch (error) {
-      console.error('[NotificationCard] Error fetching active banner:', error);
-    }
-  }, [user?.id]);
+    };
 
-  useEffect(() => {
-    if (!user?.id) return;
-
-    fetchBanner();
+    // Initial fetch
+    void fetchBanner();
 
     // Check for new banners every 5 minutes
-    const interval = setInterval(fetchBanner, 5 * 60 * 1000);
+    const interval = setInterval(() => {
+      void fetchBanner();
+    }, POLL_INTERVAL_MS);
 
-    return () => clearInterval(interval);
-  }, [user?.id, fetchBanner]);
+    // Cleanup function
+    return () => {
+      clearInterval(interval);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (backoffTimeoutRef.current) {
+        clearTimeout(backoffTimeoutRef.current);
+      }
+      isRequestInFlightRef.current = false;
+    };
+  }, [user?.id]); // Only depend on user?.id
 
   async function handleDismiss() {
     if (!banner || !user?.id) return;

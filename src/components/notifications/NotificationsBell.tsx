@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Bell } from "lucide-react";
 import { useSession } from "@supabase/auth-helpers-react";
 import Link from "next/link";
@@ -26,44 +26,112 @@ type Notification = {
   created_at: string;
 };
 
+const POLL_INTERVAL_MS = 60000; // 60 seconds
+const MAX_RETRIES = 3;
+const INITIAL_BACKOFF_MS = 2000; // 2 seconds
+
 export function NotificationsBell(): JSX.Element {
   const session = useSession();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
+  // Refs to prevent duplicate requests and manage cleanup
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const isRequestInFlightRef = useRef(false);
+  const retryCountRef = useRef(0);
+  const backoffTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const userId = session?.user?.id;
 
-  const loadNotifications = useCallback(async () => {
+  useEffect(() => {
     if (!userId) return;
 
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/notifications?userId=${encodeURIComponent(userId)}`);
-      if (!response.ok) {
-        throw new Error("Failed to load notifications");
+    const loadNotifications = async () => {
+      // Prevent duplicate simultaneous requests
+      if (isRequestInFlightRef.current) {
+        console.log('[NotificationsBell] Request already in flight, skipping');
+        return;
       }
 
-      const data = (await response.json()) as { notifications: Notification[] };
-      setNotifications(data.notifications ?? []);
-      setUnreadCount(data.notifications?.filter((n) => !n.read).length ?? 0);
-    } catch (error) {
-      console.error("Failed to load notifications", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
+      // Cancel any previous request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
 
-  useEffect(() => {
+      // Create new abort controller for this request
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+      isRequestInFlightRef.current = true;
+
+      setLoading(true);
+      try {
+        const response = await fetch(
+          `/api/notifications?userId=${encodeURIComponent(userId)}`,
+          { signal: abortController.signal }
+        );
+
+        if (!response.ok) {
+          // Handle rate limiting with exponential backoff
+          if (response.status === 429) {
+            if (retryCountRef.current < MAX_RETRIES) {
+              const backoffDelay = INITIAL_BACKOFF_MS * Math.pow(2, retryCountRef.current);
+              console.warn(
+                `[NotificationsBell] Rate limited, retrying in ${backoffDelay}ms (attempt ${retryCountRef.current + 1}/${MAX_RETRIES})`
+              );
+              retryCountRef.current += 1;
+
+              backoffTimeoutRef.current = setTimeout(() => {
+                isRequestInFlightRef.current = false;
+                void loadNotifications();
+              }, backoffDelay);
+              return;
+            } else {
+              console.error('[NotificationsBell] Max retries reached, giving up');
+              retryCountRef.current = 0;
+            }
+          }
+          throw new Error(`Failed to load notifications: ${response.status}`);
+        }
+
+        // Reset retry count on successful request
+        retryCountRef.current = 0;
+
+        const data = (await response.json()) as { notifications: Notification[] };
+        setNotifications(data.notifications ?? []);
+        setUnreadCount(data.notifications?.filter((n) => !n.read).length ?? 0);
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.log('[NotificationsBell] Request aborted');
+        } else {
+          console.error('[NotificationsBell] Failed to load notifications', error);
+        }
+      } finally {
+        setLoading(false);
+        isRequestInFlightRef.current = false;
+      }
+    };
+
+    // Initial load
     void loadNotifications();
 
     // Poll for new notifications every 60 seconds
     const interval = setInterval(() => {
       void loadNotifications();
-    }, 60000);
+    }, POLL_INTERVAL_MS);
 
-    return () => clearInterval(interval);
-  }, [loadNotifications]);
+    // Cleanup function
+    return () => {
+      clearInterval(interval);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (backoffTimeoutRef.current) {
+        clearTimeout(backoffTimeoutRef.current);
+      }
+      isRequestInFlightRef.current = false;
+    };
+  }, [userId]); // Only depend on userId, not the callback
 
   const markAsRead = async (notificationId: string) => {
     if (!userId) return;
