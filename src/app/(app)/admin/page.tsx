@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import {
   Activity,
   Database,
@@ -18,6 +20,10 @@ import {
   MessageSquare,
   Brain,
   Server,
+  Settings,
+  Bell,
+  FileText,
+  ArrowRight,
 } from "lucide-react";
 
 interface DashboardStats {
@@ -154,11 +160,120 @@ export default function AdminDashboard() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
         <p className="text-muted-foreground">
-          Overview of platform health and key metrics
+          Central hub for all administrative tools and platform metrics
         </p>
         <p className="text-xs text-muted-foreground mt-1">
           Last updated: {new Date(stats.timestamp).toLocaleString()}
         </p>
+      </div>
+
+      {/* Admin Tools */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+          <Settings className="h-5 w-5" />
+          Administrative Tools
+        </h2>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <Link href="/admin/jobs">
+            <Card className="h-full transition-all hover:shadow-md hover:border-accent cursor-pointer">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Server className="h-5 w-5" />
+                  Background Jobs
+                </CardTitle>
+                <CardDescription>
+                  Monitor and manually trigger background automation jobs
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button variant="ghost" size="sm" className="w-full justify-between">
+                  Manage Jobs
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/admin/lexybrain">
+            <Card className="h-full transition-all hover:shadow-md hover:border-accent cursor-pointer">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Brain className="h-5 w-5" />
+                  LexyBrain Prompts
+                </CardTitle>
+                <CardDescription>
+                  Manage AI prompt configurations and capabilities
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button variant="ghost" size="sm" className="w-full justify-between">
+                  Configure Prompts
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/admin/feedback">
+            <Card className="h-full transition-all hover:shadow-md hover:border-accent cursor-pointer">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5" />
+                  User Feedback
+                </CardTitle>
+                <CardDescription>
+                  Review user suggestions and issues
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button variant="ghost" size="sm" className="w-full justify-between">
+                  View Feedback
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/admin/notifications">
+            <Card className="h-full transition-all hover:shadow-md hover:border-accent cursor-pointer">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Bell className="h-5 w-5" />
+                  Notifications
+                </CardTitle>
+                <CardDescription>
+                  Broadcast updates and announcements to users
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button variant="ghost" size="sm" className="w-full justify-between">
+                  Manage Notifications
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/admin/docs-import">
+            <Card className="h-full transition-all hover:shadow-md hover:border-accent cursor-pointer">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Docs Import Tool
+                </CardTitle>
+                <CardDescription>
+                  Convert public help URLs into RAG-ready Markdown
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button variant="ghost" size="sm" className="w-full justify-between">
+                  Import Documentation
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
       </div>
 
       {/* Jobs Status Section */}

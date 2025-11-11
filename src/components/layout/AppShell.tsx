@@ -30,7 +30,7 @@ const BASE_NAV: readonly SidebarNavItem[] = [
 ];
 
 const ADMIN_NAV: SidebarNavItem = {
-  href: "/admin/lexybrain",
+  href: "/admin",
   label: "Admin",
   description: "Administrative tools",
   icon: Shield,
@@ -76,9 +76,6 @@ export function AppShell({ children, isAdmin }: AppShellProps) {
       navigation.find((item) => {
         if (item.href === "/search") {
           return pathname === "/" || pathname.startsWith("/search");
-        }
-        if (item.href === "/admin/lexybrain") {
-          return pathname.startsWith("/admin");
         }
         return pathname.startsWith(item.href);
       }) ?? navigation[0]
