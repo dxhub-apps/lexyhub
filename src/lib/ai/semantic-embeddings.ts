@@ -1,235 +1,200 @@
+// src/lib/ai/semantic-embeddings.ts
+
+import { env } from "../env";
+
 /**
- * Semantic Embeddings Service
- *
- * Provides production-ready semantic embeddings using HuggingFace Sentence Transformers
- * Model: sentence-transformers/all-MiniLM-L6-v2 (384 dimensions)
- *
- * Uses the HuggingFace Inference API feature-extraction endpoint.
- * Falls back to deterministic embeddings when HF is unavailable.
- *
- * IMPORTANT: This uses a feature-extraction model, NOT a sentence-similarity pipeline.
- * Sentence-similarity pipelines require a different input format with "source_sentence" and "sentences".
+ * Only Hugging Face Inference API is used.
+ * Embeddings are generated via the /embeddings/{model} endpoint.
+ * Model is fixed to a sentence-transformers encoder suitable for semantic search.
  */
 
-import { createDeterministicEmbedding } from "./embeddings";
+const HUGGINGFACE_BASE_URL =
+  process.env.HUGGINGFACE_API_URL?.replace(/\/+$/, "") ||
+  "https://api-inference.huggingface.co";
 
-const HF_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2";
-const HF_EMBEDDING_DIMENSION = 384;
-const HF_API_URL = "https://router.huggingface.co/hf-inference/feature-extraction";
+const SEMANTIC_EMBEDDING_MODEL =
+  process.env.SEMANTIC_EMBEDDING_MODEL ||
+  "sentence-transformers/all-MiniLM-L6-v2";
 
-interface EmbeddingOptions {
-  model?: string;
-  fallbackToDeterministic?: boolean;
-  waitForModel?: boolean;
-}
+const HF_TOKEN = env.HF_TOKEN;
+
+/**
+ * Errors
+ */
 
 export class SemanticEmbeddingError extends Error {
-  constructor(message: string, public readonly statusCode?: number) {
+  statusCode?: number;
+  details?: unknown;
+
+  constructor(message: string, statusCode?: number, details?: unknown) {
     super(message);
     this.name = "SemanticEmbeddingError";
+    this.statusCode = statusCode;
+    this.details = details;
+  }
+}
+
+export class MissingEmbeddingCredentialsError extends SemanticEmbeddingError {
+  constructor() {
+    super(
+      "Missing HF_TOKEN for Hugging Face Inference API embeddings.",
+      401
+    );
+    this.name = "MissingEmbeddingCredentialsError";
   }
 }
 
 /**
- * Generate semantic embedding using HuggingFace Inference API
- *
- * @param text - Input text to embed
- * @param options - Embedding options
- * @returns 384-dimensional embedding vector
+ * Internal helpers
  */
-export async function createSemanticEmbedding(
-  text: string,
-  options: EmbeddingOptions = {}
-): Promise<number[]> {
-  const {
-    model = HF_EMBEDDING_MODEL,
-    fallbackToDeterministic = true,
-    waitForModel = true,
-  } = options;
 
-  const hfToken = process.env.HF_TOKEN;
-
-  // If no HF token and fallback is enabled, use deterministic
-  if (!hfToken && fallbackToDeterministic) {
-    console.warn("[SemanticEmbedding] HF_TOKEN not configured, using deterministic fallback");
-    return createDeterministicEmbedding(text, HF_EMBEDDING_DIMENSION);
+function ensureEnv() {
+  if (!HF_TOKEN) {
+    throw new MissingEmbeddingCredentialsError();
   }
-
-  if (!hfToken) {
-    throw new SemanticEmbeddingError("HF_TOKEN is required for semantic embeddings");
-  }
-
-  try {
-    const response = await fetch(HF_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${hfToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        inputs: text,
-        model: model,
-        options: {
-          wait_for_model: waitForModel,
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "Unknown error");
-
-      // Any non-2xx from HF: if allowed, fall back instead of throwing
-      if (fallbackToDeterministic) {
-        console.warn(
-          `[SemanticEmbedding] HuggingFace API error ${response.status}. Using deterministic fallback. Details: ${errorText}`
-        );
-        return createDeterministicEmbedding(text, HF_EMBEDDING_DIMENSION);
-      }
-
-      throw new SemanticEmbeddingError(
-        `HuggingFace API error: ${response.status} - ${errorText}`,
-        response.status
-      );
-    }
-
-    const data = await response.json();
-
-    // Handle HuggingFace feature-extraction response format
-    // For single input, response is typically: [[0.1, 0.2, ...]]
-    // For batch inputs, response is: [[0.1, 0.2, ...], [0.3, 0.4, ...]]
-    let embeddingArray: number[];
-
-    if (Array.isArray(data)) {
-      // Check if it's a nested array (standard feature-extraction format)
-      if (Array.isArray(data[0])) {
-        // Extract the first embedding from the nested array
-        embeddingArray = data[0];
-      } else {
-        // Direct array response (flat array of numbers)
-        embeddingArray = data;
-      }
-    } else if (data && Array.isArray(data.embeddings)) {
-      // Wrapped in embeddings key (alternative format)
-      embeddingArray = Array.isArray(data.embeddings[0]) ? data.embeddings[0] : data.embeddings;
-    } else if (data && typeof data === "object") {
-      // Try to find array in response
-      const values = Object.values(data);
-      const arrayValue = values.find((v) => Array.isArray(v));
-      if (arrayValue) {
-        embeddingArray = Array.isArray((arrayValue as any)[0])
-          ? (arrayValue as any)[0]
-          : (arrayValue as number[]);
-      } else {
-        throw new SemanticEmbeddingError("Invalid embedding format in response");
-      }
-    } else {
-      throw new SemanticEmbeddingError("Unexpected response format from HuggingFace API");
-    }
-
-    // Validate dimension
-    if (embeddingArray.length !== HF_EMBEDDING_DIMENSION) {
-      console.warn(
-        `[SemanticEmbedding] Unexpected dimension: got ${embeddingArray.length}, expected ${HF_EMBEDDING_DIMENSION}`
-      );
-
-      // Pad or truncate to expected dimension
-      if (embeddingArray.length < HF_EMBEDDING_DIMENSION) {
-        embeddingArray = [
-          ...embeddingArray,
-          ...new Array(HF_EMBEDDING_DIMENSION - embeddingArray.length).fill(0),
-        ];
-      } else {
-        embeddingArray = embeddingArray.slice(0, HF_EMBEDDING_DIMENSION);
-      }
-    }
-
-    return embeddingArray;
-  } catch (error) {
-    if (error instanceof SemanticEmbeddingError) {
-      throw error;
-    }
-
-    // Network or other errors - fallback if allowed
-    if (fallbackToDeterministic) {
-      console.warn(
-        `[SemanticEmbedding] Error generating semantic embedding: ${error}. Using deterministic fallback.`
-      );
-      return createDeterministicEmbedding(text, HF_EMBEDDING_DIMENSION);
-    }
-
+  if (!SEMANTIC_EMBEDDING_MODEL) {
     throw new SemanticEmbeddingError(
-      `Failed to generate semantic embedding: ${error instanceof Error ? error.message : String(error)}`
+      "SEMANTIC_EMBEDDING_MODEL is not configured."
     );
   }
 }
 
-/**
- * Batch generate embeddings for multiple texts
- *
- * @param texts - Array of texts to embed
- * @param options - Embedding options
- * @returns Array of embedding vectors
- */
-export async function createSemanticEmbeddingBatch(
-  texts: string[],
-  options: EmbeddingOptions = {}
-): Promise<number[][]> {
-  const embeddings: number[][] = [];
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-  // Process in batches to avoid rate limits
-  const batchSize = 10;
-  for (let i = 0; i < texts.length; i += batchSize) {
-    const batch = texts.slice(i, i + batchSize);
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  {
+    retries = 3,
+    baseDelayMs = 500,
+  }: {
+    retries?: number;
+    baseDelayMs?: number;
+  } = {}
+): Promise<T> {
+  let attempt = 0;
 
-    const batchEmbeddings = await Promise.all(
-      batch.map((text) => createSemanticEmbedding(text, options))
-    );
-
-    embeddings.push(...batchEmbeddings);
-
-    // Small delay between batches to avoid rate limiting
-    if (i + batchSize < texts.length) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    try {
+      return await fn();
+    } catch (err) {
+      attempt += 1;
+      if (attempt > retries) {
+        throw err;
+      }
+      const delay = baseDelayMs * 2 ** (attempt - 1);
+      await sleep(delay);
     }
   }
-
-  return embeddings;
 }
 
 /**
- * Test semantic embedding service connectivity
+ * Call Hugging Face /embeddings endpoint.
  *
- * @returns Test result with success status and details
+ * This avoids the sentence-similarity pipeline signature issue:
+ * we always send { "inputs": "<text>" } to an embeddings-capable model.
  */
-export async function testSemanticEmbeddingService(): Promise<{
-  success: boolean;
-  message: string;
-  dimension?: number;
-  model?: string;
-  fallbackUsed?: boolean;
-}> {
-  try {
-    const testText = "test keyword semantic embedding";
-    const embedding = await createSemanticEmbedding(testText, {
-      fallbackToDeterministic: true,
-      waitForModel: false,
-    });
+async function fetchHuggingFaceEmbedding(text: string): Promise<number[]> {
+  ensureEnv();
 
-    const isDeterministic = process.env.HF_TOKEN ? false : true;
+  const url = `${HUGGINGFACE_BASE_URL}/embeddings/${encodeURIComponent(
+    SEMANTIC_EMBEDDING_MODEL
+  )}`;
 
-    return {
-      success: true,
-      message: isDeterministic
-        ? "Semantic embedding service using deterministic fallback (HF_TOKEN not set)"
-        : "Semantic embedding service operational",
-      dimension: embedding.length,
-      model: HF_EMBEDDING_MODEL,
-      fallbackUsed: isDeterministic,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : String(error),
-    };
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${HF_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ inputs: text }),
+  });
+
+  const raw = await res.text();
+
+  if (!res.ok) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      // ignore parse errors
+    }
+    throw new SemanticEmbeddingError(
+      `HuggingFace API error: ${res.status} - ${raw}`,
+      res.status,
+      parsed
+    );
   }
+
+  let data: any;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    throw new SemanticEmbeddingError(
+      "Failed to parse HuggingFace embeddings response."
+    );
+  }
+
+  // Supported shapes:
+  // 1) [number, ...]
+  // 2) [[number, ...]]
+  // 3) { embeddings: [number, ...] } or { embeddings: [[number,...]] }
+  if (Array.isArray(data)) {
+    if (data.length > 0 && Array.isArray(data[0])) {
+      // [[dim]]
+      return data[0] as number[];
+    }
+    // [dim]
+    return data as number[];
+  }
+
+  if (data && Array.isArray(data.embeddings)) {
+    const e = data.embeddings;
+    if (e.length > 0 && Array.isArray(e[0])) {
+      return e[0] as number[];
+    }
+    return e as number[];
+  }
+
+  throw new SemanticEmbeddingError(
+    "Unexpected HuggingFace embeddings response format."
+  );
+}
+
+/**
+ * Public API
+ *
+ * Used by ingestion jobs and any RAG indexing.
+ */
+
+export async function getSemanticEmbedding(
+  text: string
+): Promise<number[]> {
+  const cleaned = text.trim();
+  if (!cleaned) {
+    throw new SemanticEmbeddingError(
+      "Cannot create embedding for empty text."
+    );
+  }
+
+  // Simple length guard to avoid absurd payloads
+  const maxChars = 8000;
+  const input =
+    cleaned.length > maxChars
+      ? cleaned.slice(0, maxChars)
+      : cleaned;
+
+  return withRetry(() => fetchHuggingFaceEmbedding(input));
+}
+
+/**
+ * Backwards-compatible helper name.
+ * Jobs can call createSemanticEmbedding(...) and get a single vector.
+ */
+export function createSemanticEmbedding(
+  text: string
+): Promise<number[]> {
+  return getSemanticEmbedding(text);
 }
