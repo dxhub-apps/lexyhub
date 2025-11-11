@@ -26,7 +26,7 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 interface Keyword {
   id: string;
   term: string;
-  marketplace: string | null;
+  market: string | null;
 }
 
 interface RiskRule {
@@ -270,7 +270,7 @@ async function main() {
       if (keywordIds.length > 0) {
         const { data: keywords } = await supabase
           .from("keywords")
-          .select("id, term, marketplace")
+          .select("id, term, market")
           .in("id", keywordIds);
 
         (keywords || []).forEach((k) => {
@@ -337,7 +337,7 @@ async function main() {
                 },
                 marketplace:
                   event.marketplace ||
-                  keyword?.marketplace,
+                  keyword?.market,
                 language: "en",
                 chunk,
                 embedding,

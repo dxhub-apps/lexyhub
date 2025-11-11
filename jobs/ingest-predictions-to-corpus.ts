@@ -26,7 +26,7 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 interface Keyword {
   id: string;
   term: string;
-  marketplace: string | null;
+  market: string | null;
 }
 
 interface Prediction {
@@ -155,7 +155,7 @@ async function main() {
     );
     const { data: keywords, error: keywordsError } = await supabase
       .from("keywords")
-      .select("id, term, marketplace")
+      .select("id, term, market")
       .in("id", keywordIds);
 
     if (keywordsError) {
@@ -231,7 +231,7 @@ async function main() {
                 ingested_at: new Date().toISOString(),
               },
               marketplace:
-                prediction.marketplace || keyword.marketplace,
+                prediction.marketplace || keyword.market,
               language: "en",
               chunk,
               embedding,

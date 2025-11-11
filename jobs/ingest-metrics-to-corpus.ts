@@ -24,7 +24,7 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 interface Keyword {
   id: string;
   term: string;
-  marketplace: string | null;
+  market: string | null;
   demand_index: number | null;
   competition_score: number | null;
   trend_momentum: number | null;
@@ -59,8 +59,8 @@ function createMetricChunk(
 
   // Header
   parts.push(`Keyword: "${keyword.term}"`);
-  if (keyword.marketplace) {
-    parts.push(`Marketplace: ${keyword.marketplace}`);
+  if (keyword.market) {
+    parts.push(`Marketplace: ${keyword.market}`);
   }
 
   // Current snapshot metrics
@@ -136,9 +136,9 @@ async function main() {
     const { data: keywords, error: keywordsError } = await supabase
       .from("keywords")
       .select(
-        "id, term, marketplace, demand_index, competition_score, trend_momentum, engagement_score, ai_opportunity_score"
+        "id, term, market, demand_index, competition_score, trend_momentum, engagement_score, ai_opportunity_score"
       )
-      .not("marketplace", "is", null)
+      .not("market", "is", null)
       .gte("updated_at", lookbackDate.toISOString())
       .order("updated_at", { ascending: false })
       .limit(BATCH_SIZE);
@@ -271,7 +271,7 @@ async function main() {
                 weekly_count: weekly.length,
                 ingested_at: new Date().toISOString(),
               },
-              marketplace: keyword.marketplace,
+              marketplace: keyword.market,
               language: "en",
               chunk,
               embedding,
@@ -302,7 +302,7 @@ async function main() {
               error_hint: upsertError.hint,
               embedding_length: embedding.length,
               chunk_length: chunk.length,
-              marketplace: keyword.marketplace,
+              marketplace: keyword.market,
             }
           );
           errorCount++;
