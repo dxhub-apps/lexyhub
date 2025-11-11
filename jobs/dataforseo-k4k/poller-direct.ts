@@ -101,6 +101,8 @@ export class DirectTaskPoller {
        * DataForSEO status codes:
        * - 20000: Ok (successful, result ready)
        * - 20100: Task created (still processing)
+       * - 40602: Task In Queue (not ready yet, keep polling)
+       * - 40404: No results yet / Still processing (keep polling)
        * - 40xxx: Client errors (auth, validation, quota)
        * - 50xxx: Server errors
        */
@@ -116,7 +118,14 @@ export class DirectTaskPoller {
         }, `[DirectTaskPoller] Task completed: ${taskId}`);
       } else if (taskResult.status_code === 20100) {
         // Task still processing - keep polling
-        logger.debug({ taskId, status_code: taskResult.status_code }, `[DirectTaskPoller] Task ${taskId} still processing`);
+        logger.debug({ taskId, status_code: taskResult.status_code }, `[DirectTaskPoller] Task ${taskId} still processing (20100)`);
+      } else if (taskResult.status_code === 40602 || taskResult.status_code === 40404) {
+        // Task in queue or no results yet - NOT a failure, keep polling
+        logger.debug({
+          taskId,
+          status_code: taskResult.status_code,
+          status_message: taskResult.status_message
+        }, `[DirectTaskPoller] Task ${taskId} still pending (${taskResult.status_code}: ${taskResult.status_message})`);
       } else if (taskResult.status_code >= 40000) {
         // Task failed (client or server error)
         taskState.status = "failed";
