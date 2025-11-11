@@ -208,11 +208,10 @@ export class DataForSEOClient {
    * - Standard: /task_get/{id} - basic results
    * - Advanced: /task_get/advanced/{id} - detailed results with additional metrics
    *
-   * Currently using standard endpoint. If you encounter 50301 errors,
-   * try switching to the advanced endpoint.
+   * Using advanced endpoint to avoid 50301 errors.
    */
   async getTaskResult(taskId: string): Promise<DataForSEOTaskGetResponse> {
-    const url = `${BASE_URL}/v3/keywords_data/google_ads/keywords_for_keywords/task_get/${taskId}`;
+    const url = `${BASE_URL}/v3/keywords_data/google_ads/keywords_for_keywords/task_get/advanced/${taskId}`;
 
     console.log(`[DataForSEO] GET ${url}`);
 
