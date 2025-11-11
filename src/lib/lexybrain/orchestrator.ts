@@ -339,7 +339,7 @@ async function retrieveCorpusContext(params: {
 
   const trimmedQuery = params.queryText.trim();
   const embedding = trimmedQuery
-    ? await createSemanticEmbedding(trimmedQuery, { fallbackToDeterministic: true })
+    ? await createSemanticEmbedding(trimmedQuery)
     : null;
 
   const { data, error } = await supabase.rpc("ai_corpus_rrf_search", {
