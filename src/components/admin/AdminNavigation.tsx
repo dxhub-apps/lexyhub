@@ -33,6 +33,11 @@ const ADMIN_SECTIONS = [
     label: "Notifications",
     description: "Broadcast updates to users",
   },
+  {
+    href: "/admin/docs-import",
+    label: "Docs Import",
+    description: "Convert public help URLs into RAG-ready Markdown documents",
+  },
 ] as const;
 
 export function AdminNavigation(): JSX.Element {
