@@ -52,69 +52,6 @@ function getSupabaseClient(): SupabaseClient {
   });
 }
 
-/**
- * Deterministic local embedding fallback.
- * Keeps length fixed to 384 to match existing checks and schema.
- */
-function createDeterministicEmbedding(text: string, dimensions = 384): number[] {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(text);
-
-  const embedding = new Array(dimensions).fill(0);
-  for (let i = 0; i < data.length; i++) {
-    const index = i % dimensions;
-    // Simple bounded accumulation for stability
-    embedding[index] = (embedding[index] + data[i]) % 1000;
-  }
-
-  // Normalize to [0,1]
-  for (let i = 0; i < dimensions; i++) {
-    embedding[i] = embedding[i] / 1000;
-  }
-
-  return embedding;
-}
-
-/**
- * Wrapper to shield ingestion from external embedding provider failures.
- * Uses createSemanticEmbedding when available. On errors such as SemanticEmbeddingError
- * or remote 404 responses, falls back to deterministic embeddings.
- */
-async function createEmbeddingWithFallback(chunk: string): Promise<number[]> {
-  try {
-    const embedding = await createSemanticEmbedding(chunk, {
-      fallbackToDeterministic: true,
-    });
-
-    // If the underlying helper already handled fallback, just return it.
-    if (Array.isArray(embedding) && embedding.length === 384) {
-      return embedding;
-    }
-
-    // If dimensions are unexpected, replace with deterministic to satisfy existing checks.
-    if (!Array.isArray(embedding) || embedding.length !== 384) {
-      console.error(
-        "[createEmbeddingWithFallback] Unexpected embedding shape from createSemanticEmbedding, using deterministic fallback",
-        {
-          length: Array.isArray(embedding) ? embedding.length : null,
-        },
-      );
-      return createDeterministicEmbedding(chunk);
-    }
-
-    return embedding;
-  } catch (error: any) {
-    // Handles SemanticEmbeddingError and any transport issues like HuggingFace 404
-    console.error(
-      "[createEmbeddingWithFallback] createSemanticEmbedding failed, using deterministic fallback",
-      {
-        name: error?.name,
-        message: error?.message,
-      },
-    );
-    return createDeterministicEmbedding(chunk);
-  }
-}
 
 function createMetricChunk(keyword: Keyword, dailyMetrics: DailyMetric[], weeklyMetrics: WeeklyMetric[]): string {
   const parts: string[] = [];
@@ -242,7 +179,7 @@ export async function ingestMetricsToCorpus(): Promise<{ success: boolean; proce
           `[ingestMetricsToCorpus] Created chunk for "${keyword.term}" (${chunk.length} chars)`,
         );
 
-        const embedding = await createEmbeddingWithFallback(chunk);
+        const embedding = await createSemanticEmbedding(chunk);
         console.log(
           `[ingestMetricsToCorpus] Generated embedding for "${keyword.term}" (${embedding.length} dimensions)`,
         );
@@ -416,7 +353,7 @@ export async function ingestPredictionsToCorpus(): Promise<{ success: boolean; p
         `[ingestPredictionsToCorpus] Created chunk (${chunk.length} chars)`,
       );
 
-      const embedding = await createEmbeddingWithFallback(chunk);
+      const embedding = await createSemanticEmbedding(chunk);
       console.log(
         `[ingestPredictionsToCorpus] Generated embedding (${embedding.length} dimensions)`,
       );
@@ -527,7 +464,7 @@ export async function ingestRisksToCorpus(): Promise<{ success: boolean; totalSu
           `[ingestRisksToCorpus] Created chunk for rule ${rule.rule_code} (${chunk.length} chars)`,
         );
 
-        const embedding = await createEmbeddingWithFallback(chunk);
+        const embedding = await createSemanticEmbedding(chunk);
         console.log(
           `[ingestRisksToCorpus] Generated embedding for rule ${rule.rule_code} (${embedding.length} dimensions)`,
         );
@@ -676,7 +613,7 @@ export async function ingestRisksToCorpus(): Promise<{ success: boolean; totalSu
           `[ingestRisksToCorpus] Created chunk for event ${event.id} (${chunk.length} chars)`,
         );
 
-        const embedding = await createEmbeddingWithFallback(chunk);
+        const embedding = await createSemanticEmbedding(chunk);
         console.log(
           `[ingestRisksToCorpus] Generated embedding for event ${event.id} (${embedding.length} dimensions)`,
         );

@@ -24,9 +24,7 @@ const KEYWORD_EMBEDDING_DIMENSION = 384; // all-MiniLM-L6-v2
 export async function generateEmbedding(text: string): Promise<number[]> {
   try {
     // Use semantic embeddings to match corpus data
-    const embedding = await createSemanticEmbedding(text, {
-      fallbackToDeterministic: true,
-    });
+    const embedding = await createSemanticEmbedding(text);
 
     logger.debug(
       {
