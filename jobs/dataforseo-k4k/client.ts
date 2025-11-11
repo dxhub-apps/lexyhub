@@ -1,5 +1,3 @@
-// jobs/dataforseo-k4k/client.ts
-
 import type {
   DataForSEOTaskPostResponse,
   DataForSEOTasksReadyResponse,
@@ -9,7 +7,8 @@ import type {
 
 const BASE_URL = "https://api.dataforseo.com";
 const USER_AGENT = "LexyHub-K4K-Standard/1.0";
-const RESPONSE_TIMEOUT_MS = 60_000;
+const CONNECT_TIMEOUT_MS = 15000;
+const RESPONSE_TIMEOUT_MS = 60000;
 
 interface RetryOptions {
   maxRetries: number;
@@ -20,19 +19,22 @@ interface RetryOptions {
 
 const DEFAULT_RETRY_OPTIONS: RetryOptions = {
   maxRetries: 5,
-  baseDelayMs: 1_000,
-  maxDelayMs: 30_000,
+  baseDelayMs: 1000,
+  maxDelayMs: 30000,
   jitterMs: 500,
 };
 
+/**
+ * Sleep for specified milliseconds
+ */
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function calculateBackoffDelay(
-  attempt: number,
-  options: RetryOptions
-): number {
+/**
+ * Calculate exponential backoff delay with jitter
+ */
+function calculateBackoffDelay(attempt: number, options: RetryOptions): number {
   const exponentialDelay = Math.min(
     options.baseDelayMs * Math.pow(2, attempt),
     options.maxDelayMs
@@ -41,27 +43,25 @@ function calculateBackoffDelay(
   return exponentialDelay + jitter;
 }
 
-function isRetryableError(
-  statusCode: number | undefined,
-  error: any
-): boolean {
-  // Retry on 429 and 5xx
+/**
+ * Check if error is retryable
+ */
+function isRetryableError(statusCode: number | undefined, error: any): boolean {
+  // Retry on 429 (rate limit) and 5xx (server errors)
   if (statusCode === 429 || (statusCode && statusCode >= 500)) {
     return true;
   }
 
-  // Retry on common network errors
+  // Retry on network errors
   if (error && typeof error === "object") {
-    const code = (error as any).code as string | undefined;
+    const code = (error as any).code;
     const retryableNetworkErrors = [
       "ECONNRESET",
       "ENOTFOUND",
       "ETIMEDOUT",
       "ECONNREFUSED",
-      "EAI_AGAIN",
-      "ECONNABORTED",
     ];
-    if (code && retryableNetworkErrors.includes(code)) {
+    if (retryableNetworkErrors.includes(code)) {
       return true;
     }
   }
@@ -70,15 +70,17 @@ function isRetryableError(
 }
 
 /**
- * DataForSEO API client (Keywords for Keywords Standard)
+ * DataForSEO API client with retry logic
  */
 export class DataForSEOClient {
+  private login: string;
+  private password: string;
   private authHeader: string;
 
   constructor(login: string, password: string) {
-    this.authHeader = `Basic ${Buffer.from(
-      `${login}:${password}`
-    ).toString("base64")}`;
+    this.login = login;
+    this.password = password;
+    this.authHeader = `Basic ${Buffer.from(`${login}:${password}`).toString("base64")}`;
   }
 
   /**
@@ -104,7 +106,7 @@ export class DataForSEOClient {
           ...options,
           signal: controller.signal,
           headers: {
-            ...(options.headers || {}),
+            ...options.headers,
             Authorization: this.authHeader,
             "User-Agent": USER_AGENT,
             "Content-Type": "application/json",
@@ -114,39 +116,35 @@ export class DataForSEOClient {
         clearTimeout(timeoutId);
         lastStatusCode = response.status;
 
+        // Success
         if (response.ok) {
-          const json = (await response.json()) as T;
-          return json;
+          return (await response.json()) as T;
         }
 
-        const errorText = await response.text();
-
-        // Non-retryable client errors (4xx except 429)
-        if (
-          response.status >= 400 &&
-          response.status < 500 &&
-          response.status !== 429
-        ) {
+        // Non-retryable client error (4xx except 429)
+        if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+          const errorText = await response.text();
           throw new Error(
             `DataForSEO API error ${response.status}: ${errorText}`
           );
         }
 
-        // Retryable response error
+        // Retryable error
+        const errorText = await response.text();
         lastError = new Error(
           `DataForSEO API error ${response.status}: ${errorText}`
         );
 
+        // Don't retry on last attempt
         if (attempt === retryOptions.maxRetries) {
           throw lastError;
         }
 
+        // Calculate backoff and retry
         if (isRetryableError(response.status, null)) {
           const delay = calculateBackoffDelay(attempt, retryOptions);
           console.warn(
-            `[DataForSEO] Request failed with ${response.status}, retrying in ${Math.round(
-              delay
-            )}ms (attempt ${attempt + 1}/${retryOptions.maxRetries})`
+            `[DataForSEO] Request failed with ${response.status}, retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${retryOptions.maxRetries})`
           );
           await sleep(delay);
           continue;
@@ -156,18 +154,16 @@ export class DataForSEOClient {
       } catch (error: any) {
         lastError = error;
 
+        // Don't retry on last attempt
         if (attempt === retryOptions.maxRetries) {
           throw error;
         }
 
+        // Check if error is retryable
         if (isRetryableError(lastStatusCode, error)) {
           const delay = calculateBackoffDelay(attempt, retryOptions);
           console.warn(
-            `[DataForSEO] Request failed with ${
-              error.message || error
-            }, retrying in ${Math.round(
-              delay
-            )}ms (attempt ${attempt + 1}/${retryOptions.maxRetries})`
+            `[DataForSEO] Request failed with ${error.message}, retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${retryOptions.maxRetries})`
           );
           await sleep(delay);
           continue;
@@ -181,16 +177,13 @@ export class DataForSEOClient {
   }
 
   /**
-   * POST tasks to Keywords for Keywords Standard queue
-   * Body format matches DataForSEO v3 docs.
+   * Post tasks to DataForSEO Keywords For Keywords Standard queue
    */
   async postTasks(
     tasks: DataForSEOTaskRequest[]
   ): Promise<DataForSEOTaskPostResponse> {
-    const url =
-      `${BASE_URL}/v3/keywords_data/google_ads/keywords_for_keywords/task_post`;
+    const url = `${BASE_URL}/v3/keywords_data/google_ads/keywords_for_keywords/task_post`;
 
-    // DataForSEO expects an array of task objects
     return this.fetchWithRetry<DataForSEOTaskPostResponse>(url, {
       method: "POST",
       body: JSON.stringify(tasks),
@@ -198,11 +191,10 @@ export class DataForSEOClient {
   }
 
   /**
-   * GET list of ready tasks for K4K queue
+   * Get list of ready tasks
    */
   async getTasksReady(): Promise<DataForSEOTasksReadyResponse> {
-    const url =
-      `${BASE_URL}/v3/keywords_data/google_ads/keywords_for_keywords/tasks_ready`;
+    const url = `${BASE_URL}/v3/keywords_data/google_ads/tasks_ready`;
 
     return this.fetchWithRetry<DataForSEOTasksReadyResponse>(url, {
       method: "GET",
@@ -210,97 +202,105 @@ export class DataForSEOClient {
   }
 
   /**
-   * GET result for a specific task id (standard endpoint)
+   * Get results for a specific task
+   *
+   * DataForSEO provides two task_get endpoints:
+   * - Standard: /task_get/{id} - basic results
+   * - Advanced: /task_get/advanced/{id} - detailed results with additional metrics
+   *
+   * Currently using standard endpoint. If you encounter 50301 errors,
+   * try switching to the advanced endpoint.
    */
   async getTaskResult(taskId: string): Promise<DataForSEOTaskGetResponse> {
-    const url =
-      `${BASE_URL}/v3/keywords_data/google_ads/keywords_for_keywords/task_get/${taskId}`;
+    const url = `${BASE_URL}/v3/keywords_data/google_ads/keywords_for_keywords/task_get/${taskId}`;
+
     console.log(`[DataForSEO] GET ${url}`);
 
     try {
-      const response = await this.fetchWithRetry<DataForSEOTaskGetResponse>(
-        url,
-        { method: "GET" }
-      );
+      const response = await this.fetchWithRetry<DataForSEOTaskGetResponse>(url, {
+        method: "GET",
+      });
 
+      // Log response for debugging
       if (response.status_code !== 20000) {
         console.error(
           `[DataForSEO] task_get failed for ${taskId}:`,
-          JSON.stringify(
-            {
-              url,
-              status_code: response.status_code,
-              status_message: response.status_message,
-              cost: response.cost,
-              tasks_count: response.tasks_count,
-              tasks_error: response.tasks_error,
-              tasks: response.tasks?.map((t) => ({
-                id: t.id,
-                status_code: t.status_code,
-                status_message: t.status_message,
-                path: t.path,
-              })),
-            },
-            null,
-            2
-          )
+          JSON.stringify({
+            url,
+            status_code: response.status_code,
+            status_message: response.status_message,
+            cost: response.cost,
+            tasks_count: response.tasks_count,
+            tasks_error: response.tasks_error,
+            tasks: response.tasks?.map((t) => ({
+              id: t.id,
+              status_code: t.status_code,
+              status_message: t.status_message,
+              path: t.path,
+            })),
+          }, null, 2)
         );
       }
 
       return response;
     } catch (error: any) {
-      console.error(`[DataForSEO] task_get exception for ${taskId}:`, {
-        url,
-        error: error.message || String(error),
-        stack: error.stack,
-      });
+      console.error(
+        `[DataForSEO] task_get exception for ${taskId}:`,
+        {
+          url,
+          error: error.message,
+          stack: error.stack,
+        }
+      );
       throw error;
     }
   }
 }
 
 /**
- * Simple concurrency limiter for K4K polling / posting
+ * Create a rate-limited executor for concurrent operations
  */
-export class ConcurrencyLimiter {
+export class ConcurrencyLimiter<T, R> {
   private maxConcurrent: number;
   private running = 0;
-  private queue: Array<() => void> = [];
+  private queue: Array<() => Promise<void>> = [];
 
   constructor(maxConcurrent: number) {
     this.maxConcurrent = maxConcurrent;
   }
 
-  async execute<T, R>(
-    fn: (item: T) => Promise<R>,
-    item: T
-  ): Promise<R> {
+  /**
+   * Execute function with concurrency limit
+   */
+  async execute(fn: (item: T) => Promise<R>, item: T): Promise<R> {
     while (this.running >= this.maxConcurrent) {
-      await new Promise<void>((resolve) => {
-        this.queue.push(resolve);
+      await new Promise((resolve) => {
+        this.queue.push(resolve as any);
       });
     }
 
     this.running++;
-
     try {
       return await fn(item);
     } finally {
       this.running--;
       const next = this.queue.shift();
-      if (next) next();
+      if (next) {
+        next();
+      }
     }
   }
 
-  async executeAll<T, R>(
+  /**
+   * Execute all items with concurrency limit
+   */
+  async executeAll(
     fn: (item: T) => Promise<R>,
     items: T[]
-  ): Promise<(R | Error)[]> {
+  ): Promise<Array<R | Error>> {
     return Promise.all(
       items.map((item) =>
-        this.execute(fn, item).catch(
-          (error: any) => error as Error
-        )
+        this.execute(fn, item).catch((error) => error as Error)
       )
     );
   }
