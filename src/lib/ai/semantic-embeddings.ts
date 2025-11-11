@@ -4,14 +4,18 @@
  * Provides production-ready semantic embeddings using HuggingFace Sentence Transformers
  * Model: sentence-transformers/all-MiniLM-L6-v2 (384 dimensions)
  *
- * Falls back to deterministic embeddings when HF is unavailable
+ * Uses the HuggingFace Inference API feature-extraction endpoint.
+ * Falls back to deterministic embeddings when HF is unavailable.
+ *
+ * IMPORTANT: This uses a feature-extraction model, NOT a sentence-similarity pipeline.
+ * Sentence-similarity pipelines require a different input format with "source_sentence" and "sentences".
  */
 
 import { createDeterministicEmbedding } from "./embeddings";
 
 const HF_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2";
 const HF_EMBEDDING_DIMENSION = 384;
-const HF_API_URL = `https://router.huggingface.co/hf-inference/models/${HF_EMBEDDING_MODEL}`;
+const HF_API_URL = `https://api-inference.huggingface.co/models/${HF_EMBEDDING_MODEL}`;
 
 interface EmbeddingOptions {
   model?: string;
@@ -85,23 +89,31 @@ export async function createSemanticEmbedding(
       );
     }
 
-    const embedding = await response.json();
+    const data = await response.json();
 
-    // Handle different response formats
+    // Handle HuggingFace feature-extraction response format
+    // For single input, response is typically: [[0.1, 0.2, ...]]
+    // For batch inputs, response is: [[0.1, 0.2, ...], [0.3, 0.4, ...]]
     let embeddingArray: number[];
 
-    if (Array.isArray(embedding)) {
-      // Direct array response
-      embeddingArray = embedding;
-    } else if (embedding && Array.isArray(embedding.embeddings)) {
-      // Wrapped in embeddings key
-      embeddingArray = embedding.embeddings[0] || embedding.embeddings;
-    } else if (embedding && typeof embedding === "object") {
+    if (Array.isArray(data)) {
+      // Check if it's a nested array (standard feature-extraction format)
+      if (Array.isArray(data[0])) {
+        // Extract the first embedding from the nested array
+        embeddingArray = data[0];
+      } else {
+        // Direct array response (flat array of numbers)
+        embeddingArray = data;
+      }
+    } else if (data && Array.isArray(data.embeddings)) {
+      // Wrapped in embeddings key (alternative format)
+      embeddingArray = Array.isArray(data.embeddings[0]) ? data.embeddings[0] : data.embeddings;
+    } else if (data && typeof data === "object") {
       // Try to find array in response
-      const values = Object.values(embedding);
+      const values = Object.values(data);
       const arrayValue = values.find((v) => Array.isArray(v));
       if (arrayValue) {
-        embeddingArray = arrayValue as number[];
+        embeddingArray = Array.isArray((arrayValue as any)[0]) ? (arrayValue as any)[0] : (arrayValue as number[]);
       } else {
         throw new SemanticEmbeddingError("Invalid embedding format in response");
       }
