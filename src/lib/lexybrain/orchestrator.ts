@@ -608,7 +608,7 @@ export async function runLexyBrainOrchestration(
   const corpus = await retrieveCorpusContext({
     queryText,
     capability: request.capability,
-    marketplace: request.marketplace ?? keywords[0]?.market ?? null,
+    marketplace: keywords[0]?.market ?? request.marketplace ?? null,
     language: request.language ?? null,
     limit: config.maxContext,
   });
@@ -643,7 +643,7 @@ export async function runLexyBrainOrchestration(
   }
 
   const promptConfig = await loadPromptConfig(config.promptKey);
-  const context = buildContext(config, keywords, request.marketplace ?? null, {
+  const context = buildContext(config, keywords, keywords[0]?.market ?? request.marketplace ?? null, {
     metrics,
     predictions,
     risk,
