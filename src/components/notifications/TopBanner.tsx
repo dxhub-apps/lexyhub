@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { X, Info, CheckCircle2, AlertTriangle, AlertCircle } from 'lucide-react';
 import { useUser } from '@supabase/auth-helpers-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabaseBrowser } from '@/lib/supabase-browser';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -17,7 +18,7 @@ type Banner = {
   icon?: string;
 };
 
-const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const FALLBACK_POLL_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes fallback
 const MAX_RETRIES = 3;
 const INITIAL_BACKOFF_MS = 2000; // 2 seconds
 
@@ -146,14 +147,52 @@ export function TopBanner() {
     // Initial fetch
     void fetchBanner();
 
-    // Check for new banners every 5 minutes
-    const interval = setInterval(() => {
+    // Set up realtime subscription for banner notifications
+    console.log('[TopBanner] Setting up realtime subscription for user:', user.id);
+    const channel = supabaseBrowser
+      .channel(`banner:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notification_delivery',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('[TopBanner] New notification received via realtime:', payload);
+          // Reload banner when a new notification arrives
+          void fetchBanner();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notifications',
+        },
+        (payload) => {
+          console.log('[TopBanner] Notification updated via realtime:', payload);
+          // Reload banner when a notification status changes
+          void fetchBanner();
+        }
+      )
+      .subscribe((status) => {
+        console.log('[TopBanner] Realtime subscription status:', status);
+      });
+
+    // Fallback polling every 10 minutes in case realtime fails
+    const fallbackInterval = setInterval(() => {
+      console.log('[TopBanner] Running fallback poll');
       void fetchBanner();
-    }, POLL_INTERVAL_MS);
+    }, FALLBACK_POLL_INTERVAL_MS);
 
     // Cleanup function
     return () => {
-      clearInterval(interval);
+      console.log('[TopBanner] Cleaning up subscription');
+      clearInterval(fallbackInterval);
+      void supabaseBrowser.removeChannel(channel);
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
