@@ -666,7 +666,11 @@ export async function runLexyBrainOrchestration(
   const queryParts = [request.query ?? "", ...keywords.map((keyword) => keyword.term)];
   const queryText = queryParts.join(" ").trim();
 
-  const resolvedMarketplace = keywords[0]?.market ?? request.marketplace ?? null;
+  const rawMarketplace = keywords[0]?.market ?? request.marketplace ?? null;
+
+  // Normalize marketplace: treat "us" and "google" as equivalent for corpus search
+  // This handles the case where dataforseo keywords have market="google" but search uses market="us"
+  const resolvedMarketplace = rawMarketplace === "us" ? "google" : rawMarketplace;
 
   logger.info(
     {
@@ -674,6 +678,7 @@ export async function runLexyBrainOrchestration(
       capability: request.capability,
       user_id: request.userId,
       query_text: queryText,
+      marketplace_raw: rawMarketplace,
       marketplace_resolved: resolvedMarketplace,
       marketplace_from_keyword: keywords[0]?.market,
       marketplace_from_request: request.marketplace,

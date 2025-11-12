@@ -216,12 +216,13 @@ export default function SearchWorkspace(): JSX.Element {
     []
   );
 
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      void fetchSuggestions(query);
-    }, 150);
-    return () => clearTimeout(timeout);
-  }, [query, fetchSuggestions]);
+  // Disabled autocomplete suggestions to prevent overlap with results
+  // useEffect(() => {
+  //   const timeout = setTimeout(() => {
+  //     void fetchSuggestions(query);
+  //   }, 150);
+  //   return () => clearTimeout(timeout);
+  // }, [query, fetchSuggestions]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -285,30 +286,6 @@ export default function SearchWorkspace(): JSX.Element {
               autoComplete="off"
             />
             <SearchIcon className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-foreground" />
-            {loadingSuggestions && (
-              <Loader2 className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 animate-spin text-foreground" />
-            )}
-
-            {suggestions.length > 0 && (
-              <ul className="absolute z-10 mt-2 w-full rounded-lg border border-border bg-background">
-                {suggestions.map((item) => (
-                  <li key={item}>
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-between px-4 py-2 text-left text-sm hover:bg-secondary"
-                      onClick={() => {
-                        setQuery(item);
-                        setSuggestions([]);
-                        void fetchResults(item, true);
-                      }}
-                    >
-                      <span>{item}</span>
-                      <ArrowUpRight className="h-4 w-4" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
           <Button
             type="submit"
@@ -397,6 +374,18 @@ export default function SearchWorkspace(): JSX.Element {
                         </td>
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void loadInsight(keyword);
+                              }}
+                            >
+                              <Brain className="mr-1 h-3 w-3" />
+                              Ask LexyBrain
+                            </Button>
                             {keyword.id && (
                               <Button
                                 type="button"
