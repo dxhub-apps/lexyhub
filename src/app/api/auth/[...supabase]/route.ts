@@ -22,8 +22,8 @@ async function exchangeCode(request: NextRequest) {
 }
 
 function resolveRedirect(request: NextRequest): string {
-  const requested = request.nextUrl.searchParams.get("redirect_to") ?? "/dashboard";
-  return requested.startsWith("/") ? requested : "/dashboard";
+  const requested = request.nextUrl.searchParams.get("redirect_to") ?? "/search";
+  return requested.startsWith("/") ? requested : "/search";
 }
 
 export async function GET(request: NextRequest) {

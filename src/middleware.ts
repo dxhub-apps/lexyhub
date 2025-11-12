@@ -71,13 +71,13 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && (pathname === "/login" || pathname === "/signup")) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.redirect(new URL("/search", request.url));
   }
 
   if (user && pathname.startsWith("/admin/backoffice")) {
     const { plan } = await fetchUserPlan(supabase, user.id);
     if (!isAdminUser(user, plan)) {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      return NextResponse.redirect(new URL("/search", request.url));
     }
   }
 
