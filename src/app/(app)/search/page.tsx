@@ -34,6 +34,11 @@ interface KeywordResult {
   freshness_ts?: string | null;
   adjusted_demand_index?: number | null;
   deseasoned_trend_momentum?: number | null;
+  // DataForSEO raw metrics from extras field
+  search_volume?: number | null;
+  cpc?: number | null;
+  monthly_trend?: Array<{ year: number; month: number; searches: number }> | null;
+  dataforseo_competition?: number | null;
 }
 
 interface SearchResponse {
@@ -374,13 +379,13 @@ export default function SearchWorkspace(): JSX.Element {
                           </div>
                         </td>
                         <td className="px-3 py-3 text-sm font-medium">
-                          {formatPercent(keyword.demand_index)}
+                          {formatVolume(keyword)}
                         </td>
                         <td className="px-3 py-3 text-sm font-medium">
-                          {formatPercent(keyword.competition_score)}
+                          {formatCompetition(keyword)}
                         </td>
                         <td className="px-3 py-3 text-sm font-medium">
-                          {formatPercent(keyword.trend_momentum)}
+                          {formatTrend(keyword)}
                         </td>
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-2">
@@ -485,4 +490,50 @@ function formatPercent(value: number | null | undefined): string {
   if (typeof value !== "number") return "—";
   const bounded = Math.max(0, Math.min(1, value));
   return `${Math.round(bounded * 100)}%`;
+}
+
+function formatVolume(keyword: KeywordResult): string {
+  // Prefer normalized demand_index, fallback to raw search_volume
+  if (typeof keyword.demand_index === "number" && keyword.demand_index > 0) {
+    return formatPercent(keyword.demand_index);
+  }
+  if (typeof keyword.search_volume === "number") {
+    return keyword.search_volume.toLocaleString();
+  }
+  return "—";
+}
+
+function formatCompetition(keyword: KeywordResult): string {
+  // Prefer normalized competition_score, fallback to raw dataforseo_competition
+  if (typeof keyword.competition_score === "number") {
+    return formatPercent(keyword.competition_score);
+  }
+  if (typeof keyword.dataforseo_competition === "number") {
+    // DataForSEO competition is 0-1 scale
+    return formatPercent(keyword.dataforseo_competition);
+  }
+  return "—";
+}
+
+function formatTrend(keyword: KeywordResult): string {
+  // Prefer normalized trend_momentum
+  if (typeof keyword.trend_momentum === "number") {
+    return formatPercent(keyword.trend_momentum);
+  }
+  // Fallback: calculate simple trend from monthly_trend data
+  if (Array.isArray(keyword.monthly_trend) && keyword.monthly_trend.length >= 2) {
+    const sorted = [...keyword.monthly_trend].sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.month - b.month;
+    });
+    const oldest = sorted[0]?.searches ?? 0;
+    const newest = sorted[sorted.length - 1]?.searches ?? 0;
+
+    if (oldest > 0) {
+      const change = ((newest - oldest) / oldest) * 100;
+      const sign = change > 0 ? "+" : "";
+      return `${sign}${change.toFixed(0)}%`;
+    }
+  }
+  return "—";
 }

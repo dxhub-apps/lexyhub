@@ -41,6 +41,11 @@ type KeywordRow = {
   adjusted_demand_index?: number | null;
   deseasoned_trend_momentum?: number | null;
   seasonal_label?: string | null;
+  // Extracted from extras field
+  search_volume?: number | null;
+  cpc?: number | null;
+  monthly_trend?: Array<{ year: number; month: number; searches: number }> | null;
+  dataforseo_competition?: number | null;
 };
 
 type RankedKeyword = KeywordRow & {
@@ -105,7 +110,49 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return dot / (normA * normB);
 }
 
+function extractDataForSEOMetrics(extras: Record<string, unknown> | null): {
+  search_volume: number | null;
+  cpc: number | null;
+  monthly_trend: Array<{ year: number; month: number; searches: number }> | null;
+  dataforseo_competition: number | null;
+} {
+  if (!extras) {
+    return { search_volume: null, cpc: null, monthly_trend: null, dataforseo_competition: null };
+  }
+
+  const search_volume = typeof extras.search_volume === "number" ? extras.search_volume : null;
+  const cpc = typeof extras.cpc === "number" ? extras.cpc : null;
+
+  let monthly_trend: Array<{ year: number; month: number; searches: number }> | null = null;
+  if (Array.isArray(extras.monthly_trend)) {
+    monthly_trend = extras.monthly_trend
+      .filter((item: any) =>
+        item &&
+        typeof item === "object" &&
+        typeof item.year === "number" &&
+        typeof item.month === "number" &&
+        typeof item.searches === "number"
+      )
+      .map((item: any) => ({
+        year: item.year,
+        month: item.month,
+        searches: item.searches,
+      }));
+    if (monthly_trend.length === 0) monthly_trend = null;
+  }
+
+  let dataforseo_competition: number | null = null;
+  if (extras.dataforseo && typeof extras.dataforseo === "object") {
+    const dfObj = extras.dataforseo as Record<string, unknown>;
+    dataforseo_competition = typeof dfObj.competition === "number" ? dfObj.competition : null;
+  }
+
+  return { search_volume, cpc, monthly_trend, dataforseo_competition };
+}
+
 function coerceKeyword(row: any): KeywordRow {
+  const extracted = extractDataForSEOMetrics(row?.extras ?? null);
+
   return {
     id: row?.id ?? undefined,
     term: String(row.term),
@@ -124,6 +171,10 @@ function coerceKeyword(row: any): KeywordRow {
     adjusted_demand_index: row?.adjusted_demand_index ?? null,
     deseasoned_trend_momentum: row?.deseasoned_trend_momentum ?? null,
     seasonal_label: row?.seasonal_label ?? null,
+    search_volume: extracted.search_volume,
+    cpc: extracted.cpc,
+    monthly_trend: extracted.monthly_trend,
+    dataforseo_competition: extracted.dataforseo_competition,
   };
 }
 

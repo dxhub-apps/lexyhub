@@ -19,6 +19,7 @@ interface Keyword {
   trend_momentum: number | null;
   engagement_score: number | null;
   ai_opportunity_score: number | null;
+  extras?: Record<string, unknown> | null;
 }
 
 interface DailyMetric {
@@ -62,14 +63,52 @@ function createMetricChunk(keyword: Keyword, dailyMetrics: DailyMetric[], weekly
   }
 
   const currentMetrics: string[] = [];
+
+  // Include normalized metrics if available
   if (keyword.demand_index !== null) currentMetrics.push(`Demand Index: ${keyword.demand_index.toFixed(2)}`);
   if (keyword.competition_score !== null) currentMetrics.push(`Competition Score: ${keyword.competition_score.toFixed(2)}`);
   if (keyword.trend_momentum !== null) currentMetrics.push(`Trend Momentum: ${keyword.trend_momentum.toFixed(2)}`);
   if (keyword.engagement_score !== null) currentMetrics.push(`Engagement Score: ${keyword.engagement_score.toFixed(2)}`);
   if (keyword.ai_opportunity_score !== null) currentMetrics.push(`AI Opportunity Score: ${keyword.ai_opportunity_score.toFixed(2)}`);
 
+  // Also include raw DataForSEO metrics from extras if available
+  if (keyword.extras) {
+    if (typeof keyword.extras.search_volume === "number") {
+      currentMetrics.push(`Search Volume: ${keyword.extras.search_volume}`);
+    }
+    if (typeof keyword.extras.cpc === "number") {
+      currentMetrics.push(`CPC: $${keyword.extras.cpc.toFixed(2)}`);
+    }
+    if (keyword.extras.dataforseo && typeof keyword.extras.dataforseo === "object") {
+      const dfObj = keyword.extras.dataforseo as Record<string, unknown>;
+      if (typeof dfObj.competition === "number") {
+        currentMetrics.push(`DataForSEO Competition: ${dfObj.competition.toFixed(2)}`);
+      }
+    }
+  }
+
   if (currentMetrics.length > 0) {
     parts.push(`Current Metrics: ${currentMetrics.join(", ")}`);
+  }
+
+  // Include monthly trend data from extras if available
+  if (keyword.extras && Array.isArray(keyword.extras.monthly_trend)) {
+    const monthlyTrend = keyword.extras.monthly_trend as Array<{ year: number; month: number; searches: number }>;
+    if (monthlyTrend.length > 0) {
+      const trendSummary = monthlyTrend
+        .slice(0, 6) // Last 6 months
+        .map((item: any) => {
+          if (item && typeof item === "object" && typeof item.year === "number" && typeof item.month === "number" && typeof item.searches === "number") {
+            return `${item.year}-${String(item.month).padStart(2, "0")}: ${item.searches}`;
+          }
+          return null;
+        })
+        .filter(Boolean)
+        .join(", ");
+      if (trendSummary) {
+        parts.push(`Monthly Search Trends: ${trendSummary}`);
+      }
+    }
   }
 
   if (dailyMetrics.length > 0) {
@@ -107,7 +146,7 @@ export async function ingestMetricsToCorpus(): Promise<{ success: boolean; proce
 
     const { data: keywords, error: keywordsError } = await supabase
       .from("keywords")
-      .select("id, term, market, demand_index, competition_score, trend_momentum, engagement_score, ai_opportunity_score")
+      .select("id, term, market, demand_index, competition_score, trend_momentum, engagement_score, ai_opportunity_score, extras")
       .not("market", "is", null)
       .gte("updated_at", lookbackDate.toISOString())
       .order("updated_at", { ascending: false })
@@ -193,6 +232,26 @@ export async function ingestMetricsToCorpus(): Promise<{ success: boolean; proce
           continue;
         }
 
+        // Extract DataForSEO metrics from extras for metadata
+        const extrasMetadata: Record<string, unknown> = {};
+        if (keyword.extras) {
+          if (typeof keyword.extras.search_volume === "number") {
+            extrasMetadata.search_volume = keyword.extras.search_volume;
+          }
+          if (typeof keyword.extras.cpc === "number") {
+            extrasMetadata.cpc = keyword.extras.cpc;
+          }
+          if (keyword.extras.dataforseo && typeof keyword.extras.dataforseo === "object") {
+            const dfObj = keyword.extras.dataforseo as Record<string, unknown>;
+            if (typeof dfObj.competition === "number") {
+              extrasMetadata.dataforseo_competition = dfObj.competition;
+            }
+          }
+          if (Array.isArray(keyword.extras.monthly_trend)) {
+            extrasMetadata.monthly_trend_count = keyword.extras.monthly_trend.length;
+          }
+        }
+
         const { error: upsertError } = await supabase.from("ai_corpus").upsert(
           {
             id: crypto.randomUUID(),
@@ -216,6 +275,7 @@ export async function ingestMetricsToCorpus(): Promise<{ success: boolean; proce
               competition_score: keyword.competition_score,
               trend_momentum: keyword.trend_momentum,
               ai_opportunity_score: keyword.ai_opportunity_score,
+              ...extrasMetadata,
             },
             is_active: true,
           },
