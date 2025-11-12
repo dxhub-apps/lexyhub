@@ -31,6 +31,22 @@ export interface MarketBriefContext {
     engagement_score?: number | null;
     ai_opportunity_score?: number | null;
   }>;
+  seasonal_context?: {
+    current_periods?: Array<{
+      name: string;
+      description: string;
+      days_remaining: number;
+      weight: number;
+      tags: string[];
+    }>;
+    upcoming_periods?: Array<{
+      name: string;
+      description: string;
+      days_until: number;
+      weight: number;
+      tags: string[];
+    }>;
+  };
   metadata?: Record<string, unknown>;
 }
 
@@ -45,6 +61,22 @@ export interface RadarContext {
     engagement_score?: number | null;
     ai_opportunity_score?: number | null;
   }>;
+  seasonal_context?: {
+    current_periods?: Array<{
+      name: string;
+      description: string;
+      days_remaining: number;
+      weight: number;
+      tags: string[];
+    }>;
+    upcoming_periods?: Array<{
+      name: string;
+      description: string;
+      days_until: number;
+      weight: number;
+      tags: string[];
+    }>;
+  };
   metadata?: Record<string, unknown>;
 }
 
@@ -59,6 +91,22 @@ export interface AdInsightContext {
     trend_momentum?: number | null;
     engagement_score?: number | null;
   }>;
+  seasonal_context?: {
+    current_periods?: Array<{
+      name: string;
+      description: string;
+      days_remaining: number;
+      weight: number;
+      tags: string[];
+    }>;
+    upcoming_periods?: Array<{
+      name: string;
+      description: string;
+      days_until: number;
+      weight: number;
+      tags: string[];
+    }>;
+  };
   metadata?: Record<string, unknown>;
 }
 
@@ -72,6 +120,22 @@ export interface RiskContext {
     trend_momentum?: number | null;
     engagement_score?: number | null;
   }>;
+  seasonal_context?: {
+    current_periods?: Array<{
+      name: string;
+      description: string;
+      days_remaining: number;
+      weight: number;
+      tags: string[];
+    }>;
+    upcoming_periods?: Array<{
+      name: string;
+      description: string;
+      days_until: number;
+      weight: number;
+      tags: string[];
+    }>;
+  };
   metadata?: Record<string, unknown>;
 }
 
@@ -171,12 +235,15 @@ FOCUS AREAS:
 - Highlight ${maxRisks} key risks or challenges
 - Provide ${maxActions} specific actionable recommendations
 - Assess overall market confidence (${minConfidence} to 1.0)
+- **CRITICAL**: Factor in seasonal opportunities and timing
 
 ANALYSIS APPROACH:
 - High demand + low competition = strong opportunity
 - High trend momentum = growing market
 - High competition + declining trends = risk
 - Consider engagement scores for seller viability
+- **Account for current and upcoming seasonal periods** (weight multipliers affect demand)
+- Prioritize opportunities aligned with upcoming peak seasons
 
 OUTPUT:
 Comprehensive market brief in the specified JSON format.`;
@@ -194,7 +261,9 @@ SCORING DIMENSIONS:
 SCORING GUIDELINES:
 - Use provided metrics (demand_index, competition_score, trend_momentum)
 - Balance all dimensions for overall opportunity assessment
-- Include brief comment explaining the scoring
+- **Boost scores for keywords aligned with active or upcoming seasonal periods**
+- Consider seasonal weight multipliers when assessing demand
+- Include brief comment explaining the scoring (mention seasonal relevance when applicable)
 ${maxItems ? `- Return up to ${maxItems} top opportunities` : ""}
 
 OUTPUT:
@@ -289,6 +358,54 @@ function formatContextData(
       sections.push(
         `Note: Showing top 50 of ${context.keywords.length} keywords. Focus on these highest-priority terms.`
       );
+    }
+  }
+
+  // Seasonal Context
+  if ("seasonal_context" in context && context.seasonal_context) {
+    sections.push("");
+    sections.push("=== SEASONAL OPPORTUNITIES (CRITICAL FOR SELLERS) ===");
+    sections.push("");
+
+    const { current_periods, upcoming_periods } = context.seasonal_context;
+
+    if (current_periods && current_periods.length > 0) {
+      sections.push("🎯 ACTIVE NOW:");
+      current_periods.forEach((period) => {
+        sections.push(
+          `  • ${period.name} (${period.days_remaining} days left) - Weight: ${period.weight}x`
+        );
+        if (period.description) {
+          sections.push(`    ${period.description}`);
+        }
+      });
+      sections.push("");
+    }
+
+    if (upcoming_periods && upcoming_periods.length > 0) {
+      sections.push("📅 UPCOMING (Prepare Now):");
+      upcoming_periods.forEach((period) => {
+        sections.push(
+          `  • ${period.name} (in ${period.days_until} days) - Weight: ${period.weight}x`
+        );
+        if (period.description) {
+          sections.push(`    ${period.description}`);
+        }
+      });
+      sections.push("");
+    }
+
+    if (
+      (current_periods && current_periods.length > 0) ||
+      (upcoming_periods && upcoming_periods.length > 0)
+    ) {
+      sections.push(
+        "⚠️ IMPORTANT: Factor these seasonal opportunities into your analysis."
+      );
+      sections.push(
+        "   Sellers should optimize listings and prepare inventory for upcoming peak periods."
+      );
+      sections.push("");
     }
   }
 
