@@ -15,7 +15,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes
 
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 500;
 const LOOKBACK_DAYS = 7;
 
 interface Keyword {
