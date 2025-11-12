@@ -117,20 +117,16 @@ function toReferencePart(value: unknown): string | number | null {
   return String(value);
 }
 
-/** Canonicalize marketplace across ingestion and retrieval */
+/** Canonicalize marketplace across ingestion and retrieval. Canonical = 'us'. */
 export function normalizeMarketplace(m?: string | null, src?: string | null): string | null {
   const s = (m ?? "").toLowerCase().trim();
   const source = (src ?? "").toLowerCase();
+  if (!s) return source.startsWith("dataforseo") ? "us" : null;
 
-  if (!s) {
-    if (source.startsWith("dataforseo")) return "google";
-    return null;
-  }
-
-  if (["us", "usa", "google-us", "google_us", "google:us"].includes(s)) return "google";
-  if (["etsy-us", "etsy_us", "etsy:us"].includes(s)) return "etsy";
-  if (["amazon-us", "amazon_us", "amazon:us"].includes(s)) return "amazon";
-  if (["shopify-us", "shopify_us"].includes(s)) return "shopify";
+  if (["google", "us", "usa", "google-us", "google_us", "google:us"].includes(s)) return "us";
+  if (["etsy-us", "etsy_us", "etsy:us", "etsy"].includes(s)) return "etsy";
+  if (["amazon-us", "amazon_us", "amazon:us", "amazon"].includes(s)) return "amazon";
+  if (["shopify-us", "shopify_us", "shopify"].includes(s)) return "shopify";
   return s;
 }
 
@@ -408,7 +404,7 @@ function buildContext(
   const nicheTerms = keywords.map((k) => k.term);
 
   return {
-    market: marketplace || keywords[0]?.market || "global",
+    market: marketplace || keywords[0]?.market || "us",
     niche_terms: nicheTerms,
     keywords: keywords.map((k) => ({
       term: k.term,
@@ -567,9 +563,7 @@ export async function runLexyBrainOrchestration(
 
   const normalizedRequestMarket = normalizeMarketplace(request.marketplace ?? null, null);
   const normalizedKeywordMarket = normalizeMarketplace(firstKeywordMarket, inferredFromKeywordExtras);
-
-  // Single point of truth for marketplace used in retrieval and context
-  const resolvedMarketplace = normalizedRequestMarket ?? normalizedKeywordMarket;
+  const resolvedMarketplace = normalizedRequestMarket ?? normalizedKeywordMarket ?? "us";
 
   logger.info(
     {
@@ -586,13 +580,28 @@ export async function runLexyBrainOrchestration(
     "Preparing to search corpus with marketplace filter"
   );
 
-  const corpus = await retrieveCorpusContext({
+  let corpus = await retrieveCorpusContext({
     queryText,
     capability: request.capability,
     marketplace: resolvedMarketplace,
     language: request.language ?? null,
     limit: config.maxContext,
   });
+
+  // Retry without marketplace filter if strict match yielded nothing
+  if ((!corpus || corpus.length === 0) && resolvedMarketplace) {
+    logger.warn(
+      { type: "lexybrain_rrf_retry_no_market", resolvedMarketplace },
+      "Retrying corpus search without marketplace filter"
+    );
+    corpus = await retrieveCorpusContext({
+      queryText,
+      capability: request.capability,
+      marketplace: null,
+      language: request.language ?? null,
+      limit: config.maxContext,
+    });
+  }
 
   logger.info(
     {
