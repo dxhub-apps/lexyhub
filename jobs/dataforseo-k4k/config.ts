@@ -18,7 +18,7 @@ const configSchema = z.object({
   supabaseServiceKey: z.string().optional(),
 
   // Business logic defaults
-  lexyHubMarket: z.string().default("google"),
+  lexyHubMarket: z.string().default("us"),
   defaultLanguageCode: z.string().default("en"),
   defaultLocationCode: z.string().default("2840"),
 

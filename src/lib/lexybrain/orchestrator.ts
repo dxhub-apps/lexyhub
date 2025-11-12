@@ -666,7 +666,11 @@ export async function runLexyBrainOrchestration(
   const queryParts = [request.query ?? "", ...keywords.map((keyword) => keyword.term)];
   const queryText = queryParts.join(" ").trim();
 
-  const resolvedMarketplace = keywords[0]?.market ?? request.marketplace ?? null;
+  const rawMarketplace = keywords[0]?.market ?? request.marketplace ?? null;
+
+  // Normalize marketplace: treat "us" and "google" as equivalent for corpus search
+  // This handles the case where dataforseo keywords have market="google" but search uses market="us"
+  const resolvedMarketplace = rawMarketplace === "us" ? "google" : rawMarketplace;
 
   logger.info(
     {
@@ -674,6 +678,7 @@ export async function runLexyBrainOrchestration(
       capability: request.capability,
       user_id: request.userId,
       query_text: queryText,
+      marketplace_raw: rawMarketplace,
       marketplace_resolved: resolvedMarketplace,
       marketplace_from_keyword: keywords[0]?.market,
       marketplace_from_request: request.marketplace,
@@ -720,22 +725,11 @@ export async function runLexyBrainOrchestration(
       "No corpus data available - returning hard-stop no-data response"
     );
 
-    // Provide a more detailed, human-readable error message
-    let errorMessage = `We don't have enough data about "${keywordTerm}" yet to provide meaningful insights.`;
+    // Provide a user-friendly error message
+    let errorMessage = `We're still gathering data for "${keywordTerm}". Please check back in a few minutes.`;
 
-    if (keywords.length > 0) {
-      errorMessage += `\n\nThe keyword exists in our database, but we need to gather more information first. This usually takes a few minutes after a keyword is added.`;
-
-      if (resolvedMarketplace) {
-        errorMessage += `\n\nMarketplace: ${resolvedMarketplace}`;
-      }
-
-      errorMessage += `\n\nWhat you can do:
-• Wait a few minutes and try again (our system collects data automatically)
-• Check if the keyword has been fully processed in the keywords table
-• Contact support if this issue persists`;
-    } else {
-      errorMessage += `\n\nThis keyword may not be in our database yet. Try searching for it first to add it to LexyHub.`;
+    if (keywords.length === 0) {
+      errorMessage = `This keyword isn't in our system yet. Try searching for "${keywordTerm}" first to add it to LexyHub.`;
     }
 
     throw new Error(errorMessage);
