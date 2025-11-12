@@ -174,7 +174,7 @@ export default function SearchWorkspace(): JSX.Element {
   );
 
   const fetchResults = useCallback(
-    async (term: string) => {
+    async (term: string, isFinal = false) => {
       if (!term.trim()) {
         setResults([]);
         setSelectedIndex(null);
@@ -183,7 +183,13 @@ export default function SearchWorkspace(): JSX.Element {
       setLoadingResults(true);
       setError(null);
       try {
-        const response = await fetch(`/api/keywords/search?q=${encodeURIComponent(term)}&limit=${RESULT_LIMIT}`);
+        const url = new URL('/api/keywords/search', window.location.origin);
+        url.searchParams.set('q', term);
+        url.searchParams.set('limit', String(RESULT_LIMIT));
+        if (isFinal) {
+          url.searchParams.set('final', 'true');
+        }
+        const response = await fetch(url.toString());
         if (!response.ok) {
           const payload = await response.json().catch(() => ({}));
           throw new Error(payload.error ?? `Failed to search keywords (${response.status})`);
@@ -218,7 +224,7 @@ export default function SearchWorkspace(): JSX.Element {
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      void fetchResults(query);
+      void fetchResults(query, true);
     },
     [fetchResults, query]
   );
@@ -283,7 +289,7 @@ export default function SearchWorkspace(): JSX.Element {
                     onClick={() => {
                       setQuery(item);
                       setSuggestions([]);
-                      void fetchResults(item);
+                      void fetchResults(item, true);
                     }}
                   >
                     <span>{item}</span>

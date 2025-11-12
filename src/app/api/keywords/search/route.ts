@@ -20,6 +20,7 @@ interface SearchRequestPayload {
   source?: string;
   sources?: string[];
   plan?: PlanTier | string;
+  final?: boolean | string;
 }
 
 type KeywordRow = {
@@ -333,6 +334,7 @@ async function loadSearchPayload(req: Request): Promise<SearchRequestPayload> {
       market: url.searchParams.get("market") ?? undefined,
       limit: url.searchParams.get("limit") ? Number(url.searchParams.get("limit")) : undefined,
       source: url.searchParams.get("source") ?? undefined,
+      final: url.searchParams.get("final") ?? undefined,
     };
   }
 
@@ -458,9 +460,11 @@ async function handleSearch(req: Request): Promise<NextResponse> {
   }
 
   // Only record in keyword_search_requests if the keyword doesn't exist yet
+  // AND if this is a final search (user clicked suggestion or pressed Enter)
   const keywordExists = exactMatchKeyword !== null;
+  const isFinalSearch = payload.final === true || payload.final === "true";
 
-  if (!keywordExists) {
+  if (!keywordExists && isFinalSearch) {
     // Record this as a new keyword search request that needs to be processed
     await recordKeywordSearchRequest({
       supabase,
