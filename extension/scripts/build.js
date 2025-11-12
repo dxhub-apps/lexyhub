@@ -43,10 +43,12 @@ console.log('📋 Copying static files...\n');
 
 const staticFiles = [
   'manifest.json',
-  'popup/index.html',
+  'popup/popup.html',
   'popup/popup.js',
-  'options/index.html',
+  'popup/popup.css',
+  'options/options.html',
   'options/options.js',
+  'options/options.css',
 ];
 
 staticFiles.forEach(file => {
@@ -111,6 +113,10 @@ const entryPoints = [
   { in: 'src/content/etsy.ts', out: 'content/etsy' },
   { in: 'src/content/amazon.ts', out: 'content/amazon' },
   { in: 'src/content/shopify.ts', out: 'content/shopify' },
+  { in: 'src/content/google.ts', out: 'content/google' },
+  { in: 'src/content/bing.ts', out: 'content/bing' },
+  { in: 'src/content/pinterest.ts', out: 'content/pinterest' },
+  { in: 'src/content/reddit.ts', out: 'content/reddit' },
 ];
 
 const buildPromises = entryPoints.map(entry => {

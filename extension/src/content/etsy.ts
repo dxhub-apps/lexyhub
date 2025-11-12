@@ -25,7 +25,7 @@ const SELECTORS = {
 class EtsyContentScript {
   private highlighter: Highlighter;
   private tooltipManager: TooltipManager;
-  private observ: MutationObserver | null = null;
+  private observer: MutationObserver | null = null;
   private debounceTimer: number | null = null;
 
   constructor() {

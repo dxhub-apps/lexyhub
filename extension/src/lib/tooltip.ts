@@ -178,7 +178,7 @@ export class TooltipManager {
     if (!this.tooltip) return;
 
     // Check cache first
-    let metrics = this.metricsCache.get(term.toLowerCase());
+    let metrics: KeywordMetrics | null | undefined = this.metricsCache.get(term.toLowerCase());
 
     if (!metrics) {
       // Show loading state
