@@ -531,6 +531,50 @@ async function main(): Promise<void> {
   const seedIds = seeds.map((s) => s.id);
   await updateSeedsLastRun(supabase, seedIds);
 
+  // Enrich metrics for newly upserted keywords
+  logger.info({}, "Starting DataForSEO K4K metrics enrichment");
+  const enrichmentStartTime = Date.now();
+
+  try {
+    const { data: enrichmentResult, error: enrichmentError } = await supabase.rpc(
+      "enrich_dataforseo_k4k_metrics",
+      {
+        p_where_clause: `freshness_ts >= '${startedAt}'::timestamptz`,
+        p_limit: null,
+        p_dry_run: false,
+      }
+    );
+
+    if (enrichmentError) {
+      logger.error(
+        { error: enrichmentError },
+        `Enrichment failed: ${enrichmentError.message}`
+      );
+      // Non-fatal: continue with summary
+    } else if (enrichmentResult) {
+      const enrichmentDurationMs = Date.now() - enrichmentStartTime;
+      logger.info(
+        {
+          processedCount: enrichmentResult.processed_count,
+          updatedCount: enrichmentResult.updated_count,
+          durationMs: enrichmentDurationMs,
+          normalizers: {
+            p99_avg: enrichmentResult.p99_avg,
+            max_abs_slope_raw: enrichmentResult.max_abs_slope_raw,
+            max_abs_slope_des: enrichmentResult.max_abs_slope_des,
+          },
+        },
+        "ENRICHMENT_COMPLETE"
+      );
+    }
+  } catch (error: any) {
+    logger.error(
+      { error },
+      `Enrichment exception: ${error.message}`
+    );
+    // Non-fatal: continue with summary
+  }
+
   // Final summary
   const completedAt = new Date().toISOString();
   const durationMs = Date.now() - startTime;
