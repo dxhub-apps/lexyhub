@@ -162,17 +162,17 @@ export class DirectTaskPoller {
     } catch (error: any) {
       const taskState = this.tasks.get(taskId);
 
-      // Check if this is a 404 error (task not found, expired, or already retrieved)
+      // Check if this is a 404 error (wrong endpoint or task expired)
       if (error.message && error.message.includes('404')) {
         logger.error(
           { taskId, error: error.message },
-          `[DirectTaskPoller] Task not found (404) - likely expired or already retrieved: ${taskId}`
+          `[DirectTaskPoller] 404 from task_get — check URL (must not include '/advanced' for Keywords for Keywords API): ${taskId}`
         );
 
         // Mark task as failed with descriptive error
         if (taskState && taskState.status === "pending") {
           taskState.status = "failed";
-          taskState.error = "Task not found (404) - task may have expired, been already retrieved, or does not exist";
+          taskState.error = "Task not found (404) - check endpoint URL or task may have expired";
           taskState.completedAt = Date.now();
         }
       } else {
