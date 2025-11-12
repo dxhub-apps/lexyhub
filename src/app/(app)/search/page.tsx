@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import type { MarketBrief, KeyMetric } from "@/lib/lexybrain-schemas";
 
 const DEFAULT_MARKET = "us";
 const SUGGESTION_LIMIT = 6;
@@ -51,10 +52,23 @@ interface SearchResponse {
 }
 
 interface LexyBrainInsight {
+  niche: string;
   summary: string;
-  metrics: Array<{ label: string; value: string }>;
-  sources?: Array<{ title: string; url?: string }>; 
+  key_metrics?: KeyMetric[];
+  top_opportunities?: Array<{ term: string; why: string }>;
+  risks?: Array<{ term: string; why: string }>;
+  actions?: string[];
+  confidence?: number;
 }
+
+interface SearchState {
+  query: string;
+  results: KeywordResult[];
+  selectedIndex: number | null;
+  insight: LexyBrainInsight | null;
+}
+
+const STORAGE_KEY = "lexyhub_search_state";
 
 export default function SearchWorkspace(): JSX.Element {
   const supabase = useMemo(() => createClientComponentClient(), []);
@@ -62,20 +76,89 @@ export default function SearchWorkspace(): JSX.Element {
   const userId = session?.user?.id ?? null;
 
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [query, setQuery] = useState("");
+
+  // Initialize state from localStorage
+  const [query, setQuery] = useState(() => {
+    if (typeof window === 'undefined') return "";
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const state: SearchState = JSON.parse(saved);
+        return state.query || "";
+      }
+    } catch (err) {
+      console.error("Failed to load search state from localStorage", err);
+    }
+    return "";
+  });
+
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
-  const [results, setResults] = useState<KeywordResult[]>([]);
+  const [results, setResults] = useState<KeywordResult[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const state: SearchState = JSON.parse(saved);
+        return state.results || [];
+      }
+    } catch (err) {
+      console.error("Failed to load search results from localStorage", err);
+    }
+    return [];
+  });
+
   const [loadingResults, setLoadingResults] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const state: SearchState = JSON.parse(saved);
+        return state.selectedIndex;
+      }
+    } catch (err) {
+      console.error("Failed to load selected index from localStorage", err);
+    }
+    return null;
+  });
+
   const selectedKeyword = selectedIndex != null ? results[selectedIndex] ?? null : null;
 
-  const [insight, setInsight] = useState<LexyBrainInsight | null>(null);
+  const [insight, setInsight] = useState<LexyBrainInsight | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const state: SearchState = JSON.parse(saved);
+        return state.insight;
+      }
+    } catch (err) {
+      console.error("Failed to load insight from localStorage", err);
+    }
+    return null;
+  });
+
   const [insightLoading, setInsightLoading] = useState(false);
   const [insightError, setInsightError] = useState<string | null>(null);
+
+  // Save state to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      const state: SearchState = {
+        query,
+        results,
+        selectedIndex,
+        insight,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (err) {
+      console.error("Failed to save search state to localStorage", err);
+    }
+  }, [query, results, selectedIndex, insight]);
 
   const loadInsight = useCallback(
     async (keyword: KeywordResult | undefined) => {
@@ -101,14 +184,21 @@ export default function SearchWorkspace(): JSX.Element {
         }
 
         const payload = await response.json();
-        const summary = payload?.insight?.summary ?? "LexyBrain did not return a summary.";
-        const metrics = Array.isArray(payload?.insight?.metrics)
-          ? (payload.insight.metrics as Array<{ label: string; value: string }>)
-          : [];
-        const sources = Array.isArray(payload?.insight?.sources)
-          ? (payload.insight.sources as Array<{ title: string; url?: string }>)
-          : [];
-        setInsight({ summary, metrics, sources });
+        const insightData = payload?.insight as MarketBrief | undefined;
+
+        if (!insightData) {
+          throw new Error("LexyBrain did not return insight data.");
+        }
+
+        setInsight({
+          niche: insightData.niche,
+          summary: insightData.summary,
+          key_metrics: insightData.key_metrics,
+          top_opportunities: insightData.top_opportunities,
+          risks: insightData.risks,
+          actions: insightData.actions,
+          confidence: insightData.confidence,
+        });
       } catch (err) {
         console.error("LexyBrain insight failed", err);
         setInsightError(err instanceof Error ? err.message : "LexyBrain insight failed");
@@ -438,18 +528,51 @@ export default function SearchWorkspace(): JSX.Element {
               <p className="text-sm text-foreground">{insightError}</p>
             ) : insight ? (
               <>
-                <p className="text-sm leading-relaxed">{insight.summary}</p>
-                {insight.metrics.length > 0 && (
-                  <div className="space-y-2">
-                    {insight.metrics.map((metric) => (
-                      <div
-                        key={metric.label}
-                        className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
-                      >
-                        <span className="font-medium">{metric.label}</span>
-                        <span>{metric.value}</span>
-                      </div>
-                    ))}
+                {insight.niche && (
+                  <div>
+                    <h3 className="text-base font-semibold mb-1">{highlightKeyword(insight.niche, selectedKeyword?.term || "")}</h3>
+                    {insight.confidence !== undefined && (
+                      <Badge variant="secondary" className="text-xs">
+                        Confidence: {Math.round(insight.confidence * 100)}%
+                      </Badge>
+                    )}
+                  </div>
+                )}
+                <p className="text-sm leading-relaxed">
+                  {highlightKeyword(insight.summary, selectedKeyword?.term || "")}
+                </p>
+                {insight.key_metrics && insight.key_metrics.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-semibold mb-2 uppercase text-muted-foreground">Key Metrics</h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      {insight.key_metrics.map((metric, idx) => (
+                        <MetricCard key={idx} metric={metric} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {insight.top_opportunities && insight.top_opportunities.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-semibold mb-2 uppercase text-green-600">Opportunities</h4>
+                    <ul className="space-y-1.5 text-xs">
+                      {insight.top_opportunities.slice(0, 3).map((opp, idx) => (
+                        <li key={idx}>
+                          <span className="font-semibold">{opp.term}:</span> {opp.why}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {insight.risks && insight.risks.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-semibold mb-2 uppercase text-red-600">Risks</h4>
+                    <ul className="space-y-1.5 text-xs">
+                      {insight.risks.slice(0, 2).map((risk, idx) => (
+                        <li key={idx}>
+                          <span className="font-semibold">{risk.term}:</span> {risk.why}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
                 <div className="flex items-center gap-2">
@@ -571,5 +694,44 @@ function formatTrendWithColor(keyword: KeywordResult): JSX.Element {
       {trendStatus.icon}
       <span>{trendStatus.label}</span>
     </div>
+  );
+}
+
+function MetricCard({ metric }: { metric: KeyMetric }) {
+  const score = metric.score ?? 0.5;
+  const getScoreColor = (score: number) => {
+    if (score >= 0.7) return "bg-green-100 text-green-800 border-green-300 dark:bg-green-900 dark:text-green-200";
+    if (score >= 0.4) return "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-200";
+    return "bg-red-100 text-red-800 border-red-300 dark:bg-red-900 dark:text-red-200";
+  };
+
+  return (
+    <div className={`border-2 rounded-lg p-2 ${getScoreColor(score)}`}>
+      <div className="text-[10px] font-medium mb-0.5 opacity-80">{metric.label}</div>
+      <div className="text-sm font-bold mb-0.5">{metric.value}</div>
+      {metric.interpretation && (
+        <div className="text-[10px] font-semibold">{metric.interpretation}</div>
+      )}
+    </div>
+  );
+}
+
+function highlightKeyword(text: string, keyword: string): React.ReactNode {
+  if (!keyword || !text) return text;
+  const regex = new RegExp(`(${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  const parts = text.split(regex);
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <mark key={i} className="bg-yellow-200 dark:bg-yellow-900 font-semibold px-0.5 rounded">
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
   );
 }
