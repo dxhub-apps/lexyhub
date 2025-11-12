@@ -5,8 +5,8 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useSession } from "@supabase/auth-helpers-react";
 import {
   ArrowUpRight,
-  ArrowTrendingUp,
-  ArrowTrendingDown,
+  TrendingUp,
+  TrendingDown,
   Brain,
   ExternalLink,
   LineChart,
@@ -559,9 +559,9 @@ function getTrendStatus(keyword: KeywordResult): { label: string; color: string;
     const change = oldest > 0 ? ((newest - oldest) / oldest) * 100 : (newest > 0 ? 100 : 0);
 
     if (change > 10) {
-      return { label: "Rising", color: "text-green-600", icon: <ArrowTrendingUp className="h-4 w-4" /> };
+      return { label: "Rising", color: "text-green-600", icon: <TrendingUp className="h-4 w-4" /> };
     } else if (change < -10) {
-      return { label: "Dropping", color: "text-red-600", icon: <ArrowTrendingDown className="h-4 w-4" /> };
+      return { label: "Dropping", color: "text-red-600", icon: <TrendingDown className="h-4 w-4" /> };
     } else {
       return { label: "Stale", color: "text-yellow-600", icon: <Minus className="h-4 w-4" /> };
     }
