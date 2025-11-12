@@ -203,6 +203,27 @@ export function InsightGenerator() {
 // =====================================================
 
 function MarketBriefDisplay({ data, responseId }: { data: any; responseId?: string | null }) {
+  // Function to highlight the searched keyword in the summary
+  const highlightKeyword = (text: string, keyword: string) => {
+    if (!keyword) return text;
+    const regex = new RegExp(`(${keyword})`, 'gi');
+    const parts = text.split(regex);
+
+    return (
+      <>
+        {parts.map((part, i) =>
+          regex.test(part) ? (
+            <mark key={i} className="bg-yellow-200 dark:bg-yellow-900 font-semibold px-1 rounded">
+              {part}
+            </mark>
+          ) : (
+            <span key={i}>{part}</span>
+          )
+        )}
+      </>
+    );
+  };
+
   return (
     <div className="space-y-4">
       <Card>
@@ -218,8 +239,21 @@ function MarketBriefDisplay({ data, responseId }: { data: any; responseId?: stri
         <CardContent className="space-y-4">
           <div>
             <h4 className="font-semibold mb-2">Summary</h4>
-            <p className="text-sm text-muted-foreground">{data.summary}</p>
+            <p className="text-sm text-muted-foreground">
+              {highlightKeyword(data.summary, data.niche)}
+            </p>
           </div>
+
+          {data.key_metrics && data.key_metrics.length > 0 && (
+            <div>
+              <h4 className="font-semibold mb-3">Key Metrics</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {data.key_metrics.map((metric: any, i: number) => (
+                  <MetricCard key={i} metric={metric} />
+                ))}
+              </div>
+            </div>
+          )}
 
           {data.top_opportunities && data.top_opportunities.length > 0 && (
             <div>
@@ -259,6 +293,25 @@ function MarketBriefDisplay({ data, responseId }: { data: any; responseId?: stri
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function MetricCard({ metric }: { metric: any }) {
+  const score = metric.score ?? 0.5;
+  const getScoreColor = (score: number) => {
+    if (score >= 0.7) return "bg-green-100 text-green-800 border-green-300 dark:bg-green-900 dark:text-green-200";
+    if (score >= 0.4) return "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-200";
+    return "bg-red-100 text-red-800 border-red-300 dark:bg-red-900 dark:text-red-200";
+  };
+
+  return (
+    <div className={`border-2 rounded-lg p-3 ${getScoreColor(score)}`}>
+      <div className="text-xs font-medium mb-1 opacity-80">{metric.label}</div>
+      <div className="text-lg font-bold mb-1">{metric.value}</div>
+      {metric.interpretation && (
+        <div className="text-xs font-semibold">{metric.interpretation}</div>
+      )}
     </div>
   );
 }
