@@ -110,7 +110,7 @@
     "@vitest/coverage-v8": "^4.0.7",
     "archiver": "6.0.1",
     "autoprefixer": "^10.4.21",
-    "eslint": "8.57.0",
+    "eslint": "9.39.1",
     "eslint-config-next": "14.2.5",
     "husky": "9.1.2",
     "lint-staged": "15.2.7",
