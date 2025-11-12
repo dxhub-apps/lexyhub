@@ -720,22 +720,11 @@ export async function runLexyBrainOrchestration(
       "No corpus data available - returning hard-stop no-data response"
     );
 
-    // Provide a more detailed, human-readable error message
-    let errorMessage = `We don't have enough data about "${keywordTerm}" yet to provide meaningful insights.`;
+    // Provide a user-friendly error message
+    let errorMessage = `We're still gathering data for "${keywordTerm}". Please check back in a few minutes.`;
 
-    if (keywords.length > 0) {
-      errorMessage += `\n\nThe keyword exists in our database, but we need to gather more information first. This usually takes a few minutes after a keyword is added.`;
-
-      if (resolvedMarketplace) {
-        errorMessage += `\n\nMarketplace: ${resolvedMarketplace}`;
-      }
-
-      errorMessage += `\n\nWhat you can do:
-• Wait a few minutes and try again (our system collects data automatically)
-• Check if the keyword has been fully processed in the keywords table
-• Contact support if this issue persists`;
-    } else {
-      errorMessage += `\n\nThis keyword may not be in our database yet. Try searching for it first to add it to LexyHub.`;
+    if (keywords.length === 0) {
+      errorMessage = `This keyword isn't in our system yet. Try searching for "${keywordTerm}" first to add it to LexyHub.`;
     }
 
     throw new Error(errorMessage);
