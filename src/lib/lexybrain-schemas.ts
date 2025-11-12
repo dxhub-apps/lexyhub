@@ -21,9 +21,17 @@ export const MarketBriefRiskSchema = z.object({
   why: z.string().min(1),
 });
 
+export const KeyMetricSchema = z.object({
+  label: z.string().min(1),
+  value: z.union([z.string(), z.number()]),
+  score: z.number().min(0).max(1).optional(),
+  interpretation: z.string().optional(),
+});
+
 export const MarketBriefSchema = z.object({
   niche: z.string().min(1),
   summary: z.string().min(1),
+  key_metrics: z.array(KeyMetricSchema).max(8).optional(),
   top_opportunities: z.array(MarketBriefOpportunitySchema).max(10),
   risks: z.array(MarketBriefRiskSchema).max(10),
   actions: z.array(z.string().min(1)).max(10),
@@ -35,6 +43,7 @@ export type MarketBriefOpportunity = z.infer<
   typeof MarketBriefOpportunitySchema
 >;
 export type MarketBriefRisk = z.infer<typeof MarketBriefRiskSchema>;
+export type KeyMetric = z.infer<typeof KeyMetricSchema>;
 
 // =====================================================
 // Opportunity Radar Schema
@@ -150,6 +159,14 @@ OUTPUT SCHEMA (MarketBrief):
 {
   "niche": "string (required, the niche/market being analyzed)",
   "summary": "string (required, 2-4 sentence overview)",
+  "key_metrics": [
+    {
+      "label": "string (required, metric name like 'Search Volume', 'Competition Level', etc.)",
+      "value": "string or number (required, the metric value)",
+      "score": number (optional, normalized 0.0 to 1.0 for color coding),
+      "interpretation": "string (optional, brief explanation like 'High', 'Moderate', 'Growing', etc.)"
+    }
+  ],
   "top_opportunities": [
     {
       "term": "string (required, keyword)",
@@ -169,6 +186,7 @@ OUTPUT SCHEMA (MarketBrief):
 REQUIREMENTS:
 - Return ONLY valid JSON
 - No markdown formatting, no code fences
+- key_metrics: max 8 items (optional but recommended - include metrics like search volume, competition, trend, engagement from context data)
 - top_opportunities: max 10 items
 - risks: max 10 items
 - actions: max 10 items
@@ -290,6 +308,12 @@ export const EXAMPLE_MARKET_BRIEF: MarketBrief = {
   niche: "Handmade Jewelry",
   summary:
     "The handmade jewelry market shows strong demand with moderate competition. Growing interest in personalized and sustainable products creates opportunities.",
+  key_metrics: [
+    { label: "Search Volume", value: "12.5K/month", score: 0.75, interpretation: "High" },
+    { label: "Competition Level", value: "Moderate", score: 0.55, interpretation: "Balanced" },
+    { label: "Trend Momentum", value: "+15%", score: 0.82, interpretation: "Growing" },
+    { label: "Engagement Score", value: "68/100", score: 0.68, interpretation: "Good" },
+  ],
   top_opportunities: [
     { term: "custom birthstone rings", why: "High demand, low competition" },
     { term: "eco friendly necklaces", why: "Growing sustainability trend" },

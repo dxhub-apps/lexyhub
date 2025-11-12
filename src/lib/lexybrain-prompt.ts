@@ -231,11 +231,19 @@ function getTypeSpecificInstructions(
       return `Generate a comprehensive market brief for the provided niche.
 
 FOCUS AREAS:
+- **Extract key metrics from context data** (demand_index, competition_score, trend_momentum, engagement_score, search volume, etc.)
 - Identify ${maxOpportunities} top keyword opportunities with high potential
 - Highlight ${maxRisks} key risks or challenges
 - Provide ${maxActions} specific actionable recommendations
 - Assess overall market confidence (${minConfidence} to 1.0)
 - **CRITICAL**: Factor in seasonal opportunities and timing
+
+KEY METRICS REQUIREMENTS:
+- Include 4-8 key metrics from the provided keyword data
+- Use actual values from context (demand_index, competition_score, trend_momentum, engagement_score)
+- Provide normalized scores (0-1) for visual color coding
+- Add interpretation labels (e.g., "High", "Moderate", "Low", "Growing", "Declining")
+- Examples: "Search Volume" (from demand_index), "Competition Level" (from competition_score), "Trend Momentum", "Engagement Score"
 
 ANALYSIS APPROACH:
 - High demand + low competition = strong opportunity
@@ -246,7 +254,7 @@ ANALYSIS APPROACH:
 - Prioritize opportunities aligned with upcoming peak seasons
 
 OUTPUT:
-Comprehensive market brief in the specified JSON format.`;
+Comprehensive market brief in the specified JSON format with key_metrics array populated.`;
 
     case "radar":
       return `Analyze keywords and score each across 5 dimensions.
