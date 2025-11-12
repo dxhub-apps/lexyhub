@@ -20,6 +20,7 @@ interface SearchRequestPayload {
   source?: string;
   sources?: string[];
   plan?: PlanTier | string;
+  final?: boolean | string;
 }
 
 type KeywordRow = {
@@ -333,6 +334,7 @@ async function loadSearchPayload(req: Request): Promise<SearchRequestPayload> {
       market: url.searchParams.get("market") ?? undefined,
       limit: url.searchParams.get("limit") ? Number(url.searchParams.get("limit")) : undefined,
       source: url.searchParams.get("source") ?? undefined,
+      final: url.searchParams.get("final") ?? undefined,
     };
   }
 
@@ -457,11 +459,14 @@ async function handleSearch(req: Request): Promise<NextResponse> {
     console.error("Failed to fetch exact match keyword", error);
   }
 
-  // Only record in keyword_search_requests if the keyword doesn't exist yet
+  // Record all final searches (when user presses Enter, clicks Search button, or clicks suggestion)
+  // This helps track user search behavior and analytics
   const keywordExists = exactMatchKeyword !== null;
+  const isFinalSearch = payload.final === true || payload.final === "true";
 
-  if (!keywordExists) {
-    // Record this as a new keyword search request that needs to be processed
+  if (isFinalSearch) {
+    // Record the search request with appropriate reason
+    const reason = keywordExists ? "search" : "new_keyword";
     await recordKeywordSearchRequest({
       supabase,
       query: trimmedQuery,
@@ -470,10 +475,12 @@ async function handleSearch(req: Request): Promise<NextResponse> {
       plan,
       sources: resolvedSources,
       userId,
-      reason: "new_keyword",
+      reason,
     });
+  }
 
-    // Immediately insert the keyword into the keywords table for future searches
+  // If the keyword doesn't exist yet, insert it into the keywords table for future searches
+  if (!keywordExists && isFinalSearch) {
     try {
       const tier = resolvePlanRank(plan);
 
