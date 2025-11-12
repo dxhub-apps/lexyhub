@@ -13,7 +13,7 @@ import { createSemanticEmbedding } from "../src/lib/ai/semantic-embeddings";
 
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const BATCH_SIZE = parseInt(process.env.BATCH_SIZE || "50", 10);
+const BATCH_SIZE = parseInt(process.env.BATCH_SIZE || "500", 10);
 const LOOKBACK_DAYS = parseInt(process.env.LOOKBACK_DAYS || "30", 10);
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
