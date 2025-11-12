@@ -6,7 +6,8 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { createSemanticEmbedding } from "@/lib/ai/semantic-embeddings";
 
-const BATCH_SIZE = 50;
+const _envBatch = Number(process.env.CORPUS_MAX_BATCH_SIZE);
+const BATCH_SIZE = Number.isFinite(_envBatch) && _envBatch > 0 ? _envBatch : 50;
 const LOOKBACK_DAYS = 7;
 
 interface Keyword {
