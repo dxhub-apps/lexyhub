@@ -587,7 +587,6 @@ async function handleSearch(req: Request): Promise<NextResponse> {
   // Record all final searches (when user presses Enter, clicks Search button, or clicks suggestion)
   // This helps track user search behavior and analytics
   const keywordExists = exactMatchKeyword !== null;
-  const isFinalSearch = payload.final === true || payload.final === "true";
 
   if (isFinalSearch) {
     // Record the search request with appropriate reason
