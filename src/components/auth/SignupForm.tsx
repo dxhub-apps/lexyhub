@@ -21,7 +21,7 @@ type SignupFormProps = {
   redirectTo?: string;
 };
 
-export function SignupForm({ redirectTo = "/dashboard" }: SignupFormProps): JSX.Element {
+export function SignupForm({ redirectTo = "/search" }: SignupFormProps): JSX.Element {
   const router = useRouter();
   const supabase = useSupabaseClient();
   const { toast } = useToast();
@@ -238,7 +238,7 @@ export function SignupForm({ redirectTo = "/dashboard" }: SignupFormProps): JSX.
         <p className="text-sm text-muted-foreground">
           Already have an account?{" "}
           <Link
-            href={`/login${redirectTo !== "/dashboard" ? `?redirect_to=${encodeURIComponent(redirectTo)}` : ""}`}
+            href={`/login${redirectTo !== "/search" ? `?redirect_to=${encodeURIComponent(redirectTo)}` : ""}`}
             className="font-medium text-primary hover:underline"
           >
             Sign in

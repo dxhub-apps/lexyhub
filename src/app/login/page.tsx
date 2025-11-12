@@ -32,10 +32,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     session && user ? { ...session, user } : session;
 
   if (user) {
-    redirect("/dashboard");
+    redirect("/search");
   }
 
-  const redirectTo = typeof searchParams?.redirect_to === "string" && searchParams.redirect_to ? searchParams.redirect_to : "/dashboard";
+  const redirectTo = typeof searchParams?.redirect_to === "string" && searchParams.redirect_to ? searchParams.redirect_to : "/search";
 
   return (
     <SupabaseProvider initialSession={validatedSession}>
