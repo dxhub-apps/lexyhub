@@ -95,7 +95,7 @@ export function parseQAKeywords(container: Element): string[] {
   const questions = container.querySelectorAll('[class*="question"], [class*="Question"]');
   const answers = container.querySelectorAll('[class*="answer"], [class*="Answer"]');
 
-  [...questions, ...answers].forEach(elem => {
+  [...Array.from(questions), ...Array.from(answers)].forEach(elem => {
     const text = elem.textContent?.trim();
     if (text) {
       // Extract meaningful phrases

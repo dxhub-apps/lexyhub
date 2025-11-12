@@ -47,6 +47,19 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     });
   }
 
+  // Setup context menus
+  chrome.contextMenus.create({
+    id: "lexyhub-send-to-watchlist",
+    title: "Add '%s' to LexyHub Watchlist",
+    contexts: ["selection"],
+  });
+
+  chrome.contextMenus.create({
+    id: "lexyhub-create-brief",
+    title: "Create LexyHub Brief for '%s'",
+    contexts: ["selection"],
+  });
+
   // Fetch remote config
   await remoteConfig.fetch();
 });
@@ -398,21 +411,6 @@ async function handleDeleteData(sendResponse: (response: any) => void) {
   }
 }
 
-// Context Menu Setup
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id: "lexyhub-send-to-watchlist",
-    title: "Add '%s' to LexyHub Watchlist",
-    contexts: ["selection"],
-  });
-
-  chrome.contextMenus.create({
-    id: "lexyhub-create-brief",
-    title: "Create LexyHub Brief for '%s'",
-    contexts: ["selection"],
-  });
-});
-
 // Context Menu Click Handler
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const selectedText = info.selectionText?.trim();
@@ -432,7 +430,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       // Show notification
       chrome.notifications.create({
         type: "basic",
-        iconUrl: "icons/icon-48.png",
+        iconUrl: "icons/icon48.png",
         title: "LexyHub",
         message: `Added "${selectedText}" to watchlist`,
       });
@@ -445,7 +443,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
       chrome.notifications.create({
         type: "basic",
-        iconUrl: "icons/icon-48.png",
+        iconUrl: "icons/icon48.png",
         title: "LexyHub",
         message: `Creating brief for "${selectedText}"...`,
       });
