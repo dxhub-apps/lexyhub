@@ -11,9 +11,8 @@
  *   npm run jobs:dataforseo-enrich-metrics -- --where "id IN (...)"
  */
 
-import { createClient } from "@/lib/supabase/server";
-import { logger } from "@/lib/logger";
-import { logJobExecution } from "@/lib/jobs";
+import { getSupabaseServerClient } from "@/lib/supabase-server";
+import { logger, logJobExecution } from "@/lib/logger";
 import fs from "fs";
 import path from "path";
 
@@ -90,7 +89,11 @@ Examples:
  * Install the enrichment SQL function if not exists
  */
 async function installEnrichmentFunction() {
-  const supabase = await createClient("service_role");
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Failed to initialize Supabase client");
+  }
+
   const sqlPath = path.join(__dirname, "enrichment.sql");
 
   if (!fs.existsSync(sqlPath)) {
@@ -121,7 +124,10 @@ async function installEnrichmentFunction() {
 async function runEnrichment(
   config: EnrichmentConfig
 ): Promise<EnrichmentResult> {
-  const supabase = await createClient("service_role");
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Failed to initialize Supabase client");
+  }
 
   logger.info(
     {
