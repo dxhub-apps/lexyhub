@@ -265,40 +265,50 @@ export default function SearchWorkspace(): JSX.Element {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="relative">
-          <Input
-            ref={inputRef}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search for a keyword"
-            className="h-14 rounded-lg border border-border px-12 text-lg font-medium"
-            autoComplete="off"
-          />
-          <SearchIcon className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-foreground" />
-          {loadingSuggestions && (
-            <Loader2 className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 animate-spin text-foreground" />
-          )}
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <div className="relative flex-1">
+            <Input
+              ref={inputRef}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search for a keyword"
+              className="h-14 rounded-lg border border-border px-12 text-lg font-medium"
+              autoComplete="off"
+            />
+            <SearchIcon className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-foreground" />
+            {loadingSuggestions && (
+              <Loader2 className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 animate-spin text-foreground" />
+            )}
 
-          {suggestions.length > 0 && (
-            <ul className="absolute z-10 mt-2 w-full rounded-lg border border-border bg-background">
-              {suggestions.map((item) => (
-                <li key={item}>
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between px-4 py-2 text-left text-sm hover:bg-secondary"
-                    onClick={() => {
-                      setQuery(item);
-                      setSuggestions([]);
-                      void fetchResults(item, true);
-                    }}
-                  >
-                    <span>{item}</span>
-                    <ArrowUpRight className="h-4 w-4" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+            {suggestions.length > 0 && (
+              <ul className="absolute z-10 mt-2 w-full rounded-lg border border-border bg-background">
+                {suggestions.map((item) => (
+                  <li key={item}>
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between px-4 py-2 text-left text-sm hover:bg-secondary"
+                      onClick={() => {
+                        setQuery(item);
+                        setSuggestions([]);
+                        void fetchResults(item, true);
+                      }}
+                    >
+                      <span>{item}</span>
+                      <ArrowUpRight className="h-4 w-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <Button
+            type="submit"
+            size="lg"
+            className="h-14 px-8"
+            disabled={loadingResults || !query.trim()}
+          >
+            Search
+          </Button>
         </form>
       </section>
 
@@ -320,14 +330,13 @@ export default function SearchWorkspace(): JSX.Element {
                   <th className="px-3 py-2 font-medium">Volume</th>
                   <th className="px-3 py-2 font-medium">Competition</th>
                   <th className="px-3 py-2 font-medium">Trend</th>
-                  <th className="px-3 py-2 font-medium">LexyBrain</th>
                   <th className="px-3 py-2 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loadingResults ? (
                   <tr>
-                    <td colSpan={6} className="px-3 py-6 text-center">
+                    <td colSpan={5} className="px-3 py-6 text-center">
                       <div className="inline-flex items-center gap-2 text-sm font-medium">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Loading keywords…
@@ -336,7 +345,7 @@ export default function SearchWorkspace(): JSX.Element {
                   </tr>
                 ) : results.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-3 py-6 text-center text-sm">
+                    <td colSpan={5} className="px-3 py-6 text-center text-sm">
                       {error ? error : "Start typing to explore the keyword universe."}
                     </td>
                   </tr>
@@ -372,9 +381,6 @@ export default function SearchWorkspace(): JSX.Element {
                         </td>
                         <td className="px-3 py-3 text-sm font-medium">
                           {formatPercent(keyword.trend_momentum)}
-                        </td>
-                        <td className="px-3 py-3 text-sm">
-                          {insight && isActive ? insight.summary : "Open LexyBrain"}
                         </td>
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-2">
