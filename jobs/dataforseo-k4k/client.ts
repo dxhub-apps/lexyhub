@@ -204,14 +204,11 @@ export class DataForSEOClient {
   /**
    * Get results for a specific task
    *
-   * DataForSEO provides two task_get endpoints:
-   * - Standard: /task_get/{id} - basic results
-   * - Advanced: /task_get/advanced/{id} - detailed results with additional metrics
-   *
-   * Using advanced endpoint to avoid 50301 errors.
+   * Note: For Keywords for Keywords API, use the standard task_get endpoint.
+   * The /advanced variant exists for some APIs but returns 404 for this endpoint.
    */
   async getTaskResult(taskId: string): Promise<DataForSEOTaskGetResponse> {
-    const url = `${BASE_URL}/v3/keywords_data/google_ads/keywords_for_keywords/task_get/advanced/${taskId}`;
+    const url = `${BASE_URL}/v3/keywords_data/google_ads/keywords_for_keywords/task_get/${taskId}`;
 
     console.log(`[DataForSEO] GET ${url}`);
 
