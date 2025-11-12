@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { Bell } from "lucide-react";
 import { useSession } from "@supabase/auth-helpers-react";
 import Link from "next/link";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -26,7 +27,7 @@ type Notification = {
   created_at: string;
 };
 
-const POLL_INTERVAL_MS = 60000; // 60 seconds
+const FALLBACK_POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes fallback
 const MAX_RETRIES = 3;
 const INITIAL_BACKOFF_MS = 2000; // 2 seconds
 
@@ -115,14 +116,53 @@ export function NotificationsBell(): JSX.Element {
     // Initial load
     void loadNotifications();
 
-    // Poll for new notifications every 60 seconds
-    const interval = setInterval(() => {
+    // Set up realtime subscription for new notifications
+    console.log('[NotificationsBell] Setting up realtime subscription for user:', userId);
+    const channel = supabaseBrowser
+      .channel(`notifications:${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notification_delivery',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          console.log('[NotificationsBell] New notification received via realtime:', payload);
+          // Reload notifications when a new one arrives
+          void loadNotifications();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notification_delivery',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          console.log('[NotificationsBell] Notification updated via realtime:', payload);
+          // Reload notifications when one is updated (e.g., marked as read)
+          void loadNotifications();
+        }
+      )
+      .subscribe((status) => {
+        console.log('[NotificationsBell] Realtime subscription status:', status);
+      });
+
+    // Fallback polling every 5 minutes in case realtime fails
+    const fallbackInterval = setInterval(() => {
+      console.log('[NotificationsBell] Running fallback poll');
       void loadNotifications();
-    }, POLL_INTERVAL_MS);
+    }, FALLBACK_POLL_INTERVAL_MS);
 
     // Cleanup function
     return () => {
-      clearInterval(interval);
+      console.log('[NotificationsBell] Cleaning up subscription');
+      clearInterval(fallbackInterval);
+      void supabaseBrowser.removeChannel(channel);
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
