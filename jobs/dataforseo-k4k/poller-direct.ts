@@ -160,8 +160,29 @@ export class DirectTaskPoller {
         }, `[DirectTaskPoller] Unknown status code ${taskResult.status_code} for task ${taskId}`);
       }
     } catch (error: any) {
-      logger.warn({ taskId, error }, `[DirectTaskPoller] Failed to check task ${taskId}: ${error.message}`);
-      // Don't mark as failed - might be transient network error
+      const taskState = this.tasks.get(taskId);
+
+      // Check if this is a 404 error (task not found, expired, or already retrieved)
+      if (error.message && error.message.includes('404')) {
+        logger.error(
+          { taskId, error: error.message },
+          `[DirectTaskPoller] Task not found (404) - likely expired or already retrieved: ${taskId}`
+        );
+
+        // Mark task as failed with descriptive error
+        if (taskState && taskState.status === "pending") {
+          taskState.status = "failed";
+          taskState.error = "Task not found (404) - task may have expired, been already retrieved, or does not exist";
+          taskState.completedAt = Date.now();
+        }
+      } else {
+        // For other errors (network issues, etc), log warning but don't mark as failed
+        // These might be transient and could resolve on next poll
+        logger.warn(
+          { taskId, error: error.message },
+          `[DirectTaskPoller] Failed to check task ${taskId}: ${error.message}`
+        );
+      }
     }
   }
 
