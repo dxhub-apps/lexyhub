@@ -1,5 +1,6 @@
 // src/app/api/keywords/search/route.ts
 import { NextResponse } from "next/server";
+import { createHash } from "crypto";
 
 import { DEFAULT_EMBEDDING_MODEL, getOrCreateEmbedding } from "@/lib/ai/embeddings";
 import { env } from "@/lib/env";
@@ -314,42 +315,43 @@ async function buildSummary(query: string, ranked: RankedKeyword[]): Promise<str
   }
 }
 
-async function rankKeywords(
+async function rankKeywordsOptimized(
   queryEmbedding: { embedding: number[]; model: string },
-  keywords: KeywordRow[],
+  market: string,
+  sources: string[],
+  tiers: string[],
+  query: string,
+  limit: number,
   supabaseClient: ReturnType<typeof getSupabaseServerClient>,
-  originalQuery: string,
 ): Promise<RankedKeyword[]> {
-  const ranked: RankedKeyword[] = [];
-  const qLower = originalQuery.toLowerCase().trim();
+  if (!supabaseClient) return [];
 
-  for (const keyword of keywords) {
-    const term = typeof keyword.term === "string" ? keyword.term.trim() : "";
-    if (!term) continue;
+  // Use the optimized database function for ranking
+  // This eliminates the N+1 embedding API call problem
+  const { data, error } = await supabaseClient.rpc("lexy_rank_keywords", {
+    p_query_embedding: queryEmbedding.embedding,
+    p_market: market,
+    p_sources: sources,
+    p_tiers: tiers,
+    p_query: query,
+    p_limit: limit,
+  });
 
-    const embedding = await getOrCreateEmbedding(term, {
-      supabase: supabaseClient,
-      model: DEFAULT_EMBEDDING_MODEL,
-    });
-
-    const sim = cosineSimilarity(queryEmbedding.embedding, embedding.embedding);
-    const composite = computeCompositeScore(keyword);
-    const isExact = term.toLowerCase() === qLower;
-
-    const rankingScore = isExact ? Number.MAX_SAFE_INTEGER : sim * 0.55 + composite * 0.45;
-
-    ranked.push({
-      ...keyword,
-      term,
-      similarity: isExact ? 1 : sim,
-      embeddingModel: embedding.model,
-      provenance_id: createProvenanceId(keyword.source, keyword.market, term),
-      compositeScore: composite,
-      rankingScore,
-    });
+  if (error) {
+    console.error("Failed to rank keywords using optimized RPC", error);
+    // Fallback to basic fetch if RPC fails
+    return [];
   }
 
-  return ranked.sort((a, b) => b.rankingScore - a.rankingScore);
+  const results = (data ?? []) as any[];
+  return results.map((row) => ({
+    ...coerceKeyword(row),
+    similarity: row.similarity ?? 0.5,
+    embeddingModel: queryEmbedding.model,
+    provenance_id: createProvenanceId(row.source, row.market, row.term),
+    compositeScore: row.composite_score ?? 0.5,
+    rankingScore: row.ranking_score ?? 0.5,
+  }));
 }
 
 async function loadSearchPayload(req: Request): Promise<SearchRequestPayload> {
@@ -381,6 +383,66 @@ function resolveUserId(req: Request): string | null {
   }
 
   return null;
+}
+
+function buildSearchCacheKey(query: string, market: string, plan: string, sources: string[]): string {
+  const hash = createHash("sha256");
+  const sortedSources = [...sources].sort();
+  hash.update(JSON.stringify({ query, market, plan, sources: sortedSources }));
+  return hash.digest("hex");
+}
+
+async function getSearchResultsFromCache(
+  cacheKey: string,
+  supabase: NonNullable<ReturnType<typeof getSupabaseServerClient>>
+): Promise<any | null> {
+  try {
+    const { data, error } = await supabase
+      .from("keyword_search_cache")
+      .select("results, generated_at")
+      .eq("cache_key", cacheKey)
+      .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString()) // 1 hour cache
+      .maybeSingle();
+
+    if (error || !data) return null;
+
+    return {
+      results: data.results,
+      generatedAt: data.generated_at,
+      cached: true,
+    };
+  } catch (error) {
+    console.error("Failed to get search results from cache", error);
+    return null;
+  }
+}
+
+async function upsertSearchResultsCache(
+  cacheKey: string,
+  query: string,
+  market: string,
+  plan: string,
+  sources: string[],
+  results: any[],
+  supabase: NonNullable<ReturnType<typeof getSupabaseServerClient>>
+): Promise<void> {
+  try {
+    await supabase.from("keyword_search_cache").upsert(
+      {
+        cache_key: cacheKey,
+        query,
+        market,
+        plan,
+        sources,
+        results,
+        result_count: results.length,
+        generated_at: new Date().toISOString(),
+      },
+      { onConflict: "cache_key" }
+    );
+  } catch (error) {
+    console.error("Failed to cache search results", error);
+  }
 }
 
 async function recordKeywordSearchRequest({
@@ -454,6 +516,43 @@ async function handleSearch(req: Request): Promise<NextResponse> {
 
   const userId = resolveUserId(req);
 
+  // Check cache first for non-final searches (typing/autocomplete)
+  const isFinalSearch = payload.final === true || payload.final === "true";
+  const cacheSources = [...resolvedSources].sort();
+  const cacheKey = buildSearchCacheKey(query, market, plan, cacheSources);
+
+  if (!isFinalSearch) {
+    const cachedResults = await getSearchResultsFromCache(cacheKey, supabase);
+    if (cachedResults) {
+      const queryEmbedding = await getOrCreateEmbedding(query, { supabase });
+      const sliced = (cachedResults.results ?? []).slice(0, limit);
+
+      const insightsCacheKey = buildKeywordInsightCacheKey({
+        query,
+        market,
+        plan,
+        sources: cacheSources,
+        results: sliced,
+      });
+      const cachedInsights = await getKeywordInsightFromCache(insightsCacheKey, supabase);
+
+      return NextResponse.json({
+        query,
+        market,
+        plan,
+        source: primarySource,
+        sources: resolvedSources,
+        results: sliced,
+        insights: {
+          summary: cachedInsights?.summary ?? "Cached results",
+          generatedAt: cachedResults.generatedAt,
+          model: queryEmbedding.model,
+        },
+        cached: true,
+      });
+    }
+  }
+
   // Enforce keyword search quota (KS) for authenticated users
   if (userId) {
     try {
@@ -488,7 +587,6 @@ async function handleSearch(req: Request): Promise<NextResponse> {
   // Record all final searches (when user presses Enter, clicks Search button, or clicks suggestion)
   // This helps track user search behavior and analytics
   const keywordExists = exactMatchKeyword !== null;
-  const isFinalSearch = payload.final === true || payload.final === "true";
 
   if (isFinalSearch) {
     // Record the search request with appropriate reason
@@ -537,24 +635,22 @@ async function handleSearch(req: Request): Promise<NextResponse> {
     }
   }
 
-  const keywords = await fetchKeywordsFromSupabase(
+  // Get query embedding once (not per keyword)
+  const queryEmbedding = await getOrCreateEmbedding(query, { supabase });
+
+  // Use optimized database ranking (eliminates N+1 embedding API calls)
+  const ranked = await rankKeywordsOptimized(
+    queryEmbedding,
     market,
     resolvedSources,
     allowedTiers,
-    limit,
     trimmedQuery,
+    limit,
+    supabase,
   );
 
-  const needsInject =
-    !!exactMatchKeyword && !keywords.some((k) => k.id && k.id === exactMatchKeyword!.id);
-
-  const allKeywords = needsInject
-    ? [exactMatchKeyword!, ...keywords]
-    : exactMatchKeyword
-    ? [exactMatchKeyword, ...keywords.filter((k) => k.id !== exactMatchKeyword.id)]
-    : keywords;
-
-  if (allKeywords.length === 0) {
+  // If no results, return empty response
+  if (ranked.length === 0) {
     return NextResponse.json({
       query,
       market,
@@ -570,13 +666,12 @@ async function handleSearch(req: Request): Promise<NextResponse> {
     });
   }
 
-  const queryEmbedding = await getOrCreateEmbedding(query, { supabase });
-
-  const ranked = await rankKeywords(queryEmbedding, allKeywords, supabase, trimmedQuery);
   const sliced = ranked.slice(0, limit);
 
-  const cacheSources = [...resolvedSources].sort();
-  const cacheKey = buildKeywordInsightCacheKey({
+  // Cache the search results for future requests
+  await upsertSearchResultsCache(cacheKey, query, market, plan, cacheSources, sliced, supabase);
+
+  const insightsCacheKey = buildKeywordInsightCacheKey({
     query,
     market,
     plan,
@@ -584,7 +679,7 @@ async function handleSearch(req: Request): Promise<NextResponse> {
     results: sliced,
   });
 
-  const cachedInsights = await getKeywordInsightFromCache(cacheKey, supabase);
+  const cachedInsights = await getKeywordInsightFromCache(insightsCacheKey, supabase);
 
   let insightsSummary: string;
   let insightsGeneratedAt: string;

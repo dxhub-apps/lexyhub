@@ -542,18 +542,60 @@ export async function runLexyBrainOrchestration(
     "Starting LexyBrain orchestration"
   );
 
-  const profile = await fetchUserProfile(request.userId);
+  const keywordIds = Array.from(new Set(request.keywordIds ?? [])).filter((id) => typeof id === "string" && id.length > 0);
+
+  // Check for recent snapshot before generating new insight (60 min cache)
+  if (keywordIds.length === 1) {
+    const { data: recentSnapshot } = await supabase.rpc("lexy_get_recent_snapshot", {
+      p_keyword_id: keywordIds[0],
+      p_capability: request.capability,
+      p_max_age_minutes: 60,
+    });
+
+    if (recentSnapshot && Array.isArray(recentSnapshot) && recentSnapshot.length > 0) {
+      const snapshot = recentSnapshot[0] as any;
+      logger.info(
+        {
+          type: "lexybrain_snapshot_reused",
+          capability: request.capability,
+          user_id: request.userId,
+          keyword_id: keywordIds[0],
+          snapshot_age_minutes: snapshot.age_minutes,
+        },
+        `Reusing recent snapshot (${snapshot.age_minutes} minutes old)`
+      );
+
+      return {
+        capability: request.capability,
+        outputType: config.outputType,
+        insight: snapshot.insight,
+        metrics: snapshot.metrics_used ?? {},
+        references: snapshot.references ?? [],
+        llama: {
+          modelVersion: "cached",
+          latencyMs: 0,
+          promptTokens: 0,
+          outputTokens: 0,
+        },
+        snapshot: { ids: [snapshot.id] },
+      };
+    }
+  }
+
+  // Parallelize all database queries for better performance
+  const [profile, keywords, metrics, predictions, risk] = await Promise.all([
+    fetchUserProfile(request.userId),
+    fetchKeywords(keywordIds),
+    fetchKeywordMetrics(keywordIds),
+    fetchPredictions(keywordIds, normalizeMarketplace(request.marketplace ?? null, null)),
+    fetchRiskSignals(keywordIds, normalizeMarketplace(request.marketplace ?? null, null)),
+  ]);
+
   if (!profile) {
     logger.warn({ type: "lexybrain_missing_profile", user_id: request.userId }, "Missing user profile for LexyBrain access");
   }
 
-  const keywordIds = Array.from(new Set(request.keywordIds ?? [])).filter((id) => typeof id === "string" && id.length > 0);
-  const keywords = await fetchKeywords(keywordIds);
   if (keywordIds.length > 0 && keywords.length === 0) throw new Error("No reliable data: keywords not found in golden source");
-
-  const metrics = await fetchKeywordMetrics(keywordIds);
-  const predictions = await fetchPredictions(keywordIds, normalizeMarketplace(request.marketplace ?? null, null));
-  const risk = await fetchRiskSignals(keywordIds, normalizeMarketplace(request.marketplace ?? null, null));
 
   const queryParts = [request.query ?? "", ...keywords.map((k) => k.term)];
   const queryText = queryParts.join(" ").trim();

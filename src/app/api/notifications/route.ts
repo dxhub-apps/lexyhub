@@ -5,6 +5,8 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/notifications - Get user's notifications
 export async function GET(req: Request): Promise<NextResponse> {
   const supabase = createRouteHandlerClient({ cookies });
