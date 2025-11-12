@@ -41,7 +41,7 @@ type KeywordRow = {
   adjusted_demand_index?: number | null;
   deseasoned_trend_momentum?: number | null;
   seasonal_label?: string | null;
-  // Extracted from extras field
+  // DataForSEO columns (now in database)
   search_volume?: number | null;
   cpc?: number | null;
   monthly_trend?: Array<{ year: number; month: number; searches: number }> | null;
@@ -110,48 +110,23 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return dot / (normA * normB);
 }
 
-function extractDataForSEOMetrics(extras: Record<string, unknown> | null): {
-  search_volume: number | null;
-  cpc: number | null;
-  monthly_trend: Array<{ year: number; month: number; searches: number }> | null;
-  dataforseo_competition: number | null;
-} {
-  if (!extras) {
-    return { search_volume: null, cpc: null, monthly_trend: null, dataforseo_competition: null };
-  }
-
-  const search_volume = typeof extras.search_volume === "number" ? extras.search_volume : null;
-  const cpc = typeof extras.cpc === "number" ? extras.cpc : null;
-
-  let monthly_trend: Array<{ year: number; month: number; searches: number }> | null = null;
-  if (Array.isArray(extras.monthly_trend)) {
-    monthly_trend = extras.monthly_trend
-      .filter((item: any) =>
-        item &&
-        typeof item === "object" &&
-        typeof item.year === "number" &&
-        typeof item.month === "number" &&
-        typeof item.searches === "number"
-      )
-      .map((item: any) => ({
-        year: item.year,
-        month: item.month,
-        searches: item.searches,
-      }));
-    if (monthly_trend.length === 0) monthly_trend = null;
-  }
-
-  let dataforseo_competition: number | null = null;
-  if (extras.dataforseo && typeof extras.dataforseo === "object") {
-    const dfObj = extras.dataforseo as Record<string, unknown>;
-    dataforseo_competition = typeof dfObj.competition === "number" ? dfObj.competition : null;
-  }
-
-  return { search_volume, cpc, monthly_trend, dataforseo_competition };
-}
-
 function coerceKeyword(row: any): KeywordRow {
-  const extracted = extractDataForSEOMetrics(row?.extras ?? null);
+  // Parse monthly_trend from JSONB if it's a string
+  let monthly_trend: Array<{ year: number; month: number; searches: number }> | null = null;
+  if (row.monthly_trend) {
+    if (typeof row.monthly_trend === "string") {
+      try {
+        const parsed = JSON.parse(row.monthly_trend);
+        if (Array.isArray(parsed)) {
+          monthly_trend = parsed;
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
+    } else if (Array.isArray(row.monthly_trend)) {
+      monthly_trend = row.monthly_trend;
+    }
+  }
 
   return {
     id: row?.id ?? undefined,
@@ -171,10 +146,10 @@ function coerceKeyword(row: any): KeywordRow {
     adjusted_demand_index: row?.adjusted_demand_index ?? null,
     deseasoned_trend_momentum: row?.deseasoned_trend_momentum ?? null,
     seasonal_label: row?.seasonal_label ?? null,
-    search_volume: extracted.search_volume,
-    cpc: extracted.cpc,
-    monthly_trend: extracted.monthly_trend,
-    dataforseo_competition: extracted.dataforseo_competition,
+    search_volume: row?.search_volume ?? null,
+    cpc: row?.cpc ?? null,
+    monthly_trend,
+    dataforseo_competition: row?.dataforseo_competition ?? null,
   };
 }
 
@@ -189,7 +164,7 @@ async function fetchKeywordsFromSupabase(
   if (!supabase) return [];
 
   const selectColumns =
-    "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score, base_demand_index, adjusted_demand_index, deseasoned_trend_momentum, seasonal_label";
+    "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score, base_demand_index, adjusted_demand_index, deseasoned_trend_momentum, seasonal_label, search_volume, cpc, dataforseo_competition, monthly_trend";
 
   const createQuery = (tierFilters: Array<string | number>) => {
     let queryBuilder = supabase
@@ -249,7 +224,7 @@ async function findExactKeyword(
   trimmedQuery: string
 ): Promise<KeywordRow | null> {
   const selectColumns =
-    "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score, base_demand_index, adjusted_demand_index, deseasoned_trend_momentum, seasonal_label";
+    "id, term, market, source, tier, method, extras, trend_momentum, ai_opportunity_score, freshness_ts, demand_index, competition_score, engagement_score, base_demand_index, adjusted_demand_index, deseasoned_trend_momentum, seasonal_label, search_volume, cpc, dataforseo_competition, monthly_trend";
 
   try {
     const { data: exactEq } = await supabase
