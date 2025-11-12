@@ -67,11 +67,10 @@ export class AuthManager {
 
   /**
    * Initialize auth from LexyHub web app
-   * Opens OAuth flow in new tab
-   * Uses extension-signup URL to track signup_source and apply bonus quota
+   * Opens signup page in new tab
    */
   async initiateLogin(): Promise<void> {
-    const loginUrl = "https://lexyhub.com/extension-signup?ref=chrome";
+    const loginUrl = "https://app.lexyhub.com/signup";
     await chrome.tabs.create({ url: loginUrl });
 
     // The auth page will store credentials in its localStorage
