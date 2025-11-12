@@ -83,7 +83,7 @@ async function main() {
     let errorCount = 0;
 
     // Process keywords in batches
-    const batchSize = 50;
+    const batchSize = 500;
     for (let i = 0; i < keywords.length; i += batchSize) {
       const batch = keywords.slice(i, i + batchSize);
       console.log(`[INFO] Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(keywords.length / batchSize)}`);
