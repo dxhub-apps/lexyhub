@@ -5,9 +5,13 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useSession } from "@supabase/auth-helpers-react";
 import {
   ArrowUpRight,
+  TrendingUp,
+  TrendingDown,
   Brain,
+  ExternalLink,
   LineChart,
   Loader2,
+  Minus,
   Plus,
   Search as SearchIcon,
 } from "lucide-react";
@@ -332,7 +336,8 @@ export default function SearchWorkspace(): JSX.Element {
               <thead>
                 <tr className="text-left text-xs uppercase">
                   <th className="px-3 py-2 font-medium">Keyword</th>
-                  <th className="px-3 py-2 font-medium">Volume</th>
+                  <th className="px-3 py-2 font-medium">Search Volume</th>
+                  <th className="px-3 py-2 font-medium">CPC</th>
                   <th className="px-3 py-2 font-medium">Competition</th>
                   <th className="px-3 py-2 font-medium">Trend</th>
                   <th className="px-3 py-2 font-medium">Actions</th>
@@ -341,7 +346,7 @@ export default function SearchWorkspace(): JSX.Element {
               <tbody>
                 {loadingResults ? (
                   <tr>
-                    <td colSpan={5} className="px-3 py-6 text-center">
+                    <td colSpan={6} className="px-3 py-6 text-center">
                       <div className="inline-flex items-center gap-2 text-sm font-medium">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Loading keywords…
@@ -350,7 +355,7 @@ export default function SearchWorkspace(): JSX.Element {
                   </tr>
                 ) : results.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-3 py-6 text-center text-sm">
+                    <td colSpan={6} className="px-3 py-6 text-center text-sm">
                       {error ? error : "Start typing to explore the keyword universe."}
                     </td>
                   </tr>
@@ -379,16 +384,33 @@ export default function SearchWorkspace(): JSX.Element {
                           </div>
                         </td>
                         <td className="px-3 py-3 text-sm font-medium">
-                          {formatVolume(keyword)}
+                          {formatSearchVolume(keyword)}
                         </td>
                         <td className="px-3 py-3 text-sm font-medium">
-                          {formatCompetition(keyword)}
+                          {formatCPC(keyword)}
                         </td>
-                        <td className="px-3 py-3 text-sm font-medium">
-                          {formatTrend(keyword)}
+                        <td className="px-3 py-3">
+                          {formatCompetitionWithColor(keyword)}
+                        </td>
+                        <td className="px-3 py-3">
+                          {formatTrendWithColor(keyword)}
                         </td>
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-2">
+                            {keyword.id && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  window.location.href = `/keyword/${keyword.id}`;
+                                }}
+                              >
+                                <ExternalLink className="mr-1 h-3 w-3" />
+                                View
+                              </Button>
+                            )}
                             <Button
                               type="button"
                               size="sm"
@@ -400,18 +422,6 @@ export default function SearchWorkspace(): JSX.Element {
                             >
                               <Plus className="mr-1 h-4 w-4" />
                               Watchlist
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void loadInsight(keyword);
-                              }}
-                            >
-                              <Brain className="mr-1 h-4 w-4" />
-                              Ask
                             </Button>
                           </div>
                         </td>
@@ -486,54 +496,91 @@ export default function SearchWorkspace(): JSX.Element {
   );
 }
 
-function formatPercent(value: number | null | undefined): string {
-  if (typeof value !== "number") return "—";
-  const bounded = Math.max(0, Math.min(1, value));
-  return `${Math.round(bounded * 100)}%`;
-}
-
-function formatVolume(keyword: KeywordResult): string {
-  // Prefer normalized demand_index, fallback to raw search_volume
-  if (typeof keyword.demand_index === "number" && keyword.demand_index > 0) {
-    return formatPercent(keyword.demand_index);
-  }
+function formatSearchVolume(keyword: KeywordResult): string {
   if (typeof keyword.search_volume === "number") {
     return keyword.search_volume.toLocaleString();
   }
   return "—";
 }
 
-function formatCompetition(keyword: KeywordResult): string {
-  // Prefer normalized competition_score, fallback to raw dataforseo_competition
-  if (typeof keyword.competition_score === "number") {
-    return formatPercent(keyword.competition_score);
-  }
-  if (typeof keyword.dataforseo_competition === "number") {
-    // DataForSEO competition is 0-1 scale
-    return formatPercent(keyword.dataforseo_competition);
+function formatCPC(keyword: KeywordResult): string {
+  if (typeof keyword.cpc === "number") {
+    return `$${keyword.cpc.toFixed(2)}`;
   }
   return "—";
 }
 
-function formatTrend(keyword: KeywordResult): string {
-  // Prefer normalized trend_momentum
-  if (typeof keyword.trend_momentum === "number") {
-    return formatPercent(keyword.trend_momentum);
+function getCompetitionColor(competition: number): string {
+  // Green (0) to Red (100) scale
+  if (competition <= 33) {
+    return "text-green-600";
+  } else if (competition <= 66) {
+    return "text-yellow-600";
+  } else {
+    return "text-red-600";
   }
-  // Fallback: calculate simple trend from monthly_trend data
+}
+
+function formatCompetitionWithColor(keyword: KeywordResult): JSX.Element {
+  let competition: number | null = null;
+
+  // Use dataforseo_competition (0-1 scale)
+  if (typeof keyword.dataforseo_competition === "number") {
+    competition = keyword.dataforseo_competition * 100;
+  }
+
+  if (competition === null) {
+    return <span className="text-sm font-medium">—</span>;
+  }
+
+  const colorClass = getCompetitionColor(competition);
+  return (
+    <span className={`text-sm font-semibold ${colorClass}`}>
+      {Math.round(competition)}
+    </span>
+  );
+}
+
+function getTrendStatus(keyword: KeywordResult): { label: string; color: string; icon: JSX.Element } | null {
+  // Calculate trend from monthly_trend data
   if (Array.isArray(keyword.monthly_trend) && keyword.monthly_trend.length >= 2) {
     const sorted = [...keyword.monthly_trend].sort((a, b) => {
       if (a.year !== b.year) return a.year - b.year;
       return a.month - b.month;
     });
+
     const oldest = sorted[0]?.searches ?? 0;
     const newest = sorted[sorted.length - 1]?.searches ?? 0;
 
-    if (oldest > 0) {
-      const change = ((newest - oldest) / oldest) * 100;
-      const sign = change > 0 ? "+" : "";
-      return `${sign}${change.toFixed(0)}%`;
+    if (oldest === 0 && newest === 0) {
+      return { label: "Stale", color: "text-yellow-600", icon: <Minus className="h-4 w-4" /> };
+    }
+
+    const change = oldest > 0 ? ((newest - oldest) / oldest) * 100 : (newest > 0 ? 100 : 0);
+
+    if (change > 10) {
+      return { label: "Rising", color: "text-green-600", icon: <TrendingUp className="h-4 w-4" /> };
+    } else if (change < -10) {
+      return { label: "Dropping", color: "text-red-600", icon: <TrendingDown className="h-4 w-4" /> };
+    } else {
+      return { label: "Stale", color: "text-yellow-600", icon: <Minus className="h-4 w-4" /> };
     }
   }
-  return "—";
+
+  return null;
+}
+
+function formatTrendWithColor(keyword: KeywordResult): JSX.Element {
+  const trendStatus = getTrendStatus(keyword);
+
+  if (!trendStatus) {
+    return <span className="text-sm font-medium">—</span>;
+  }
+
+  return (
+    <div className={`flex items-center gap-1.5 text-sm font-semibold ${trendStatus.color}`}>
+      {trendStatus.icon}
+      <span>{trendStatus.label}</span>
+    </div>
+  );
 }

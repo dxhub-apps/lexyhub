@@ -28,6 +28,11 @@ interface KeywordRecord {
   engagement_score?: number | null;
   adjusted_demand_index?: number | null;
   deseasoned_trend_momentum?: number | null;
+  // DataForSEO raw metrics
+  search_volume?: number | null;
+  cpc?: number | null;
+  dataforseo_competition?: number | null;
+  monthly_trend?: Array<{ year: number; month: number; searches: number }> | null;
 }
 
 interface TimeseriesPoint {
@@ -64,7 +69,7 @@ export default function KeywordJourney(): JSX.Element {
         const { data, error: fetchError } = await supabase
           .from("keywords")
           .select(
-            "id, term, market, source, trend_momentum, demand_index, competition_score, engagement_score, adjusted_demand_index, deseasoned_trend_momentum"
+            "id, term, market, source, trend_momentum, demand_index, competition_score, engagement_score, adjusted_demand_index, deseasoned_trend_momentum, search_volume, cpc, dataforseo_competition, monthly_trend"
           )
           .eq("id", keywordId)
           .single();
@@ -185,11 +190,27 @@ export default function KeywordJourney(): JSX.Element {
       </div>
 
       <section className="rounded-lg border border-border p-4">
+        <h3 className="mb-4 text-sm font-semibold uppercase text-muted-foreground">DataForSEO Metrics</h3>
         <dl className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <Stat label="Volume" value={formatPercent(keyword.demand_index ?? keyword.adjusted_demand_index)} />
-          <Stat label="Competition" value={formatPercent(keyword.competition_score)} />
-          <Stat label="Trend" value={formatPercent(keyword.trend_momentum)} />
-          <Stat label="Engagement" value={formatPercent(keyword.engagement_score)} />
+          <Stat
+            label="Search Volume"
+            value={typeof keyword.search_volume === "number" ? keyword.search_volume.toLocaleString() : "—"}
+          />
+          <Stat
+            label="CPC"
+            value={typeof keyword.cpc === "number" ? `$${keyword.cpc.toFixed(2)}` : "—"}
+          />
+          <Stat
+            label="Competition"
+            value={typeof keyword.dataforseo_competition === "number"
+              ? `${Math.round(keyword.dataforseo_competition * 100)}`
+              : "—"
+            }
+          />
+          <Stat
+            label="Trend Momentum"
+            value={formatPercent(keyword.trend_momentum)}
+          />
         </dl>
       </section>
 
@@ -236,27 +257,75 @@ export default function KeywordJourney(): JSX.Element {
           )}
         </TabsContent>
 
-        <TabsContent value="trends" className="rounded-lg border border-border p-4">
-          {timeseries.length === 0 ? (
-            <p className="text-sm">No trend data captured yet.</p>
+        <TabsContent value="trends" className="space-y-6 rounded-lg border border-border p-4">
+          {/* Monthly Trend from DataForSEO */}
+          {keyword.monthly_trend && keyword.monthly_trend.length > 0 ? (
+            <div>
+              <h4 className="mb-3 text-sm font-semibold">Monthly Search Volume Trend</h4>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={keyword.monthly_trend
+                      .map((item) => ({
+                        date: `${item.year}-${String(item.month).padStart(2, "0")}`,
+                        searches: item.searches,
+                      }))
+                      .sort((a, b) => a.date.localeCompare(b.date))}
+                  >
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 12 }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={60}
+                    />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#000",
+                        color: "#fff",
+                        borderRadius: 8,
+                        border: "1px solid #2563EB",
+                      }}
+                      formatter={(value: number) => [value.toLocaleString(), "Searches"]}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="searches"
+                      stroke="#2563EB"
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           ) : (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={timeseries}>
-                  <XAxis dataKey="ts_date" hide />
-                  <YAxis hide domain={[0, 1]} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#000",
-                      color: "#fff",
-                      borderRadius: 8,
-                      border: "1px solid #2563EB",
-                    }}
-                  />
-                  <Line type="monotone" dataKey="demand" stroke="#2563EB" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="competition" stroke="#111111" strokeWidth={1} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
+            <p className="text-sm">No monthly trend data available.</p>
+          )}
+
+          {/* Historical Timeseries Data */}
+          {timeseries.length > 0 && (
+            <div>
+              <h4 className="mb-3 text-sm font-semibold">Historical Demand & Competition</h4>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={timeseries}>
+                    <XAxis dataKey="ts_date" hide />
+                    <YAxis hide domain={[0, 1]} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#000",
+                        color: "#fff",
+                        borderRadius: 8,
+                        border: "1px solid #2563EB",
+                      }}
+                    />
+                    <Line type="monotone" dataKey="demand" stroke="#2563EB" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="competition" stroke="#111111" strokeWidth={1} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           )}
         </TabsContent>
