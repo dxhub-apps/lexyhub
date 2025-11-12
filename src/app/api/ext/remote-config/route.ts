@@ -42,4 +42,5 @@ export async function GET(request: Request): Promise<NextResponse> {
 }
 
 export const runtime = "nodejs";
-export const revalidate = 60; // Cache for 1 minute
+export const dynamic = "force-dynamic"; // Prevent static generation attempts
+export const revalidate = 0; // Always fetch fresh data
