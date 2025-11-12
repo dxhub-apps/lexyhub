@@ -1,5 +1,5 @@
 import TurndownService from "turndown";
-import { JSDOM } from "jsdom";
+import type { JSDOM as JSDOMType } from "jsdom";
 
 export type Marketplace = "auto" | "etsy" | "amazon" | "other";
 
@@ -85,7 +85,7 @@ function slugify(text: string): string {
 /**
  * Extracts the page title from HTML
  */
-function extractTitle(dom: JSDOM): string {
+function extractTitle(dom: JSDOMType): string {
   const document = dom.window.document;
 
   // Try to get the page title
@@ -106,7 +106,7 @@ function extractTitle(dom: JSDOM): string {
 /**
  * Removes unwanted elements from the DOM
  */
-function cleanDom(dom: JSDOM): void {
+function cleanDom(dom: JSDOMType): void {
   const document = dom.window.document;
 
   // Selectors for elements to remove
@@ -152,7 +152,7 @@ function cleanDom(dom: JSDOM): void {
 /**
  * Extracts main content from the DOM
  */
-function extractMainContent(dom: JSDOM): HTMLElement | null {
+function extractMainContent(dom: JSDOMType): HTMLElement | null {
   const document = dom.window.document;
 
   // Try common content selectors in order of preference
@@ -320,6 +320,8 @@ export async function importAndFormatUrlToMarkdown(
   let mainContentHtml: string;
   let pageTitle: string;
   try {
+    // Dynamically import JSDOM to avoid ESM/CommonJS compatibility issues
+    const { JSDOM } = await import("jsdom");
     const dom = new JSDOM(html);
 
     // Extract title before cleaning
