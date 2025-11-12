@@ -87,7 +87,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       LOG_LEVEL: "info",
 
       // Job defaults
-      LEXYHUB_MARKET: "google",
+      LEXYHUB_MARKET: "us",
       K4K_MAX_TERMS_PER_TASK: "20",
       K4K_DEVICE: "desktop",
       K4K_SEARCH_PARTNERS: "false",
