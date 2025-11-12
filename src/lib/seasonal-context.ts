@@ -5,7 +5,7 @@
  * with timely seller opportunities.
  */
 
-import { createServerClient } from "@/lib/supabase/server";
+import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 export interface SeasonalPeriod {
   name: string;
@@ -35,7 +35,12 @@ export async function getSeasonalContext(
   lookahead_days: number = 60
 ): Promise<SeasonalContext | null> {
   try {
-    const supabase = await createServerClient();
+    const supabase = getSupabaseServerClient();
+
+    if (!supabase) {
+      console.error("Supabase client not available");
+      return null;
+    }
 
     // Call the database function we created in the migration
     const { data, error } = await supabase.rpc("get_seasonal_context", {
@@ -111,7 +116,12 @@ export function getSeasonalSummary(context: SeasonalContext | null): string {
  */
 export async function getUserCountryCode(userId: string): Promise<string> {
   try {
-    const supabase = await createServerClient();
+    const supabase = getSupabaseServerClient();
+
+    if (!supabase) {
+      console.error("Supabase client not available");
+      return "global";
+    }
 
     const { data, error } = await supabase
       .from("user_profiles")
