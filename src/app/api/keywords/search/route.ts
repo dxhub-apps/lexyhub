@@ -159,9 +159,10 @@ async function fetchKeywordsFromSupabase(
   sources: string[],
   tiers: Array<string | number>,
   limit: number,
-  likeTerm?: string
+  likeTerm?: string,
+  supabaseOverride?: ReturnType<typeof getSupabaseServerClient>,
 ): Promise<KeywordRow[]> {
-  const supabase = getSupabaseServerClient();
+  const supabase = supabaseOverride ?? getSupabaseServerClient();
   if (!supabase) return [];
 
   const selectColumns =
@@ -315,11 +316,85 @@ async function buildSummary(query: string, ranked: RankedKeyword[]): Promise<str
   }
 }
 
+const MAX_FALLBACK_KEYWORDS = 120;
+const MAX_FALLBACK_RECALCULATIONS = 60;
+
+async function rankKeywordsFallback(
+  queryEmbedding: { embedding: number[]; model: string },
+  market: string,
+  sources: string[],
+  tiers: number[],
+  query: string,
+  limit: number,
+  supabaseClient: ReturnType<typeof getSupabaseServerClient>,
+): Promise<RankedKeyword[]> {
+  const candidates = await fetchKeywordsFromSupabase(
+    market,
+    sources,
+    tiers,
+    Math.max(limit * 3, 60),
+    query,
+    supabaseClient,
+  );
+
+  if (candidates.length === 0) {
+    return [];
+  }
+
+  const sampleSize = Math.min(MAX_FALLBACK_KEYWORDS, candidates.length);
+  const sampled = candidates.slice(0, sampleSize);
+  const rerankLimit = Math.min(MAX_FALLBACK_RECALCULATIONS, sampled.length);
+
+  const ranked: RankedKeyword[] = [];
+  const normalizedQuery = normalizeKeywordTerm(query);
+
+  for (let index = 0; index < rerankLimit; index += 1) {
+    const keyword = sampled[index];
+    let similarity = 0.5;
+    let embeddingModel = queryEmbedding.model;
+
+    if (queryEmbedding.embedding && queryEmbedding.embedding.length > 0) {
+      try {
+        const keywordEmbedding = await getOrCreateEmbedding(keyword.term, { supabase: supabaseClient });
+        embeddingModel = keywordEmbedding.model;
+        similarity = Math.max(
+          0,
+          Math.min(1, cosineSimilarity(queryEmbedding.embedding, keywordEmbedding.embedding)),
+        );
+      } catch (error) {
+        console.warn("Failed to hydrate keyword embedding during fallback ranking", {
+          term: keyword.term,
+          error,
+        });
+      }
+    }
+
+    const compositeScore = computeCompositeScore(keyword);
+    const normalizedKeyword = normalizeKeywordTerm(keyword.term);
+    const rankingScore = normalizedKeyword === normalizedQuery
+      ? Number.MAX_SAFE_INTEGER
+      : similarity * 0.55 + compositeScore * 0.45;
+
+    ranked.push({
+      ...keyword,
+      similarity,
+      embeddingModel,
+      provenance_id: createProvenanceId(keyword.source, keyword.market, keyword.term),
+      compositeScore,
+      rankingScore,
+    });
+  }
+
+  return ranked
+    .sort((a, b) => b.rankingScore - a.rankingScore)
+    .slice(0, limit);
+}
+
 async function rankKeywordsOptimized(
   queryEmbedding: { embedding: number[]; model: string },
   market: string,
   sources: string[],
-  tiers: string[],
+  tiers: number[],
   query: string,
   limit: number,
   supabaseClient: ReturnType<typeof getSupabaseServerClient>,
@@ -327,31 +402,44 @@ async function rankKeywordsOptimized(
   if (!supabaseClient) return [];
 
   // Use the optimized database function for ranking
-  // This eliminates the N+1 embedding API call problem
-  const { data, error } = await supabaseClient.rpc("lexy_rank_keywords", {
-    p_query_embedding: queryEmbedding.embedding,
-    p_market: market,
-    p_sources: sources,
-    p_tiers: tiers,
-    p_query: query,
-    p_limit: limit,
-  });
+  try {
+    const { data, error } = await supabaseClient.rpc("lexy_rank_keywords", {
+      p_query_embedding: queryEmbedding.embedding,
+      p_market: market,
+      p_sources: sources,
+      p_tiers: tiers,
+      p_query: query,
+      p_limit: limit,
+    });
 
-  if (error) {
-    console.error("Failed to rank keywords using optimized RPC", error);
-    // Fallback to basic fetch if RPC fails
-    return [];
+    if (!error && Array.isArray(data)) {
+      return (data as any[]).map((row) => ({
+        ...coerceKeyword(row),
+        similarity: row.similarity ?? 0.5,
+        embeddingModel: queryEmbedding.model,
+        provenance_id: createProvenanceId(row.source, row.market, row.term),
+        compositeScore: row.composite_score ?? 0.5,
+        rankingScore: row.ranking_score ?? 0.5,
+      }));
+    }
+
+    if (error) {
+      console.error("Failed to rank keywords using optimized RPC", error);
+    }
+  } catch (error) {
+    console.error("Unexpected error invoking lexy_rank_keywords", error);
   }
 
-  const results = (data ?? []) as any[];
-  return results.map((row) => ({
-    ...coerceKeyword(row),
-    similarity: row.similarity ?? 0.5,
-    embeddingModel: queryEmbedding.model,
-    provenance_id: createProvenanceId(row.source, row.market, row.term),
-    compositeScore: row.composite_score ?? 0.5,
-    rankingScore: row.ranking_score ?? 0.5,
-  }));
+  // Fallback to deterministic scoring so searches still respond
+  return rankKeywordsFallback(
+    queryEmbedding,
+    market,
+    sources,
+    tiers,
+    query,
+    limit,
+    supabaseClient,
+  );
 }
 
 async function loadSearchPayload(req: Request): Promise<SearchRequestPayload> {
@@ -498,9 +586,8 @@ async function handleSearch(req: Request): Promise<NextResponse> {
   const primarySource = resolvedSources[0] ?? allowedSources[0];
 
   const planRank = resolvePlanRank(plan);
-  const allowedTiers = Object.entries(PLAN_RANK)
-    .filter(([, rank]) => rank <= planRank)
-    .map(([tier]) => tier);
+  const tierEntries = Object.entries(PLAN_RANK).filter(([, rank]) => rank <= planRank);
+  const allowedTierIds = tierEntries.map(([, rank]) => rank);
 
   const limit = Math.max(1, Math.min(payload.limit ?? 20, 50));
 
@@ -643,7 +730,7 @@ async function handleSearch(req: Request): Promise<NextResponse> {
     queryEmbedding,
     market,
     resolvedSources,
-    allowedTiers,
+    allowedTierIds,
     trimmedQuery,
     limit,
     supabase,
