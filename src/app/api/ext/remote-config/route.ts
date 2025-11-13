@@ -25,13 +25,27 @@ export async function GET(request: Request): Promise<NextResponse> {
       );
     }
 
-    // Convert to key-value object
+    // Convert to key-value object. Values are stored as JSON in Supabase,
+    // but may be returned as strings depending on the column type. Attempt
+    // to parse stringified JSON so the extension receives the correct data
+    // structure without additional transforms.
     const config: Record<string, any> = {};
     (data || []).forEach((row) => {
-      config[row.key] = row.value;
+      const rawValue = row.value;
+      let parsedValue = rawValue;
+
+      if (typeof rawValue === "string") {
+        try {
+          parsedValue = JSON.parse(rawValue);
+        } catch (_) {
+          parsedValue = rawValue;
+        }
+      }
+
+      config[row.key] = parsedValue;
     });
 
-    return NextResponse.json({ config });
+    return NextResponse.json(config);
   } catch (error) {
     console.error("Unexpected error in /api/ext/remote-config:", error);
     return NextResponse.json(
