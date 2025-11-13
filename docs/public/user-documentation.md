@@ -58,7 +58,7 @@ The Keywords workspace surfaces organic search opportunities discovered by LexyH
 - **Rich opportunity table:** Every keyword row displays demand, competition, momentum, category context, and tags, alongside quick actions for adding items to watchlists or launching the AI tag optimizer.
 - **Momentum playbook:** The Overview tab reinforces suggested next steps, surfaces the active tag emphasis, and keeps compliance notes about signals and freshness front and center.
 - **Data seeding from real searches:** When a query returns no results, LexyHub captures the term and routes it to our enrichment queue so future searches populate faster.
-- **Search reliability guardrails:** Search now normalizes the market/source data that lands in the golden keywords table, hydrates embeddings directly from the shared cache inside the Supabase ranking RPC, aligns the tier filter with the numeric column so result sets populate immediately, and automatically falls back to an application-level ranking pass if the RPC encounters a missing column or permission error. The fallback path deterministically hydrates embeddings for the sampled keywords so placeholder records no longer block searches or create duplicate rows when someone repeats the same phrase. Source filters are also sanitized inside the RPC via the `lexy_cast_sources` helper so malformed arrays never trigger "function … does not exist" SQL errors when toggling data providers.
+- **Search reliability guardrails:** Search now normalizes the market/source data that lands in the golden keywords table, hydrates embeddings directly from the shared cache inside the Supabase ranking RPC, aligns the tier filter with the numeric column so result sets populate immediately, and automatically falls back to an application-level ranking pass if the RPC encounters a missing column or permission error. The fallback path deterministically hydrates embeddings for the sampled keywords so placeholder records no longer block searches or create duplicate rows when someone repeats the same phrase. Source filters are also sanitized inside the RPC via the `lexy_cast_sources` helper so malformed arrays never trigger "function … does not exist" SQL errors when toggling data providers, and plan-tier filters are validated via the restored `lexy_cast_plan_tiers` helper so RPC calls never fail due to missing casts even when requests omit or corrupt the tier payload. Both helpers are now recreated automatically in every deployment, so the search endpoint verifies their presence before delegating work to Supabase.
 
 **How to build a keyword watchlist:**
 1. Open **Keywords** from the sidebar.
@@ -175,4 +175,4 @@ LexyHub publishes sprint-level release notes in `/docs/changelog.md`. Review the
 - **Amazon keyword population guide:** `/docs/amazon-keyword-population-guide.md`
 - **Trend & intent intelligence:** `/docs/trend-intent-intelligence.md`
 
-_Last updated: 2025-07-17_
+_Last updated: 2025-11-13_
