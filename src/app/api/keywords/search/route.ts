@@ -319,7 +319,7 @@ async function rankKeywordsOptimized(
   queryEmbedding: { embedding: number[]; model: string },
   market: string,
   sources: string[],
-  tiers: string[],
+  tiers: number[],
   query: string,
   limit: number,
   supabaseClient: ReturnType<typeof getSupabaseServerClient>,
@@ -498,9 +498,8 @@ async function handleSearch(req: Request): Promise<NextResponse> {
   const primarySource = resolvedSources[0] ?? allowedSources[0];
 
   const planRank = resolvePlanRank(plan);
-  const allowedTiers = Object.entries(PLAN_RANK)
-    .filter(([, rank]) => rank <= planRank)
-    .map(([tier]) => tier);
+  const tierEntries = Object.entries(PLAN_RANK).filter(([, rank]) => rank <= planRank);
+  const allowedTierIds = tierEntries.map(([, rank]) => rank);
 
   const limit = Math.max(1, Math.min(payload.limit ?? 20, 50));
 
@@ -643,7 +642,7 @@ async function handleSearch(req: Request): Promise<NextResponse> {
     queryEmbedding,
     market,
     resolvedSources,
-    allowedTiers,
+    allowedTierIds,
     trimmedQuery,
     limit,
     supabase,
