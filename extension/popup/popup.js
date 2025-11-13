@@ -5,10 +5,13 @@ class PopupApp {
   constructor() {
     this.activeTab = 'discover';
     this.authState = null;
+    this.user = null;
     this.trendsData = [];
     this.sessionData = null;
     this.briefsData = [];
     this.settings = null;
+    this.accountSummary = null;
+    this.listenersAttached = false;
 
     this.init();
   }
@@ -19,7 +22,8 @@ class PopupApp {
     this.attachListeners();
 
     if (this.authState?.isAuthenticated) {
-      this.loadData();
+      await this.loadData();
+      this.render();
     }
   }
 
@@ -27,6 +31,7 @@ class PopupApp {
     return new Promise((resolve) => {
       chrome.runtime.sendMessage({ type: 'GET_AUTH_STATE' }, (response) => {
         this.authState = response;
+        this.user = response?.user || null;
         resolve();
       });
     });
@@ -34,12 +39,23 @@ class PopupApp {
 
   async loadData() {
     await Promise.all([
+      this.loadAccountSummary(),
       this.loadTrends(),
       this.loadSession(),
       this.loadBriefs(),
       this.loadSettings()
     ]);
-    this.render();
+  }
+
+  async loadAccountSummary() {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage({ type: 'GET_ACCOUNT_SUMMARY' }, (response) => {
+        if (response?.success) {
+          this.accountSummary = response.data;
+        }
+        resolve();
+      });
+    });
   }
 
   async loadTrends() {
@@ -92,11 +108,31 @@ class PopupApp {
         type: 'GET_SETTINGS'
       }, (response) => {
         if (response?.success) {
-          this.settings = response.data || {};
+          this.settings = response.data || this.getDefaultSettings();
+        } else {
+          this.settings = this.getDefaultSettings();
         }
         resolve();
       });
     });
+  }
+
+  getDefaultSettings() {
+    return {
+      enabled_domains: {
+        etsy: true,
+        amazon: true,
+        shopify: true,
+        google: true,
+        bing: false,
+        pinterest: false,
+        reddit: false,
+      },
+      highlight_enabled: true,
+      tooltip_enabled: true,
+      capture_enabled: true,
+      ignored_domains: [],
+    };
   }
 
   detectMarket(url) {
@@ -137,10 +173,28 @@ class PopupApp {
   }
 
   renderHeader() {
+    const userLabel = this.user?.name || this.user?.email || 'Connected';
+    const planName = this.accountSummary?.plan?.display_name || 'Free';
+    const isTrial = this.accountSummary?.plan?.is_trial;
+    const upgradeUrl = this.accountSummary?.plan?.upgrade_url;
+    const searchesUsage = this.accountSummary?.usage?.searches;
+    const searchesLeft = searchesUsage
+      ? (searchesUsage.limit === -1 ? 'Unlimited' : `${Math.max(searchesUsage.limit - searchesUsage.used, 0)} left`)
+      : '--';
+
     return '<div class="popup-header">' +
-      '<h1>LexyHub</h1>' +
-      '<p class="subtitle">Keyword Intelligence</p>' +
       '<a href="https://lexyhub.com/docs/extension/guide" target="_blank" class="help-link" title="Help & Guide">?</a>' +
+      '<div class="header-row">' +
+      '<div>' +
+      '<h1>LexyHub</h1>' +
+      '<p class="subtitle">' + userLabel + '</p>' +
+      '</div>' +
+      (upgradeUrl ? '<button class="btn-secondary btn-upgrade" id="upgradeNow">Upgrade</button>' : '') +
+      '</div>' +
+      '<div class="plan-summary">' +
+      '<span class="plan-chip">' + planName + (isTrial ? '<span class="plan-badge">Trial</span>' : '') + '</span>' +
+      '<span class="quota-chip">' + searchesLeft + ' · Searches</span>' +
+      '</div>' +
       '</div>';
   }
 
@@ -177,7 +231,7 @@ class PopupApp {
   }
 
   renderDiscoverTab() {
-    if (this.trendsData.length === 0) {
+    if (!this.trendsData || this.trendsData.length === 0) {
       return '<div class="empty-state">' +
         '<p>No trending keywords yet<br><small>Visit supported sites to discover keywords</small></p>' +
         '</div>';
@@ -189,20 +243,27 @@ class PopupApp {
       '<button class="btn-secondary" id="refreshTrends">Refresh</button>' +
       '</div>' +
       '<div class="trend-list">' +
-      this.trendsData.map((trend, index) => this.renderTrendItem(trend, index)).join('') +
+      this.trendsData.map((trend) => this.renderTrendItem(trend)).join('') +
       '</div>' +
       '</div>';
   }
 
-  renderTrendItem(trend, index) {
-    const trendIcon = trend.trend === 'up' ? '↑' : trend.trend === 'down' ? '↓' : '→';
+  renderTrendItem(trend) {
+    const trendValue = typeof trend.trend === 'number' ? trend.trend : 0;
+    const status = trendValue > 0.15 ? 'up' : trendValue < -0.15 ? 'down' : 'flat';
+    const trendIcon = status === 'up' ? '↑' : status === 'down' ? '↓' : '→';
+    const freshness = typeof trend.freshness_days === 'number'
+      ? (trend.freshness_days === 0 ? 'Today' : `${trend.freshness_days}d ago`)
+      : (trend.freshness || 'Fresh');
+    const aiScore = Math.round(trend.ai_score || 0);
+
     return '<div class="trend-item" data-term="' + trend.term + '">' +
       '<div class="trend-info">' +
       '<div class="trend-term">' + trend.term + '</div>' +
       '<div class="trend-meta">' +
-      '<span class="trend-badge ' + trend.trend + '">' + trendIcon + ' ' + trend.trend + '</span>' +
-      '<span>Score: ' + (trend.ai_score || 0) + '</span>' +
-      '<span>' + (trend.freshness || 'New') + '</span>' +
+      '<span class="trend-badge ' + status + '">' + trendIcon + ' ' + status + '</span>' +
+      '<span>AI Score: ' + aiScore + '</span>' +
+      '<span>' + freshness + '</span>' +
       '</div>' +
       '</div>' +
       '<button class="add-btn" data-action="add" data-term="' + trend.term + '">+ Add</button>' +
@@ -239,7 +300,7 @@ class PopupApp {
   }
 
   renderBriefsTab() {
-    if (this.briefsData.length === 0) {
+    if (!this.briefsData || this.briefsData.length === 0) {
       return '<div class="empty-state">' +
         '<p>No briefs yet<br><small>Create a brief from selected keywords</small></p>' +
         '</div>';
@@ -261,13 +322,13 @@ class PopupApp {
   }
 
   renderSettingsTab() {
-    const settings = this.settings || {};
-    const domains = settings.enabled_domains || {};
+    const settings = this.settings || this.getDefaultSettings();
     const ignoredDomains = settings.ignored_domains || [];
+    const domainList = ['etsy', 'amazon', 'shopify', 'google', 'bing', 'pinterest', 'reddit'];
 
-    let domainsHtml = '';
-    for (const [domain, enabled] of Object.entries(domains)) {
-      domainsHtml += '<div class="setting-item">' +
+    const domainsHtml = domainList.map((domain) => {
+      const enabled = settings.enabled_domains?.[domain] !== false;
+      return '<div class="setting-item">' +
         '<div class="setting-row">' +
         '<div>' +
         '<div class="setting-label">' + this.capitalize(domain) + '</div>' +
@@ -276,7 +337,7 @@ class PopupApp {
         '<div class="toggle-switch ' + (enabled ? 'active' : '') + '" data-setting="domain" data-key="' + domain + '"></div>' +
         '</div>' +
         '</div>';
-    }
+    }).join('');
 
     return '<div class="settings-section" style="border-bottom: 2px solid #e5e7eb; padding-bottom: 16px; margin-bottom: 16px;">' +
       '<div class="setting-item">' +
@@ -317,8 +378,14 @@ class PopupApp {
   }
 
   renderFooter() {
+    const searches = this.accountSummary?.usage?.searches;
+    const watchlist = this.accountSummary?.usage?.watchlist;
+
     return '<div class="popup-footer">' +
-      '<div class="quota-info"><span class="quota-value">--</span> searches left</div>' +
+      '<div class="quota-info-row">' +
+      this.renderQuotaStat('Searches', searches) +
+      this.renderQuotaStat('Watchlist', watchlist) +
+      '</div>' +
       '<div class="footer-links">' +
       '<a href="https://lexyhub.com/docs/extension" target="_blank" class="footer-link">Docs</a>' +
       '<a href="https://lexyhub.com/support" target="_blank" class="footer-link">Support</a>' +
@@ -326,7 +393,25 @@ class PopupApp {
       '</div>';
   }
 
+  renderQuotaStat(label, usage) {
+    if (!usage) {
+      return '<div class="quota-info"><span class="quota-label">' + label + '</span><span class="quota-value">--</span></div>';
+    }
+
+    const limitText = usage.limit === -1 ? '∞' : usage.limit;
+    const remaining = usage.limit === -1 ? 'Unlimited' : Math.max(usage.limit - usage.used, 0) + ' left';
+
+    return '<div class="quota-info ' + usage.warningLevel + '">' +
+      '<span class="quota-label">' + label + '</span>' +
+      '<span class="quota-value">' + usage.used + '/' + limitText + '</span>' +
+      '<span class="quota-remaining">' + remaining + '</span>' +
+      '</div>';
+  }
+
   attachListeners() {
+    if (this.listenersAttached) return;
+    this.listenersAttached = true;
+
     document.addEventListener('click', (e) => {
       const target = e.target;
 
@@ -340,29 +425,28 @@ class PopupApp {
         });
       }
 
+      if (target.id === 'upgradeNow' && this.accountSummary?.plan?.upgrade_url) {
+        chrome.tabs.create({ url: this.accountSummary.plan.upgrade_url });
+      }
+
       if (target.classList.contains('tab')) {
         this.activeTab = target.dataset.tab;
         this.render();
-        this.attachListeners();
       }
 
-      if (target.dataset.action === 'add') {
+      if (target.dataset?.action === 'add') {
         const term = target.dataset.term;
-        this.addToWatchlist(term);
+        this.addToWatchlist(term, target);
       }
 
       if (target.id === 'refreshTrends') {
-        this.loadTrends().then(() => {
-          this.render();
-          this.attachListeners();
-        });
+        this.loadTrends().then(() => this.render());
       }
 
       if (target.id === 'endSession') {
         chrome.runtime.sendMessage({ type: 'END_SESSION' }, () => {
           this.sessionData = null;
           this.render();
-          this.attachListeners();
         });
       }
 
@@ -382,7 +466,9 @@ class PopupApp {
     });
   }
 
-  async addToWatchlist(term) {
+  async addToWatchlist(term, btn) {
+    if (!term) return;
+
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const market = this.detectMarket(tab?.url || '');
 
@@ -394,28 +480,31 @@ class PopupApp {
         source_url: tab?.url
       }
     }, (response) => {
-      if (response?.success) {
-        const btn = document.querySelector('[data-term="' + term + '"]');
-        if (btn) {
-          btn.textContent = '✓ Added';
-          btn.disabled = true;
-          btn.style.background = '#10b981';
-        }
+      if (response?.success && btn) {
+        btn.textContent = '✓ Added';
+        btn.disabled = true;
+        btn.style.background = '#10b981';
       }
     });
   }
 
   updateSetting(toggle) {
+    if (!this.settings) {
+      this.settings = this.getDefaultSettings();
+    }
+
     const setting = toggle.dataset.setting;
     const key = toggle.dataset.key;
     const value = toggle.classList.contains('active');
 
     let update = {};
     if (setting === 'domain' && key) {
+      this.settings.enabled_domains[key] = value;
       update = {
-        enabled_domains: Object.assign({}, this.settings.enabled_domains, { [key]: value })
+        enabled_domains: this.settings.enabled_domains
       };
     } else {
+      this.settings[setting] = value;
       update = { [setting]: value };
     }
 
@@ -426,15 +515,18 @@ class PopupApp {
   }
 
   formatDuration(startTime) {
+    if (!startTime) return '--';
     const start = new Date(startTime);
-    const now = new Date();
-    const diffMs = now - start;
-    const minutes = Math.floor(diffMs / 60000);
+    if (Number.isNaN(start.getTime())) return '--';
+    const diffMs = Date.now() - start.getTime();
+    const minutes = Math.max(1, Math.floor(diffMs / 60000));
     return minutes + 'm';
   }
 
   formatDate(dateString) {
+    if (!dateString) return '';
     const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return '';
     const now = new Date();
     const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
 

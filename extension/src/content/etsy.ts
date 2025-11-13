@@ -5,6 +5,8 @@
 
 import { Highlighter } from "../lib/highlighter";
 import { TooltipManager } from "../lib/tooltip";
+import { SessionRecorder } from "../lib/session-recorder";
+import { batchNormalize } from "../lib/parsers";
 import {
   shouldEnableHighlighting,
   checkAuthentication,
@@ -27,6 +29,8 @@ class EtsyContentScript {
   private tooltipManager: TooltipManager;
   private observer: MutationObserver | null = null;
   private debounceTimer: number | null = null;
+  private sessionRecorder: SessionRecorder;
+  private trackedCards = new WeakSet<Element>();
 
   constructor() {
     this.highlighter = new Highlighter({
@@ -46,6 +50,7 @@ class EtsyContentScript {
     });
 
     this.tooltipManager = new TooltipManager();
+    this.sessionRecorder = new SessionRecorder(MARKET);
 
     console.log("[LexyHub Etsy] Content script initialized");
   }
@@ -75,6 +80,10 @@ class EtsyContentScript {
       console.log(`[LexyHub Etsy] Loaded ${terms.length} watchlist terms`);
     }
 
+    this.trackSearchQuery();
+    this.captureKeywords();
+    this.attachListingClickTracking();
+
     // Start observing DOM changes
     this.startObserver();
 
@@ -99,6 +108,9 @@ class EtsyContentScript {
       this.highlighter.clear();
       this.highlighter.highlight(document.body);
     }
+
+    this.captureKeywords();
+    this.attachListingClickTracking();
   }
 
   /**
@@ -128,6 +140,62 @@ class EtsyContentScript {
     }, 250);
   }
 
+  private trackSearchQuery(): void {
+    const input = document.querySelector<HTMLInputElement>(SELECTORS.searchQuery);
+    const queryParam = new URLSearchParams(window.location.search).get("search_query");
+    const query = input?.value?.trim() || queryParam?.trim();
+    if (query) {
+      this.sessionRecorder.trackSearch(query);
+    }
+  }
+
+  private captureKeywords(): void {
+    const keywordSet = new Set<string>();
+
+    const titles = document.querySelectorAll(SELECTORS.listingTitle);
+    titles.forEach((title) => {
+      const text = title.textContent?.trim();
+      if (text) {
+        keywordSet.add(text);
+      }
+    });
+
+    const tags = document.querySelectorAll(SELECTORS.tags);
+    tags.forEach((tag) => {
+      const text = tag.textContent?.trim();
+      if (text) {
+        keywordSet.add(text);
+      }
+    });
+
+    if (keywordSet.size === 0) {
+      return;
+    }
+
+    const normalized = batchNormalize(Array.from(keywordSet));
+    normalized.slice(0, 150).forEach((term) => this.sessionRecorder.addTerm(term));
+  }
+
+  private attachListingClickTracking(): void {
+    const cards = document.querySelectorAll(SELECTORS.listingCard);
+    cards.forEach((card, index) => {
+      if (this.trackedCards.has(card)) {
+        return;
+      }
+
+      const link = card.querySelector<HTMLAnchorElement>("a[href]");
+      const title = card.querySelector(SELECTORS.listingTitle)?.textContent?.trim() || link?.title || "Listing";
+
+      const handler = () => {
+        const href = link?.href || window.location.href;
+        this.sessionRecorder.trackClick(title || "Listing", href, index + 1);
+      };
+
+      card.addEventListener("click", handler);
+      this.trackedCards.add(card);
+    });
+  }
+
   /**
    * Cleanup on unload
    */
@@ -140,16 +208,18 @@ class EtsyContentScript {
     }
     this.highlighter.removeHighlights();
     this.tooltipManager.destroy();
+    this.sessionRecorder.end();
   }
 }
 
-// Initialize when DOM is ready
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", () => {
-    const script = new EtsyContentScript();
-    script.init();
-  });
-} else {
+function bootstrap() {
   const script = new EtsyContentScript();
   script.init();
+  window.addEventListener("beforeunload", () => script.destroy(), { once: true });
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bootstrap);
+} else {
+  bootstrap();
 }

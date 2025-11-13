@@ -20,7 +20,9 @@ export interface SessionData {
 export class SessionRecorder {
   private currentSession: SessionData | null = null;
   private inactivityTimeout: number | null = null;
+  private syncTimeout: number | null = null;
   private readonly INACTIVITY_MS = 30 * 60 * 1000; // 30 minutes
+  private readonly SYNC_DEBOUNCE_MS = 500;
 
   constructor(private market: string) {}
 
@@ -42,6 +44,7 @@ export class SessionRecorder {
     };
 
     this.resetInactivityTimer();
+    this.scheduleSync();
     console.log('[SessionRecorder] Session started:', this.currentSession.session_id);
   }
 
@@ -58,6 +61,7 @@ export class SessionRecorder {
     }
 
     this.resetInactivityTimer();
+    this.scheduleSync();
   }
 
   /**
@@ -70,6 +74,7 @@ export class SessionRecorder {
 
     this.currentSession!.clicked_listings.push({ title, url, position });
     this.resetInactivityTimer();
+    this.scheduleSync();
   }
 
   /**
@@ -85,6 +90,7 @@ export class SessionRecorder {
     }
 
     this.resetInactivityTimer();
+    this.scheduleSync();
   }
 
   /**
@@ -94,6 +100,11 @@ export class SessionRecorder {
     if (!this.currentSession) return;
 
     this.currentSession.ended_at = new Date().toISOString();
+
+    if (this.syncTimeout) {
+      clearTimeout(this.syncTimeout);
+      this.syncTimeout = null;
+    }
 
     // Send to background for persistence
     chrome.runtime.sendMessage({
@@ -129,6 +140,26 @@ export class SessionRecorder {
       console.log('[SessionRecorder] Inactivity timeout reached');
       this.end();
     }, this.INACTIVITY_MS);
+  }
+
+  /**
+   * Debounced sync with background storage so popup can show progress
+   */
+  private scheduleSync(): void {
+    if (!this.currentSession) return;
+
+    if (this.syncTimeout) {
+      clearTimeout(this.syncTimeout);
+    }
+
+    this.syncTimeout = window.setTimeout(() => {
+      if (!this.currentSession) return;
+      chrome.runtime.sendMessage({
+        type: 'SAVE_SESSION',
+        payload: this.currentSession,
+      });
+      this.syncTimeout = null;
+    }, this.SYNC_DEBOUNCE_MS);
   }
 
   /**

@@ -5,6 +5,8 @@
 
 import { Highlighter } from "../lib/highlighter";
 import { TooltipManager } from "../lib/tooltip";
+import { SessionRecorder } from "../lib/session-recorder";
+import { batchNormalize } from "../lib/parsers";
 import {
   shouldEnableHighlighting,
   checkAuthentication,
@@ -19,6 +21,8 @@ const SELECTORS = {
   productTitle: "h2 a span, .a-size-medium.a-color-base",
   bullets: "#feature-bullets li, .a-unordered-list.a-vertical li",
   productDescription: "#productDescription, #aplus",
+  listingCard: "div.s-result-item[data-component-type='s-search-result']",
+  searchInput: "#twotabsearchtextbox, input[name='field-keywords']",
 };
 
 class AmazonContentScript {
@@ -26,6 +30,8 @@ class AmazonContentScript {
   private tooltipManager: TooltipManager;
   private observer: MutationObserver | null = null;
   private debounceTimer: number | null = null;
+  private sessionRecorder: SessionRecorder;
+  private trackedCards = new WeakSet<Element>();
 
   constructor() {
     this.highlighter = new Highlighter({
@@ -33,6 +39,7 @@ class AmazonContentScript {
     });
 
     this.tooltipManager = new TooltipManager();
+    this.sessionRecorder = new SessionRecorder(MARKET);
 
     console.log("[LexyHub Amazon] Content script initialized");
   }
@@ -58,6 +65,9 @@ class AmazonContentScript {
       this.highlighter.setKeywords(terms);
       console.log(`[LexyHub Amazon] Loaded ${terms.length} watchlist terms`);
     }
+    this.trackSearchQuery();
+    this.captureKeywords();
+    this.attachListingClickTracking();
     this.startObserver();
     this.highlightPage();
 
@@ -73,6 +83,9 @@ class AmazonContentScript {
       this.highlighter.clear();
       this.highlighter.highlight(document.body);
     }
+
+    this.captureKeywords();
+    this.attachListingClickTracking();
   }
 
   private startObserver(): void {
@@ -96,6 +109,77 @@ class AmazonContentScript {
     }, 250);
   }
 
+  private trackSearchQuery(): void {
+    const input = document.querySelector<HTMLInputElement>(SELECTORS.searchInput);
+    const params = new URLSearchParams(window.location.search);
+    const query = input?.value?.trim() || params.get("k")?.trim() || params.get("field-keywords")?.trim();
+    if (query) {
+      this.sessionRecorder.trackSearch(query);
+    }
+  }
+
+  private captureKeywords(): void {
+    const keywordSet = new Set<string>();
+
+    const titles = document.querySelectorAll(SELECTORS.productTitle);
+    titles.forEach((title) => {
+      const text = title.textContent?.trim();
+      if (text) {
+        keywordSet.add(text);
+      }
+    });
+
+    const bullets = document.querySelectorAll(SELECTORS.bullets);
+    bullets.forEach((bullet) => {
+      const text = bullet.textContent?.trim();
+      if (text) {
+        keywordSet.add(text);
+      }
+    });
+
+    const descriptions = document.querySelectorAll(SELECTORS.productDescription);
+    descriptions.forEach((desc) => {
+      const text = desc.textContent?.trim();
+      if (text) {
+        keywordSet.add(text);
+      }
+    });
+
+    if (keywordSet.size === 0) {
+      return;
+    }
+
+    const normalized = batchNormalize(Array.from(keywordSet));
+    normalized.slice(0, 200).forEach((term) => this.sessionRecorder.addTerm(term));
+  }
+
+  private attachListingClickTracking(): void {
+    const cards = document.querySelectorAll(SELECTORS.listingCard);
+    cards.forEach((card, index) => {
+      if (!(card instanceof HTMLElement) || this.trackedCards.has(card)) {
+        return;
+      }
+
+      const link = card.querySelector<HTMLAnchorElement>("a[href]");
+      if (!link) {
+        return;
+      }
+
+      const title =
+        card.querySelector(SELECTORS.productTitle)?.textContent?.trim() ||
+        link.title ||
+        link.textContent?.trim() ||
+        "Listing";
+
+      const handler = () => {
+        this.sessionRecorder.trackClick(title || "Listing", link.href, index + 1);
+      };
+
+      card.addEventListener("click", handler);
+      this.trackedCards.add(card);
+    });
+  }
+
   destroy(): void {
     if (this.observer) {
       this.observer.disconnect();
@@ -105,15 +189,18 @@ class AmazonContentScript {
     }
     this.highlighter.removeHighlights();
     this.tooltipManager.destroy();
+    this.sessionRecorder.end();
   }
 }
 
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", () => {
-    const script = new AmazonContentScript();
-    script.init();
-  });
-} else {
+function bootstrap() {
   const script = new AmazonContentScript();
   script.init();
+  window.addEventListener("beforeunload", () => script.destroy(), { once: true });
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bootstrap);
+} else {
+  bootstrap();
 }

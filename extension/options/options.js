@@ -3,6 +3,7 @@ class OptionsPage {
   constructor() {
     this.settings = null;
     this.authState = null;
+    this.accountSummary = null;
     this.init();
   }
 
@@ -27,7 +28,16 @@ class OptionsPage {
       });
     });
 
-    await Promise.all([authPromise, settingsPromise]);
+    const accountPromise = new Promise((resolve) => {
+      chrome.runtime.sendMessage({ type: 'GET_ACCOUNT_SUMMARY' }, (response) => {
+        if (response?.success) {
+          this.accountSummary = response.data;
+        }
+        resolve();
+      });
+    });
+
+    await Promise.all([authPromise, settingsPromise, accountPromise]);
   }
 
   getDefaultSettings() {
@@ -90,7 +100,7 @@ class OptionsPage {
       '<p>Choose which websites to enable keyword highlighting and capture</p>' +
       '<div class="domain-grid">' +
       domains.map(domain => {
-        const isActive = this.settings.enabled_domains[domain.id];
+        const isActive = this.settings.enabled_domains[domain.id] !== false;
         return '<div class="domain-card ' + (isActive ? 'active' : '') + '" data-domain="' + domain.id + '">' +
           '<span class="check-icon">✓</span>' +
           '<h4>' + domain.name + '</h4>' +
@@ -160,18 +170,24 @@ class OptionsPage {
   }
 
   renderAccountSection() {
+    const planName = this.accountSummary?.plan?.display_name || 'Free';
+    const planBadge = this.accountSummary?.plan?.is_trial ? '<span class="plan-badge">Trial</span>' : '';
+    const searchesUsage = this.accountSummary?.usage?.searches;
+    const watchlistUsage = this.accountSummary?.usage?.watchlist;
+
     return '<div class="settings-section">' +
       '<h2>Account</h2>' +
       '<div class="account-section">' +
       '<div class="account-card">' +
       '<h3>Plan</h3>' +
-      '<div class="account-value">Free</div>' +
-      '<span class="plan-badge">Extension Boost Active</span>' +
+      '<div class="account-value">' + planName + '</div>' +
+      planBadge +
       '</div>' +
       '<div class="account-card">' +
-      '<h3>Quota</h3>' +
-      '<div class="account-value">25/25</div>' +
-      '<p style="margin-top: 8px; font-size: 13px;">Searches remaining this month</p>' +
+      '<h3>Usage</h3>' +
+      '<div class="account-value">' + this.formatUsage(searchesUsage) + '</div>' +
+      '<p style="margin-top: 8px; font-size: 13px;">Searches this month</p>' +
+      '<p style="margin-top: 8px; font-size: 13px;">Watchlist: ' + this.formatUsage(watchlistUsage) + '</p>' +
       '</div>' +
       '</div>' +
       '<div class="button-group" style="margin-top: 20px;">' +
@@ -179,6 +195,12 @@ class OptionsPage {
       '<button class="btn btn-secondary" id="logoutBtn">Logout</button>' +
       '</div>' +
       '</div>';
+  }
+
+  formatUsage(usage) {
+    if (!usage) return '--';
+    if (usage.limit === -1) return 'Unlimited';
+    return `${usage.used}/${usage.limit}`;
   }
 
   renderFooter() {
@@ -229,7 +251,8 @@ class OptionsPage {
       }
 
       if (target.id === 'upgradeBtn') {
-        chrome.tabs.create({ url: 'https://app.lexyhub.com/pricing' });
+        const upgradeUrl = this.accountSummary?.plan?.upgrade_url || 'https://app.lexyhub.com/pricing';
+        chrome.tabs.create({ url: upgradeUrl });
       }
 
       if (target.id === 'exportDataBtn') {

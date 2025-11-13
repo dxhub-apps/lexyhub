@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { authenticateExtension, checkRateLimit } from "@/lib/extension/auth";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
-import { getPlanConfig } from "@/lib/billing/plans";
+import { getPlanConfig, isValidPlanCode } from "@/lib/billing/plans";
 
 interface AddToWatchlistPayload {
   term: string;
@@ -82,7 +82,8 @@ export async function POST(request: Request): Promise<NextResponse> {
       .eq("user_id", context.userId)
       .maybeSingle();
 
-    const planCode = (profileData?.plan || "free") as "free" | "free_extension" | "basic" | "pro" | "growth";
+    const planCodeRaw = profileData?.plan || "free";
+    const planCode = isValidPlanCode(planCodeRaw) ? planCodeRaw : "free";
     const planConfig = getPlanConfig(planCode);
     const watchlistLimit = planConfig.niches_max;
 

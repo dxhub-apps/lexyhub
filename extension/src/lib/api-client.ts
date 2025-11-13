@@ -37,6 +37,51 @@ export interface BriefResponse {
   url: string;
 }
 
+export interface BriefSummary {
+  id: string;
+  title: string;
+  market: string;
+  terms: string[];
+  executive_summary?: string;
+  created_at: string;
+  url: string;
+}
+
+export interface AccountSummaryResponse {
+  success: boolean;
+  user: {
+    id: string;
+    name: string | null;
+    company: string | null;
+    avatar_url: string | null;
+  };
+  plan: {
+    code: string;
+    display_name: string;
+    features: string[];
+    niches_max: number;
+    searches_per_month: number;
+    ai_opportunities_per_month: number;
+    is_trial: boolean;
+    trial_expires_at?: string | null;
+    upgrade_url: string;
+  };
+  usage: {
+    searches: UsageStat;
+    ai_opportunities: UsageStat;
+    watchlist: UsageStat;
+  };
+}
+
+export interface UsageStat {
+  key: string;
+  used: number;
+  limit: number;
+  percentage: number;
+  shouldWarn: boolean;
+  warningLevel: "none" | "warning" | "critical" | "blocked";
+}
+
 export interface ResolvedKeyword {
   term: string;
   keyword_id: string;
@@ -152,6 +197,17 @@ export class APIClient {
   }
 
   /**
+   * Fetch latest briefs for the authenticated user
+   */
+  async getBriefs(limit = 5): Promise<BriefSummary[]> {
+    const params = new URLSearchParams({ limit: String(limit) });
+    const response = await this.request<{ success: boolean; briefs: BriefSummary[] }>(
+      `/brief?${params.toString()}`
+    );
+    return response.briefs || [];
+  }
+
+  /**
    * Capture event for analytics
    */
   async captureEvent(payload: {
@@ -251,5 +307,12 @@ export class APIClient {
         source: "extension",
       }),
     });
+  }
+
+  /**
+   * Load plan, quota, and profile summary
+   */
+  async getAccountSummary(): Promise<AccountSummaryResponse> {
+    return this.request<AccountSummaryResponse>("/account");
   }
 }

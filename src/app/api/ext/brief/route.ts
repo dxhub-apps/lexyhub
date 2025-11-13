@@ -185,4 +185,49 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 }
 
+export async function GET(request: Request): Promise<NextResponse> {
+  const context = await authenticateExtension(request);
+  if (!context) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
+  if (!checkRateLimit(context.userId, 200, 60_000)) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+  }
+
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
+  }
+
+  const url = new URL(request.url);
+  const limitParam = Number.parseInt(url.searchParams.get("limit") || "5", 10);
+  const limit = Number.isFinite(limitParam) ? Math.min(Math.max(limitParam, 1), 20) : 5;
+
+  try {
+    const { data, error } = await supabase
+      .from("extension_briefs")
+      .select("id, title, market, terms, executive_summary, created_at")
+      .eq("user_id", context.userId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error("Error loading briefs:", error);
+      return NextResponse.json({ error: "Failed to load briefs" }, { status: 500 });
+    }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.lexyhub.com";
+    const briefs = (data || []).map((brief) => ({
+      ...brief,
+      url: `${appUrl}/briefs/${brief.id}`,
+    }));
+
+    return NextResponse.json({ success: true, briefs });
+  } catch (error) {
+    console.error("Unexpected error loading briefs:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
 export const runtime = "nodejs";

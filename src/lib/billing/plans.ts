@@ -159,8 +159,13 @@ export const USAGE_WARNING_THRESHOLDS = {
 /**
  * Get plan configuration by code
  */
-export function getPlanConfig(planCode: PlanCode): PlanLimits {
-  return PLAN_CONFIGS[planCode];
+export function getPlanConfig(planCode?: PlanCode | string | null): PlanLimits {
+  if (!planCode || typeof planCode !== 'string') {
+    return PLAN_CONFIGS.free;
+  }
+
+  const normalized = planCode.toLowerCase().trim() as PlanCode;
+  return PLAN_CONFIGS[normalized] ?? PLAN_CONFIGS.free;
 }
 
 /**
@@ -183,6 +188,11 @@ export function getAllPlans(): PlanLimits[] {
 /**
  * Check if plan code is valid
  */
-export function isValidPlanCode(code: string): code is PlanCode {
-  return code in PLAN_CONFIGS;
+export function isValidPlanCode(code: unknown): code is PlanCode {
+  if (typeof code !== 'string') {
+    return false;
+  }
+
+  const normalized = code.toLowerCase().trim();
+  return normalized in PLAN_CONFIGS;
 }
