@@ -23,7 +23,7 @@ export async function shouldEnableHighlighting(
 
   // Check if current domain is in ignore list
   const currentDomain = window.location.hostname;
-  if (settings?.ignored_domains?.includes(currentDomain)) {
+  if ((settings?.ignored_domains || []).includes(currentDomain)) {
     return {
       enabled: false,
       reason: `Domain ${currentDomain} is in ignore list`,
@@ -31,7 +31,8 @@ export async function shouldEnableHighlighting(
   }
 
   // Check if specific market domain is enabled
-  if (!settings?.enabled_domains?.[marketDomain]) {
+  const domainPreference = settings?.enabled_domains?.[marketDomain];
+  if (domainPreference === false) {
     return {
       enabled: false,
       reason: `${marketDomain} domain is disabled`,

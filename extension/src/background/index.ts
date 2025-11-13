@@ -13,6 +13,38 @@ import { AuthManager } from "../lib/auth";
 import { APIClient } from "../lib/api-client";
 import { RemoteConfig } from "../lib/remote-config";
 
+const DEFAULT_SETTINGS = {
+  enabled_domains: {
+    etsy: true,
+    amazon: true,
+    shopify: true,
+    google: false,
+    pinterest: false,
+    reddit: false,
+    bing: false,
+  },
+  highlight_enabled: true,
+  tooltip_enabled: true,
+  capture_enabled: true,
+  community_signal_opt_in: false,
+  highlight_color: "yellow",
+  tooltip_delay_ms: 300,
+  animation_enabled: true,
+  ignored_domains: [] as string[],
+};
+
+function mergeWithDefaultSettings(partial: any = {}) {
+  return {
+    ...DEFAULT_SETTINGS,
+    ...partial,
+    enabled_domains: {
+      ...DEFAULT_SETTINGS.enabled_domains,
+      ...(partial?.enabled_domains || {}),
+    },
+    ignored_domains: partial?.ignored_domains || [],
+  };
+}
+
 // Initialize managers
 const storage = new StorageManager();
 const auth = new AuthManager(storage);
@@ -30,21 +62,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     });
 
     // Initialize default settings
-    await storage.set("settings", {
-      enabled_domains: {
-        etsy: true,
-        amazon: true,
-        shopify: true,
-        google: false,
-        pinterest: false,
-        reddit: false,
-        bing: false,
-      },
-      highlight_enabled: true, // Global toggle for keyword highlighting
-      tooltip_enabled: true,
-      capture_enabled: true,
-      ignored_domains: [], // Per-domain ignore list
-    });
+    await storage.set("settings", DEFAULT_SETTINGS);
   }
 
   // Setup context menus
@@ -140,6 +158,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case "GET_BRIEFS":
       handleGetBriefs(message.payload, sendResponse);
       return true;
+    case "GET_ACCOUNT_SUMMARY":
+      handleGetAccountSummary(sendResponse);
+      return true;
 
     case "EXPORT_DATA":
       handleExportData(sendResponse);
@@ -173,14 +194,16 @@ async function handleGetAuthState(sendResponse: (response: any) => void) {
   try {
     const isAuthenticated = await auth.isAuthenticated();
     const token = await auth.getToken();
+    const user = await auth.getUser();
 
     sendResponse({
       isAuthenticated,
       hasToken: !!token,
+      user,
     });
   } catch (error) {
     console.error("[LexyHub] Error getting auth state:", error);
-    sendResponse({ isAuthenticated: false, hasToken: false });
+    sendResponse({ isAuthenticated: false, hasToken: false, user: null });
   }
 }
 
@@ -279,7 +302,11 @@ async function handleCaptureEvent(
 
 async function handleGetSettings(sendResponse: (response: any) => void) {
   try {
-    const settings = await storage.get("settings");
+    const raw = (await storage.get("settings")) || null;
+    const settings = mergeWithDefaultSettings(raw || {});
+    if (!raw) {
+      await storage.set("settings", settings);
+    }
     sendResponse({ success: true, data: settings });
   } catch (error) {
     console.error("[LexyHub] Error getting settings:", error);
@@ -292,8 +319,15 @@ async function handleUpdateSettings(
   sendResponse: (response: any) => void
 ) {
   try {
-    const currentSettings = (await storage.get("settings")) || {};
-    const updatedSettings = { ...currentSettings, ...payload };
+    const currentSettings = mergeWithDefaultSettings(await storage.get("settings"));
+    const updatedSettings = mergeWithDefaultSettings({
+      ...currentSettings,
+      ...payload,
+      enabled_domains: {
+        ...currentSettings.enabled_domains,
+        ...(payload?.enabled_domains || {}),
+      },
+    });
     await storage.set("settings", updatedSettings);
     sendResponse({ success: true, data: updatedSettings });
   } catch (error) {
@@ -319,8 +353,20 @@ async function handleSaveSession(
   sendResponse: (response: any) => void
 ) {
   try {
-    const response_data = await api.saveSession(payload);
-    sendResponse({ success: true, data: response_data });
+    if (!payload) {
+      sendResponse({ success: false, error: "Missing session payload" });
+      return;
+    }
+
+    await storage.set("current_session", payload);
+
+    let responseData = null;
+    if (payload.ended_at) {
+      responseData = await api.saveSession(payload);
+      await storage.remove("current_session");
+    }
+
+    sendResponse({ success: true, data: responseData });
   } catch (error) {
     console.error("[LexyHub] Error saving session:", error);
     sendResponse({ success: false, error: String(error) });
@@ -356,6 +402,9 @@ async function handleEndSession(sendResponse: (response: any) => void) {
   try {
     const session = await storage.get('current_session');
     if (session) {
+      if (!session.ended_at) {
+        session.ended_at = new Date().toISOString();
+      }
       await api.saveSession(session);
       await storage.remove('current_session');
     }
@@ -371,9 +420,9 @@ async function handleGetBriefs(
   sendResponse: (response: any) => void
 ) {
   try {
-    // In a real implementation, this would call an API endpoint
-    // For now, return empty array
-    sendResponse({ success: true, data: [] });
+    const limit = payload?.limit ?? 5;
+    const briefs = await api.getBriefs(limit);
+    sendResponse({ success: true, data: briefs });
   } catch (error) {
     console.error("[LexyHub] Error getting briefs:", error);
     sendResponse({ success: false, error: String(error) });
@@ -520,6 +569,16 @@ function detectMarketFromUrl(url: string): string {
   if (url.includes('reddit.com')) return 'reddit';
   if (url.includes('bing.com')) return 'bing';
   return 'shopify'; // default
+}
+
+async function handleGetAccountSummary(sendResponse: (response: any) => void) {
+  try {
+    const summary = await api.getAccountSummary();
+    sendResponse({ success: true, data: summary });
+  } catch (error) {
+    console.error("[LexyHub] Error getting account summary:", error);
+    sendResponse({ success: false, error: String(error) });
+  }
 }
 
 console.log("[LexyHub] Background service worker initialized");

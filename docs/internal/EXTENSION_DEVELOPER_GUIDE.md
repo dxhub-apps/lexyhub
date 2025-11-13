@@ -309,6 +309,12 @@ function init() {
 document.addEventListener('DOMContentLoaded', init);
 ```
 
+#### Marketplace-specific instrumentation
+
+- **Etsy (`content/etsy.ts`)** – pulls the active `search_query`, parses listing titles plus tag chips, and streams normalized keywords together with listing click positions through `SessionRecorder`. This keeps the popup's *Session* tab populated while a user scrolls Etsy SERPs.
+- **Amazon (`content/amazon.ts`)** – tracks `twotabsearchtextbox` queries, deduplicates phrases extracted from result titles, bullet lists, and product descriptions, then records every click on `.s-result-item` cards. A `WeakSet` prevents duplicate listeners when Amazon swaps DOM nodes via SPA navigation.
+- When adding a new marketplace parser, follow the same playbook: grab the query, normalize a bounded set of phrases via `batchNormalize`, feed them into `SessionRecorder`, and re-attach click handlers whenever the MutationObserver fires so highlights, telemetry, and popup quotas stay in sync.
+
 ### 3. Storage Manager (`src/lib/storage.ts`)
 
 **Wrapper around chrome.storage.sync/local:**
@@ -678,12 +684,20 @@ Authorization: Bearer <jwt_token>
 ```
 **Response:**
 ```typescript
-{ id: string; term: string; market: string; created_at: string }
+{
+  ok: boolean;
+  watchlist_id: string | null;
+  message?: string;
+  quota_key?: 'wl';
+  used?: number;
+  limit?: number;
+}
 ```
 **Side Effects:**
 1. Inserts to `user_watchlist_terms`
 2. Enqueues to `ext_watchlist_upsert_queue`
 3. Increments `community_signals` (if opted in)
+4. Enforces `plan_config.niches_max` before inserting; unknown plan codes automatically fall back to the Free plan config so quota enforcement never throws.
 
 #### `GET /api/ext/watchlist`
 **Purpose:** Retrieve user's watchlist
@@ -691,10 +705,9 @@ Authorization: Bearer <jwt_token>
 **Response:**
 ```typescript
 {
-  terms: [
-    { id: string; term: string; market: string; source_url: string; created_at: string },
-    // ... more
-  ]
+  terms: string[];
+  version: string; // md5 hash for cache invalidation
+  count: number;
 }
 ```
 
@@ -726,19 +739,54 @@ Authorization: Bearer <jwt_token>
 **Response:**
 ```typescript
 {
-  id: string;
-  title: string;
-  market: string;
-  terms: string[];
-  clusters: {
-    high_opportunity: string[];
-    medium_opportunity: string[];
-    low_opportunity: string[];
+  brief_id: string;
+  url: string; // Deep link to app.lexyhub.com/briefs/{id}
+  summary: string; // Executive summary preview
+}
+```
+
+#### `GET /api/ext/brief`
+**Purpose:** Fetch recently generated briefs for the authenticated user (used in popup Briefs tab)
+**Query Params:** `limit` (default 5, max 20)
+**Response:**
+```typescript
+{
+  success: boolean;
+  briefs: Array<{
+    id: string;
+    title: string;
+    market: string;
+    terms: string[];
+    executive_summary?: string;
+    created_at: string;
+    url: string;
+  }>;
+}
+```
+
+#### `GET /api/ext/account`
+**Purpose:** Return plan metadata, quota usage, and profile summary for the extension UI
+**Response:**
+```typescript
+{
+  success: boolean;
+  user: { id: string; name: string | null; company: string | null; avatar_url: string | null };
+  plan: {
+    code: 'free' | 'basic' | 'pro' | 'growth';
+    display_name: string;
+    features: string[];
+    niches_max: number;
+    searches_per_month: number;
+    ai_opportunities_per_month: number;
+    is_trial: boolean;
+    trial_expires_at?: string | null;
+    upgrade_url: string;
   };
-  executive_summary: string;
-  opportunity_analysis: string;
-  ai_insights: string;
-  created_at: string;
+  usage: {
+    searches: { used: number; limit: number; percentage: number; warningLevel: 'none' | 'warning' | 'critical' | 'blocked' };
+    ai_opportunities: { used: number; limit: number; percentage: number; warningLevel: 'none' | 'warning' | 'critical' | 'blocked' };
+    watchlist: { used: number; limit: number; percentage: number; warningLevel: 'none' | 'warning' | 'critical' | 'blocked' };
+  };
 }
 ```
 
