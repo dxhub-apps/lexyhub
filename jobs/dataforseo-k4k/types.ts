@@ -23,6 +23,10 @@ export interface IngestConfig {
   lexyHubMarket: string;
   defaultLanguageCode: string;
   defaultLocationCode: string;
+
+  // NOTE: K4K API does not support device/search_partners, but we
+  // keep them here for internal routing/metadata if you ever fan
+  // out to other endpoints. They MUST NOT be sent to K4K.
   k4kMaxTermsPerTask: number;
   k4kDevice: 'desktop' | 'mobile' | 'tablet';
   k4kSearchPartners: boolean;
@@ -64,15 +68,21 @@ export interface TaskChunk {
   locationCode: string;
 }
 
+/**
+ * Payload actually sent to K4K endpoint.
+ * IMPORTANT: K4K does NOT support "device" or "search_partners".
+ */
 export interface DataForSEOTaskRequest {
   language_code: string;
   location_code: string;
   keywords: string[];
-  device?: string;
-  search_partners?: boolean;
   include_adult_keywords?: boolean;
 }
 
+/**
+ * Type for the POST response from K4K.
+ * Do not include unsupported fields here either.
+ */
 export interface DataForSEOTaskPostResponse {
   version: string;
   status_code: number;
@@ -96,8 +106,6 @@ export interface DataForSEOTaskPostResponse {
       language_code: string;
       location_code: number;
       keywords: string[];
-      device?: string;
-      search_partners?: boolean;
       include_adult_keywords?: boolean;
     };
     result: null;
@@ -124,6 +132,10 @@ export interface DataForSEOTasksReadyResponse {
   }>;
 }
 
+/**
+ * Normalized representation of a single keyword item from K4K results.
+ * K4K still returns search_partners and monthly_searches.
+ */
 export interface DataForSEOKeywordItem {
   keyword: string;
   location_code: number;
@@ -164,6 +176,8 @@ export interface DataForSEOTaskGetResponse {
       language_code: string;
       location_code: number;
       keywords: string[];
+      // no device/search_partners in the request echo
+      include_adult_keywords?: boolean;
     };
     result: Array<{
       keyword: string;
@@ -201,6 +215,10 @@ export interface NormalizedKeyword {
   }> | null;
 }
 
+/**
+ * Internal raw_sources payload; here it's fine to keep device/search_partners
+ * as *lexyhub-side* metadata, even though K4K did not accept them.
+ */
 export interface RawSourcePayload {
   provider: string;
   source_type: string;
