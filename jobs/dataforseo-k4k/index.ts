@@ -98,6 +98,8 @@ function chunkLocaleGroup(
 
 /**
  * Build DataForSEO task request from chunk
+ * NOTE: K4K endpoint does NOT support device/search_partners.
+ * Those are kept only in our own metadata, not sent to DataForSEO.
  */
 function buildTaskRequest(
   chunk: TaskChunk,
@@ -107,8 +109,6 @@ function buildTaskRequest(
     language_code: chunk.languageCode,
     location_code: chunk.locationCode,
     keywords: chunk.keywords,
-    device: config.k4kDevice,
-    search_partners: config.k4kSearchPartners,
     include_adult_keywords: config.k4kIncludeAdult,
   };
 }
@@ -194,10 +194,13 @@ async function main(): Promise<void> {
 
   // Estimate cost
   const estimatedCostUsd = taskChunks.length * COST_PER_TASK_USD;
-  logger.info({
-    taskCount: taskChunks.length,
-    costPerTask: COST_PER_TASK_USD,
-  }, `Estimated cost: $${estimatedCostUsd.toFixed(4)} USD`);
+  logger.info(
+    {
+      taskCount: taskChunks.length,
+      costPerTask: COST_PER_TASK_USD,
+    },
+    `Estimated cost: $${estimatedCostUsd.toFixed(4)} USD`
+  );
 
   // DRY RUN check
   if (config.dryRun) {
@@ -255,12 +258,15 @@ async function main(): Promise<void> {
         postedAt: Date.now(),
       };
 
-      logger.info({
-        taskId: task.id,
-        locale: `${chunk.languageCode}:${chunk.locationCode}`,
-        keywords_count: chunk.keywords.length,
-        cost: task.cost,
-      }, "POSTED_TASK");
+      logger.info(
+        {
+          taskId: task.id,
+          locale: `${chunk.languageCode}:${chunk.locationCode}`,
+          keywords_count: chunk.keywords.length,
+          cost: task.cost,
+        },
+        "POSTED_TASK"
+      );
 
       return taskState;
     },
@@ -293,11 +299,14 @@ async function main(): Promise<void> {
   poller.registerTasks(taskStates);
   const pollResult = await poller.pollUntilComplete();
 
-  logger.info({
-    completed: pollResult.completed.length,
-    failed: pollResult.failed.length,
-    timedOut: pollResult.timedOut.length,
-  }, "Poll result");
+  logger.info(
+    {
+      completed: pollResult.completed.length,
+      failed: pollResult.failed.length,
+      timedOut: pollResult.timedOut.length,
+    },
+    "Poll result"
+  );
 
   // Fetch and persist results
   const getLimiter = new ConcurrencyLimiter<TaskState, void>(
@@ -327,40 +336,52 @@ async function main(): Promise<void> {
         const response = await dataForSeoClient.getTaskResult(taskState.taskId);
 
         // Log full response for debugging
-        logger.info({
-          taskId: taskState.taskId,
-          full_response: JSON.stringify(response, null, 2),
-        }, "FULL_TASK_GET_RESPONSE");
-
-        if (!response.tasks || response.tasks.length === 0) {
-          logger.error({
+        logger.info(
+          {
             taskId: taskState.taskId,
             full_response: JSON.stringify(response, null, 2),
-          }, "No tasks array in response");
+          },
+          "FULL_TASK_GET_RESPONSE"
+        );
+
+        if (!response.tasks || response.tasks.length === 0) {
+          logger.error(
+            {
+              taskId: taskState.taskId,
+              full_response: JSON.stringify(response, null, 2),
+            },
+            "No tasks array in response"
+          );
           throw new Error("No task result returned");
         }
 
         const taskResult = response.tasks[0];
 
         // Log parsed task result
-        logger.info({
-          taskId: taskState.taskId,
-          status_code: taskResult.status_code,
-          status_message: taskResult.status_message,
-          result_count: taskResult.result_count,
-          result_length: taskResult.result?.length || 0,
-          cost: taskResult.cost,
-          path: taskResult.path,
-        }, "PARSED_TASK_RESULT");
-
-        // CRITICAL: Validate status_code == 20000 for successful tasks
-        if (taskResult.status_code !== 20000) {
-          logger.error({
+        logger.info(
+          {
             taskId: taskState.taskId,
             status_code: taskResult.status_code,
             status_message: taskResult.status_message,
-            full_task_result: JSON.stringify(taskResult, null, 2),
-          }, `Task failed with status_code ${taskResult.status_code}: ${taskResult.status_message}`);
+            result_count: taskResult.result_count,
+            result_length: taskResult.result?.length || 0,
+            cost: taskResult.cost,
+            path: taskResult.path,
+          },
+          "PARSED_TASK_RESULT"
+        );
+
+        // CRITICAL: Validate status_code == 20000 for successful tasks
+        if (taskResult.status_code !== 20000) {
+          logger.error(
+            {
+              taskId: taskState.taskId,
+              status_code: taskResult.status_code,
+              status_message: taskResult.status_message,
+              full_task_result: JSON.stringify(taskResult, null, 2),
+            },
+            `Task failed with status_code ${taskResult.status_code}: ${taskResult.status_message}`
+          );
           throw new Error(
             `Task status_code ${taskResult.status_code}: ${taskResult.status_message}`
           );
@@ -373,25 +394,31 @@ async function main(): Promise<void> {
           actualCostUsd += taskResult.cost;
         }
 
-        logger.info({
-          taskId: taskState.taskId,
-          status_code: taskResult.status_code,
-          items_count: items.length,
-          cost: taskResult.cost,
-          accumulated_cost: actualCostUsd,
-          sample_items: items.slice(0, 2).map(item => ({
-            keyword: item.keyword,
-            search_volume: item.search_volume,
-            cpc: item.cpc,
-          })),
-        }, "FETCH_RESULT");
+        logger.info(
+          {
+            taskId: taskState.taskId,
+            status_code: taskResult.status_code,
+            items_count: items.length,
+            cost: taskResult.cost,
+            accumulated_cost: actualCostUsd,
+            sample_items: items.slice(0, 2).map((item) => ({
+              keyword: item.keyword,
+              search_volume: item.search_volume,
+              cpc: item.cpc,
+            })),
+          },
+          "FETCH_RESULT"
+        );
 
         // Log full response if zero results
         if (items.length === 0) {
-          logger.warn({
-            taskId: taskState.taskId,
-            full_response: JSON.stringify(taskResult, null, 2),
-          }, "Task returned zero results - logging full API response for debugging");
+          logger.warn(
+            {
+              taskId: taskState.taskId,
+              full_response: JSON.stringify(taskResult, null, 2),
+            },
+            "Task returned zero results - logging full API response for debugging"
+          );
         }
 
         // Save raw source
@@ -414,34 +441,46 @@ async function main(): Promise<void> {
           },
         };
 
-        logger.info({
-          taskId: taskState.taskId,
-          raw_payload_preview: {
-            provider: rawPayload.provider,
-            source_type: rawPayload.source_type,
-            source_key: rawPayload.source_key,
-            status: rawPayload.status,
-            items_count: items.length,
-            metadata: rawPayload.metadata,
+        logger.info(
+          {
+            taskId: taskState.taskId,
+            raw_payload_preview: {
+              provider: rawPayload.provider,
+              source_type: rawPayload.source_type,
+              source_key: rawPayload.source_key,
+              status: rawPayload.status,
+              items_count: items.length,
+              metadata: rawPayload.metadata,
+            },
           },
-        }, "INSERTING_RAW_SOURCE");
+          "INSERTING_RAW_SOURCE"
+        );
 
         const rawSourceId = await insertRawSource(supabase, rawPayload);
         if (rawSourceId) {
           rowsRawSaved++;
-          logger.info({ taskId: taskState.taskId, rawSourceId }, "RAW_SOURCE_INSERTED");
+          logger.info(
+            { taskId: taskState.taskId, rawSourceId },
+            "RAW_SOURCE_INSERTED"
+          );
         } else {
-          logger.warn({ taskId: taskState.taskId }, "RAW_SOURCE_DUPLICATE_SKIPPED");
+          logger.warn(
+            { taskId: taskState.taskId },
+            "RAW_SOURCE_DUPLICATE_SKIPPED"
+          );
         }
 
         // Normalize keywords
-        logger.info({
-          taskId: taskState.taskId,
-          items_to_normalize: items.length,
-          market: config.lexyHubMarket,
-          source: SOURCE_NAME,
-          batch_id: INGEST_BATCH_ID,
-        }, "STARTING_NORMALIZATION");
+        logger.info(
+          {
+            taskId: taskState.taskId,
+            items_to_normalize: items.length,
+            market: config.lexyHubMarket,
+            source: SOURCE_NAME,
+            batch_id: INGEST_BATCH_ID,
+          },
+          "STARTING_NORMALIZATION"
+        );
 
         const { valid, skipped } = normalizeDataForSEOBatch(
           items,
@@ -452,29 +491,38 @@ async function main(): Promise<void> {
 
         rowsSkippedInvalid += skipped;
 
-        logger.info({
-          taskId: taskState.taskId,
-          valid_count: valid.length,
-          skipped_count: skipped,
-          sample_valid: valid.slice(0, 2).map(k => ({
-            term: k.termNorm,
-            source: k.source,
-            batch_id: k.ingestBatchId,
-            search_volume: k.searchVolume,
-          })),
-        }, "NORMALIZATION_COMPLETE");
+        logger.info(
+          {
+            taskId: taskState.taskId,
+            valid_count: valid.length,
+            skipped_count: skipped,
+            sample_valid: valid.slice(0, 2).map((k) => ({
+              term: k.termNorm,
+              source: k.source,
+              batch_id: k.ingestBatchId,
+              search_volume: k.searchVolume,
+            })),
+          },
+          "NORMALIZATION_COMPLETE"
+        );
 
         if (valid.length === 0) {
-          logger.warn({ taskId: taskState.taskId, skipped }, `No valid keywords in task ${taskState.taskId}`);
+          logger.warn(
+            { taskId: taskState.taskId, skipped },
+            `No valid keywords in task ${taskState.taskId}`
+          );
           return;
         }
 
         // Upsert keywords
-        logger.info({
-          taskId: taskState.taskId,
-          keywords_to_upsert: valid.length,
-          rawSourceId,
-        }, "STARTING_KEYWORD_UPSERT");
+        logger.info(
+          {
+            taskId: taskState.taskId,
+            keywords_to_upsert: valid.length,
+            rawSourceId,
+          },
+          "STARTING_KEYWORD_UPSERT"
+        );
 
         const upsertResult = await upsertKeywordsBatch(
           supabase,
@@ -485,18 +533,24 @@ async function main(): Promise<void> {
         rowsInserted += upsertResult.inserted;
         rowsUpdated += upsertResult.updated;
 
-        logger.info({
-          taskId: taskState.taskId,
-          inserted: upsertResult.inserted,
-          updated: upsertResult.updated,
-          failed: upsertResult.failed,
-          skipped: skipped,
-        }, "UPSERT_SUMMARY");
+        logger.info(
+          {
+            taskId: taskState.taskId,
+            inserted: upsertResult.inserted,
+            updated: upsertResult.updated,
+            failed: upsertResult.failed,
+            skipped: skipped,
+          },
+          "UPSERT_SUMMARY"
+        );
       } catch (error: any) {
-        logger.error({
-          taskId: taskState.taskId,
-          error,
-        }, `Failed to process task ${taskState.taskId}: ${error.message}`);
+        logger.error(
+          {
+            taskId: taskState.taskId,
+            error,
+          },
+          `Failed to process task ${taskState.taskId}: ${error.message}`
+        );
 
         // Save failed raw source
         const rawPayload: RawSourcePayload = {
@@ -568,10 +622,7 @@ async function main(): Promise<void> {
       );
     }
   } catch (error: any) {
-    logger.error(
-      { error },
-      `Enrichment exception: ${error.message}`
-    );
+    logger.error({ error }, `Enrichment exception: ${error.message}`);
     // Non-fatal: continue with summary
   }
 
@@ -596,14 +647,23 @@ async function main(): Promise<void> {
     estimatedCostUsd: actualCostUsd > 0 ? actualCostUsd : estimatedCostUsd, // Use actual cost if available
   };
 
-  logger.info({
-    ...summary,
-    initialEstimate: estimatedCostUsd,
-    actualCost: actualCostUsd,
-    costDifference: actualCostUsd > 0 ? actualCostUsd - estimatedCostUsd : 0,
-  }, "RUN_SUMMARY");
+  logger.info(
+    {
+      ...summary,
+      initialEstimate: estimatedCostUsd,
+      actualCost: actualCostUsd,
+      costDifference:
+        actualCostUsd > 0 ? actualCostUsd - estimatedCostUsd : 0,
+    },
+    "RUN_SUMMARY"
+  );
 
-  logJobExecution("dataforseo-k4k", "completed", durationMs, summary as unknown as Record<string, unknown>);
+  logJobExecution(
+    "dataforseo-k4k",
+    "completed",
+    durationMs,
+    summary as unknown as Record<string, unknown>
+  );
 
   // Determine exit code
   if (pollResult.failed.length > 0 || pollResult.timedOut.length > 0) {
