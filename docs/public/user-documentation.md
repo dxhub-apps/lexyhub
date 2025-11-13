@@ -58,6 +58,7 @@ The Keywords workspace surfaces organic search opportunities discovered by LexyH
 - **Rich opportunity table:** Every keyword row displays demand, competition, momentum, category context, and tags, alongside quick actions for adding items to watchlists or launching the AI tag optimizer.
 - **Momentum playbook:** The Overview tab reinforces suggested next steps, surfaces the active tag emphasis, and keeps compliance notes about signals and freshness front and center.
 - **Data seeding from real searches:** When a query returns no results, LexyHub captures the term and routes it to our enrichment queue so future searches populate faster.
+- **Search reliability guardrails:** Search now normalizes the market/source data that lands in the golden keywords table, hydrates embeddings directly from the shared cache inside the Supabase ranking RPC, and aligns the tier filter with the numeric column so result sets populate immediately and placeholder keywords no longer create duplicate records when a user searches for the same phrase twice.
 
 **How to build a keyword watchlist:**
 1. Open **Keywords** from the sidebar.
