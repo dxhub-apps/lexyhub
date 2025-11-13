@@ -70,7 +70,7 @@ export class AuthManager {
    * Opens signup page in new tab
    */
   async initiateLogin(): Promise<void> {
-    const loginUrl = "https://app.lexyhub.com/signup";
+    const loginUrl = "https://app.lexyhub.com/auth/extension";
     await chrome.tabs.create({ url: loginUrl });
 
     // The auth page will store credentials in its localStorage

@@ -5,7 +5,7 @@
 
 import type { StorageManager } from "./storage";
 
-const REMOTE_CONFIG_URL = "https://app.lexyhub.com/api/ext/config";
+const REMOTE_CONFIG_URL = "https://app.lexyhub.com/api/ext/remote-config";
 const REMOTE_CONFIG_KEY = "remote_config";
 const CONFIG_CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
 
@@ -77,8 +77,14 @@ export class RemoteConfig {
         return;
       }
 
-      const config = await response.json();
-      this.config = config;
+      const payload = await response.json();
+      const config = payload?.config ?? payload;
+      if (!config || typeof config !== "object") {
+        console.warn("[RemoteConfig] Invalid config payload", payload);
+        return;
+      }
+
+      this.config = config as RemoteConfigData;
       this.lastFetchedAt = now;
 
       // Save to cache
