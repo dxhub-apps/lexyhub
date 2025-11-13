@@ -37,6 +37,13 @@ All extension endpoints are prefixed with `/api/ext/`:
 - `POST /ext/metrics/batch` - Get metrics for multiple keywords
 - `POST /ext/brief` - Create keyword brief
 - `POST /ext/capture` - Capture analytics events (optional)
+- `GET /ext/remote-config` - Remote kill-switch + feature flags consumed by the extension
+
+### Authentication Flow
+
+- The browser action "Connect LexyHub" button now opens `https://app.lexyhub.com/auth/extension`, which is the only page that issues extension-scoped tokens.
+- After the user finishes signing in, the page stores `lexyhub_ext_token` and `lexyhub_ext_user` in `localStorage` and broadcasts a `LEXYHUB_AUTH_SUCCESS` message. The background service worker polls for those values and persists them to `chrome.storage.sync`.
+- Existing installations that are still pointing at `/api/ext/config` are supported through `/api/ext/config` → `/api/ext/remote-config` forwarding, but new builds fetch `GET /api/ext/remote-config` directly and gracefully handle either response shape (`{ ... }` or `{ config: ... }`).
 
 ## Development
 
