@@ -127,7 +127,7 @@ class PopupApp {
 
   renderLoginScreen() {
     return '<div class="login-screen">' +
-      '<img src="../icons/icon-128.png" alt="LexyHub">' +
+      '<img src="../icons/icon128.png" alt="LexyHub">' +
       '<h2>Welcome to LexyHub</h2>' +
       '<p>Connect your LexyHub account to unlock keyword highlighting and insights across supported marketplaces</p>' +
       '<p style="font-size: 13px; color: #2563eb; margin-top: 8px;">✨ Extension users get extended free quota</p>' +
